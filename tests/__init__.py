@@ -1,0 +1,1 @@
+"""Test package for scm-cli."""
