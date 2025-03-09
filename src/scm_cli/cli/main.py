@@ -15,7 +15,7 @@ from cmd2 import (
     with_argparser,
     with_category, )
 
-# Configure logging
+# Use child logger from the root logger
 logger = logging.getLogger("scm_cli.cli")
 
 from rich.console import Console
@@ -27,6 +27,7 @@ from scm.client import ScmClient
 from scm.exceptions import AuthenticationError
 from src.scm_cli.utils.config import load_oauth_credentials
 from src.scm_cli.utils.db import CLIHistoryDB
+from src.scm_cli.utils.logging import set_log_level, get_log_levels
 from src.scm_cli.utils.sdk_client import create_client, test_connection
 
 # Import command modules
@@ -55,6 +56,7 @@ CATEGORY_CONFIG = "Configuration Commands"
 CATEGORY_ADDRESS = "Address Object Commands"
 CATEGORY_GENERAL = "General Commands"
 CATEGORY_HISTORY = "History Commands"
+CATEGORY_SYSTEM = "System Commands"
 
 
 def _extract_username(client_id: str) -> str:
@@ -722,6 +724,31 @@ class SCMCLI(cmd2.Cmd):
     )
     addr_del_parser.add_argument("name", help="Name of the address object")
 
+    # Logger command
+    logger_parser = Cmd2ArgumentParser(description="Control logging levels")
+    logger_subparsers = logger_parser.add_subparsers(
+        title="logger-commands", dest="subcommand"
+    )
+    
+    # Show logger levels
+    logger_show_parser = logger_subparsers.add_parser(
+        "show", help="Show current log levels"
+    )
+    
+    # Set logger level
+    logger_set_parser = logger_subparsers.add_parser(
+        "set", help="Set log level for a module"
+    )
+    logger_set_parser.add_argument(
+        "level", 
+        choices=["debug", "info", "warning", "error", "critical"],
+        help="Log level to set"
+    )
+    logger_set_parser.add_argument(
+        "--module", 
+        help="Optional module name (default: scm_cli for root logger)"
+    )
+
     @with_category(CATEGORY_ADDRESS)
     @with_argparser(delete_parser)
     def do_delete(self, args: argparse.Namespace) -> None:
@@ -818,6 +845,39 @@ class SCMCLI(cmd2.Cmd):
             )
         else:
             self.console.print(f"Unknown object type: {args.object_type}", style="red")
+    
+    @with_category(CATEGORY_SYSTEM)
+    @with_argparser(logger_parser)
+    def do_logger(self, args: argparse.Namespace) -> None:
+        """Control logging levels."""
+        if args.subcommand == "show":
+            # Get the current log levels
+            log_levels = get_log_levels()
+            
+            # Create a table for display
+            table = Table(title="Logging Levels")
+            table.add_column("Logger", style="cyan")
+            table.add_column("Level", style="green")
+            
+            # Add each logger to the table
+            for log in log_levels:
+                table.add_row(log["name"], log["level"].upper())
+            
+            self.console.print(table)
+            
+        elif args.subcommand == "set":
+            # Set the log level
+            module = args.module or "scm_cli"
+            if set_log_level(args.level, module):
+                self.console.print(
+                    f"✅ Log level for '{module}' set to {args.level.upper()}", 
+                    style="green"
+                )
+            else:
+                self.console.print(
+                    f"❌ Failed to set log level for '{module}'", 
+                    style="red"
+                )
 
 
 def main() -> None:

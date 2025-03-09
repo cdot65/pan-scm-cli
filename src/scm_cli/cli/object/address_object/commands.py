@@ -17,7 +17,7 @@ from .models import (
     SDK_TO_CLI_TYPE,
 )
 
-# Configure logging
+# Use child logger from the root logger
 logger = logging.getLogger("scm_cli.cli.object.address_object")
 
 

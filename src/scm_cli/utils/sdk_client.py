@@ -5,19 +5,8 @@ import logging
 from scm.client import ScmClient
 from .config import SCMConfig
 
-# Configure logging
+# Use child logger from the root logger
 logger = logging.getLogger("scm_cli.utils.sdk_client")
-logger.setLevel(logging.DEBUG)
-
-# Set up console handler if not already configured
-if not logger.handlers:
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
 
 
 def create_client(config: SCMConfig) -> ScmClient:
