@@ -12,7 +12,7 @@ cmd2 = "^2.4.3"
 rich = "^13.7.0"
 pyyaml = "^6.0.1"
 python-dotenv = "^1.0.0"
-pan-scm-sdk = "^0.3.15"  # Actual SCM SDK package
+pan-scm-sdk = "^0.3.18"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"

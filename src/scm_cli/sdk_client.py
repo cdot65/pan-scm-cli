@@ -177,11 +177,21 @@ class SDKClient:
         except Exception as e:
             raise APIError(f"Unknown error: {str(e)}")
 
-    def list_address_objects(self, folder: str) -> List[AddressObject]:
+    def list_address_objects(
+        self, 
+        folder: str, 
+        filter_criteria: Optional[Dict[str, str]] = None
+    ) -> List[AddressObject]:
         """List address objects.
 
         Args:
             folder: Folder to list address objects from
+            filter_criteria: Optional filter criteria dictionary
+                Examples: 
+                    {"name": "web"} - Objects with name containing "web"
+                    {"type": "fqdn"} - Objects of type FQDN
+                    {"value": "192.168.1"} - Objects with value containing "192.168.1"
+                    {"tag": "prod"} - Objects with tag containing "prod"
 
         Returns:
             List of address objects
@@ -190,7 +200,37 @@ class SDKClient:
             APIError: If API request fails
         """
         try:
-            return self.client.address_objects.list(folder=folder)
+            # Get all address objects in the folder
+            addresses = self.client.address_objects.list(folder=folder)
+            
+            # If no filter criteria, return all addresses
+            if not filter_criteria:
+                return addresses
+                
+            # Apply filters
+            filtered_addresses = []
+            for address in addresses:
+                match = True
+                
+                for key, value in filter_criteria.items():
+                    if key == "name" and value.lower() not in address.name.lower():
+                        match = False
+                        break
+                    elif key == "type" and value.lower() != address.type.value.lower():
+                        match = False
+                        break
+                    elif key == "value" and value.lower() not in address.value.lower():
+                        match = False
+                        break
+                    elif key == "tag" and not any(value.lower() in tag.lower() for tag in address.tags):
+                        match = False
+                        break
+                        
+                if match:
+                    filtered_addresses.append(address)
+                    
+            return filtered_addresses
+            
         except APIError as e:
             raise APIError(f"API error: {str(e)}")
         except Exception as e:

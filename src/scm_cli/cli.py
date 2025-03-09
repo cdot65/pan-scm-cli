@@ -3,11 +3,12 @@
 
 import argparse
 import json
-import os
+import io
 import re
 import sys
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple, Union
+from datetime import datetime
+from typing import Dict, List, Optional, Set, Tuple, Any
 
 import cmd2
 from cmd2 import (
@@ -26,6 +27,7 @@ from rich.table import Table
 from rich.text import Text
 
 from .config import SCMConfig, load_oauth_credentials
+from .db import CLIHistoryDB
 from .mock_sdk import AddressObjectType, AuthenticationError  # Import from actual panscm when available
 from .sdk_client import (
     APIError,
@@ -49,12 +51,15 @@ class SCMState:
     known_folders: Set[str] = field(default_factory=set)
     # Track address objects we've seen for autocompletion
     known_address_objects: Dict[str, Set[str]] = field(default_factory=dict)
+    # History database
+    history_db: CLIHistoryDB = field(default_factory=lambda: CLIHistoryDB())
 
 
 # Command categories
 CATEGORY_CONFIG = "Configuration Commands"
 CATEGORY_ADDRESS = "Address Object Commands"
 CATEGORY_GENERAL = "General Commands"
+CATEGORY_HISTORY = "History Commands"
 
 
 class SCMCLI(cmd2.Cmd):
@@ -92,7 +97,33 @@ class SCMCLI(cmd2.Cmd):
         
         # Configure cmd2 to use ? to display help
         self.continuation_prompt = '> '
-
+        
+    # Use cmd2's built-in history mechanism but also store in our database
+    def postcmd(self, stop: bool, statement: cmd2.Statement) -> bool:
+        """Executed after the command is processed.
+        
+        Args:
+            stop: True if the command loop should terminate
+            statement: The command statement that was executed
+            
+        Returns:
+            True if the command loop should terminate, False otherwise
+        """
+        # Skip recording certain commands
+        skip_recording = ['history', 'help', 'exit', 'quit']
+        should_record = statement.command and statement.command not in skip_recording
+        
+        # Record the command to the database
+        if should_record:
+            self.state.history_db.add_command(
+                command=statement.raw.strip(),
+                response="",  # We simplify by not capturing output for now
+                folder=self.state.current_folder,
+                success=True
+            )
+            
+        return super().postcmd(stop, statement)
+        
     def _extract_username(self, client_id: str) -> str:
         """Extract username from client_id.
         
@@ -244,12 +275,25 @@ class SCMCLI(cmd2.Cmd):
         elif cmd == "show":
             if len(context) == 1:
                 self.console.print("Available objects to show:")
-                self.console.print("  address-object  - Show details of a specific address object")
-                self.console.print("  address-objects - Show all address objects in the current folder")
+                self.console.print("  address-object         - Show details of a specific address object")
+                self.console.print("  address-objects        - Show all address objects in the current folder")
+                self.console.print("  address-objects-filter - Search and filter address objects")
             elif len(context) == 2 and context[1] == "address-object":
                 self.console.print("Syntax: show address-object <name>")
                 self.console.print("\nArguments:")
                 self.console.print("  <name> - Name of the address object to show")
+            elif len(context) == 2 and context[1] == "address-objects-filter":
+                self.console.print("Syntax: show address-objects-filter [--name <substring>] [--type <type>] [--value <substring>] [--tag <substring>]")
+                self.console.print("\nFilter options:")
+                self.console.print("  --name <substring>  - Filter by name (substring match)")
+                self.console.print("  --type <type>       - Filter by type (exact match, one of: ip-netmask, ip-range, ip-wildcard, fqdn)")
+                self.console.print("  --value <substring> - Filter by value (substring match)")
+                self.console.print("  --tag <substring>   - Filter by tag (substring match)")
+                self.console.print("\nExamples:")
+                self.console.print("  show address-objects-filter --name web        # Find objects with 'web' in the name")
+                self.console.print("  show address-objects-filter --type fqdn       # Show only FQDN objects")
+                self.console.print("  show address-objects-filter --value 192.168   # Find objects with value containing '192.168'")
+                self.console.print("  show address-objects-filter --tag prod        # Find objects with 'prod' in any tag")
                 
         # Help for delete command
         elif cmd == "delete":
@@ -270,6 +314,25 @@ class SCMCLI(cmd2.Cmd):
                 self.console.print("Syntax: edit folder <name>")
                 self.console.print("\nArguments:")
                 self.console.print("  <name> - Name of the folder to edit")
+        
+        # Help for history command
+        elif cmd == "history":
+            self.console.print("Syntax: history [--page <name>] [--limit <name>] [--folder <folder>] [--filter <text>] [--clear] [--id <name>]")
+            self.console.print("\nOptions:")
+            self.console.print("  --page <name>       - Page number to display, starting from 1 (default: 1)")
+            self.console.print("  --limit <name>      - Maximum number of history entries to show per page (default: 50)")
+            self.console.print("  --folder <folder> - Filter history by folder")
+            self.console.print("  --filter <text>   - Filter history by command content")
+            self.console.print("  --clear           - Clear command history")
+            self.console.print("  --id <name>         - Show details of a specific history entry")
+            self.console.print("\nExamples:")
+            self.console.print("  history                     # Show last 50 commands")
+            self.console.print("  history --page 2            # Show second page of commands")
+            self.console.print("  history --limit 20          # Show only 20 commands per page")
+            self.console.print("  history --folder Texas      # Show commands from the Texas folder")
+            self.console.print("  history --filter address    # Show commands containing 'address'")
+            self.console.print("  history --id 5              # Show details of history entry #5")
+            self.console.print("  history --clear             # Clear all command history")
                 
         # General help for other commands
         else:
@@ -400,6 +463,115 @@ class SCMCLI(cmd2.Cmd):
     def do_quit(self, _: cmd2.Statement) -> bool:
         """Exit the CLI."""
         return True
+        
+    # History command parser
+    history_parser = Cmd2ArgumentParser(description="Show command history")
+    history_parser.add_argument("--limit", type=int, default=50, help="Maximum number of history entries to show per page")
+    history_parser.add_argument("--page", type=int, default=1, help="Page number to display (starting from 1)")
+    history_parser.add_argument("--folder", help="Filter history by folder")
+    history_parser.add_argument("--filter", help="Filter history by command content")
+    history_parser.add_argument("--clear", action="store_true", help="Clear command history")
+    history_parser.add_argument("--id", type=int, help="Show details of a specific history entry")
+    
+    @with_category(CATEGORY_HISTORY)
+    @with_argparser(history_parser)
+    def do_history(self, args: argparse.Namespace) -> None:
+        """Show command history."""
+        if args.clear:
+            self.state.history_db.clear_history()
+            self.console.print("Command history cleared", style="green")
+            return
+        
+        # If an ID is specified, show details for that specific entry
+        if args.id is not None:
+            entry = self.state.history_db.get_history_entry(args.id)
+            if not entry:
+                self.console.print(f"History entry with ID {args.id} not found", style="red")
+                return
+                
+            id, timestamp, command, response, folder, success = entry
+                
+            # Format the timestamp
+            try:
+                dt = datetime.fromisoformat(timestamp)
+                formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                formatted_time = timestamp
+                
+            # Display the history entry details
+            self.console.print(f"[bold cyan]History Entry #{id}[/bold cyan]")
+            self.console.print(f"[bold]Timestamp:[/bold] {formatted_time}")
+            self.console.print(f"[bold]Folder:[/bold] {folder or 'None'}")
+            self.console.print(f"[bold]Command:[/bold] {command}")
+            self.console.print("\n[bold]Response:[/bold]")
+            self.console.print(response)
+            return
+            
+        # Validate page number
+        if args.page < 1:
+            self.console.print("Page number must be 1 or greater", style="red")
+            return
+        
+        # Get history from database with pagination
+        history_items, total_count = self.state.history_db.get_history(
+            limit=args.limit,
+            page=args.page,
+            folder=args.folder,
+            command_filter=args.filter
+        )
+        
+        if not history_items:
+            self.console.print("No command history found", style="yellow")
+            return
+        
+        # Calculate pagination info
+        total_pages = (total_count + args.limit - 1) // args.limit  # Ceiling division
+        
+        # Create table for display
+        title = f"Command History (Page {args.page} of {total_pages})"
+        if args.folder or args.filter:
+            filters = []
+            if args.folder:
+                filters.append(f"folder='{args.folder}'")
+            if args.filter:
+                filters.append(f"filter='{args.filter}'")
+            title += f" [Filtered by: {', '.join(filters)}]"
+            
+        table = Table(title=title)
+        table.add_column("ID", style="cyan", justify="right")
+        table.add_column("Timestamp", style="magenta")
+        table.add_column("Folder", style="green")
+        table.add_column("Command", style="blue")
+        
+        # Add history items to table
+        for id, timestamp, command, response, folder, success in history_items:
+            # Format the timestamp
+            try:
+                dt = datetime.fromisoformat(timestamp)
+                formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+            except (ValueError, TypeError):
+                formatted_time = timestamp
+                
+            table.add_row(
+                str(id),
+                formatted_time,
+                folder or "",
+                command
+            )
+            
+        self.console.print(table)
+        
+        # Show pagination help
+        pagination_help = []
+        if args.page > 1:
+            pagination_help.append(f"'history --page {args.page-1}' for previous page")
+        if args.page < total_pages:
+            pagination_help.append(f"'history --page {args.page+1}' for next page")
+            
+        if pagination_help:
+            self.console.print(f"\nPagination: {' | '.join(pagination_help)}", style="dim")
+            
+        self.console.print("\nTip: Use 'history --id <n>' to view the full details of a specific entry", style="dim")
     
     @with_category(CATEGORY_CONFIG)
     def do_configure(self, _: cmd2.Statement) -> bool:
@@ -534,7 +706,7 @@ class SCMCLI(cmd2.Cmd):
                             description=description,
                             tags=tags,
                         )
-                        self.console.print(f"Updated address object: {name}", style="green")
+                        self.console.print(f"✅ - updated address-object {name}", style="green")
                     except ResourceNotFoundError:
                         # Address object doesn't exist, create it
                         address = self.state.sdk_client.create_address_object(
@@ -545,7 +717,7 @@ class SCMCLI(cmd2.Cmd):
                             description=description,
                             tags=tags,
                         )
-                        self.console.print(f"Created address object: {name}", style="green")
+                        self.console.print(f"✅ - created address-object {name}", style="green")
                     
                     # Add to known address objects for autocompletion
                     if folder not in self.state.known_address_objects:
@@ -570,6 +742,24 @@ class SCMCLI(cmd2.Cmd):
     addr_del_parser = delete_subparsers.add_parser("address-object", help="Delete an address object")
     addr_del_parser.add_argument("name", help="Name of the address object").completer = address_completer
     
+    # Show command
+    show_parser = Cmd2ArgumentParser(description="Show object details")
+    show_subparsers = show_parser.add_subparsers(title="objects", dest="object_type")
+    
+    # Address object subparser
+    addr_show_parser = show_subparsers.add_parser("address-object", help="Show address object details")
+    addr_show_parser.add_argument("name", help="Name of the address object to show").completer = address_completer
+    
+    # Show all address objects
+    addr_all_parser = show_subparsers.add_parser("address-objects", help="Show all address objects")
+    
+    # Search address objects - new subparser
+    addr_search_parser = show_subparsers.add_parser("address-objects-filter", help="Search and filter address objects")
+    addr_search_parser.add_argument("--name", help="Filter by name (substring match)")
+    addr_search_parser.add_argument("--type", help="Filter by type (exact match)", choices=["ip-netmask", "ip-range", "ip-wildcard", "fqdn"])
+    addr_search_parser.add_argument("--value", help="Filter by value (substring match)")
+    addr_search_parser.add_argument("--tag", help="Filter by tag (substring match)")
+    
     @with_category(CATEGORY_ADDRESS)
     @with_argparser(delete_parser)
     def do_delete(self, args: argparse.Namespace) -> None:
@@ -587,7 +777,7 @@ class SCMCLI(cmd2.Cmd):
             
             try:
                 self.state.sdk_client.delete_address_object(folder, args.name)
-                self.console.print(f"Deleted address object: {args.name}", style="green")
+                self.console.print(f"✅ - deleted address-object {args.name}", style="green")
                 
                 # Remove from known address objects
                 if folder in self.state.known_address_objects:
@@ -601,7 +791,7 @@ class SCMCLI(cmd2.Cmd):
         else:
             self.console.print(f"Unknown object type: {args.object_type}", style="red")
 
-    # Show command
+    # Show command parser definition
     show_parser = Cmd2ArgumentParser(description="Show object details")
     show_subparsers = show_parser.add_subparsers(title="objects", dest="object_type")
     
@@ -611,6 +801,13 @@ class SCMCLI(cmd2.Cmd):
     
     # Show all address objects
     addr_all_parser = show_subparsers.add_parser("address-objects", help="Show all address objects")
+    
+    # Search address objects - new subparser
+    addr_search_parser = show_subparsers.add_parser("address-objects-filter", help="Search and filter address objects")
+    addr_search_parser.add_argument("--name", help="Filter by name (substring match)")
+    addr_search_parser.add_argument("--type", help="Filter by type (exact match)", choices=["ip-netmask", "ip-range", "ip-wildcard", "fqdn"])
+    addr_search_parser.add_argument("--value", help="Filter by value (substring match)")
+    addr_search_parser.add_argument("--tag", help="Filter by tag (substring match)")
     
     @with_category(CATEGORY_ADDRESS)
     @with_argparser(show_parser)
@@ -629,6 +826,22 @@ class SCMCLI(cmd2.Cmd):
             self.console.print("No folder selected", style="red")
             return
 
+        # Map CLI types to SDK types for filtering
+        cli_to_sdk_type = {
+            "ip-netmask": "ip",
+            "ip-range": "range",
+            "ip-wildcard": "wildcard",
+            "fqdn": "fqdn"
+        }
+        
+        # Map SDK types to CLI types for display
+        sdk_to_cli_type = {
+            "ip": "ip-netmask",
+            "range": "ip-range",
+            "wildcard": "ip-wildcard",
+            "fqdn": "fqdn"
+        }
+
         if args.object_type == "address-object":
             try:
                 address = self.state.sdk_client.get_address_object(folder, args.name)
@@ -637,14 +850,8 @@ class SCMCLI(cmd2.Cmd):
                 obj_dict = address.to_dict()
                 
                 # Map SDK type to CLI type for display
-                type_map = {
-                    "ip": "ip-netmask",
-                    "range": "ip-range",
-                    "wildcard": "ip-wildcard",
-                    "fqdn": "fqdn"
-                }
                 if "type" in obj_dict:
-                    obj_dict["type"] = type_map.get(obj_dict["type"], obj_dict["type"])
+                    obj_dict["type"] = sdk_to_cli_type.get(obj_dict["type"], obj_dict["type"])
                 
                 # Pretty print as JSON using rich
                 json_str = json.dumps(obj_dict, indent=2)
@@ -677,18 +884,10 @@ class SCMCLI(cmd2.Cmd):
                 table.add_column("Description", style="magenta")
                 table.add_column("Tags", style="yellow")
                 
-                # Map SDK types to CLI types
-                type_map = {
-                    "ip": "ip-netmask",
-                    "range": "ip-range",
-                    "wildcard": "ip-wildcard",
-                    "fqdn": "fqdn"
-                }
-                
                 for addr in addresses:
                     table.add_row(
                         addr.name,
-                        type_map.get(addr.type.value, addr.type.value),
+                        sdk_to_cli_type.get(addr.type.value, addr.type.value),
                         addr.value,
                         addr.description or "",
                         ", ".join(addr.tags) if addr.tags else ""
@@ -703,6 +902,59 @@ class SCMCLI(cmd2.Cmd):
                 
             except APIError as e:
                 self.console.print(f"API error: {e}", style="red")
+                
+        elif args.object_type == "address-objects-filter":
+            try:
+                # Build filter criteria from arguments
+                filter_criteria = {}
+                
+                if args.name:
+                    filter_criteria["name"] = args.name
+                    
+                if args.type:
+                    filter_criteria["type"] = cli_to_sdk_type.get(args.type, args.type)
+                    
+                if args.value:
+                    filter_criteria["value"] = args.value
+                    
+                if args.tag:
+                    filter_criteria["tag"] = args.tag
+                
+                # Get filtered addresses
+                addresses = self.state.sdk_client.list_address_objects(folder, filter_criteria)
+                
+                if not addresses:
+                    self.console.print(f"No address objects found matching criteria in folder '{folder}'", style="yellow")
+                    return
+                
+                # Create a table for display
+                filter_text = ", ".join([f"{k}='{v}'" for k, v in filter_criteria.items()])
+                table = Table(title=f"Address Objects in {folder} (filtered by {filter_text})")
+                table.add_column("Name", style="cyan")
+                table.add_column("Type", style="green")
+                table.add_column("Value", style="blue")
+                table.add_column("Description", style="magenta")
+                table.add_column("Tags", style="yellow")
+                
+                for addr in addresses:
+                    table.add_row(
+                        addr.name,
+                        sdk_to_cli_type.get(addr.type.value, addr.type.value),
+                        addr.value,
+                        addr.description or "",
+                        ", ".join(addr.tags) if addr.tags else ""
+                    )
+                
+                self.console.print(table)
+                
+                # Add to known address objects for autocompletion
+                if folder not in self.state.known_address_objects:
+                    self.state.known_address_objects[folder] = set()
+                self.state.known_address_objects[folder].update(addr.name for addr in addresses)
+                
+            except APIError as e:
+                self.console.print(f"API error: {e}", style="red")
+                
         else:
             self.console.print(f"Unknown object type: {args.object_type}", style="red")
 

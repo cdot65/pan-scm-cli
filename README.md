@@ -67,12 +67,14 @@ poetry run scm-cli
 - `edit folder <folder-name>` - Edit a specific folder
 - `exit` - Exit current mode or the CLI
 - `quit` - Exit the CLI
+- `history` - Show command history
 
 ### Address Object Commands
 
 - `set address-object <name> <type> <value> [description <text>] [tags <tags>]` - Create/update an address object
 - `show address-object <name>` - Display address object details
 - `show address-objects` - List all address objects in current folder
+- `show address-objects-filter [--name <name>] [--type <type>] [--value <val>] [--tag <tag>]` - Search and filter address objects
 - `delete address-object <name>` - Delete an address object
 
 ### Address Object Types
@@ -83,6 +85,20 @@ The following address object types are supported:
 - `ip-range` - IP address range (e.g., 192.168.1.1-192.168.1.10)
 - `ip-wildcard` - IP address with wildcard mask (e.g., 192.168.1.0/0.0.0.255)
 - `fqdn` - Fully qualified domain name (e.g., example.com)
+
+### History Command
+
+The SCM CLI maintains a history of commands and their outputs in a local SQLite database. This allows you to review past commands and their results.
+
+- `history` - Show the last 50 commands (default)
+- `history --page <n>` - Navigate between pages of history
+- `history --limit <n>` - Change how many commands are shown per page
+- `history --folder <folder>` - Filter history by folder
+- `history --filter <text>` - Filter history by command content
+- `history --id <n>` - Show details of a specific history entry, including command output
+- `history --clear` - Clear the command history
+
+The history command supports pagination to browse through large command histories. The system shows 50 entries per page by default and provides navigation help for moving between pages.
 
 ### Getting Help
 
@@ -133,7 +149,7 @@ Optional arguments:
   tags        - Comma-separated list of tags
 
 developer(Texas)# set address-object Test123 ip-netmask 1.1.1.1/32 description "Test address" tags "Automation,Python"
-Created address object: Test123
+✅ - created address-object Test123
 developer(Texas)# show address-object Test123
 {
   "name": "Test123",
@@ -142,6 +158,17 @@ developer(Texas)# show address-object Test123
   "description": "Test address",
   "tags": ["Automation", "Python"]
 }
+developer(Texas)# set address-object Test123 ip-netmask 2.2.2.2/32 description "Updated description"
+✅ - updated address-object Test123
+developer(Texas)# show address-objects-filter --type ip-netmask
+Address Objects in Texas (filtered by type='ip')
+┌─────────┬────────────┬───────────┬─────────────────────┬───────────────────┐
+│ Name    │ Type       │ Value     │ Description         │ Tags              │
+├─────────┼────────────┼───────────┼─────────────────────┼───────────────────┤
+│ Test123 │ ip-netmask │ 2.2.2.2/32│ Updated description │ Automation, Python│
+└─────────┴────────────┴───────────┴─────────────────────┴───────────────────┘
+developer(Texas)# delete address-object Test123
+✅ - deleted address-object Test123
 developer(Texas)# exit
 developer@scm# exit
 $
