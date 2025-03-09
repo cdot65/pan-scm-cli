@@ -1,9 +1,7 @@
 """Database module for SCM CLI history."""
 
 import datetime
-import os
 import sqlite3
-from pathlib import Path
 from typing import List, Optional, Tuple
 
 
