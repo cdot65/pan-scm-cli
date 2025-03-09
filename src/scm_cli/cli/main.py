@@ -13,7 +13,8 @@ import cmd2
 from cmd2 import (
     Cmd2ArgumentParser,
     with_argparser,
-    with_category, )
+    with_category,
+)
 
 # Use child logger from the root logger
 logger = logging.getLogger("scm_cli.cli")

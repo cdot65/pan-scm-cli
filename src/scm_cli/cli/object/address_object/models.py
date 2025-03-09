@@ -1,7 +1,6 @@
 """Address object models and utilities for SCM CLI."""
 
 import logging
-import time
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -11,6 +10,8 @@ from scm.models.objects import (
     AddressCreateModel,
     AddressUpdateModel,
 )
+
+from src.scm_cli.utils.decorators import timeit, retry
 
 # Use child logger from the root logger
 logger = logging.getLogger("scm_cli.cli.object.address_object.models")
@@ -50,24 +51,6 @@ class ResourceNotFoundError(Exception):
     """Exception raised when a resource is not found."""
 
     pass
-
-
-def timeit(func):
-    """Decorator to measure execution time of functions."""
-
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        end_time = time.time()
-        duration = end_time - start_time
-        logger.debug(f"Function {func.__name__} took {duration:.3f} seconds")
-        if duration > 1.0:
-            logger.warning(
-                f"Function {func.__name__} took {duration:.3f} seconds - performance optimization may be needed"
-            )
-        return result
-
-    return wrapper
 
 
 def get_attribute_safely(obj: Any, attr_name: str, default=None) -> Any:
@@ -198,7 +181,12 @@ class AddressObjectAPI:
                 getattr(self.address, "fetch")
             ):
                 try:
-                    obj = self.address.fetch(folder=folder, name=name)
+                    # Use the retry decorator for API operations that might fail intermittently
+                    @retry(max_attempts=3, delay=0.5)
+                    def fetch_with_retry():
+                        return self.address.fetch(folder=folder, name=name)
+                    
+                    obj = fetch_with_retry()
                     return obj
                 except NotFoundError:
                     return None
@@ -275,15 +263,25 @@ class AddressObjectAPI:
 
             # Create the object - let the SDK handle the pydantic conversion
             try:
-                # Pass dictionary directly to create method
-                obj = self.address.create(data)
+                # Define a retry-enabled creation function for API stability
+                @retry(max_attempts=2, delay=1.0)
+                def create_with_retry(data_dict):
+                    try:
+                        # First try direct dictionary approach
+                        return self.address.create(data_dict)
+                    except Exception as e:
+                        # If direct creation fails, try using the model
+                        logger.debug(f"Direct creation failed: {str(e)}, trying with model")
+                        model = AddressCreateModel(**data_dict)
+                        return self.address.create(model)
+                
+                # Call the retry-wrapped function
+                obj = create_with_retry(data)
                 return obj
             except Exception as e:
-                # If direct creation fails, try using the model
-                logger.debug(f"Direct creation failed: {str(e)}, trying with model")
-                model = AddressCreateModel(**data)
-                obj = self.address.create(model)
-                return obj
+                # This will be reached if all retry attempts failed
+                logger.error(f"All creation attempts failed: {str(e)}")
+                raise
 
         except Exception as e:
             if "already exists" in str(e) or "not unique" in str(e):

@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 from rich.console import Console
 from rich.table import Table
@@ -19,6 +19,79 @@ from .models import (
 
 # Use child logger from the root logger
 logger = logging.getLogger("scm_cli.cli.object.address_object")
+
+
+def parse_quoted_value(args: List[str], start_index: int) -> Tuple[str, int]:
+    """Parse a potentially quoted string value from command arguments.
+    
+    This helper function handles values that may be:
+    - Unquoted: single argument with no special handling
+    - Double quoted: wrapped in double quotes (") and may span multiple arguments
+    - Single quoted: wrapped in single quotes (') and may span multiple arguments
+    
+    It also handles escaped quotes within the quoted strings.
+    
+    Args:
+        args: List of command arguments
+        start_index: The index of the first argument to process
+        
+    Returns:
+        Tuple containing (parsed_value, end_index)
+        - parsed_value: The processed string with quotes removed if applicable
+        - end_index: The index of the last argument that was consumed
+    """
+    if start_index >= len(args):
+        return "", start_index
+        
+    value = args[start_index]
+    end_index = start_index
+    quote_char = None
+    
+    # Detect quote type if present
+    if value.startswith('"'):
+        quote_char = '"'
+    elif value.startswith("'"):
+        quote_char = "'"
+    
+    # If no quotes or complete quotes in a single argument, handle simply
+    if not quote_char or (value.startswith(quote_char) and value.endswith(quote_char) and len(value) > 1):
+        # For single argument with quotes, just strip them
+        if quote_char and value.startswith(quote_char) and value.endswith(quote_char):
+            value = value[1:-1]
+            
+            # Unescape any escaped quotes
+            if quote_char == '"':
+                value = value.replace('\\"', '"')
+            elif quote_char == "'":
+                value = value.replace("\\'", "'")
+                
+        return value, end_index
+    
+    # Handle multi-part quoted string (quotes that span multiple arguments)
+    if quote_char:
+        j = start_index + 1
+        while j < len(args):
+            # Add space and next part
+            value += " " + args[j]
+            
+            # Check if this part ends with the closing quote
+            # But make sure it's not an escaped quote (e.g., \")
+            if args[j].endswith(quote_char) and not args[j].endswith(f"\\{quote_char}"):
+                end_index = j
+                break
+            j += 1
+            
+        # Strip quotes from the final string if they're matching
+        if value.startswith(quote_char) and value.endswith(quote_char):
+            value = value[1:-1]  # Remove surrounding quotes
+            
+            # Unescape any escaped quotes in the content
+            if quote_char == '"':
+                value = value.replace('\\"', '"')
+            elif quote_char == "'":
+                value = value.replace("\\'", "'")
+    
+    return value, end_index
 
 
 def parse_address_object_args(args: List[str]) -> Dict[str, Any]:
@@ -46,7 +119,7 @@ def parse_address_object_args(args: List[str]) -> Dict[str, Any]:
     i = 0
 
     while i < len(args):
-        # Get the keyword and advance
+        # Get the keyword
         keyword = args[i].lower()
         i += 1
 
@@ -56,9 +129,12 @@ def parse_address_object_args(args: List[str]) -> Dict[str, Any]:
 
         # Process based on keyword
         if keyword == "name":
-            parsed_args["name"] = args[i]
+            # Names should also support quote handling
+            value, end_idx = parse_quoted_value(args, i)
+            parsed_args["name"] = value
+            i = end_idx  # Update index to end of processed value
         elif keyword == "type":
-            # Validate type
+            # Validate type (typically doesn't need quote handling)
             valid_types = ["ip-netmask", "ip-range", "fqdn"]
             if args[i] not in valid_types:
                 valid_types_str = ", ".join(valid_types)
@@ -67,27 +143,22 @@ def parse_address_object_args(args: List[str]) -> Dict[str, Any]:
                 )
             parsed_args["type"] = args[i]
         elif keyword == "value":
-            parsed_args["value"] = args[i]
+            # Value might contain quotes (especially for FQDN)
+            value, end_idx = parse_quoted_value(args, i)
+            parsed_args["value"] = value
+            i = end_idx  # Update index to end of processed value
         elif keyword == "description":
-            # Description might be quoted, so handle special case
-            description = args[i]
-            # If starts with quote but doesn't end with quote, collect until closing quote
-            if description.startswith('"') and not description.endswith('"'):
-                j = i + 1
-                while j < len(args):
-                    description += " " + args[j]
-                    if args[j].endswith('"'):
-                        break
-                    j += 1
-                if j < len(args):
-                    i = j  # Skip ahead
-            # Remove surrounding quotes if present
-            if description.startswith('"') and description.endswith('"'):
-                description = description[1:-1]
-            parsed_args["description"] = description
+            # Description often contains spaces, so use our helper function
+            value, end_idx = parse_quoted_value(args, i)
+            parsed_args["description"] = value
+            i = end_idx  # Update index to end of processed value
         elif keyword == "tags":
             # Parse comma-separated tags
-            parsed_args["tag"] = [tag.strip() for tag in args[i].split(",")]
+            # First, handle quoted tag list (e.g., "tag1,tag2,tag3")
+            value, end_idx = parse_quoted_value(args, i)
+            # Then split the tags
+            parsed_args["tag"] = [tag.strip() for tag in value.split(",")]
+            i = end_idx  # Update index to end of processed value
         else:
             raise ValueError(f"Unknown keyword: {keyword}")
 
