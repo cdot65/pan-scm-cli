@@ -1,0 +1,1 @@
+"""Example scripts and modules for SCM CLI."""

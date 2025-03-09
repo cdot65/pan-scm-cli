@@ -22,7 +22,7 @@ mypy = "^1.6.1"
 flake8 = "^6.1.0"
 
 [tool.poetry.scripts]
-scm-cli = "scm_cli.cli:main"
+scm-cli = "scm_cli:main"
 
 [tool.black]
 line-length = 88

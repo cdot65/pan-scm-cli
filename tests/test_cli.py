@@ -47,7 +47,7 @@ def cli_with_sdk(mock_sdk_client):
 def test_extract_username():
     """Test extracting the username from client_id."""
     # Test the method directly without initializing the full class
-    cli = SCMCLI.__new__(SCMCLI)  # Create instance without calling __init__
+    cli = SCMCLI  # Create instance without calling __init__
     
     # Test with email format
     assert cli._extract_username("developer@example.com") == "developer"
