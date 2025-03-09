@@ -269,9 +269,9 @@ class AddressObjectAPI:
                     try:
                         # First try direct dictionary approach
                         return self.address.create(data_dict)
-                    except Exception as e:
+                    except Exception as error_e:
                         # If direct creation fails, try using the model
-                        logger.debug(f"Direct creation failed: {str(e)}, trying with model")
+                        logger.debug(f"Direct creation failed: {str(error_e)}, trying with model")
                         model = AddressCreateModel(**data_dict)
                         return self.address.create(model)
                 

@@ -1,12 +1,10 @@
 """Configuration module for SCM CLI."""
 
 import os
-import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
-import yaml
 from dotenv import load_dotenv
 from rich.console import Console
 
@@ -44,14 +42,7 @@ def load_oauth_credentials() -> Tuple[bool, Optional[SCMConfig]]:
     
     # Load environment variables from .env file
     load_dotenv(env_path)
-    
-    # Check required variables
-    env_vars = {
-        "SCM_CLIENT_ID": "client_id",
-        "SCM_CLIENT_SECRET": "client_secret", 
-        "SCM_TSG_ID": "tsg_id"
-    }
-    
+
     # Get values from environment
     client_id = os.getenv("SCM_CLIENT_ID", "")
     client_secret = os.getenv("SCM_CLIENT_SECRET", "")

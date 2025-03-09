@@ -67,7 +67,7 @@ def parse_quoted_value(args: List[str], start_index: int) -> Tuple[str, int]:
                 
         return value, end_index
     
-    # Handle multi-part quoted string (quotes that span multiple arguments)
+    # Handle multipart quoted string (quotes that span multiple arguments)
     if quote_char:
         j = start_index + 1
         while j < len(args):
