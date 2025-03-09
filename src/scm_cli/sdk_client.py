@@ -396,15 +396,17 @@ class SDKClient:
         """Update an address object using direct SDK calls, handling object lookup internally.
         
         This method tries to update an address object in the most efficient way possible,
-        based on the capabilities of the underlying SDK.
+        based on the capabilities of the underlying SDK. Supports partial updates where
+        only provided fields will be updated.
         
         Args:
             folder: Folder containing the address object
             name: Name of the address object
             type_val: Type of the address object (ip, range, fqdn)
             value: Value for the address object
-            description: Optional description
-            tags: Optional tags
+            description: Optional description (if None, won't be updated)
+            tags: Optional tags (if None, won't be updated)
+            object_id: Optional object ID to avoid lookup
             
         Returns:
             AddressObject: The updated address object
@@ -415,13 +417,19 @@ class SDKClient:
             APIError: If API request fails
         """
         try:
-            # Create config dictionary
+            # Create config dictionary with required fields
             config = {
                 "name": name,
                 "folder": folder,
-                "description": description,
-                "tag": tags or [],
             }
+            
+            # Only include description if explicitly provided
+            if description is not None:
+                config["description"] = description
+                
+            # Only include tags if explicitly provided  
+            if tags is not None:
+                config["tag"] = tags
             
             # Add the appropriate field based on address type
             if type_val == "ip":
@@ -491,31 +499,55 @@ class SDKClient:
                 logger.debug(f"Performing direct PUT to /config/objects/addresses/{object_id}")
                 
                 try:
-                    # Try to create model if we have model support
-                    if HAS_NEW_MODELS:
+                    # For partial updates, we need to approach this differently
+                    # First try direct API call which is most reliable for patches
+                    if hasattr(self.client, 'put') and callable(getattr(self.client, 'put')):
+                        logger.debug("Using direct REST API call for partial update")
+                        url = f"/config/objects/addresses/{object_id}"
+                        updated_obj = self.client.put(url, json=update_dict)
+                    elif HAS_NEW_MODELS:
                         # Convert to model and then use the address manager's update method
                         logger.debug("Creating AddressUpdateModel for update")
-                        model = AddressUpdateModel(**update_dict)
-                        
-                        # Use model_dump to get a clean dictionary for update
-                        update_clean_dict = model.model_dump(exclude_unset=True, exclude_none=True)
-                        updated_obj = self.addresses.update(update_clean_dict)
+                        try:
+                            model = AddressUpdateModel(**update_dict)
+                            # Try to get model_dump but handle case where it might not be available
+                            if hasattr(model, 'model_dump') and callable(getattr(model, 'model_dump')):
+                                update_clean_dict = model.model_dump(exclude_unset=True, exclude_none=True)
+                                updated_obj = self.addresses.update(update_clean_dict)
+                            else:
+                                # If no model_dump method, use the model directly
+                                updated_obj = self.addresses.update(model)
+                        except Exception as model_error:
+                            logger.debug(f"Model-based update failed: {str(model_error)}")
+                            # If model fails, use dictionary directly
+                            updated_obj = self.addresses.update(update_dict)
                     elif HAS_MODELS:
                         # Convert to model and then use the address manager's update method
                         logger.debug("Creating AddressRequestSchema for update")
-                        model = AddressRequestSchema(**update_dict)
-                        updated_obj = self.addresses.update(model)
+                        try:
+                            model = AddressRequestSchema(**update_dict)
+                            updated_obj = self.addresses.update(model)
+                        except Exception as model_error:
+                            logger.debug(f"Model-based update failed: {str(model_error)}")
+                            # If model fails, use dictionary directly
+                            updated_obj = self.addresses.update(update_dict)
                     else:
                         # Try direct update with dict - might not work on all SDK versions
                         updated_obj = self.addresses.update(update_dict)
                 except Exception as e:
-                    logger.debug(f"Standard update failed: {str(e)}")
+                    logger.debug(f"All standard update methods failed: {str(e)}")
                     
-                    # Try direct REST API call - this should work regardless of model issues
+                    # Last resort - try a different URL or approach
                     if hasattr(self.client, 'put') and callable(getattr(self.client, 'put')):
-                        logger.debug("Falling back to direct REST API call")
-                        url = f"/config/objects/addresses/{object_id}"
-                        updated_obj = self.client.put(url, json=update_dict)
+                        logger.debug("Trying alternative REST API path")
+                        try:
+                            # Try different API path
+                            url = f"/config/object/addresses/{object_id}"
+                            updated_obj = self.client.put(url, json=update_dict)
+                        except Exception as e2:
+                            logger.debug(f"Alternative API path failed: {str(e2)}")
+                            url = f"/resources/objects/addresses/{object_id}"
+                            updated_obj = self.client.put(url, json=update_dict)
                     else:
                         # If all else fails, use the official method but with a clean dict
                         clean_dict = {

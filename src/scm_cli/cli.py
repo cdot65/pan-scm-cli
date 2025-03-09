@@ -80,6 +80,19 @@ class SCMCLI(cmd2.Cmd):
 
     def __init__(self) -> None:
         """Initialize the SCM CLI command processor."""
+        # Configure readline behavior for handling ? key
+        # This makes the '?' character a word-break character, which allows for immediate help
+        import readline
+        
+        # Define delimiters - make ? a delimiter so readline treats it specially
+        old_delims = readline.get_completer_delims()
+        # Add '?' to the delimiter set but remove it from the end so it's not treated as part of a word
+        readline.set_completer_delims(old_delims + '?')
+        
+        # Define a custom key event handler for ? to show help without executing the command
+        # This requires overriding some readline behavior
+        
+        # Initialize the cmd2 shell
         super().__init__(
             allow_cli_args=False,
             allow_redirection=False,
@@ -90,6 +103,12 @@ class SCMCLI(cmd2.Cmd):
         self.self_in_help = False
         self.hidden_commands += ['alias', 'macro', 'run_pyscript', 'run_script', 'shell', 'shortcuts', 'py', 'ipy']
         self.default_to_shell = False
+        
+        # Configure special characters
+        # Override the cmd2 question mark handling to make it immediate
+        # In cmd2, this is handled by the postparsing_precmd method
+        # We'll modify this to capture ? immediately
+        self.question_mark = '?'
         
         # Disable commands if they exist
         for cmd_name in ['alias', 'macro', 'run_pyscript', 'run_script', 'shell', 'shortcuts']:
@@ -136,6 +155,27 @@ class SCMCLI(cmd2.Cmd):
             )
             
         return super().postcmd(stop, statement)
+    
+    # Special method to handle ? keypress - this is called when ? is typed
+    # We need to override the readline handler
+    def precmd(self, statement: cmd2.Statement) -> cmd2.Statement:
+        """Process the command before execution."""
+        # Check if question mark is in the raw input
+        if '?' in statement.raw and not statement.raw.strip() == '?':
+            # Get the command so far
+            input_line = statement.raw.strip()
+            # Find where the ? appears in the input
+            q_index = input_line.find('?')
+            # Get the command parts up to the ? mark
+            parts = input_line[:q_index].strip().split()
+            
+            # Show help for the command parts so far
+            self._show_contextual_help(parts)
+            
+            # Return an empty statement to not execute anything
+            return cmd2.Statement("")
+        
+        return statement
         
     def _extract_username(self, client_id: str) -> str:
         """Extract username from client_id.
@@ -269,129 +309,325 @@ class SCMCLI(cmd2.Cmd):
         # Help for set command
         elif cmd == "set":
             if len(context) == 1:
-                self.console.print("Available object types:")
-                self.console.print("  address-object - Configure an address object")
+                table = Table(title="Available Object Types")
+                table.add_column("Command", style="cyan")
+                table.add_column("Description", style="green")
+                
+                table.add_row("address-object", "Configure an address object")
+                self.console.print(table)
             elif len(context) == 2 and context[1] == "address-object":
-                self.console.print("Syntax: set address-object name <name> type <type> value <value> [description <text>] [tags <tag1,tag2,...>]")
-                self.console.print("\nRequired arguments:")
-                self.console.print("  name <name>         - Name of the address object")
-                self.console.print("  type <type>         - Type of address object (ip-netmask, ip-range, fqdn)")
-                self.console.print("  value <value>       - Value of the address object")
-                self.console.print("\nOptional arguments:")
-                self.console.print("  description <text>  - Description of the address object")
-                self.console.print("  tags <tag1,tag2,..> - Comma-separated list of tags")
-                self.console.print("\nExamples:")
-                self.console.print("  set address-object name test1 type ip-netmask value 1.1.1.1/32")
-                self.console.print("  set address-object name test2 type fqdn value example.com")
-                self.console.print("  set address-object name test3 type ip-range value 1.1.1.1-1.1.1.10 description \"Test description\" tags tag1,tag2")
+                # Table for required arguments
+                required = Table(title="Command: set address-object")
+                required.add_column("Required Arguments", style="cyan", width=20)
+                required.add_column("Description", style="green")
+                
+                required.add_row("name <name>", "Name of the address object (required for all operations)")
+                required.add_row("type <type>", "Type of address object (ip-netmask, ip-range, fqdn) (required for new objects)")
+                required.add_row("value <value>", "Value of the address object (required for new objects)")
+                self.console.print(required)
+                
+                # Table for optional arguments
+                optional = Table(title="Optional Arguments")
+                optional.add_column("Argument", style="yellow", width=20)
+                optional.add_column("Description", style="blue")
+                
+                optional.add_row("description <text>", "Description of the address object")
+                optional.add_row("tags <tag1,tag2,..>", "Comma-separated list of tags (use Automation or Decryption)")
+                self.console.print(optional)
+                
+                # Add partial update info
+                partial = Table(title="Partial Update Support")
+                partial.add_column("Feature", style="cyan")
+                partial.add_column("Description", style="green")
+                
+                partial.add_row(
+                    "Partial Updates",
+                    "For existing objects, you can update only specific fields without specifying all required fields"
+                )
+                partial.add_row(
+                    "Example",
+                    "set address-object name test1 description \"Updated description\""
+                )
+                self.console.print(partial)
+                
+                # Table for examples
+                examples = Table(title="Examples")
+                examples.add_column("Command", style="magenta")
+                examples.add_column("Description", style="dim")
+                
+                examples.add_row(
+                    "set address-object name test1 type ip-netmask value 1.1.1.1/32", 
+                    "Create/update an IP address object"
+                )
+                examples.add_row(
+                    "set address-object name test2 type fqdn value example.com", 
+                    "Create/update a domain name address object"
+                )
+                examples.add_row(
+                    "set address-object name test3 type ip-range value 1.1.1.1-1.1.1.10 description \"Test\" tags Automation", 
+                    "Create/update an IP range with description and tags"
+                )
+                self.console.print(examples)
             elif len(context) == 3 and context[1] == "address-object":
-                self.console.print("Address object types:")
-                self.console.print("  ip-netmask  - IP address with netmask (e.g., 192.168.1.0/24)")
-                self.console.print("  ip-range    - IP address range (e.g., 192.168.1.1-192.168.1.10)")
-                self.console.print("  fqdn        - Fully qualified domain name (e.g., example.com)")
+                # Show the address object types based on the context
+                context_word = context[2]
+                if context_word == "type":
+                    table = Table(title="Available Address Object Types")
+                    table.add_column("Type", style="cyan")
+                    table.add_column("Description", style="green")
+                    table.add_column("Example", style="yellow")
+                    
+                    table.add_row("ip-netmask", "IP address with netmask", "192.168.1.0/24")
+                    table.add_row("ip-range", "IP address range", "192.168.1.1-192.168.1.10")
+                    table.add_row("fqdn", "Fully qualified domain name", "example.com")
+                    
+                    self.console.print(table)
+                else:
+                    # General type info
+                    table = Table(title="Address Object Types")
+                    table.add_column("Type", style="cyan")
+                    table.add_column("Description", style="green")
+                    table.add_column("Example", style="yellow")
+                    
+                    table.add_row("ip-netmask", "IP address with netmask", "192.168.1.0/24")
+                    table.add_row("ip-range", "IP address range", "192.168.1.1-192.168.1.10")
+                    table.add_row("fqdn", "Fully qualified domain name", "example.com")
+                    
+                    self.console.print(table)
             elif len(context) == 4 and context[1] == "address-object":
-                self.console.print("Enter the value for the address object based on its type:")
-                self.console.print("  ip-netmask  - e.g., 192.168.1.0/24")
-                self.console.print("  ip-range    - e.g., 192.168.1.1-192.168.1.10")
-                self.console.print("  fqdn        - e.g., example.com")
+                context_word = context[3] if len(context) > 3 else ""
+                if context_word == "value":
+                    # Value examples based on type
+                    type_val = context[3]
+                    table = Table(title=f"Value Format for {type_val}")
+                    table.add_column("Type", style="cyan")
+                    table.add_column("Example", style="green")
+                    
+                    if type_val == "ip-netmask":
+                        table.add_row("ip-netmask", "192.168.1.0/24")
+                    elif type_val == "ip-range":
+                        table.add_row("ip-range", "192.168.1.1-192.168.1.10")
+                    elif type_val == "fqdn":
+                        table.add_row("fqdn", "example.com")
+                    else:
+                        # All examples
+                        table.add_row("ip-netmask", "192.168.1.0/24")
+                        table.add_row("ip-range", "192.168.1.1-192.168.1.10")
+                        table.add_row("fqdn", "example.com")
+                    
+                    self.console.print(table)
+                else:
+                    # Generic value info
+                    table = Table(title="Enter Value Based on Type")
+                    table.add_column("Type", style="cyan")
+                    table.add_column("Format", style="green")
+                    table.add_column("Example", style="yellow")
+                    
+                    table.add_row("ip-netmask", "IP/netmask", "192.168.1.0/24")
+                    table.add_row("ip-range", "start-end", "192.168.1.1-192.168.1.10")
+                    table.add_row("fqdn", "domain name", "example.com")
+                    
+                    self.console.print(table)
             elif len(context) >= 5 and context[1] == "address-object":
                 if len(context) == 5 or (len(context) > 5 and context[5] not in ["description", "tags"]):
-                    self.console.print("Optional arguments:")
-                    self.console.print("  description <text>  - Add a description to the address object")
-                    self.console.print("  tags <tag1,tag2,..> - Add tags to the address object")
+                    table = Table(title="Optional Arguments")
+                    table.add_column("Argument", style="cyan")
+                    table.add_column("Description", style="green")
+                    
+                    table.add_row("description <text>", "Add a description to the address object")
+                    table.add_row("tags <tag1,tag2,..>", "Add tags to the address object (use Automation or Decryption)")
+                    
+                    self.console.print(table)
                 
         # Help for show command
         elif cmd == "show":
             if len(context) == 1:
-                self.console.print("Available objects to show:")
-                self.console.print("  address-object         - Show details of a specific address object")
-                self.console.print("  address-objects        - Show all address objects in the current folder")
-                self.console.print("  address-objects-filter - Search and filter address objects")
+                table = Table(title="Available Objects to Show")
+                table.add_column("Command", style="cyan")
+                table.add_column("Description", style="green")
+                
+                table.add_row("address-object", "Show address objects (specific or all)")
+                table.add_row("address-object-filter", "Search and filter address objects")
+                
+                self.console.print(table)
             elif len(context) == 2 and context[1] == "address-object":
-                self.console.print("Syntax: show address-object [<name>]")
-                self.console.print("\nArguments:")
-                self.console.print("  <name> - Name of the address object to show (optional)")
-                self.console.print("\nExamples:")
-                self.console.print("  show address-object         # Show all address objects in current folder")
-                self.console.print("  show address-object test123 # Show details of address object 'test123'")
-            elif len(context) == 2 and context[1] == "address-objects-filter":
-                self.console.print("Syntax: show address-objects-filter [--name <substring>] [--type <type>] [--value <substring>] [--tag <substring>]")
-                self.console.print("\nFilter options:")
-                self.console.print("  --name <substring>  - Filter by name (substring match)")
-                self.console.print("  --type <type>       - Filter by type (exact match, one of: ip-netmask, ip-range, fqdn)")
-                self.console.print("  --value <substring> - Filter by value (substring match)")
-                self.console.print("  --tag <substring>   - Filter by tag (substring match)")
-                self.console.print("\nExamples:")
-                self.console.print("  show address-objects-filter --name web        # Find objects with 'web' in the name")
-                self.console.print("  show address-objects-filter --type fqdn       # Show only FQDN objects")
-                self.console.print("  show address-objects-filter --value 192.168   # Find objects with value containing '192.168'")
-                self.console.print("  show address-objects-filter --tag prod        # Find objects with 'prod' in any tag")
+                table = Table(title="Command: show address-object [<name>]")
+                table.add_column("Argument", style="cyan", width=20)
+                table.add_column("Description", style="green")
+                
+                table.add_row("<name>", "Name of the address object (optional)")
+                self.console.print(table)
+                
+                examples = Table(title="Examples")
+                examples.add_column("Command", style="yellow")
+                examples.add_column("Description", style="blue")
+                examples.add_row("show address-object", "Show all address objects in current folder")
+                examples.add_row("show address-object test123", "Show details of address object 'test123'")
+                self.console.print(examples)
+            elif len(context) == 2 and context[1] == "address-object-filter":
+                table = Table(title="Command: show address-object-filter [options]")
+                table.add_column("Option", style="cyan", width=20)
+                table.add_column("Description", style="green")
+                
+                table.add_row("--name <substring>", "Filter by name (substring match)")
+                table.add_row("--type <type>", "Filter by type (ip-netmask, ip-range, fqdn)")
+                table.add_row("--value <substring>", "Filter by value (substring match)")
+                table.add_row("--tag <substring>", "Filter by tag (substring match)")
+                self.console.print(table)
+                
+                examples = Table(title="Examples")
+                examples.add_column("Command", style="yellow")
+                examples.add_column("Description", style="blue")
+                examples.add_row("show address-object-filter --name web", "Find objects with 'web' in the name")
+                examples.add_row("show address-object-filter --type fqdn", "Show only FQDN objects")
+                examples.add_row("show address-object-filter --value 192.168", "Find objects with value containing '192.168'")
+                examples.add_row("show address-object-filter --tag Automation", "Find objects with 'Automation' tag")
+                self.console.print(examples)
                 
         # Help for delete command
         elif cmd == "delete":
             if len(context) == 1:
-                self.console.print("Available objects to delete:")
-                self.console.print("  address-object - Delete an address object")
+                table = Table(title="Available Objects to Delete")
+                table.add_column("Command", style="cyan")
+                table.add_column("Description", style="green")
+                
+                table.add_row("address-object", "Delete an address object")
+                self.console.print(table)
             elif len(context) == 2 and context[1] == "address-object":
-                self.console.print("Syntax: delete address-object <name>")
-                self.console.print("\nArguments:")
-                self.console.print("  <name> - Name of the address object to delete")
+                table = Table(title="Command: delete address-object <name>")
+                table.add_column("Argument", style="cyan", width=20)
+                table.add_column("Description", style="green")
+                
+                table.add_row("<name>", "Name of the address object to delete")
+                self.console.print(table)
+                
+                examples = Table(title="Examples")
+                examples.add_column("Command", style="yellow")
+                examples.add_column("Description", style="blue")
+                examples.add_row("delete address-object test123", "Delete the address object named 'test123'")
+                self.console.print(examples)
                 
         # Help for edit command
         elif cmd == "edit":
             if len(context) == 1:
-                self.console.print("Available objects to edit:")
-                self.console.print("  folder - Edit a specific folder")
+                table = Table(title="Available Objects to Edit")
+                table.add_column("Command", style="cyan")
+                table.add_column("Description", style="green")
+                
+                table.add_row("folder", "Edit a specific folder")
+                self.console.print(table)
             elif len(context) == 2 and context[1] == "folder":
-                self.console.print("Syntax: edit folder <name>")
-                self.console.print("\nArguments:")
-                self.console.print("  <name> - Name of the folder to edit")
+                table = Table(title="Command: edit folder <name>")
+                table.add_column("Argument", style="cyan", width=20)
+                table.add_column("Description", style="green")
+                
+                table.add_row("<name>", "Name of the folder to edit")
+                self.console.print(table)
+                
+                examples = Table(title="Examples")
+                examples.add_column("Command", style="yellow")
+                examples.add_column("Description", style="blue")
+                examples.add_row("edit folder Texas", "Switch to edit mode for the 'Texas' folder")
+                self.console.print(examples)
         
         # Help for history command
         elif cmd == "history":
-            self.console.print("Syntax: history [--page <name>] [--limit <name>] [--folder <folder>] [--filter <text>] [--clear] [--id <name>]")
-            self.console.print("\nOptions:")
-            self.console.print("  --page <name>       - Page number to display, starting from 1 (default: 1)")
-            self.console.print("  --limit <name>      - Maximum number of history entries to show per page (default: 50)")
-            self.console.print("  --folder <folder> - Filter history by folder")
-            self.console.print("  --filter <text>   - Filter history by command content")
-            self.console.print("  --clear           - Clear command history")
-            self.console.print("  --id <name>         - Show details of a specific history entry")
-            self.console.print("\nExamples:")
-            self.console.print("  history                     # Show last 50 commands")
-            self.console.print("  history --page 2            # Show second page of commands")
-            self.console.print("  history --limit 20          # Show only 20 commands per page")
-            self.console.print("  history --folder Texas      # Show commands from the Texas folder")
-            self.console.print("  history --filter address    # Show commands containing 'address'")
-            self.console.print("  history --id 5              # Show details of history entry #5")
-            self.console.print("  history --clear             # Clear all command history")
+            table = Table(title="Command: history [options]")
+            table.add_column("Option", style="cyan", width=20)
+            table.add_column("Description", style="green")
+            
+            table.add_row("--page <name>", "Page number to display, starting from 1 (default: 1)")
+            table.add_row("--limit <name>", "Maximum number of history entries per page (default: 50)")
+            table.add_row("--folder <folder>", "Filter history by folder")
+            table.add_row("--filter <text>", "Filter history by command content")
+            table.add_row("--clear", "Clear command history")
+            table.add_row("--id <name>", "Show details of a specific history entry")
+            self.console.print(table)
+            
+            examples = Table(title="Examples")
+            examples.add_column("Command", style="yellow")
+            examples.add_column("Description", style="blue")
+            
+            examples.add_row("history", "Show last 50 commands")
+            examples.add_row("history --page 2", "Show second page of commands")
+            examples.add_row("history --limit 20", "Show only 20 commands per page")
+            examples.add_row("history --folder Texas", "Show commands from the Texas folder")
+            examples.add_row("history --filter address", "Show commands containing 'address'")
+            examples.add_row("history --id 5", "Show details of history entry #5")
+            examples.add_row("history --clear", "Clear all command history")
+            self.console.print(examples)
                 
         # General help for other commands
         else:
             # Try to get help for the command
             self.do_help(cmd)
 
-    # Help handling for ? suffix
+    # Special character handling - this is where we need to implement immediate
+    # character by character processing to provide help for ? key
+    
+    # Override the readline handler to intercept key presses
+    def completedefault(self, text: str, line: str, begidx: int, endidx: int) -> List[str]:
+        """Override the default completer to handle the ? key specially."""
+        if text.endswith('?'):
+            # Remove the ? and get the command parts
+            command_parts = line[:begidx].strip().split()
+            if text == '?':
+                # Just ? by itself
+                # Show help for the current command context
+                self._show_contextual_help(command_parts)
+                # Return empty list to not display completions
+                return []
+            else:
+                # Something like 'command?'
+                # Remove the ? and use as completion text
+                completion_text = text[:-1]
+                # Show help for this specific command
+                self._show_contextual_help(command_parts + [completion_text])
+                # Return empty list to not display completions
+                return []
+        
+        # Default behavior for normal completion
+        return super().completedefault(text, line, begidx, endidx)
+    
+    # We still need postparsing_precmd for when ? appears in a command that's fully entered
     def postparsing_precmd(self, statement: cmd2.Statement) -> cmd2.Statement:
         """Process commands after parsing but before execution."""
         if '?' in statement.raw:
-            # Let default method handle it
-            return statement
-        
-        if statement.raw.strip().endswith('?'):
-            # Remove the ? from the command
-            command = statement.raw.strip()[:-1].strip()
+            # Split the line into parts and find where the ? is
+            parts = []
+            current_word = ""
+            in_quotes = False
+            quote_char = None
             
-            # Check if it's a valid command or starts with a valid command prefix
-            for cmd_name in self.get_all_commands():
-                if command == cmd_name or command.startswith(f"{cmd_name} "):
-                    # Show help for the command
-                    self.do_help(cmd_name)
-                    # Return empty statement to not execute the original command
+            # Parse the command line considering quotes
+            for char in statement.raw:
+                if char in ['"', "'"]:
+                    if not in_quotes:
+                        in_quotes = True
+                        quote_char = char
+                    elif char == quote_char:
+                        in_quotes = False
+                        quote_char = None
+                
+                if char.isspace() and not in_quotes:
+                    if current_word:
+                        parts.append(current_word)
+                        current_word = ""
+                elif char == '?' and not in_quotes:
+                    # Found a question mark - process contextual help
+                    if current_word:
+                        parts.append(current_word)
+                    self._show_contextual_help(parts)
                     return cmd2.Statement("")
+                else:
+                    current_word += char
             
-            # If no matching command is found, show general help
-            self.do_help("")
+            # Add the last word if there is one
+            if current_word and current_word != '?':
+                parts.append(current_word)
+                
+            # Show help for the command parts we've collected
+            self._show_contextual_help(parts)
             return cmd2.Statement("")
         
         return statement
@@ -641,19 +877,22 @@ class SCMCLI(cmd2.Cmd):
         This parser is designed to handle Junos-style CLI commands like:
         set address-object name test1 type ip-netmask value 1.1.1.1/32 description "Test desc" tags tag1,tag2
         
+        It also supports partial updates (like PATCH) for existing objects:
+        set address-object name test1 description "Updated description"
+        
         Args:
             args: List of argument strings
             
         Returns:
-            Dictionary with parsed arguments
+            Dictionary with parsed arguments and a 'partial_update' flag
             
         Raises:
             ValueError: If required arguments are missing or format is invalid
         """
-        if len(args) < 6:  # Need at least: name <name> type <type> value <value>
-            raise ValueError("Missing required arguments: must specify name, type, and value with keywords")
+        if len(args) < 2:  # Need at least "name <value>"
+            raise ValueError("Missing required arguments: must at least specify 'name'")
             
-        parsed_args = {}
+        parsed_args = {'partial_update': False}
         i = 0
         
         while i < len(args):
@@ -703,11 +942,17 @@ class SCMCLI(cmd2.Cmd):
             # Advance to next keyword
             i += 1
         
-        # Check for required arguments
+        # Check if this is a partial update (missing required fields)
         required_fields = ["name", "type", "value"]
-        for field in required_fields:
-            if field not in parsed_args:
-                raise ValueError(f"Missing required argument: {field}")
+        has_all_required = all(field in parsed_args for field in required_fields)
+        
+        if not has_all_required:
+            # Mark as a partial update - we'll validate if the object exists later
+            parsed_args['partial_update'] = True
+            
+            # Ensure at least name is provided
+            if "name" not in parsed_args:
+                raise ValueError("For partial updates, at least 'name' must be specified")
                 
         return parsed_args
     
@@ -745,15 +990,8 @@ class SCMCLI(cmd2.Cmd):
                 
                 # Extract values from the parsed arguments
                 name = parsed_args["name"]
-                addr_type = parsed_args["type"]
-                value = parsed_args["value"]
-                description = parsed_args.get("description")
-                tags = parsed_args.get("tags")
-                
                 folder = self.state.current_folder
-                
-                # Use helper method to convert from CLI types to SDK types
-                sdk_type = AddressObject.cli_to_sdk_type(addr_type)
+                is_partial_update = parsed_args.get('partial_update', False)
                 
                 # Start timer for overall performance
                 start_time = time.time()
@@ -776,22 +1014,54 @@ class SCMCLI(cmd2.Cmd):
                         check_end = time.time()
                         log_timing(f"Checking if object exists using fetch", check_end - check_start)
                     
+                    # Handle partial update scenario
+                    if is_partial_update:
+                        if not existing_object:
+                            # Can't do a partial update on a non-existent object
+                            self.console.print(f"Error: Cannot perform partial update on a non-existent object: '{name}'", style="red")
+                            self.console.print("For a new object, you must specify all required fields: name, type, and value", style="yellow")
+                            return
+                        
+                        # For partial update, we need to fill in missing fields from the existing object
+                        # We have an existing object, so use its values for fields that weren't provided
+                        if "type" not in parsed_args:
+                            parsed_args["type"] = AddressObject.sdk_to_cli_type(existing_object.type)
+                        if "value" not in parsed_args:
+                            parsed_args["value"] = existing_object.value
+                        
+                        self.console.print(f"Performing partial update on existing object: '{name}'", style="yellow")
+                    
+                    # Now extract the values after potentially filling in from existing object
+                    addr_type = parsed_args.get("type")
+                    value = parsed_args.get("value")
+                    description = parsed_args.get("description")
+                    tags = parsed_args.get("tags")
+                    
+                    # Use helper method to convert from CLI types to SDK types
+                    sdk_type = AddressObject.cli_to_sdk_type(addr_type)
+                    
                     # Decision based on existence check
                     if existing_object:
                         # Object exists, update it
                         self.console.print(f"Found existing object: '{name}', will update", style="yellow")
                         with self.console.status(f"[bold yellow]Updating address object '{name}'...[/bold yellow]"):
+                            # For partial updates, only include the fields that were provided
+                            update_args = {
+                                "folder": folder,
+                                "name": name,
+                                "type_val": sdk_type,
+                                "value": value,
+                                "object_id": existing_object.id if hasattr(existing_object, 'id') else None
+                            }
+                            
+                            # Only include optional fields if they were provided
+                            if description is not None or "description" in parsed_args:
+                                update_args["description"] = description
+                            if tags is not None or "tags" in parsed_args:
+                                update_args["tags"] = tags
+                                
                             # Update the object using its ID for efficiency
-                            address = self.state.sdk_client.direct_update_address_object(
-                                folder=folder,
-                                name=name,
-                                type_val=sdk_type,
-                                value=value,
-                                description=description,
-                                tags=tags,
-                                # Pass the existing object ID to avoid another lookup
-                                object_id=existing_object.id if hasattr(existing_object, 'id') else None
-                            )
+                            address = self.state.sdk_client.direct_update_address_object(**update_args)
                         update_time = time.time()
                         log_timing(f"Updating object '{name}'", update_time - check_end)
                         
@@ -810,6 +1080,11 @@ class SCMCLI(cmd2.Cmd):
                             self.console.print(f"✅ - updated address-object {name}", style="green")
                     else:
                         # Object doesn't exist, create it
+                        if is_partial_update:
+                            # This shouldn't happen because we already checked above
+                            self.console.print(f"Error: Cannot create object with partial data. Must specify name, type, and value.", style="red")
+                            return
+                        
                         self.console.print(f"No existing object found: '{name}', will create", style="yellow")
                         with self.console.status(f"[bold yellow]Creating address object '{name}'...[/bold yellow]"):
                             address = self.state.sdk_client.direct_create_address_object(
@@ -843,9 +1118,20 @@ class SCMCLI(cmd2.Cmd):
                     self.state.known_address_objects[folder].add(name)
                     
                 except ValidationError as e:
-                    self.console.print(f"Validation error: {e}", style="red")
+                    if is_partial_update:
+                        self.console.print(f"Validation error during partial update: {e}", style="red")
+                        self.console.print("Hint: For partial updates, make sure the object exists and you're providing valid fields", style="yellow")
+                    else:
+                        self.console.print(f"Validation error: {e}", style="red")
                 except APIError as e:
-                    self.console.print(f"API error: {e}", style="red")
+                    error_message = str(e)
+                    self.console.print(f"API error: {error_message}", style="red")
+                    
+                    # Provide helpful feedback for common errors
+                    if "does not exist" in error_message.lower() or "not found" in error_message.lower():
+                        self.console.print("Hint: Make sure the object exists before attempting a partial update", style="yellow")
+                    elif "permission" in error_message.lower() or "access" in error_message.lower():
+                        self.console.print("Hint: You may not have permission to modify this object", style="yellow")
             except ValueError as e:
                 self.console.print(f"Error: {e}", style="red")
                 self.console.print("Usage: set address-object name <name> type <type> value <value> [description <text>] [tags <tag1,tag2,...>]")
@@ -868,11 +1154,8 @@ class SCMCLI(cmd2.Cmd):
     addr_show_parser = show_subparsers.add_parser("address-object", help="Show address object details")
     addr_show_parser.add_argument("name", nargs="?", default=None, help="Name of the address object to show (optional - if omitted, shows all objects)").completer = address_completer
     
-    # Show all address objects - keeping this for backward compatibility
-    addr_all_parser = show_subparsers.add_parser("address-objects", help="Show all address objects")
-    
-    # Search address objects - new subparser
-    addr_search_parser = show_subparsers.add_parser("address-objects-filter", help="Search and filter address objects")
+    # Search address objects - subparser
+    addr_search_parser = show_subparsers.add_parser("address-object-filter", help="Search and filter address objects")
     addr_search_parser.add_argument("--name", help="Filter by name (substring match)")
     addr_search_parser.add_argument("--type", help="Filter by type (exact match)", choices=["ip-netmask", "ip-range", "fqdn"])
     addr_search_parser.add_argument("--value", help="Filter by value (substring match)")
@@ -1091,7 +1374,8 @@ class SCMCLI(cmd2.Cmd):
             except APIError as e:
                 self.console.print(f"API error: {e}", style="red")
         
-        elif args.object_type == "address-objects":
+        # If no name provided, show all objects
+        elif args.object_type == "address-object" and not args.name:
             try:
                 addresses = self.state.sdk_client.list_address_objects(folder)
                 
@@ -1126,7 +1410,7 @@ class SCMCLI(cmd2.Cmd):
             except APIError as e:
                 self.console.print(f"API error: {e}", style="red")
                 
-        elif args.object_type == "address-objects-filter":
+        elif args.object_type == "address-object-filter":
             try:
                 # Build filter criteria from arguments
                 filter_criteria = {}
