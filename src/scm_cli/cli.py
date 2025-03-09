@@ -6,9 +6,11 @@ import json
 import io
 import re
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Tuple, Any
+import logging
 
 import cmd2
 from cmd2 import (
@@ -20,6 +22,17 @@ from cmd2 import (
     with_argparser,
     with_category
 )
+
+# Configure logging
+logger = logging.getLogger("scm_cli.cli")
+
+# Add this for debugging the model issue
+try:
+    import inspect
+    from scm.config.models import AddressModel
+    HAS_ADDRESS_MODEL = True
+except ImportError:
+    HAS_ADDRESS_MODEL = False
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -28,7 +41,7 @@ from rich.text import Text
 
 from .config import SCMConfig, load_oauth_credentials
 from .db import CLIHistoryDB
-from .mock_sdk import AddressObjectType, AuthenticationError  # Import from actual panscm when available
+from scm.exceptions import AuthenticationError  # Import from actual pan-scm-sdk
 from .sdk_client import (
     APIError,
     AddressObject,
@@ -153,6 +166,8 @@ class SCMCLI(cmd2.Cmd):
             sys.exit(1)
         
         try:
+            self.console.print("Initializing SCM client...", style="yellow")
+            
             # Create SDK client
             self.state.sdk_client = SDKClient(config)
             self.state.client_id = config.client_id
@@ -161,7 +176,8 @@ class SCMCLI(cmd2.Cmd):
             self.state.username = self._extract_username(config.client_id)
             
             # Test connection
-            if self.state.sdk_client.test_connection():
+            try:
+                self.state.sdk_client.test_connection()
                 # Show success message
                 success_text = Text("✅ Client initialized successfully", style="bold green")
                 self.console.print(success_text)
@@ -169,18 +185,29 @@ class SCMCLI(cmd2.Cmd):
                 self.console.print("# " + "-" * 76)
                 self.console.print("# Welcome to the SCM CLI for Strata Cloud Manager")
                 self.console.print("# " + "-" * 76)
-            else:
+            except Exception as conn_error:
                 self.console.print(
-                    "[bold red]Error:[/bold red] Failed to connect to SCM API. "
-                    "Please check your credentials.", 
+                    f"[bold red]Error:[/bold red] Failed to connect to SCM API: {str(conn_error)}", 
                     style="red"
                 )
+                self.console.print("Please check your credentials in the .env file:", style="yellow")
+                self.console.print("  - Ensure SCM_CLIENT_ID is correct", style="yellow")
+                self.console.print("  - Ensure SCM_CLIENT_SECRET is correct", style="yellow")
+                self.console.print("  - Ensure SCM_TSG_ID is correct", style="yellow")
+                self.console.print("  - Ensure you have valid API access to Strata Cloud Manager", style="yellow")
                 sys.exit(1)
         except AuthenticationError as e:
             self.console.print(f"[bold red]Authentication Error:[/bold red] {e}", style="red")
+            self.console.print("Please check your credentials in the .env file:", style="yellow")
+            self.console.print("  - Ensure SCM_CLIENT_ID is correct", style="yellow")
+            self.console.print("  - Ensure SCM_CLIENT_SECRET is correct", style="yellow") 
+            self.console.print("  - Ensure SCM_TSG_ID is correct", style="yellow")
             sys.exit(1)
         except Exception as e:
             self.console.print(f"[bold red]Error:[/bold red] {e}", style="red")
+            self.console.print("Stack trace:", style="dim")
+            import traceback
+            self.console.print(traceback.format_exc(), style="dim")
             sys.exit(1)
 
     def update_prompt(self) -> None:
@@ -245,25 +272,27 @@ class SCMCLI(cmd2.Cmd):
                 self.console.print("Available object types:")
                 self.console.print("  address-object - Configure an address object")
             elif len(context) == 2 and context[1] == "address-object":
-                self.console.print("Syntax: set address-object <name> <type> <value> [description <text>] [tags <tag1,tag2,...>]")
+                self.console.print("Syntax: set address-object name <name> type <type> value <value> [description <text>] [tags <tag1,tag2,...>]")
                 self.console.print("\nRequired arguments:")
-                self.console.print("  <name>        - Name of the address object")
-                self.console.print("  <type>        - Type of address object (ip-netmask, ip-range, ip-wildcard, fqdn)")
-                self.console.print("  <value>       - Value of the address object")
+                self.console.print("  name <name>         - Name of the address object")
+                self.console.print("  type <type>         - Type of address object (ip-netmask, ip-range, fqdn)")
+                self.console.print("  value <value>       - Value of the address object")
                 self.console.print("\nOptional arguments:")
-                self.console.print("  description   - Description of the address object")
-                self.console.print("  tags          - Comma-separated list of tags")
+                self.console.print("  description <text>  - Description of the address object")
+                self.console.print("  tags <tag1,tag2,..> - Comma-separated list of tags")
+                self.console.print("\nExamples:")
+                self.console.print("  set address-object name test1 type ip-netmask value 1.1.1.1/32")
+                self.console.print("  set address-object name test2 type fqdn value example.com")
+                self.console.print("  set address-object name test3 type ip-range value 1.1.1.1-1.1.1.10 description \"Test description\" tags tag1,tag2")
             elif len(context) == 3 and context[1] == "address-object":
                 self.console.print("Address object types:")
                 self.console.print("  ip-netmask  - IP address with netmask (e.g., 192.168.1.0/24)")
                 self.console.print("  ip-range    - IP address range (e.g., 192.168.1.1-192.168.1.10)")
-                self.console.print("  ip-wildcard - IP address with wildcard mask (e.g., 192.168.1.0/0.0.0.255)")
                 self.console.print("  fqdn        - Fully qualified domain name (e.g., example.com)")
             elif len(context) == 4 and context[1] == "address-object":
                 self.console.print("Enter the value for the address object based on its type:")
                 self.console.print("  ip-netmask  - e.g., 192.168.1.0/24")
                 self.console.print("  ip-range    - e.g., 192.168.1.1-192.168.1.10")
-                self.console.print("  ip-wildcard - e.g., 192.168.1.0/0.0.0.255")
                 self.console.print("  fqdn        - e.g., example.com")
             elif len(context) >= 5 and context[1] == "address-object":
                 if len(context) == 5 or (len(context) > 5 and context[5] not in ["description", "tags"]):
@@ -279,14 +308,17 @@ class SCMCLI(cmd2.Cmd):
                 self.console.print("  address-objects        - Show all address objects in the current folder")
                 self.console.print("  address-objects-filter - Search and filter address objects")
             elif len(context) == 2 and context[1] == "address-object":
-                self.console.print("Syntax: show address-object <name>")
+                self.console.print("Syntax: show address-object [<name>]")
                 self.console.print("\nArguments:")
-                self.console.print("  <name> - Name of the address object to show")
+                self.console.print("  <name> - Name of the address object to show (optional)")
+                self.console.print("\nExamples:")
+                self.console.print("  show address-object         # Show all address objects in current folder")
+                self.console.print("  show address-object test123 # Show details of address object 'test123'")
             elif len(context) == 2 and context[1] == "address-objects-filter":
                 self.console.print("Syntax: show address-objects-filter [--name <substring>] [--type <type>] [--value <substring>] [--tag <substring>]")
                 self.console.print("\nFilter options:")
                 self.console.print("  --name <substring>  - Filter by name (substring match)")
-                self.console.print("  --type <type>       - Filter by type (exact match, one of: ip-netmask, ip-range, ip-wildcard, fqdn)")
+                self.console.print("  --type <type>       - Filter by type (exact match, one of: ip-netmask, ip-range, fqdn)")
                 self.console.print("  --value <substring> - Filter by value (substring match)")
                 self.console.print("  --tag <substring>   - Filter by tag (substring match)")
                 self.console.print("\nExamples:")
@@ -429,7 +461,7 @@ class SCMCLI(cmd2.Cmd):
     def address_type_completer(self, text: str, line: str, begidx: int, endidx: int) -> List[str]:
         """Complete address object types."""
         # Address object types
-        types = ["ip-netmask", "ip-range", "ip-wildcard", "fqdn"]
+        types = ["ip-netmask", "ip-range", "fqdn"]  # Removed ip-wildcard as it's not supported by the SCM SDK
         if text:
             return [t for t in types if t.startswith(text)]
         else:
@@ -602,53 +634,82 @@ class SCMCLI(cmd2.Cmd):
             
         self.update_prompt()
 
-    # Custom parser for set address-object that supports positional description and tags
-    def parse_set_address_object(self, args: List[str]) -> Tuple[str, str, str, Optional[str], Optional[List[str]]]:
-        """Parse the set address-object command with positional keyword arguments.
+    # Updated parser for set address-object that supports keyword arguments
+    def parse_set_address_object(self, args: List[str]) -> Dict[str, Any]:
+        """Parse the set address-object command with keyword arguments.
+        
+        This parser is designed to handle Junos-style CLI commands like:
+        set address-object name test1 type ip-netmask value 1.1.1.1/32 description "Test desc" tags tag1,tag2
         
         Args:
             args: List of argument strings
             
         Returns:
-            Tuple of (name, type, value, description, tags)
+            Dictionary with parsed arguments
             
         Raises:
             ValueError: If required arguments are missing or format is invalid
         """
-        if len(args) < 3:
-            raise ValueError("Missing required arguments: name, type, value")
+        if len(args) < 6:  # Need at least: name <name> type <type> value <value>
+            raise ValueError("Missing required arguments: must specify name, type, and value with keywords")
             
-        name = args[0]
-        addr_type = args[1]
-        value = args[2]
+        parsed_args = {}
+        i = 0
         
-        # Check if addr_type is valid
-        valid_types = ["ip-netmask", "ip-range", "ip-wildcard", "fqdn"]
-        if addr_type not in valid_types:
-            valid_types_str = ", ".join(valid_types)
-            raise ValueError(f"Invalid address type: {addr_type}. Valid types are: {valid_types_str}")
-        
-        # Process remaining arguments for description and tags
-        description = None
-        tags = None
-        
-        i = 3
         while i < len(args):
-            if args[i] == "description" and i + 1 < len(args):
-                description = args[i + 1]
-                i += 2
-            elif args[i] == "tags" and i + 1 < len(args):
+            # Get the keyword and advance
+            keyword = args[i].lower()
+            i += 1
+            
+            # Check if we have a value for this keyword
+            if i >= len(args):
+                raise ValueError(f"Missing value for {keyword}")
+                
+            # Process based on keyword
+            if keyword == "name":
+                parsed_args["name"] = args[i]
+            elif keyword == "type":
+                # Validate type
+                valid_types = ["ip-netmask", "ip-range", "fqdn"]
+                if args[i] not in valid_types:
+                    valid_types_str = ", ".join(valid_types)
+                    raise ValueError(f"Invalid address type: {args[i]}. Valid types are: {valid_types_str}")
+                parsed_args["type"] = args[i]
+            elif keyword == "value":
+                parsed_args["value"] = args[i]
+            elif keyword == "description":
+                # Description might be quoted, so handle special case
+                description = args[i]
+                # If starts with quote but doesn't end with quote, collect until closing quote
+                if description.startswith('"') and not description.endswith('"'):
+                    j = i + 1
+                    while j < len(args):
+                        description += " " + args[j]
+                        if args[j].endswith('"'):
+                            break
+                        j += 1
+                    if j < len(args):
+                        i = j  # Skip ahead
+                # Remove surrounding quotes if present
+                if description.startswith('"') and description.endswith('"'):
+                    description = description[1:-1]
+                parsed_args["description"] = description
+            elif keyword == "tags":
                 # Parse comma-separated tags
-                tags = [tag.strip() for tag in args[i + 1].split(",")]
-                i += 2
+                parsed_args["tags"] = [tag.strip() for tag in args[i].split(",")]
             else:
-                # Invalid keyword
-                if args[i] in ["description", "tags"]:
-                    raise ValueError(f"Missing value for {args[i]}")
-                else:
-                    raise ValueError(f"Unknown keyword: {args[i]}")
+                raise ValueError(f"Unknown keyword: {keyword}")
+                
+            # Advance to next keyword
+            i += 1
         
-        return name, addr_type, value, description, tags
+        # Check for required arguments
+        required_fields = ["name", "type", "value"]
+        for field in required_fields:
+            if field not in parsed_args:
+                raise ValueError(f"Missing required argument: {field}")
+                
+        return parsed_args
     
     @with_category(CATEGORY_ADDRESS)
     def do_set(self, statement: cmd2.Statement) -> None:
@@ -658,7 +719,7 @@ class SCMCLI(cmd2.Cmd):
         
         if not args:
             self.console.print("Missing object type", style="red")
-            self.console.print("Usage: set address-object <name> <type> <value> [description <text>] [tags <tag1,tag2,...>]")
+            self.console.print("Usage: set address-object name <name> type <type> value <value> [description <text>] [tags <tag1,tag2,...>]")
             return
             
         object_type = args[0]
@@ -673,51 +734,108 @@ class SCMCLI(cmd2.Cmd):
 
         if object_type == "address-object":
             try:
-                # Parse Junos-style arguments
+                # Parse Junos-style keyword arguments
                 if len(args) < 2:
                     self.console.print("Missing required arguments", style="red")
-                    self.console.print("Usage: set address-object <name> <type> <value> [description <text>] [tags <tag1,tag2,...>]")
+                    self.console.print("Usage: set address-object name <name> type <type> value <value> [description <text>] [tags <tag1,tag2,...>]")
                     return
                     
-                # Parse the remaining arguments
-                name, addr_type, value, description, tags = self.parse_set_address_object(args[1:])
+                # Parse the remaining arguments using the new keyword-based parser
+                parsed_args = self.parse_set_address_object(args[1:])
+                
+                # Extract values from the parsed arguments
+                name = parsed_args["name"]
+                addr_type = parsed_args["type"]
+                value = parsed_args["value"]
+                description = parsed_args.get("description")
+                tags = parsed_args.get("tags")
                 
                 folder = self.state.current_folder
                 
-                # Convert from CLI types to SDK types
-                type_map = {
-                    "ip-netmask": "ip",
-                    "ip-range": "range",
-                    "ip-wildcard": "wildcard",
-                    "fqdn": "fqdn"
-                }
-                sdk_type = type_map.get(addr_type, "ip")
+                # Use helper method to convert from CLI types to SDK types
+                sdk_type = AddressObject.cli_to_sdk_type(addr_type)
+                
+                # Start timer for overall performance
+                start_time = time.time()
+                
+                # Enable debug mode - shows timing information
+                debug_timing = True
+                
+                # Create timing log function
+                def log_timing(operation: str, duration: float) -> None:
+                    """Log timing information if debug_timing is enabled."""
+                    if debug_timing:
+                        self.console.print(f"[dim]DEBUG: {operation} took {duration:.3f} seconds[/dim]", style="dim")
                 
                 try:
-                    # Check if the address object already exists
-                    try:
-                        self.state.sdk_client.get_address_object(folder, name)
-                        # If we get here, the address object exists, so update it
-                        address = self.state.sdk_client.update_address_object(
-                            folder=folder,
-                            name=name,
-                            type_val=sdk_type,
-                            value=value,
-                            description=description,
-                            tags=tags,
-                        )
-                        self.console.print(f"✅ - updated address-object {name}", style="green")
-                    except ResourceNotFoundError:
-                        # Address object doesn't exist, create it
-                        address = self.state.sdk_client.create_address_object(
-                            folder=folder,
-                            name=name,
-                            type_val=sdk_type,
-                            value=value,
-                            description=description,
-                            tags=tags,
-                        )
-                        self.console.print(f"✅ - created address-object {name}", style="green")
+                    # First check if the object exists using fetch (most efficient method)
+                    with self.console.status(f"[bold yellow]Checking if address object '{name}' exists...[/bold yellow]"):
+                        # Use direct fetch to check existence - fastest way
+                        check_start = time.time()
+                        existing_object = self.state.sdk_client.direct_fetch_address_object(folder, name)
+                        check_end = time.time()
+                        log_timing(f"Checking if object exists using fetch", check_end - check_start)
+                    
+                    # Decision based on existence check
+                    if existing_object:
+                        # Object exists, update it
+                        self.console.print(f"Found existing object: '{name}', will update", style="yellow")
+                        with self.console.status(f"[bold yellow]Updating address object '{name}'...[/bold yellow]"):
+                            # Update the object using its ID for efficiency
+                            address = self.state.sdk_client.direct_update_address_object(
+                                folder=folder,
+                                name=name,
+                                type_val=sdk_type,
+                                value=value,
+                                description=description,
+                                tags=tags,
+                                # Pass the existing object ID to avoid another lookup
+                                object_id=existing_object.id if hasattr(existing_object, 'id') else None
+                            )
+                        update_time = time.time()
+                        log_timing(f"Updating object '{name}'", update_time - check_end)
+                        
+                        # Try to output model dump if available
+                        if hasattr(address, 'model_dump') and callable(getattr(address, 'model_dump')):
+                            try:
+                                # Use the model_dump method to get a clean dictionary representation
+                                dump_data = address.model_dump(exclude_unset=True, exclude_none=True)
+                                self.console.print(f"✅ Updated address-object '{name}':", style="green")
+                                self.console.print(dump_data)
+                            except Exception:
+                                # Fall back to simple message if model_dump fails
+                                self.console.print(f"✅ - updated address-object {name}", style="green")
+                        else:
+                            # Use the simplified output if model_dump not available
+                            self.console.print(f"✅ - updated address-object {name}", style="green")
+                    else:
+                        # Object doesn't exist, create it
+                        self.console.print(f"No existing object found: '{name}', will create", style="yellow")
+                        with self.console.status(f"[bold yellow]Creating address object '{name}'...[/bold yellow]"):
+                            address = self.state.sdk_client.direct_create_address_object(
+                                folder=folder,
+                                name=name,
+                                type_val=sdk_type,
+                                value=value,
+                                description=description,
+                                tags=tags
+                            )
+                        create_time = time.time()
+                        log_timing(f"Creating object '{name}'", create_time - check_end)
+                        
+                        # Try to output model dump if available
+                        if hasattr(address, 'model_dump') and callable(getattr(address, 'model_dump')):
+                            try:
+                                # Use the model_dump method to get a clean dictionary representation
+                                dump_data = address.model_dump(exclude_unset=True, exclude_none=True)
+                                self.console.print(f"✅ Created address-object '{name}':", style="green")
+                                self.console.print(dump_data)
+                            except Exception:
+                                # Fall back to simple message if model_dump fails
+                                self.console.print(f"✅ - created address-object {name}", style="green")
+                        else:
+                            # Use the simplified output if model_dump not available
+                            self.console.print(f"✅ - created address-object {name}", style="green")
                     
                     # Add to known address objects for autocompletion
                     if folder not in self.state.known_address_objects:
@@ -730,7 +848,7 @@ class SCMCLI(cmd2.Cmd):
                     self.console.print(f"API error: {e}", style="red")
             except ValueError as e:
                 self.console.print(f"Error: {e}", style="red")
-                self.console.print("Usage: set address-object <name> <type> <value> [description <text>] [tags <tag1,tag2,...>]")
+                self.console.print("Usage: set address-object name <name> type <type> value <value> [description <text>] [tags <tag1,tag2,...>]")
         else:
             self.console.print(f"Unknown object type: {object_type}", style="red")
 
@@ -748,15 +866,15 @@ class SCMCLI(cmd2.Cmd):
     
     # Address object subparser
     addr_show_parser = show_subparsers.add_parser("address-object", help="Show address object details")
-    addr_show_parser.add_argument("name", help="Name of the address object to show").completer = address_completer
+    addr_show_parser.add_argument("name", nargs="?", default=None, help="Name of the address object to show (optional - if omitted, shows all objects)").completer = address_completer
     
-    # Show all address objects
+    # Show all address objects - keeping this for backward compatibility
     addr_all_parser = show_subparsers.add_parser("address-objects", help="Show all address objects")
     
     # Search address objects - new subparser
     addr_search_parser = show_subparsers.add_parser("address-objects-filter", help="Search and filter address objects")
     addr_search_parser.add_argument("--name", help="Filter by name (substring match)")
-    addr_search_parser.add_argument("--type", help="Filter by type (exact match)", choices=["ip-netmask", "ip-range", "ip-wildcard", "fqdn"])
+    addr_search_parser.add_argument("--type", help="Filter by type (exact match)", choices=["ip-netmask", "ip-range", "fqdn"])
     addr_search_parser.add_argument("--value", help="Filter by value (substring match)")
     addr_search_parser.add_argument("--tag", help="Filter by tag (substring match)")
     
@@ -797,15 +915,15 @@ class SCMCLI(cmd2.Cmd):
     
     # Address object subparser
     addr_show_parser = show_subparsers.add_parser("address-object", help="Show address object details")
-    addr_show_parser.add_argument("name", help="Name of the address object to show").completer = address_completer
+    addr_show_parser.add_argument("name", nargs="?", default=None, help="Name of the address object to show (optional - if omitted, shows all objects)").completer = address_completer
     
-    # Show all address objects
+    # Show all address objects - keeping this for backward compatibility
     addr_all_parser = show_subparsers.add_parser("address-objects", help="Show all address objects")
     
     # Search address objects - new subparser
     addr_search_parser = show_subparsers.add_parser("address-objects-filter", help="Search and filter address objects")
     addr_search_parser.add_argument("--name", help="Filter by name (substring match)")
-    addr_search_parser.add_argument("--type", help="Filter by type (exact match)", choices=["ip-netmask", "ip-range", "ip-wildcard", "fqdn"])
+    addr_search_parser.add_argument("--type", help="Filter by type (exact match)", choices=["ip-netmask", "ip-range", "fqdn"])
     addr_search_parser.add_argument("--value", help="Filter by value (substring match)")
     addr_search_parser.add_argument("--tag", help="Filter by tag (substring match)")
     
@@ -813,6 +931,13 @@ class SCMCLI(cmd2.Cmd):
     @with_argparser(show_parser)
     def do_show(self, args: argparse.Namespace) -> None:
         """Show object details."""
+        # Start timer for overall performance
+        start_time = time.time()
+        
+        # Enable debug mode - shows timing information
+        # Set to False in production
+        debug_timing = True
+        
         if not self.state.config_mode:
             self.console.print("Command only available in configuration mode", style="red")
             return
@@ -825,12 +950,17 @@ class SCMCLI(cmd2.Cmd):
         if not folder:
             self.console.print("No folder selected", style="red")
             return
+            
+        # Create timing log function
+        def log_timing(operation: str, duration: float) -> None:
+            """Log timing information if debug_timing is enabled."""
+            if debug_timing:
+                self.console.print(f"[dim]DEBUG: {operation} took {duration:.3f} seconds[/dim]", style="dim")
 
         # Map CLI types to SDK types for filtering
         cli_to_sdk_type = {
             "ip-netmask": "ip",
             "ip-range": "range",
-            "ip-wildcard": "wildcard",
             "fqdn": "fqdn"
         }
         
@@ -838,30 +968,123 @@ class SCMCLI(cmd2.Cmd):
         sdk_to_cli_type = {
             "ip": "ip-netmask",
             "range": "ip-range",
-            "wildcard": "ip-wildcard",
             "fqdn": "fqdn"
         }
 
         if args.object_type == "address-object":
             try:
-                address = self.state.sdk_client.get_address_object(folder, args.name)
-                
-                # Convert to dictionary for JSON display
-                obj_dict = address.to_dict()
-                
-                # Map SDK type to CLI type for display
-                if "type" in obj_dict:
-                    obj_dict["type"] = sdk_to_cli_type.get(obj_dict["type"], obj_dict["type"])
-                
-                # Pretty print as JSON using rich
-                json_str = json.dumps(obj_dict, indent=2)
-                syntax = Syntax(json_str, "json", theme="monokai", word_wrap=True)
-                self.console.print(syntax)
-                
-                # Add to known address objects for autocompletion
-                if folder not in self.state.known_address_objects:
-                    self.state.known_address_objects[folder] = set()
-                self.state.known_address_objects[folder].add(args.name)
+                # If no name is provided, show all address objects in the folder
+                if args.name is None:
+                    # Start timer for API call
+                    api_start_time = time.time()
+                    
+                    # Show a loading message
+                    with self.console.status("[bold yellow]Fetching address objects...[/bold yellow]"):
+                        addresses = self.state.sdk_client.list_address_objects(folder)
+                    
+                    api_end_time = time.time()
+                    log_timing("API call to list_address_objects", api_end_time - api_start_time)
+                    
+                    if not addresses:
+                        self.console.print(f"No address objects found in folder '{folder}'", style="yellow")
+                        return
+                    
+                    # Start timer for rendering
+                    render_start_time = time.time()
+                    
+                    # Create a table for display
+                    table = Table(title=f"Address Objects in {folder}")
+                    table.add_column("Name", style="cyan")
+                    table.add_column("Type", style="green")
+                    table.add_column("Value", style="blue")
+                    table.add_column("Description", style="magenta")
+                    table.add_column("Tags", style="yellow")
+                    
+                    for addr in addresses:
+                        table.add_row(
+                            addr.name,
+                            sdk_to_cli_type.get(addr.type, addr.type) if not hasattr(addr.type, 'value') else sdk_to_cli_type.get(addr.type.value, addr.type.value),
+                            addr.value,
+                            addr.description or "",
+                            ", ".join(addr.tags) if addr.tags else ""
+                        )
+                    
+                    self.console.print(table)
+                    
+                    render_end_time = time.time()
+                    log_timing("Rendering table", render_end_time - render_start_time)
+                    
+                    # Add to known address objects for autocompletion
+                    if folder not in self.state.known_address_objects:
+                        self.state.known_address_objects[folder] = set()
+                    self.state.known_address_objects[folder].update(addr.name for addr in addresses)
+                else:
+                    # Show a specific address object using direct fetch for best performance
+                    api_start_time = time.time()
+                    
+                    # Show a loading message
+                    with self.console.status(f"[bold yellow]Fetching address object '{args.name}'...[/bold yellow]"):
+                        address = self.state.sdk_client.direct_fetch_address_object(folder, args.name)
+                    
+                    api_end_time = time.time()
+                    log_timing(f"API call to direct_fetch_address_object for '{args.name}'", api_end_time - api_start_time)
+                    
+                    # Check if the object was found
+                    if not address:
+                        self.console.print(f"Address object '{args.name}' not found in folder '{folder}'", style="red")
+                        return
+                    
+                    # Start timer for rendering
+                    render_start_time = time.time()
+                    
+                    # Try to use model_dump if available
+                    if hasattr(address, 'model_dump') and callable(getattr(address, 'model_dump')):
+                        try:
+                            # Use the Pydantic model_dump method for cleaner output
+                            logger.debug("Using model_dump method for response")
+                            obj_dict = address.model_dump(exclude_unset=True, exclude_none=True)
+                            
+                            # Map SDK type to CLI type for display if needed
+                            if "type" in obj_dict:
+                                obj_dict["type"] = sdk_to_cli_type.get(obj_dict["type"], obj_dict["type"])
+                            
+                            # Pretty print as JSON using rich
+                            json_str = json.dumps(obj_dict, indent=2)
+                            syntax = Syntax(json_str, "json", theme="monokai", word_wrap=True)
+                            self.console.print(syntax)
+                        except Exception as e:
+                            logger.debug(f"model_dump failed: {str(e)}, falling back to to_dict")
+                            # Fall back to to_dict if model_dump fails
+                            obj_dict = address.to_dict()
+                            
+                            # Map SDK type to CLI type for display
+                            if "type" in obj_dict:
+                                obj_dict["type"] = sdk_to_cli_type.get(obj_dict["type"], obj_dict["type"])
+                            
+                            # Pretty print as JSON using rich
+                            json_str = json.dumps(obj_dict, indent=2)
+                            syntax = Syntax(json_str, "json", theme="monokai", word_wrap=True)
+                            self.console.print(syntax)
+                    else:
+                        # Convert to dictionary for JSON display using our adapter
+                        obj_dict = address.to_dict()
+                        
+                        # Map SDK type to CLI type for display
+                        if "type" in obj_dict:
+                            obj_dict["type"] = sdk_to_cli_type.get(obj_dict["type"], obj_dict["type"])
+                        
+                        # Pretty print as JSON using rich
+                        json_str = json.dumps(obj_dict, indent=2)
+                        syntax = Syntax(json_str, "json", theme="monokai", word_wrap=True)
+                        self.console.print(syntax)
+                    
+                    render_end_time = time.time()
+                    log_timing("Rendering object details", render_end_time - render_start_time)
+                    
+                    # Add to known address objects for autocompletion
+                    if folder not in self.state.known_address_objects:
+                        self.state.known_address_objects[folder] = set()
+                    self.state.known_address_objects[folder].add(args.name)
                 
             except ResourceNotFoundError as e:
                 self.console.print(f"Error: {e}", style="red")
@@ -887,7 +1110,7 @@ class SCMCLI(cmd2.Cmd):
                 for addr in addresses:
                     table.add_row(
                         addr.name,
-                        sdk_to_cli_type.get(addr.type.value, addr.type.value),
+                        sdk_to_cli_type.get(addr.type, addr.type) if not hasattr(addr.type, 'value') else sdk_to_cli_type.get(addr.type.value, addr.type.value),
                         addr.value,
                         addr.description or "",
                         ", ".join(addr.tags) if addr.tags else ""
@@ -939,7 +1162,7 @@ class SCMCLI(cmd2.Cmd):
                 for addr in addresses:
                     table.add_row(
                         addr.name,
-                        sdk_to_cli_type.get(addr.type.value, addr.type.value),
+                        sdk_to_cli_type.get(addr.type, addr.type) if not hasattr(addr.type, 'value') else sdk_to_cli_type.get(addr.type.value, addr.type.value),
                         addr.value,
                         addr.description or "",
                         ", ".join(addr.tags) if addr.tags else ""
@@ -952,11 +1175,17 @@ class SCMCLI(cmd2.Cmd):
                     self.state.known_address_objects[folder] = set()
                 self.state.known_address_objects[folder].update(addr.name for addr in addresses)
                 
+            except ResourceNotFoundError as e:
+                self.console.print(f"Error: {e}", style="red")
             except APIError as e:
                 self.console.print(f"API error: {e}", style="red")
                 
         else:
             self.console.print(f"Unknown object type: {args.object_type}", style="red")
+        
+        # Log overall timing
+        end_time = time.time()
+        log_timing("Total execution", end_time - start_time)
 
 
 def main() -> None:

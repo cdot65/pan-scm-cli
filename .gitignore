@@ -42,3 +42,4 @@ htmlcov/
 .python-version
 
 CLAUDE
+/scm_cli_history.db
