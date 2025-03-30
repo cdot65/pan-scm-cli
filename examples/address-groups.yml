@@ -1,0 +1,22 @@
+---
+# Example address groups configuration YAML file
+address_groups:
+  - name: "web-servers"
+    folder: "Texas"
+    type: "static"
+    members: ["web-server-1", "web-server-2", "web-server-3"]
+    description: "Web server farm address group"
+    tags: ["web", "production"]
+    
+  - name: "database-servers"
+    folder: "Texas"
+    type: "static"
+    members: ["db-server-1", "db-server-2"]
+    description: "Database server farm address group"
+    tags: ["database", "production"]
+    
+  - name: "dynamic-endpoints"
+    folder: "California"
+    type: "dynamic"
+    description: "Dynamic address group for mobile endpoints"
+    tags: ["mobile", "dynamic"]
