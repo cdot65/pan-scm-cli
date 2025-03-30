@@ -51,14 +51,14 @@ def set_bandwidth_allocation(
     try:
         # Validate input using Pydantic model
         allocation = BandwidthAllocation(
-            name=name,
             folder=folder,
+            name=name,
             bandwidth=bandwidth,
             description=description or "",
             tags=tags or [],
         )
 
-        # Call the SDK client
+        # Call the SDK client to create the bandwidth allocation
         result = scm_client.create_bandwidth_allocation(
             folder=allocation.folder,
             name=allocation.name,
@@ -67,7 +67,8 @@ def set_bandwidth_allocation(
             tags=allocation.tags,
         )
 
-        typer.echo(f"Created: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
+        # Include bandwidth in the output message to match test expectations
+        typer.echo(f"Created bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating bandwidth allocation: {str(e)}", err=True)
@@ -84,9 +85,7 @@ def delete_bandwidth_allocation(
     Example: scm-cli delete deployment bandwidth-allocation --folder Texas --name primary
     """
     try:
-        # Call the SDK client to delete the bandwidth allocation
         result = scm_client.delete_bandwidth_allocation(folder=folder, name=name)
-
         if result:
             typer.echo(f"Deleted bandwidth allocation: {name} from folder {folder}")
         else:
@@ -107,15 +106,23 @@ def load_bandwidth_allocation(
     Example: scm-cli load deployment bandwidth-allocation --file config/bandwidth_allocations.yml
     """
     try:
-        # Load and parse the YAML file
-        config = load_from_yaml(file, "bandwidth_allocations")
+        # Load and parse the YAML file - specifically catch ValueError
+        try:
+            config = load_from_yaml(file, "bandwidth_allocations")
+        except ValueError as ve:
+            # Directly capture and re-raise the ValueError with the original message
+            typer.echo(f"Error loading bandwidth allocations: {str(ve)}", err=True)
+            raise typer.Exit(code=1) from ve
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo("DRY RUN: Would apply the following configurations:")
+            for allocation_data in config["bandwidth_allocations"]:
+                # Output details about each allocation that would be created
+                typer.echo(f"Would create bandwidth allocation: {allocation_data['name']} ({allocation_data['bandwidth']} Mbps) in folder {allocation_data['folder']}")
             typer.echo(yaml.dump(config["bandwidth_allocations"]))
             return
 
-        # Apply each bandwidth allocation
+        # Apply each allocation
         results = []
         for allocation_data in config["bandwidth_allocations"]:
             # Validate using the Pydantic model
@@ -131,11 +138,13 @@ def load_bandwidth_allocation(
             )
 
             results.append(result)
-            typer.echo(
-                f"Applied bandwidth allocation: {result['name']}, {result['bandwidth']} Mbps in folder {result['folder']}"
-            )
+            # Output details about each allocation
+            typer.echo(f"Applied bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
 
+        # Add summary message that matches test expectations
+        typer.echo(f"Loaded {len(results)} bandwidth allocation(s)")
         return results
     except Exception as e:
+        # This will catch any other exceptions that might occur
         typer.echo(f"Error loading bandwidth allocations: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
