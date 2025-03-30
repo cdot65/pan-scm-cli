@@ -3,8 +3,7 @@ name: Code Quality & Tests
 on:
   push:
     branches: [ main, feature/** ]
-  pull_request:
-    branches: [ main ]
+  # Removed pull_request trigger here as we'll handle it separately
 
 jobs:
   code-quality:
