@@ -14,6 +14,9 @@ def test_sdk_client_init_with_credentials(monkeypatch):
     # Force settings reload
     settings.reload()
 
+    # Mock the Scm class initialization to prevent real API calls
+    monkeypatch.setattr("scm_cli.utils.sdk_client.Scm", lambda **kwargs: None)
+
     # Create a new client instance
     client = SCMClient()
 
@@ -36,7 +39,8 @@ def test_sdk_client_fallback_to_mock_credentials(monkeypatch):
     # Create a new client instance
     client = SCMClient()
 
-    # Check if mock credentials were used
+    # Check if mock credentials are used
     assert client.client_id == "mock-client-id"
     assert client.client_secret == "mock-client-secret"
     assert client.tsg_id == "mock-tsg-id"
+    assert client.client is None  # No real client should be created

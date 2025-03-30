@@ -148,3 +148,5 @@ Thumbs.db
 
 # Ignore dynaconf secret files
 .secrets.*
+
+.sdk_documentation

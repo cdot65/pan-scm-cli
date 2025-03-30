@@ -61,6 +61,84 @@ poetry install
 poetry shell
 ```
 
+## SDK Integration
+
+The `pan-scm-cli` tool is built on top of the `pan-scm-sdk` library, which provides a Python interface to the Palo Alto Networks Strata Cloud Manager API. Here's how the integration works:
+
+### Client Initialization
+
+The SDK client is initialized in `src/scm_cli/utils/sdk_client.py` and implements a singleton pattern to ensure only one client instance is used throughout the application. The client initialization process:
+
+1. Attempts to load credentials from the environment variables or configuration file using dynaconf
+2. Initializes the real SDK client with the credentials if they are available
+3. Falls back to mock mode if credentials are missing or authentication fails
+
+```python
+# Example of how the client is initialized
+self.client = Scm(
+    client_id=self.client_id,
+    client_secret=self.client_secret,
+    tsg_id=self.tsg_id,
+    log_level=settings.get("log_level", "INFO")
+)
+```
+
+### Data Modeling and Validation
+
+The CLI uses Pydantic models defined in `src/scm_cli/utils/validators.py` to validate and transform input data before passing it to the SDK:
+
+- `BandwidthAllocation`: For bandwidth allocation configurations
+- `AddressGroup`: For address group configurations
+- `Zone`: For security zone configurations
+- `SecurityRule`: For security rule configurations
+
+Each model implements a `to_sdk_model()` method that transforms the validated data into the format expected by the SDK client.
+
+### Error Handling
+
+The SDK client wrapper implements robust error handling through the `_handle_api_exception` method, which:
+
+1. Catches API exceptions from the SDK
+2. Logs appropriate error messages
+3. Formats errors for CLI output
+4. Provides consistent error handling across all commands
+
+### Mock Mode for Testing
+
+The client implementation includes a mock mode that returns predefined response data instead of making real API calls. This is used:
+
+- When real credentials aren't available
+- During testing to avoid external dependencies
+- To simulate API responses for development
+
+For example, the mock response for creating a security rule might look like:
+
+```python
+return {
+    "id": f"sr-{name}",
+    "folder": folder,
+    "name": name,
+    "source_zones": source_zones,
+    "destination_zones": destination_zones,
+    "action": action,
+    "enabled": enabled
+}
+```
+
+### Command Integration
+
+The CLI commands in `src/scm_cli/commands/` use the SDK client to perform operations:
+
+1. Command parameters are parsed and validated using Typer
+2. Data is transformed into the appropriate model using Pydantic validators
+3. The SDK client is called with the validated data
+4. Results are formatted and displayed to the user
+
+Example command flow:
+```
+CLI Input → Typer Command → Pydantic Validation → SDK Client → API Call → Formatted Output
+```
+
 ## Usage Examples
 
 ### Creating Objects
