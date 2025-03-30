@@ -8,8 +8,11 @@ actual calls to the pan-scm-sdk.
 import logging
 from typing import Any
 
+from .config import get_credentials, settings
+
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging_level = getattr(logging, settings.get("log_level", "INFO"))
+logging.basicConfig(level=logging_level)
 logger = logging.getLogger(__name__)
 
 
@@ -17,9 +20,25 @@ class SCMClient:
     """Mock client for the SCM SDK."""
 
     def __init__(self):
-        """Initialize the SCM mock client with logger."""
+        """Initialize the SCM mock client with logger and credentials."""
         self.logger = logger
         self.logger.info("Initializing SCM mock client")
+
+        try:
+            # Get credentials from dynaconf settings
+            credentials = get_credentials()
+            self.client_id = credentials["client_id"]
+            self.client_secret = credentials["client_secret"]
+            self.tsg_id = credentials["tsg_id"]
+
+            # In a real implementation, these credentials would be used to authenticate
+            self.logger.info(f"Successfully loaded credentials for TSG ID: {self.tsg_id}")
+        except ValueError as e:
+            self.logger.warning(f"Failed to load credentials: {str(e)}")
+            self.logger.warning("Using mock mode with dummy credentials")
+            self.client_id = "mock-client-id"
+            self.client_secret = "mock-client-secret"
+            self.tsg_id = "mock-tsg-id"
 
     def create_bandwidth_allocation(
         self,

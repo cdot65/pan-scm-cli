@@ -3,11 +3,11 @@
 import typer
 from scm_cli.commands.objects import (
     delete_address_group,
-    delete_command,
+    delete_app,
     load_address_group,
-    load_command,
+    load_app,
     set_address_group,
-    set_command,
+    set_app,
 )
 
 
@@ -16,18 +16,18 @@ class TestObjectsCommands:
 
     def test_set_command_exists(self):
         """Test that the set command exists."""
-        assert set_command is not None
-        assert isinstance(set_command, typer.Typer)
+        assert set_app is not None
+        assert isinstance(set_app, typer.Typer)
 
     def test_delete_command_exists(self):
         """Test that the delete command exists."""
-        assert delete_command is not None
-        assert isinstance(delete_command, typer.Typer)
+        assert delete_app is not None
+        assert isinstance(delete_app, typer.Typer)
 
     def test_load_command_exists(self):
         """Test that the load command exists."""
-        assert load_command is not None
-        assert isinstance(load_command, typer.Typer)
+        assert load_app is not None
+        assert isinstance(load_app, typer.Typer)
 
 
 class TestAddressGroupCommands:
