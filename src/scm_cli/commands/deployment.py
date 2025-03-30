@@ -82,7 +82,12 @@ def delete_bandwidth_allocation(
 ):
     """Delete a bandwidth allocation.
 
-    Example: scm-cli delete deployment bandwidth-allocation --folder Texas --name primary
+    Example:
+    -------
+    scm-cli delete deployment bandwidth-allocation \
+        --folder Texas \
+        --name primary
+
     """
     try:
         result = scm_client.delete_bandwidth_allocation(folder=folder, name=name)
