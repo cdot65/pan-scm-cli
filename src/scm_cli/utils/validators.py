@@ -1,6 +1,6 @@
 """Model validators for scm-cli.
 
-This module defines Pydantic models for validating input data structures before
+This module defines integrations with SDK Pydantic models for validating input data structures before
 sending them to the SCM API. These models enforce data integrity and ensure
 that all required fields are present and correctly formatted.
 """
@@ -13,51 +13,96 @@ from pydantic import BaseModel, Field
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
+# CLI-specific wrapper models that include folder information
 class BandwidthAllocation(BaseModel):
-    """Model for bandwidth allocation configurations."""
+    """Model for bandwidth allocation configurations with folder path."""
 
-    name: str = Field(..., description="Name of the bandwidth allocation")
     folder: str = Field(..., description="Folder path for the bandwidth allocation")
+    name: str = Field(..., description="Name of the bandwidth allocation")
     bandwidth: int = Field(..., description="Bandwidth value in Mbps")
     description: str = Field("", description="Description of the bandwidth allocation")
     tags: list[str] = Field(default_factory=list, description="List of tags")
 
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        return {"name": self.name, "allocated_bandwidth": self.bandwidth, "description": self.description, "tags": self.tags}
+
 
 class AddressGroup(BaseModel):
-    """Model for address group configurations."""
+    """Model for address group configurations with folder path."""
 
-    name: str = Field(..., description="Name of the address group")
     folder: str = Field(..., description="Folder path for the address group")
+    name: str = Field(..., description="Name of the address group")
     type: str = Field(..., description="Type of address group (static or dynamic)")
     members: list[str] = Field(default_factory=list, description="List of addresses in the group")
     description: str = Field("", description="Description of the address group")
     tags: list[str] = Field(default_factory=list, description="List of tags")
 
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {"name": self.name, "description": self.description, "tags": self.tags}
+
+        if self.type == "static":
+            model_data["type"] = "static"
+            model_data["static"] = {"addresses": self.members}
+        else:
+            model_data["type"] = "dynamic"
+            # Handle dynamic group fields if needed
+
+        return model_data
+
 
 class Zone(BaseModel):
-    """Model for security zone configurations."""
+    """Model for security zone configurations with folder path."""
 
-    name: str = Field(..., description="Name of the zone")
     folder: str = Field(..., description="Folder path for the zone")
+    name: str = Field(..., description="Name of the zone")
     mode: str = Field(..., description="Zone mode (L2, L3, external, virtual-wire, tunnel)")
     interfaces: list[str] = Field(default_factory=list, description="List of interfaces")
     description: str = Field("", description="Description of the zone")
     tags: list[str] = Field(default_factory=list, description="List of tags")
 
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        return {
+            "name": self.name,
+            "mode": self.mode,
+            "interfaces": self.interfaces,
+            "description": self.description,
+            "tags": self.tags,
+        }
+
 
 class SecurityRule(BaseModel):
-    """Model for security rule configurations."""
+    """Model for security rule configurations with folder path."""
 
-    name: str = Field(..., description="Name of the security rule")
     folder: str = Field(..., description="Folder path for the security rule")
+    name: str = Field(..., description="Name of the security rule")
     source_zones: list[str] = Field(..., description="List of source zones")
     destination_zones: list[str] = Field(..., description="List of destination zones")
     source_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of source addresses")
     destination_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of destination addresses")
     applications: list[str] = Field(default_factory=lambda: ["any"], description="List of applications")
-    action: str = Field("allow", description="Action for the rule (allow, deny, drop)")
+    action: str = Field("allow", description="Action to take")
     description: str = Field("", description="Description of the security rule")
     tags: list[str] = Field(default_factory=list, description="List of tags")
+    enabled: bool = Field(True, description="Whether the rule is enabled")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        return {
+            "folder": self.folder,
+            "name": self.name,
+            "source_zones": self.source_zones,
+            "destination_zones": self.destination_zones,
+            "source_addresses": self.source_addresses,
+            "destination_addresses": self.destination_addresses,
+            "applications": self.applications,
+            "action": self.action,
+            "description": self.description,
+            "tags": self.tags,
+            "enabled": self.enabled,
+        }
 
 
 def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str) -> list[ModelT]:
@@ -80,16 +125,21 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
 
     """
     if not data:
-        raise ValueError("Empty data structure")
+        raise ValueError("YAML data is empty or could not be parsed")
 
     if key not in data:
-        raise ValueError(f"Missing '{key}' section in data")
+        raise ValueError(f"Key '{key}' not found in YAML data")
 
     items = data[key]
-    validated_items = []
+    if not items or not isinstance(items, list):
+        raise ValueError(f"'{key}' should be a non-empty list")
 
-    for item in items:
-        validated_item = model_class(**item)
-        validated_items.append(validated_item)
+    validated_items = []
+    for idx, item in enumerate(items):
+        try:
+            model = model_class(**item)
+            validated_items.append(model)
+        except Exception as e:
+            raise ValueError(f"Validation error in item {idx}: {str(e)}") from e
 
     return validated_items
