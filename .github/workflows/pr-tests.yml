@@ -16,12 +16,6 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const { data: pull } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            });
-
             const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -67,7 +61,7 @@ jobs:
 
     - uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        ref: ${{ github.sha }}
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -85,17 +79,12 @@ jobs:
       run: |
         poetry install
 
-    - name: Setup Dynaconf configuration
+    - name: Setup environment variables for Dynaconf
       run: |
-        # Create .secrets.yaml file with GitHub secrets
-        cat > .secrets.yaml << EOF
-        ---
-        default:
-          scm_client_id: "${{ secrets.SCM_CLIENT_ID }}"
-          scm_client_secret: "${{ secrets.SCM_CLIENT_SECRET }}"
-          scm_tsg_id: "${{ secrets.SCM_TSG_ID }}"
-        EOF
-        echo "Created .secrets.yaml for CI environment"
+        echo "SCM_CLIENT_ID=${{ secrets.SCM_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "SCM_CLIENT_SECRET=${{ secrets.SCM_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "SCM_TSG_ID=${{ secrets.SCM_TSG_ID }}" >> $GITHUB_ENV
+        echo "Set up environment variables for Dynaconf"
 
     - name: Code Quality Checks
       run: |
