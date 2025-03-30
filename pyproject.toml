@@ -19,6 +19,7 @@ pytest-cov = "^4.1.0"
 ruff = "^0.3.0"
 flake8 = "^7.0.0"
 checkov = "^3.2.0"
+yamllint = "^1.35.1"
 
 [tool.poetry.scripts]
 scm-cli = "scm_cli:main"
@@ -26,3 +27,13 @@ scm-cli = "scm_cli:main"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+select = ["E", "F", "I", "B", "C4", "SIM", "UP", "W", "N", "D"]
+ignore = ["D203", "D213"]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["D", "E501"]
