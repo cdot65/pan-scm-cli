@@ -32,6 +32,18 @@ jobs:
       run: |
         poetry install
 
+    - name: Setup Dynaconf configuration
+      run: |
+        # Create .secrets.yaml file with GitHub secrets
+        cat > .secrets.yaml << EOF
+        ---
+        default:
+          scm_client_id: "${{ secrets.SCM_CLIENT_ID }}"
+          scm_client_secret: "${{ secrets.SCM_CLIENT_SECRET }}"
+          scm_tsg_id: "${{ secrets.SCM_TSG_ID }}"
+        EOF
+        echo "Created .secrets.yaml for CI environment"
+
     - name: Code Quality Checks
       run: |
         poetry run make lint || { echo "Linting failed"; exit 1; }
@@ -67,6 +79,18 @@ jobs:
 #    - name: Install dependencies
 #      run: |
 #        poetry install
+#
+#    - name: Setup Dynaconf configuration
+#      run: |
+#        # Create .secrets.yaml file with GitHub secrets
+#        cat > .secrets.yaml << EOF
+#        ---
+#        default:
+#          scm_client_id: "${{ secrets.SCM_CLIENT_ID }}"
+#          scm_client_secret: "${{ secrets.SCM_CLIENT_SECRET }}"
+#          scm_tsg_id: "${{ secrets.SCM_TSG_ID }}"
+#        EOF
+#        echo "Created .secrets.yaml for CI environment"
 #
 #    - name: Run tests with coverage
 #      run: |

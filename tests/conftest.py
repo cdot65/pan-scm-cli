@@ -14,6 +14,19 @@ from typer.testing import CliRunner
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
 
+@pytest.fixture(autouse=True)
+def mock_dynaconf_settings(monkeypatch):
+    """Mock dynaconf settings for testing.
+
+    This fixture is automatically applied to all tests and sets up
+    environment variables that dynaconf will read for credentials.
+    """
+    monkeypatch.setenv("SCM_SCM_CLIENT_ID", "test-client-id")
+    monkeypatch.setenv("SCM_SCM_CLIENT_SECRET", "test-client-secret")
+    monkeypatch.setenv("SCM_SCM_TSG_ID", "test-tsg-id")
+    monkeypatch.setenv("SCM_LOG_LEVEL", "DEBUG")
+
+
 @pytest.fixture
 def runner():
     """Return a CLI runner for testing Typer commands."""

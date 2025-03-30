@@ -1,7 +1,7 @@
 """Tests for the network commands module."""
 
 import typer
-from scm_cli.commands.network import delete_command, delete_zone, load_command, load_zone, set_command, set_zone
+from scm_cli.commands.network import delete_app, delete_zone, load_app, load_zone, set_app, set_zone
 
 
 class TestNetworkCommands:
@@ -9,18 +9,18 @@ class TestNetworkCommands:
 
     def test_set_command_exists(self):
         """Test that the set command exists."""
-        assert set_command is not None
-        assert isinstance(set_command, typer.Typer)
+        assert set_app is not None
+        assert isinstance(set_app, typer.Typer)
 
     def test_delete_command_exists(self):
         """Test that the delete command exists."""
-        assert delete_command is not None
-        assert isinstance(delete_command, typer.Typer)
+        assert delete_app is not None
+        assert isinstance(delete_app, typer.Typer)
 
     def test_load_command_exists(self):
         """Test that the load command exists."""
-        assert load_command is not None
-        assert isinstance(load_command, typer.Typer)
+        assert load_app is not None
+        assert isinstance(load_app, typer.Typer)
 
 
 class TestZoneCommands:
