@@ -52,17 +52,17 @@ def set_address_group(
 
     """
     try:
-        # Validate input
+        # Validate inputs using the Pydantic model
         address_group = AddressGroup(
-            name=name,
             folder=folder,
+            name=name,
             type=type,
             members=members or [],
             description=description or "",
             tags=tags or [],
         )
 
-        # Call the SDK client (mock for now)
+        # Call the SDK client to create the address group
         result = scm_client.create_address_group(
             folder=address_group.folder,
             name=address_group.name,
@@ -89,14 +89,10 @@ def delete_address_group(
     Example: scm-cli delete objects address-group --folder Texas --name test123
     """
     try:
-        # Call the SDK client to delete the address group (mock for now)
         result = scm_client.delete_address_group(folder=folder, name=name)
-
         if result:
             typer.echo(f"Deleted address group: {name} from folder {folder}")
-        else:
-            typer.echo(f"Address group not found: {name} in folder {folder}", err=True)
-            raise typer.Exit(code=1)
+        return result
     except Exception as e:
         typer.echo(f"Error deleting address group: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
