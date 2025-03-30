@@ -1,0 +1,35 @@
+---
+# Example security rules configuration YAML file
+security_rules:
+  - name: "allow-internal-web"
+    folder: "Texas"
+    source_zones: ["trust"]
+    destination_zones: ["dmz"]
+    source_addresses: ["any"]
+    destination_addresses: ["web-servers"]
+    applications: ["web-browsing", "ssl"]
+    action: "allow"
+    description: "Allow internal users to access web servers"
+    tags: ["web", "internal"]
+    enabled: true
+
+  - name: "allow-outbound"
+    folder: "Texas"
+    source_zones: ["trust"]
+    destination_zones: ["untrust"]
+    source_addresses: ["any"]
+    destination_addresses: ["any"]
+    applications: ["web-browsing", "ssl", "dns"]
+    action: "allow"
+    description: "Allow outbound internet access"
+    tags: ["outbound"]
+    enabled: true
+
+  - name: "block-malicious"
+    folder: "Texas"
+    source_zones: ["untrust"]
+    destination_zones: ["any"]
+    action: "deny"
+    description: "Block known malicious sources"
+    tags: ["security"]
+    enabled: true

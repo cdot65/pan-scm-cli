@@ -1,0 +1,23 @@
+---
+# Example security zones configuration YAML file
+zones:
+  - name: "trust"
+    folder: "Texas"
+    mode: "layer3"
+    interfaces: ["ethernet1/1", "ethernet1/2"]
+    description: "Internal trusted network zone"
+    tags: ["internal", "trusted"]
+
+  - name: "untrust"
+    folder: "Texas"
+    mode: "layer3"
+    interfaces: ["ethernet1/3"]
+    description: "External untrusted network zone"
+    tags: ["external", "untrusted"]
+
+  - name: "dmz"
+    folder: "Texas"
+    mode: "layer3"
+    interfaces: ["ethernet1/4"]
+    description: "DMZ network zone"
+    tags: ["dmz"]

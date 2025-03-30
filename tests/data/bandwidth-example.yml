@@ -1,0 +1,9 @@
+---
+bandwidth_allocations:
+  - name: test-allocation
+    folder: test-folder
+    bandwidth: 1000
+    description: Test allocation
+    tags:
+      - test
+      - example
