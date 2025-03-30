@@ -8,10 +8,11 @@ from pathlib import Path
 
 import typer
 import yaml
+from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import ValidationError, Zone
+from ..utils.validators import Zone
 
 # Create app groups for each action type
 set_app = typer.Typer(help="Create or update network configurations")
