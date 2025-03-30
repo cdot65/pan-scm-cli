@@ -1,0 +1,20 @@
+---
+# Example bandwidth allocations configuration YAML file
+bandwidth_allocations:
+  - name: "primary-allocation"
+    folder: "Texas"
+    bandwidth: 1000
+    description: "Primary bandwidth allocation for production environment"
+    tags: ["production", "primary"]
+
+  - name: "secondary-allocation"
+    folder: "Texas"
+    bandwidth: 500
+    description: "Secondary bandwidth allocation for backup services"
+    tags: ["backup"]
+
+  - name: "test-allocation"
+    folder: "California"
+    bandwidth: 100
+    tags: ["test"]
+    # Description is optional
