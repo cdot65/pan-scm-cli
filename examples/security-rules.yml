@@ -12,7 +12,7 @@ security_rules:
     description: "Allow internal users to access web servers"
     tags: ["web", "internal"]
     enabled: true
-    
+
   - name: "allow-outbound"
     folder: "Texas"
     source_zones: ["trust"]
@@ -24,7 +24,7 @@ security_rules:
     description: "Allow outbound internet access"
     tags: ["outbound"]
     enabled: true
-    
+
   - name: "block-malicious"
     folder: "Texas"
     source_zones: ["untrust"]

@@ -1,3 +1,1 @@
-"""
-Test package for pan-scm-cli.
-"""
+"""Test package for pan-scm-cli."""

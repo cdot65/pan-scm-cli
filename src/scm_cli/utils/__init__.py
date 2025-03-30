@@ -1,3 +1,1 @@
-"""
-Utility modules for the pan-scm-cli tool.
-"""
+"""Utility modules for the pan-scm-cli tool."""

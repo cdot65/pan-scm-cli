@@ -1,5 +1,4 @@
-"""
-Mock SDK client for scm-cli.
+"""Mock SDK client for scm-cli.
 
 This module provides a mock implementation of the pan-scm-sdk client for testing
 and development purposes. In a production environment, this would be replaced with
@@ -7,7 +6,7 @@ actual calls to the pan-scm-sdk.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,12 +17,18 @@ class SCMClient:
     """Mock client for the SCM SDK."""
 
     def __init__(self):
+        """Initialize the SCM mock client with logger."""
         self.logger = logger
         self.logger.info("Initializing SCM mock client")
 
     def create_bandwidth_allocation(
-        self, folder: str, name: str, bandwidth: int, description: str = "", tags: List[str] = None
-    ) -> Dict[str, Any]:
+        self,
+        folder: str,
+        name: str,
+        bandwidth: int,
+        description: str = "",
+        tags: list[str] = None,
+    ) -> dict[str, Any]:
         """Mock for creating a bandwidth allocation."""
         tags = tags or []
         self.logger.info(f"Creating bandwidth allocation: {name} with {bandwidth} Mbps in folder {folder}")
@@ -33,7 +38,7 @@ class SCMClient:
             "name": name,
             "bandwidth": bandwidth,
             "description": description,
-            "tags": tags
+            "tags": tags,
         }
 
     def delete_bandwidth_allocation(self, folder: str, name: str) -> bool:
@@ -42,8 +47,14 @@ class SCMClient:
         return True
 
     def create_address_group(
-        self, folder: str, name: str, type: str, members: List[str] = None, description: str = "", tags: List[str] = None
-    ) -> Dict[str, Any]:
+        self,
+        folder: str,
+        name: str,
+        type: str,
+        members: list[str] = None,
+        description: str = "",
+        tags: list[str] = None,
+    ) -> dict[str, Any]:
         """Mock for creating an address group."""
         members = members or []
         tags = tags or []
@@ -55,7 +66,7 @@ class SCMClient:
             "type": type,
             "members": members,
             "description": description,
-            "tags": tags
+            "tags": tags,
         }
 
     def delete_address_group(self, folder: str, name: str) -> bool:
@@ -64,8 +75,14 @@ class SCMClient:
         return True
 
     def create_zone(
-        self, folder: str, name: str, mode: str, interfaces: List[str] = None, description: str = "", tags: List[str] = None
-    ) -> Dict[str, Any]:
+        self,
+        folder: str,
+        name: str,
+        mode: str,
+        interfaces: list[str] = None,
+        description: str = "",
+        tags: list[str] = None,
+    ) -> dict[str, Any]:
         """Mock for creating a security zone."""
         interfaces = interfaces or []
         tags = tags or []
@@ -77,7 +94,7 @@ class SCMClient:
             "mode": mode,
             "interfaces": interfaces,
             "description": description,
-            "tags": tags
+            "tags": tags,
         }
 
     def delete_zone(self, folder: str, name: str) -> bool:
@@ -86,10 +103,18 @@ class SCMClient:
         return True
 
     def create_security_rule(
-        self, folder: str, name: str, source_zones: List[str], destination_zones: List[str],
-        source_addresses: List[str] = None, destination_addresses: List[str] = None,
-        applications: List[str] = None, action: str = "allow", description: str = "", tags: List[str] = None
-    ) -> Dict[str, Any]:
+        self,
+        folder: str,
+        name: str,
+        source_zones: list[str],
+        destination_zones: list[str],
+        source_addresses: list[str] = None,
+        destination_addresses: list[str] = None,
+        applications: list[str] = None,
+        action: str = "allow",
+        description: str = "",
+        tags: list[str] = None,
+    ) -> dict[str, Any]:
         """Mock for creating a security rule."""
         source_addresses = source_addresses or ["any"]
         destination_addresses = destination_addresses or ["any"]
@@ -107,7 +132,7 @@ class SCMClient:
             "applications": applications,
             "action": action,
             "description": description,
-            "tags": tags
+            "tags": tags,
         }
 
     def delete_security_rule(self, folder: str, name: str) -> bool:

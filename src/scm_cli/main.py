@@ -1,15 +1,13 @@
-"""
-Main entry point for the scm-cli tool.
+"""Main entry point for the scm-cli tool.
 
 This module initializes the Typer CLI application and registers subcommands for the
 various SCM configuration actions (set, delete, load) and object types.
 """
 
 import typer
-from typing import Optional, List
 
 # Import object type modules
-from .commands import objects, network, security, deployment
+from .commands import deployment, network, objects, security
 
 app = typer.Typer(
     name="scm-cli",
@@ -51,15 +49,16 @@ load_app.add_typer(deployment.load_app, name="deployment")
 
 @app.callback()
 def callback():
-    """
-    Manage Palo Alto Networks Strata Cloud Manager (SCM) configurations.
-    
+    """Manage Palo Alto Networks Strata Cloud Manager (SCM) configurations.
+
     The CLI follows the pattern: <action> <object-type> <object> [options]
-    
-    Examples:
+
+    Examples
+    --------
       - scm-cli set objects address-group --folder Texas --name test123 --type static
       - scm-cli delete security security-rule --folder Texas --name test123
       - scm-cli load network zone --file config/security_zones.yml
+
     """
     pass
 
