@@ -1,217 +1,252 @@
-# scm-cli
+# Strata Cloud Manager CLI
 
-CLI for Palo Alto Networks Strata Cloud Manager
+![Banner Image](https://raw.githubusercontent.com/cdot65/pan-scm-cli/main/docs/images/logo.svg)
+[![Build Status](https://github.com/cdot65/pan-scm-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/cdot65/pan-scm-cli/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/pan-scm-cli.svg)](https://badge.fury.io/py/pan-scm-cli)
+[![Python versions](https://img.shields.io/pypi/pyversions/pan-scm-cli.svg)](https://pypi.org/project/pan-scm-cli/)
+[![License](https://img.shields.io/github/license/cdot65/pan-scm-cli.svg)](https://github.com/cdot65/pan-scm-cli/blob/main/LICENSE)
 
-## Overview
+Command-line interface for Palo Alto Networks Strata Cloud Manager.
 
-The `scm-cli` tool provides a command-line interface for managing Palo Alto Networks Strata Cloud Manager (SCM) configurations. It is designed for network engineers who prefer a terminal-based workflow.
+> **NOTE**: Please refer to the [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/) for all
+> examples
 
-The CLI follows a consistent command structure:
-```
-scm-cli <action> <object-type> <object> [options]
-```
+## Table of Contents
 
-Where:
-- `<action>`: set, delete, or load
-- `<object-type>`: objects, network, security, or deployment
-- `<object>`: specific object type like address-group, zone, security-rule, or bandwidth-allocation
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+    - [Authentication](#authentication)
+    - [Command Structure](#command-structure)
+    - [Example Commands](#example-commands)
+- [Development](#development)
+    - [Setup](#setup)
+    - [Code Quality](#code-quality)
+    - [Pre-commit Hooks](#pre-commit-hooks)
+- [Contributing](#contributing)
+- [License](#license)
+- [Support](#support)
+
+## Features
+
+- **Consistent Command Structure**: Intuitive command pattern that follows standard CLI conventions.
+- **Comprehensive Object Management**: Create, read, update, and delete configuration objects like addresses, address groups, security zones, and security rules.
+- **Bulk Operations**: Load and manage objects in bulk using YAML files.
+- **Mock Mode**: Test commands without making actual API calls to validate configurations.
+- **Authentication Management**: Multiple authentication methods including environment variables and configuration files.
+- **Extensive Documentation**: Comprehensive examples for all supported operations.
 
 ## Installation
 
-Install from PyPI:
+**Requirements**:
+
+- Python 3.10 or higher
+
+Install the package via pip:
 
 ```bash
 pip install pan-scm-cli
 ```
 
-## Development Setup
+## Usage
 
-### Prerequisites
+### Authentication
 
-- Python 3.10+ (recommended: 3.12.9)
-- Poetry (for dependency management)
+Configure authentication using one of the following methods:
 
-### Setting Up Python with pyenv
-
-```bash
-# Install pyenv if you don't have it
-brew install pyenv
-
-# Install Python 3.12.9
-pyenv install 3.12.9
-
-# Set local Python version
-echo "3.12.9" > .python-version
-
-# Verify Python version
-python --version
-```
-
-### Setting Up the Development Environment
+#### Environment Variables
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/pan-scm-cli.git
-cd pan-scm-cli
+# Linux/macOS
+export SCM_CLIENT_ID="your_client_id"
+export SCM_CLIENT_SECRET="your_client_secret"
+export SCM_TSG_ID="your_tenant_service_group_id"
 
-# Install dependencies with Poetry
-poetry install
-
-# Activate the virtual environment
-poetry shell
+# Windows PowerShell
+$env:SCM_CLIENT_ID = "your_client_id"
+$env:SCM_CLIENT_SECRET = "your_client_secret"
+$env:SCM_TSG_ID = "your_tenant_service_group_id"
 ```
 
-## SDK Integration
+#### Configuration File
 
-The `pan-scm-cli` tool is built on top of the `pan-scm-sdk` library, which provides a Python interface to the Palo Alto Networks Strata Cloud Manager API. Here's how the integration works:
+Create a config file at `~/.scm-cli/config.yaml`:
 
-### Client Initialization
-
-The SDK client is initialized in `src/scm_cli/utils/sdk_client.py` and implements a singleton pattern to ensure only one client instance is used throughout the application. The client initialization process:
-
-1. Attempts to load credentials from the environment variables or configuration file using dynaconf
-2. Initializes the real SDK client with the credentials if they are available
-3. Falls back to mock mode if credentials are missing or authentication fails
-
-```python
-# Example of how the client is initialized
-self.client = Scm(
-    client_id=self.client_id,
-    client_secret=self.client_secret,
-    tsg_id=self.tsg_id,
-    log_level=settings.get("log_level", "INFO")
-)
+```yaml
+client_id: "your_client_id"
+client_secret: "your_client_secret"
+tsg_id: "your_tenant_service_group_id"
 ```
 
-### Data Modeling and Validation
+### Command Structure
 
-The CLI uses Pydantic models defined in `src/scm_cli/utils/validators.py` to validate and transform input data before passing it to the SDK:
+The CLI follows a consistent command pattern:
 
-- `BandwidthAllocation`: For bandwidth allocation configurations
-- `AddressGroup`: For address group configurations
-- `Zone`: For security zone configurations
-- `SecurityRule`: For security rule configurations
-
-Each model implements a `to_sdk_model()` method that transforms the validated data into the format expected by the SDK client.
-
-### Error Handling
-
-The SDK client wrapper implements robust error handling through the `_handle_api_exception` method, which:
-
-1. Catches API exceptions from the SDK
-2. Logs appropriate error messages
-3. Formats errors for CLI output
-4. Provides consistent error handling across all commands
-
-### Mock Mode for Testing
-
-The client implementation includes a mock mode that returns predefined response data instead of making real API calls. This is used:
-
-- When real credentials aren't available
-- During testing to avoid external dependencies
-- To simulate API responses for development
-
-For example, the mock response for creating a security rule might look like:
-
-```python
-return {
-    "id": f"sr-{name}",
-    "folder": folder,
-    "name": name,
-    "source_zones": source_zones,
-    "destination_zones": destination_zones,
-    "action": action,
-    "enabled": enabled
-}
+```
+scm-cli <action> <object-type> <object> [options]
 ```
 
-### Command Integration
+Where:
+- `<action>`: `set`, `delete`, or `load`
+- `<object-type>`: `objects`, `network`, `security`, or `deployment`
+- `<object>`: Specific object type (e.g., `address`, `address-group`, `security-zone`)
 
-The CLI commands in `src/scm_cli/commands/` use the SDK client to perform operations:
+### Example Commands
 
-1. Command parameters are parsed and validated using Typer
-2. Data is transformed into the appropriate model using Pydantic validators
-3. The SDK client is called with the validated data
-4. Results are formatted and displayed to the user
-
-Example command flow:
-```
-CLI Input → Typer Command → Pydantic Validation → SDK Client → API Call → Formatted Output
-```
-
-## Usage Examples
-
-### Creating Objects
+#### Managing Address Objects
 
 ```bash
-# Create an address group
-scm-cli set objects address-group --folder Texas --name test123 --type static --members "['abc', 'xyz']" --description "Test group" --tags "['production', 'test']"
+# Create a new address object
+scm-cli set objects address --folder Shared --name web-server --ip-netmask 192.168.1.100/32 --description "Web server in DMZ"
 
-# Create a security zone
-scm-cli set network zone --folder Texas --name trust --mode L3 --interfaces "['ethernet1/1']" --description "Trust zone" --tags "['internal']"
+# List all address objects in a folder
+scm-cli set objects address --list --folder Shared
 
-# Create a security rule
-scm-cli set security security-rule --folder Texas --name allow-web --source-zones "['trust']" --destination-zones "['untrust']" --applications "['web-browsing']" --action allow
+# Delete an address object
+scm-cli delete objects address --folder Shared --name web-server
 ```
 
-### Deleting Objects
+#### Managing Address Groups
 
 ```bash
+# Create a static address group
+scm-cli set objects address-group --folder Shared --name web-servers --type static --members "web-server-1,web-server-2"
+
+# Create a dynamic address group
+scm-cli set objects address-group --folder Shared --name dynamic-endpoints --type dynamic --filter "'endpoint' and 'corporate'"
+
 # Delete an address group
-scm-cli delete objects address-group --folder Texas --name test123
-
-# Delete a security zone
-scm-cli delete network zone --folder Texas --name trust
-
-# Delete a security rule
-scm-cli delete security security-rule --folder Texas --name allow-web
+scm-cli delete objects address-group --folder Shared --name web-servers
 ```
 
-### Loading Objects from YAML Files
+#### Managing Security Zones
 
 ```bash
-# Load address groups from YAML
-scm-cli load objects address-group --file examples/address-groups.yml
+# Create a security zone
+scm-cli set network security-zone --folder Shared --name DMZ --mode layer3 --enable-user-id true
 
-# Load security zones from YAML
-scm-cli load network zone --file examples/security-zones.yml
-
-# Load security rules from YAML
-scm-cli load security security-rule --file examples/security-rules.yml
-
-# Load bandwidth allocations from YAML
-scm-cli load deployment bandwidth-allocation --file examples/bandwidth-example.yml
+# List all security zones
+scm-cli set network security-zone --list --folder Shared
 ```
 
-You can use the `--dry-run` flag with any load command to preview changes without applying them:
+#### Managing Security Rules
 
 ```bash
-scm-cli load security security-rule --file examples/security-rules.yml --dry-run
+# Create a security rule
+scm-cli set security rule --folder Shared --name "Allow-Web" \
+  --source-zones "Trust" --destination-zones "DMZ" \
+  --source-addresses "any" --destination-addresses "web-servers" \
+  --applications "web-browsing,ssl" --services "application-default" \
+  --action allow --log-end true
+
+# List all security rules
+scm-cli set security rule --list --folder Shared
 ```
 
-## Project Structure
+#### Bulk Operations
 
+Create a YAML file with multiple objects:
+
+```yaml
+# addresses.yaml
+addresses:
+  - name: web-server-1
+    description: "Web server 1"
+    ip_netmask: 192.168.1.100/32
+    tags:
+      - web
+      - production
+
+  - name: web-server-2
+    description: "Web server 2"
+    ip_netmask: 192.168.1.101/32
+    tags:
+      - web
+      - production
 ```
-pan-scm-cli/
-├── src/
-│   └── scm_cli/             # Core package
-│       ├── __init__.py      # Package initialization
-│       ├── main.py          # Entry point and command registration
-│       ├── commands/        # Command implementations
-│       │   ├── deployment.py
-│       │   ├── network.py
-│       │   ├── objects.py
-│       │   └── security.py
-│       └── utils/           # Utility modules
-│           ├── config.py
-│           ├── sdk_client.py
-│           └── validators.py
-├── examples/                # Example YAML configurations
-├── pyproject.toml          # Project metadata and dependencies
-├── poetry.toml             # Poetry configuration
-└── .python-version         # Python version specification
+
+Load the objects:
+
+```bash
+scm-cli load objects address --folder Shared --file addresses.yaml
 ```
+
+## Development
+
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/cdot65/pan-scm-cli.git
+   cd pan-scm-cli
+   ```
+
+2. Install dependencies and pre-commit hooks:
+   ```bash
+   make setup
+   ```
+
+   Alternatively, you can install manually:
+   ```bash
+   poetry install
+   poetry run pre-commit install
+   ```
+
+### Code Quality
+
+This project uses [ruff](https://github.com/astral-sh/ruff) for linting and formatting:
+
+```bash
+# Run linting checks
+make lint
+
+# Format code
+make format
+
+# Auto-fix linting issues when possible
+make fix
+```
+
+### Pre-commit Hooks
+
+We use pre-commit hooks to ensure code quality before committing:
+
+```bash
+# Run pre-commit hooks on all files
+make pre-commit-all
+```
+
+The following checks run automatically before each commit:
+- ruff linting and formatting
+- Trailing whitespace removal
+- End-of-file fixer
+- YAML/JSON syntax checking
+- Large file detection
+- Python syntax validation
+- Merge conflict detection
+- Private key detection
+
+## Contributing
+
+We welcome contributions! To contribute:
+
+1. Fork the repository.
+2. Create a new feature branch (`git checkout -b feature/your-feature`).
+3. Make your changes, ensuring all linting and tests pass.
+4. Commit your changes (`git commit -m 'Add new feature'`).
+5. Push to your branch (`git push origin feature/your-feature`).
+6. Open a Pull Request.
+
+Ensure your code adheres to the project's coding standards and includes tests where appropriate.
 
 ## License
 
-Copyright (c) 2023 Calvin Remsburg
+This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICENSE) file for details.
+
+## Support
+
+For support and questions, please refer to the [SUPPORT.md](./SUPPORT.md) file in this repository.
+
+---
+
+*Detailed documentation is available on our [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/).*
