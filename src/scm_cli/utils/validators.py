@@ -7,7 +7,7 @@ that all required fields are present and correctly formatted.
 
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # Create a type variable bound to BaseModel
 ModelT = TypeVar("ModelT", bound=BaseModel)
@@ -103,6 +103,57 @@ class SecurityRule(BaseModel):
             "tags": self.tags,
             "enabled": self.enabled,
         }
+
+
+class Address(BaseModel):
+    """Model for address objects with container information.
+
+    Attributes
+    ----------
+        folder (str): The folder where the address object is located
+        name (str): The name of the address object
+        description (str): Description of the address object
+        tags (List[str]): Tags associated with the address object
+        ip_netmask (Optional[str]): IP address with CIDR notation (e.g. "192.168.1.0/24")
+        ip_range (Optional[str]): IP address range (e.g. "192.168.1.1-192.168.1.10")
+        ip_wildcard (Optional[str]): IP wildcard mask (e.g. "10.20.1.0/0.0.248.255")
+        fqdn (Optional[str]): Fully qualified domain name (e.g. "example.com")
+
+    """
+
+    folder: str = Field(..., description="Folder containing the address object")
+    name: str = Field(..., min_length=1, max_length=63, description="Name of the address object")
+    description: str = Field("", description="Description of the address object")
+    tags: list[str] = Field(default_factory=list, description="Tags associated with the address object")
+
+    # Address type fields - exactly one must be provided
+    ip_netmask: str | None = Field(None, description="IP address with CIDR notation")
+    ip_range: str | None = Field(None, description="IP address range")
+    ip_wildcard: str | None = Field(None, description="IP wildcard mask")
+    fqdn: str | None = Field(None, description="Fully qualified domain name")
+
+    @model_validator(mode="after")
+    def validate_address_type(self) -> "Address":
+        """Validate that exactly one address type is provided.
+
+        Returns
+        -------
+            Address: The validated address object
+
+        Raises
+        ------
+            ValueError: If zero or multiple address types are provided
+
+        """
+        address_fields = ["ip_netmask", "ip_range", "ip_wildcard", "fqdn"]
+        provided = [field for field in address_fields if getattr(self, field) is not None]
+
+        if len(provided) == 0:
+            raise ValueError("Exactly one of 'ip_netmask', 'ip_range', 'ip_wildcard', or 'fqdn' must be provided.")
+        elif len(provided) > 1:
+            raise ValueError("Only one of 'ip_netmask', 'ip_range', 'ip_wildcard', or 'fqdn' can be provided.")
+
+        return self
 
 
 def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str) -> list[ModelT]:
