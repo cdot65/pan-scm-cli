@@ -1,0 +1,124 @@
+site_name: Palo Alto Networks Strata Cloud Manager CLI
+site_description: Command-line interface for managing Palo Alto Networks Strata Cloud Manager configurations
+site_url: https://cdot65.github.io/pan-scm-cli/
+repo_url: https://github.com/cdot65/pan-scm-cli
+repo_name: cdot65/pan-scm-cli
+site_dir: site
+copyright: Copyright &copy; 2023-2025 Calvin Remsburg
+
+theme:
+  name: material
+  logo: images/logo.svg
+  favicon: images/logo.svg
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.instant
+    - navigation.tracking
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+          selection:
+            docstring_style: google
+  - minify:
+      minify_html: true
+  - git-revision-date-localized:
+      enable_creation_date: true
+      enable_git_follow: false
+      fallback_to_build_date: true
+  - mermaid2:
+      version: 10.6.1
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji
+  - footnotes
+  - toc:
+      permalink: true
+      toc_depth: 4
+  - attr_list
+  - def_list
+  - tables
+  - md_in_html
+
+extra_css:
+  - css/termynal.css
+  - css/custom.css
+
+extra_javascript:
+  - js/termynal.js
+  - js/custom_termynal.js
+
+# Explicitly set the layout for home page with customizations
+not_in_nav: |
+  index.md
+  STYLE_GUIDE.md
+
+nav:
+  - Home: index.md
+  - About:
+      - Introduction: about/introduction.md
+      - Installation: about/installation.md
+      - Getting Started: about/getting-started.md
+      - Release Notes: about/release-notes.md
+      - Contributing: about/contributing.md
+      - License: about/license.md
+      - Troubleshooting: about/troubleshooting.md
+  - CLI Reference:
+      - Overview: cli/index.md
+      - Objects:
+          - Address: cli/objects/address.md
+          - Address Group: cli/objects/address-group.md
+      - Network:
+          - Security Zone: cli/network/security-zone.md
+      - Security:
+          - Security Rules: cli/security/rules.md
+      - Deployment:
+          - Bandwidth Allocation: cli/deployment/bandwidth.md
+  - User Guide:
+      - Getting Started: guide/getting-started.md
+      - Configuration Objects: guide/configuration-objects.md
+      - Advanced Topics: guide/advanced-topics.md
+      - Data Models: guide/data-models.md
+      - Operations: guide/operations.md
