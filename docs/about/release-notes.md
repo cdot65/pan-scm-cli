@@ -260,34 +260,16 @@ This page contains the release history of the Strata Cloud Manager CLI, with the
 
 - **OAuth Client**: Fixed issue with refresh_token handling
 
-## Version 0.2.2
-
-**Released:** January 5, 2025
-
-### Changed
-
-- **Dependencies**: Dropped dependency version on crypto package
-
 ## Version 0.2.1
 
-**Released:** January 2, 2025
-
-### Added
-
-- **Client-side Filtering**: Added filtering to address list method
-
-### Improved
-
-- **Error Handling**: Enhanced error handling across Address and Application modules
-- **Testing**: Improved address and address group tests with better validation
-
-### Changed
-
-- **Object Management**: Refactored address object management
+**Released:** March 30, 2025
 
 ### Fixed
 
-- **Exception Handling**: Introduced `BadResponseError` for invalid API responses
+- **Typer Compatibility**: Upgraded Typer from 0.11.1 to 0.15.2
+  - Fixed compatibility issues with Python 3.10+ type annotations (`|` union operator)
+  - Resolved `RuntimeError: Type not yet supported: list[str] | None` error when running CLI commands
+  - Improved overall CLI stability with modern Python type hints
 
 ## Version 0.2.0
 
