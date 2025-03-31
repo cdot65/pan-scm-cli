@@ -117,6 +117,7 @@ nav:
       - Deployment:
           - Bandwidth Allocation: cli/deployment/bandwidth.md
   - User Guide:
+      - Getting Started: guide/getting-started.md
       - Configuration Objects: guide/configuration-objects.md
       - Advanced Topics: guide/advanced-topics.md
       - Data Models: guide/data-models.md
