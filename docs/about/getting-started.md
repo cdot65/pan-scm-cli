@@ -1,0 +1,310 @@
+# Getting Started with pan-scm-cli
+
+Welcome to the `pan-scm-cli`! This guide will walk you through the initial setup and basic usage of the CLI tool to interact with Palo Alto Networks Strata Cloud Manager.
+
+## Installation
+
+**Requirements**:
+
+- Python 3.10 or higher
+
+Install the package via pip:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ pip install pan-scm-cli
+---> 100%
+Successfully installed pan-scm-cli
+```
+
+</div>
+
+## Authentication Setup
+
+Before using the CLI, you need to configure authentication with your Strata Cloud Manager credentials. You have two options:
+
+### Option 1: Environment Variables (Recommended)
+
+Set the following environment variables:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ export SCM_CLIENT_ID="your_client_id"
+$ export SCM_CLIENT_SECRET="your_client_secret"
+$ export SCM_TSG_ID="your_tsg_id"
+```
+
+</div>
+
+### Option 2: Configuration File
+
+Create a configuration file at `~/.scm/config.ini`:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ mkdir -p ~/.scm
+$ cat > ~/.scm/config.ini << EOF
+[credentials]
+client_id = your_client_id
+client_secret = your_client_secret
+tsg_id = your_tsg_id
+EOF
+```
+
+</div>
+
+## Command Structure
+
+All commands in `pan-scm-cli` follow this basic structure:
+
+```
+scm-cli <action> <resource-type> <resource> [options]
+```
+
+Where:
+- `<action>`: The operation to perform (set, delete, load)
+- `<resource-type>`: The category of resource (objects, deployment, network, security)
+- `<resource>`: The specific resource type (address, address-group, zone, etc.)
+- `[options]`: Resource-specific parameters and global options
+
+## Basic Usage Examples
+
+### Getting Help
+
+You can get help for any command by using the `--help` flag:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ scm-cli --help
+Usage: scm-cli [OPTIONS] COMMAND [ARGS]...
+
+  Command-line interface for Palo Alto Networks Strata Cloud Manager.
+
+Options:
+  --version  Show the version and exit.
+  --help     Show this message and exit.
+
+Commands:
+  delete  Delete resources from SCM
+  load    Load resources from files
+  set     Set/configure resources in SCM
+```
+
+</div>
+
+Command-specific help:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ scm-cli set objects address --help
+Usage: scm-cli set objects address [OPTIONS]
+
+  Create or update an address object in SCM.
+
+Options:
+  --folder TEXT            Folder for the address object  [required]
+  --name TEXT              Name of the address object  [required]
+  --description TEXT       Description for the address
+  --tags LIST              List of tags to apply to the address
+  --ip-netmask TEXT        Address in CIDR notation (e.g., 192.168.1.0/24)
+  --ip-range TEXT          Address range (e.g., 192.168.1.1-192.168.1.10)
+  --ip-wildcard TEXT       Address with wildcard mask (e.g., 10.20.1.0/0.0.248.255)
+  --fqdn TEXT              Fully qualified domain name (e.g., example.com)
+  --help                   Show this message and exit.
+```
+
+</div>
+
+## Working with Address Objects
+
+### Creating an Address Object
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ scm-cli set objects address \
+    --folder Texas \
+    --name webserver \
+    --ip-netmask 192.168.1.100/32 \
+    --description "Web server" \
+    --tags ["server", "web"]
+---> 100%
+Created address: webserver in folder Texas
+```
+
+</div>
+
+### Creating an Address with FQDN
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ scm-cli set objects address \
+    --folder Texas \
+    --name company-website \
+    --fqdn example.com \
+    --description "Company website"
+---> 100%
+Created address: company-website in folder Texas
+```
+
+</div>
+
+### Listing Address Objects
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ scm-cli list objects address --folder Texas
+---> 100%
++----------------+---------------+------------------+
+| Name           | Type          | Value            |
++----------------+---------------+------------------+
+| webserver      | ip-netmask    | 192.168.1.100/32 |
+| company-website| fqdn          | example.com      |
+| database       | ip-netmask    | 192.168.2.50/32  |
++----------------+---------------+------------------+
+```
+
+</div>
+
+### Deleting an Address Object
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ scm-cli delete objects address --folder Texas --name webserver
+---> 100%
+Deleted address: webserver from folder Texas
+```
+
+</div>
+
+## Bulk Operations with YAML Files
+
+### Loading Multiple Address Objects
+
+Create a YAML file with multiple address definitions:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ cat > addresses.yml << EOF
+---
+folder: Texas
+addresses:
+  - name: web-server-1
+    description: "Web Server 1"
+    ip_netmask: 192.168.1.10/32
+    tags:
+      - web
+      - production
+  - name: web-server-2
+    description: "Web Server 2"
+    ip_netmask: 192.168.1.11/32
+    tags:
+      - web
+      - production
+  - name: database-server
+    description: "Database Server"
+    ip_netmask: 192.168.2.10/32
+    tags:
+      - database
+      - production
+EOF
+```
+
+</div>
+
+Then load the addresses from the file:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ scm-cli load objects address --file addresses.yml
+---> 100%
+Loading addresses from addresses.yml
+Applied address: web-server-1 in folder Texas
+Applied address: web-server-2 in folder Texas
+Applied address: database-server in folder Texas
+Successfully applied 3 address objects
+```
+
+</div>
+
+## Advanced Usage
+
+### Using Dry Run Mode
+
+Test changes without applying them:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ scm-cli set objects address \
+    --folder Texas \
+    --name webserver \
+    --ip-netmask 192.168.1.100/32 \
+    --dry-run
+---> 100%
+[DRY RUN] Would create address: webserver in folder Texas
+```
+
+</div>
+
+### Using Mock Mode for Testing
+
+Run commands without connecting to the SCM API:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+$ export SCM_MOCK_MODE=true
+$ scm-cli set objects address \
+    --folder Texas \
+    --name webserver \
+    --ip-netmask 192.168.1.100/32
+---> 100%
+[MOCK] Created address: webserver in folder Texas
+```
+
+</div>
+
+## Next Steps
+
+Now that you're familiar with the basics of using `pan-scm-cli`, you can:
+
+1. Check out the CLI Reference for a complete list of commands and options
+2. Learn about Address Objects and their implementation
+3. Explore Security Rules for managing security policies

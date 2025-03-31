@@ -1,0 +1,47 @@
+# Site settings
+title: Palo Alto Networks Strata Cloud Manager CLI
+description: Command-line interface for managing Palo Alto Networks Strata Cloud Manager configurations
+github_username: cdot65
+logo: images/logo.svg
+show_downloads: true
+
+# Build settings
+markdown: kramdown
+theme: jekyll-theme-minimal
+plugins:
+  - jekyll-feed
+
+# GitHub Pages with MkDocs Configuration
+include:
+  - "_*_.html"
+  - "_*_.*.html"
+  - docs
+  - README.md
+  - images/
+
+# Exclude from build
+exclude:
+  - "site/"  # MkDocs build directory
+  - "mkdocs.yml"  # MkDocs configuration
+  - "venv/"
+  - "poetry.lock"
+  - "pyproject.toml"
+  - "src/"
+  - "tests/"
+  - "*.py"
+  - "*.sh"
+  - "*.bat"
+  - "*.yml"
+  - "*.yaml"
+  - "*.toml"
+  - "LICENSE"
+
+# Use the gh-pages branch
+branch: gh-pages
+
+# Custom GitHub Pages settings
+github:
+  is_project_page: true
+  repository_url: https://github.com/cdot65/pan-scm-cli
+  owner_name: Calvin Remsburg
+  owner_url: https://github.com/cdot65
