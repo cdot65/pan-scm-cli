@@ -111,7 +111,6 @@ The CLI can be configured using environment variables for authentication and oth
 | `SCM_CLIENT_SECRET` | Client secret for authentication | `export SCM_CLIENT_SECRET=client-secret-value` |
 | `SCM_TSG_ID` | Tenant Service Group ID | `export SCM_TSG_ID=tsg-id-value` |
 | `SCM_CLI_LOG_LEVEL` | Logging level (DEBUG, INFO, etc.) | `export SCM_CLI_LOG_LEVEL=DEBUG` |
-| `SCM_CLI_CONFIG_FILE` | Custom config file location | `export SCM_CLI_CONFIG_FILE=~/my-config.yaml` |
 
 ## Script Integration
 

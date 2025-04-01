@@ -52,33 +52,9 @@ pip install pan-scm-cli
 
 ### Authentication
 
-Configure authentication using one of the following methods:
+The SCM CLI uses dynaconf to manage authentication credentials. Configure authentication using one of the following methods:
 
-#### Environment Variables
-
-```bash
-# Linux/macOS
-export SCM_CLIENT_ID="your_client_id"
-export SCM_CLIENT_SECRET="your_client_secret"
-export SCM_TSG_ID="your_tenant_service_group_id"
-
-# Windows PowerShell
-$env:SCM_CLIENT_ID = "your_client_id"
-$env:SCM_CLIENT_SECRET = "your_client_secret"
-$env:SCM_TSG_ID = "your_tenant_service_group_id"
-```
-
-#### Configuration File
-
-Create a config file at `~/.scm-cli/config.yaml`:
-
-```yaml
-client_id: "your_client_id"
-client_secret: "your_client_secret"
-tsg_id: "your_tenant_service_group_id"
-```
-
-#### Local Secrets File (Development)
+#### Method 1: Using Local .secrets.yaml (Recommended for Development)
 
 > **⚠️ SECURITY WARNING**
 >
@@ -89,14 +65,14 @@ tsg_id: "your_tenant_service_group_id"
 > - **Protect local credential files with appropriate file permissions**
 > - **Regularly rotate your credentials**
 
-For local development **ONLY**, you can use the included example configuration file:
+For local development, follow these steps:
 
 1. Copy the example configuration file to create a local secrets file:
    ```bash
    cp example-config.yaml .secrets.yaml
    ```
 
-2. Edit the `.secrets.yaml` file with your credentials:
+2. Edit the `.secrets.yaml` file with your actual credentials:
    ```yaml
    default:
      scm_client_id: "your_client_id"
@@ -110,9 +86,27 @@ For local development **ONLY**, you can use the included example configuration f
    chmod 600 .secrets.yaml
    ```
 
-4. The CLI will automatically detect and use this file when running commands from the project directory.
+4. Run the CLI from the same directory where `.secrets.yaml` is located. Dynaconf will automatically load credentials from this file.
 
 > **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
+
+#### Method 2: Environment Variables
+
+For production use or scripting, set environment variables:
+
+```bash
+# Linux/macOS
+export SCM_CLIENT_ID="your_client_id"
+export SCM_CLIENT_SECRET="your_client_secret"
+export SCM_TSG_ID="your_tenant_service_group_id"
+
+# Windows PowerShell
+$env:SCM_CLIENT_ID = "your_client_id"
+$env:SCM_CLIENT_SECRET = "your_client_secret"
+$env:SCM_TSG_ID = "your_tenant_service_group_id"
+```
+
+These environment variables will be automatically detected by dynaconf and used for authentication.
 
 ### Command Structure
 
