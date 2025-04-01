@@ -1,0 +1,12 @@
+---
+default:
+  # !!!! SECURITY WARNING !!!!
+  # 1. RENAME THIS FILE TO .secrets.yaml
+  # 2. REPLACE placeholder values with your actual credentials
+  # 3. NEVER commit .secrets.yaml to version control
+  # 4. CONSIDER using environment variables instead for production use
+  #
+  # This file is only intended for local development
+  scm_client_id: "this-is-a-placeholder"
+  scm_client_secret: "this-is-a-placeholder"
+  scm_tsg_id: "this-is-a-placeholder"
