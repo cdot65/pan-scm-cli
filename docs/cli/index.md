@@ -74,7 +74,6 @@ Options that apply to all commands:
 | `--version` | Show the CLI version information |
 | `--verbose` | Enable verbose output for additional details |
 | `--mock` | Run in mock mode (no actual API connections) |
-| `--config-file` | Specify custom config file location |
 
 ## Working with the CLI
 
