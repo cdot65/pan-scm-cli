@@ -78,6 +78,42 @@ client_secret: "your_client_secret"
 tsg_id: "your_tenant_service_group_id"
 ```
 
+#### Local Secrets File (Development)
+
+> **⚠️ SECURITY WARNING**
+>
+> Storage of credentials in files poses security risks. Consider these best practices:
+>
+> - **NEVER commit credential files to version control**
+> - **Use environment variables for production environments**
+> - **Protect local credential files with appropriate file permissions**
+> - **Regularly rotate your credentials**
+
+For local development **ONLY**, you can use the included example configuration file:
+
+1. Copy the example configuration file to create a local secrets file:
+   ```bash
+   cp example-config.yaml .secrets.yaml
+   ```
+
+2. Edit the `.secrets.yaml` file with your credentials:
+   ```yaml
+   default:
+     scm_client_id: "your_client_id"
+     scm_client_secret: "your_client_secret"
+     scm_tsg_id: "your_tenant_service_group_id"
+   ```
+
+3. Secure the file with restrictive permissions:
+   ```bash
+   # On Linux/macOS
+   chmod 600 .secrets.yaml
+   ```
+
+4. The CLI will automatically detect and use this file when running commands from the project directory.
+
+> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
+
 ### Command Structure
 
 The CLI follows a consistent command pattern:
