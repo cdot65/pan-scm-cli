@@ -24,11 +24,54 @@ Successfully installed pan-scm-cli
 
 ## Authentication Setup
 
-Before using the CLI, you need to configure authentication with your Strata Cloud Manager credentials. You have two options:
+The SCM CLI uses dynaconf to manage authentication credentials. You have the following options for authentication:
 
-### Option 1: Environment Variables (Recommended)
+### Option 1: Using Local .secrets.yaml (Recommended for Development)
 
-Set the following environment variables:
+> **⚠️ SECURITY WARNING**
+>
+> Storage of credentials in files poses security risks. Consider these best practices:
+>
+> - **NEVER commit credential files to version control**
+> - **Use environment variables for production environments**
+> - **Protect local credential files with appropriate file permissions**
+> - **Regularly rotate your credentials**
+
+For local development, follow these steps:
+
+<div class="termy">
+
+<!-- termynal -->
+
+```console
+# Step 1: Copy the example configuration file
+$ cp example-config.yaml .secrets.yaml
+
+# Step 2: Edit the .secrets.yaml file with your credentials
+$ nano .secrets.yaml
+
+# Step 3: Secure the file with restrictive permissions
+$ chmod 600 .secrets.yaml
+```
+
+</div>
+
+Your `.secrets.yaml` file should look like this:
+
+```yaml
+default:
+  scm_client_id: "your_client_id"
+  scm_client_secret: "your_client_secret"
+  scm_tsg_id: "your_tenant_service_group_id"
+```
+
+Run the CLI from the same directory where `.secrets.yaml` is located. Dynaconf will automatically load credentials from this file.
+
+> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
+
+### Option 2: Environment Variables
+
+For production use or scripting, set environment variables:
 
 <div class="termy">
 
@@ -42,25 +85,7 @@ $ export SCM_TSG_ID="your_tsg_id"
 
 </div>
 
-### Option 2: Configuration File
-
-Create a configuration file at `~/.scm/config.ini`:
-
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ mkdir -p ~/.scm
-$ cat > ~/.scm/config.ini << EOF
-[credentials]
-client_id = your_client_id
-client_secret = your_client_secret
-tsg_id = your_tsg_id
-EOF
-```
-
-</div>
+These environment variables will be automatically detected by dynaconf and used for authentication.
 
 ## Command Structure
 
