@@ -1,0 +1,6 @@
+---
+default:
+  # ! RENAME THIS FILE TO .secrets.yaml
+  scm_client_id: "this-is-a-placeholder"
+  scm_client_secret: "this-is-a-placeholder"
+  scm_tsg_id: "this-is-a-placeholder"
