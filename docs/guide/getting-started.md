@@ -18,11 +18,47 @@ poetry add pan-scm-cli
 
 ## Authentication
 
-To use the CLI, you need to authenticate with Strata Cloud Manager. You have two options:
+The SCM CLI uses dynaconf to manage authentication credentials. You have the following options for authentication:
 
-### Option 1: Environment Variables (Recommended)
+### Option 1: Using Local .secrets.yaml (Recommended for Development)
 
-Set the following environment variables:
+> **⚠️ SECURITY WARNING**
+>
+> Storage of credentials in files poses security risks. Consider these best practices:
+>
+> - **NEVER commit credential files to version control**
+> - **Use environment variables for production environments**
+> - **Protect local credential files with appropriate file permissions**
+> - **Regularly rotate your credentials**
+
+For local development, follow these steps:
+
+1. Copy the example configuration file to create a local secrets file:
+   ```bash
+   cp example-config.yaml .secrets.yaml
+   ```
+
+2. Edit the `.secrets.yaml` file with your actual credentials:
+   ```yaml
+   default:
+     scm_client_id: "your_client_id"
+     scm_client_secret: "your_client_secret"
+     scm_tsg_id: "your_tenant_service_group_id"
+   ```
+
+3. Secure the file with restrictive permissions:
+   ```bash
+   # On Linux/macOS
+   chmod 600 .secrets.yaml
+   ```
+
+4. Run the CLI from the same directory where `.secrets.yaml` is located. Dynaconf will automatically load credentials from this file.
+
+> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
+
+### Option 2: Environment Variables
+
+For production use or scripting, set environment variables:
 
 ```bash
 # For Linux/macOS
@@ -36,15 +72,7 @@ $env:SCM_CLIENT_SECRET = "your-client-secret"
 $env:SCM_TSG_ID = "your-tenant-service-group-id"
 ```
 
-### Option 2: Configuration File
-
-Create a configuration file at `~/.scm-cli/config.yaml`:
-
-```yaml
-client_id: "your-client-id"
-client_secret: "your-client-secret"
-tsg_id: "your-tenant-service-group-id"
-```
+These environment variables will be automatically detected by dynaconf and used for authentication.
 
 ## Basic Usage Examples
 

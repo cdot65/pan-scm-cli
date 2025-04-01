@@ -11,7 +11,9 @@ If you encounter issues while using `pan-scm-cli`, this guide provides solutions
 **Solutions:**
 
 - **Check Environment Variables**: Ensure that `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, and `SCM_TSG_ID` are correctly set.
-- **Check Configuration File**: If using a config file, verify that credentials are properly configured in `~/.scm-cli/config.yaml`.
+- **Check Local Secrets File**: If using a local configuration, verify that credentials are properly configured in `.secrets.yaml` in the directory where you're running the CLI.
+- **File Location**: Make sure you're running the CLI from the same directory where your `.secrets.yaml` file is located, as dynaconf looks for this file in the current working directory.
+- **File Format**: Ensure your `.secrets.yaml` follows the correct format with the `default` section.
 - **Permissions**: Verify that your credentials have the necessary permissions to access the API.
 - **Network Issues**: Ensure there are no network issues blocking access to the SCM authentication endpoint.
 
