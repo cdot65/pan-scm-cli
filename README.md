@@ -52,13 +52,52 @@ pip install pan-scm-cli
 
 ### Authentication
 
-The SCM CLI uses dynaconf to manage authentication credentials. Configure authentication using one of the following methods:
+The SCM CLI uses dynaconf to manage authentication credentials. Configure authentication using one of the following methods (in order of precedence):
 
-#### Method 1: Using Local .secrets.yaml (Recommended for Development)
+#### Method 1: Environment Variables (Highest Priority)
+
+For production use or scripting, set environment variables:
+
+```bash
+# Linux/macOS
+export SCM_CLIENT_ID="your_client_id"
+export SCM_CLIENT_SECRET="your_client_secret"
+export SCM_TSG_ID="your_tenant_service_group_id"
+
+# Windows PowerShell
+$env:SCM_CLIENT_ID = "your_client_id"
+$env:SCM_CLIENT_SECRET = "your_client_secret"
+$env:SCM_TSG_ID = "your_tenant_service_group_id"
+```
+
+These environment variables will be automatically detected and used with highest priority.
+
+#### Method 2: Config File in Home Directory
+
+For a more permanent configuration, create a config file in your home directory:
+
+```bash
+# Create the config directory if it doesn't exist
+mkdir -p ~/.scm-cli
+
+# Create and edit the config file
+cat > ~/.scm-cli/config.yaml << EOL
+client_id: "your_client_id"
+client_secret: "your_client_secret"
+tsg_id: "your_tenant_service_group_id"
+EOL
+
+# Secure the file with restrictive permissions
+chmod 600 ~/.scm-cli/config.yaml
+```
+
+This method is used when environment variables are not set.
+
+#### Method 3: Local Project Configuration (Development)
 
 > **⚠️ SECURITY WARNING**
 >
-> Storage of credentials in files poses security risks. Consider these best practices:
+> Storage of credentials in project files poses security risks. Consider these best practices:
 >
 > - **NEVER commit credential files to version control**
 > - **Use environment variables for production environments**
@@ -86,27 +125,19 @@ For local development, follow these steps:
    chmod 600 .secrets.yaml
    ```
 
-4. Run the CLI from the same directory where `.secrets.yaml` is located. Dynaconf will automatically load credentials from this file.
+> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials.
 
-> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
+#### Verifying Authentication
 
-#### Method 2: Environment Variables
-
-For production use or scripting, set environment variables:
+To verify your authentication configuration:
 
 ```bash
-# Linux/macOS
-export SCM_CLIENT_ID="your_client_id"
-export SCM_CLIENT_SECRET="your_client_secret"
-export SCM_TSG_ID="your_tenant_service_group_id"
+# Test with actual credentials
+scm-cli test-auth
 
-# Windows PowerShell
-$env:SCM_CLIENT_ID = "your_client_id"
-$env:SCM_CLIENT_SECRET = "your_client_secret"
-$env:SCM_TSG_ID = "your_tenant_service_group_id"
+# Test in mock mode (doesn't require real credentials)
+scm-cli test-auth --mock
 ```
-
-These environment variables will be automatically detected by dynaconf and used for authentication.
 
 ### Command Structure
 
