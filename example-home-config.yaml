@@ -1,0 +1,11 @@
+# Example ~/.scm-cli/config.yaml file
+# This file should be placed in your home directory at ~/.scm-cli/config.yaml
+# Recommended: Set restrictive permissions with: chmod 600 ~/.scm-cli/config.yaml
+
+# Authentication credentials for Strata Cloud Manager
+client_id: "your_client_id"
+client_secret: "your_client_secret"
+tsg_id: "your_tenant_service_group_id"
+
+# Note: Environment variables with the prefix SCM_ will take precedence over these values
+# Example: SCM_CLIENT_ID will override client_id in this file
