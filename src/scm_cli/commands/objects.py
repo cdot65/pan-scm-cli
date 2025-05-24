@@ -192,7 +192,16 @@ def show_address_group(
             for group in groups:
                 # Display address group information
                 typer.echo(f"Name: {group.get('name', 'N/A')}")
-                typer.echo(f"  Folder: {group.get('folder', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if group.get("folder"):
+                    typer.echo(f"  Location: Folder '{group['folder']}'")
+                elif group.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{group['snippet']}'")
+                elif group.get("device"):
+                    typer.echo(f"  Location: Device '{group['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
 
                 # Determine type based on presence of 'static' or 'dynamic' key
                 if group.get("static") is not None:
@@ -219,7 +228,16 @@ def show_address_group(
             group = scm_client.get_address_group(folder=folder, name=name)
 
             typer.echo(f"Address Group: {group.get('name', 'N/A')}")
-            typer.echo(f"Folder: {group.get('folder', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if group.get("folder"):
+                typer.echo(f"Location: Folder '{group['folder']}'")
+            elif group.get("snippet"):
+                typer.echo(f"Location: Snippet '{group['snippet']}'")
+            elif group.get("device"):
+                typer.echo(f"Location: Device '{group['device']}'")
+            else:
+                typer.echo("Location: N/A")
 
             # Determine type based on presence of 'static' or 'dynamic' key
             if group.get("static") is not None:
@@ -428,7 +446,17 @@ def show_address(
             for addr in addresses:
                 # Display address information
                 typer.echo(f"Name: {addr.get('name', 'N/A')}")
-                typer.echo(f"  Folder: {addr.get('folder', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if addr.get("folder"):
+                    typer.echo(f"  Location: Folder '{addr['folder']}'")
+                elif addr.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{addr['snippet']}'")
+                elif addr.get("device"):
+                    typer.echo(f"  Location: Device '{addr['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
+
                 typer.echo(f"  Description: {addr.get('description', 'N/A')}")
 
                 # Display the address type and value
@@ -458,7 +486,17 @@ def show_address(
             address = scm_client.get_address(folder=folder, name=name)
 
             typer.echo(f"Address: {address.get('name', 'N/A')}")
-            typer.echo(f"Folder: {address.get('folder', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if address.get("folder"):
+                typer.echo(f"Location: Folder '{address['folder']}'")
+            elif address.get("snippet"):
+                typer.echo(f"Location: Snippet '{address['snippet']}'")
+            elif address.get("device"):
+                typer.echo(f"Location: Device '{address['device']}'")
+            else:
+                typer.echo("Location: N/A")
+
             typer.echo(f"Description: {address.get('description', 'N/A')}")
 
             # Display the address type and value

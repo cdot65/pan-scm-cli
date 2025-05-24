@@ -4,11 +4,35 @@
 The project has successfully implemented:
 - ✅ Authentication via environment variables and config file
 - ✅ Basic CRUD operations: set, delete, load
-- ✅ Show command for address objects
+- ✅ Show command for address objects, address groups, security zones, and security rules
 - ✅ Comprehensive test coverage for existing commands
 - ✅ Documentation with examples
+- ✅ Smart upsert logic for address objects (create or update existing)
 
-## Phase 1: Show Command Implementation (In Progress)
+## Recent Improvements (Completed ✅)
+- [x] Enhanced `create_address` method to handle existing objects gracefully
+  - Automatically detects if address exists and updates instead of failing
+  - Handles address type changes by delete/recreate when necessary
+  - Avoids SDK validation errors by not setting unused fields to None
+- [x] Enhanced `create_address_group` method with smart upsert logic
+  - Automatically detects existing groups and updates them
+  - Handles group type changes (static ↔ dynamic) by delete/recreate
+  - Maintains consistent behavior with address objects
+- [x] Created comprehensive style guides for command modules, SDK client, and validators
+- [x] Implemented show commands for bandwidth allocations, security rules, and security zones
+
+## Current Work (In Progress)
+- [x] Implement smart upsert logic for `create_zone` method
+  - Added automatic detection and update of existing zones
+  - Noted SDK limitations for mode changes
+  - Simplified interface handling
+- [x] Implement smart upsert logic for `create_security_rule` method
+  - Added rulebase parameter support
+  - Implemented field name mapping (from_, to_, etc.)
+  - Handles all rule attributes updates
+- [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
+
+## Phase 1: Show Command Implementation (Completed ✅)
 
 ### Address Objects (Completed ✅)
 - [x] Implement `show objects address` command with `--list` and `--name` flags
@@ -16,23 +40,26 @@ The project has successfully implemented:
 - [x] Add comprehensive tests for show address functionality
 - [x] Update README with show address examples
 
-### Address Groups (Current Task)
-- [ ] Create GitHub issue for address group show command
-- [ ] Create feature branch for implementation
-- [ ] Implement `show objects address-group` command with `--list` and `--name` flags
-- [ ] Add SDK client methods: `list_address_groups()` and `get_address_group()`
-- [ ] Add comprehensive tests for show address-group functionality
-- [ ] Update README with show address-group examples
+### Address Groups (Completed ✅)
+- [x] Implement `show objects address-group` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_address_groups()` and `get_address_group()`
+- [x] Add comprehensive tests for show address-group functionality
+- [x] Update README with show address-group examples
 
-### Security Zones
-- [ ] Implement `show network security-zone` command
-- [ ] Add SDK client methods for listing and fetching zones
-- [ ] Add tests and documentation
+### Security Zones (Completed ✅)
+- [x] Implement `show network security-zone` command
+- [x] Add SDK client methods for listing and fetching zones
+- [x] Add tests and documentation
 
-### Security Rules
-- [ ] Implement `show security rule` command
-- [ ] Add SDK client methods for listing and fetching rules
-- [ ] Add tests and documentation
+### Security Rules (Completed ✅)
+- [x] Implement `show security rule` command
+- [x] Add SDK client methods for listing and fetching rules
+- [x] Add tests and documentation
+
+### Bandwidth Allocations (Completed ✅)
+- [x] Implement `show deployment bandwidth-allocation` command
+- [x] Add SDK client methods for listing and fetching allocations
+- [x] Add tests and documentation
 
 ## Phase 2: Update Command Implementation
 
