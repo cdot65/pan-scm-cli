@@ -63,6 +63,7 @@ load_app.add_typer(security.load_app, name="security")
 set_app.add_typer(deployment.set_app, name="deployment")
 delete_app.add_typer(deployment.delete_app, name="deployment")
 load_app.add_typer(deployment.load_app, name="deployment")
+show_app.add_typer(deployment.show_app, name="deployment")
 
 # ========================================================================================================================================================================================
 # CLI COMMANDS

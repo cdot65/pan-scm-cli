@@ -27,7 +27,7 @@ class SCMClient:
     Strata Cloud Manager API, organized by configuration type:
 
     Deployment Configuration:
-        - Bandwidth Allocation: create, delete
+        - Bandwidth Allocation: create, get, list, delete
 
     Objects Configuration:
         - Address Groups: create, get, list, delete
@@ -148,7 +148,6 @@ class SCMClient:
             # Create using the SDK bandwidth_allocation service (singular, not plural)
             allocation_data = {
                 "name": name,
-                "folder": folder,  # Include folder in the data object
                 "allocated_bandwidth": bandwidth,
                 "description": description or "",
             }
@@ -156,7 +155,8 @@ class SCMClient:
             if tags:
                 allocation_data["tags"] = tags
 
-            # Updated to match SDK's expected method signature - pass data without folder as a separate param
+            # Note: bandwidth allocations don't have folder parameter in the SDK
+            # The folder parameter is kept in the method signature for CLI consistency
             result = self.client.bandwidth_allocation.create(allocation_data)
 
             # Convert SDK response to dict for compatibility
@@ -183,11 +183,92 @@ class SCMClient:
 
         try:
             # Delete using the SDK bandwidth_allocation service (singular, not plural)
-            # Pass the folder and name as query parameters
-            self.client.bandwidth_allocation.delete(folder=folder, name=name)
+            # Note: bandwidth allocations don't have folder parameter in the SDK
+            self.client.bandwidth_allocation.delete(name=name)
             return True
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
+
+    def get_bandwidth_allocation(
+        self,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get a bandwidth allocation by name.
+
+        Args:
+            name: Name of the bandwidth allocation to get
+
+        Returns:
+            dict[str, Any]: The bandwidth allocation object
+
+        Note:
+            Bandwidth allocations do not have a folder parameter
+
+        """
+        self.logger.info(f"Getting bandwidth allocation: {name}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"ba-{name}",
+                "name": name,
+                "allocated_bandwidth": 1000,
+                "spn_name_list": ["spn1", "spn2"],
+                "description": "Mock bandwidth allocation",
+            }
+
+        try:
+            # Fetch the bandwidth allocation using the SDK
+            result = self.client.bandwidth_allocation.fetch(name=name)
+
+            # Convert SDK response to dict for compatibility
+            return result.model_dump()
+        except Exception as e:
+            self._handle_api_exception("retrieval", "N/A", name, e)
+
+    def list_bandwidth_allocations(
+        self,
+    ) -> list[dict[str, Any]]:
+        """List all bandwidth allocations.
+
+        Returns:
+            list[dict[str, Any]]: List of bandwidth allocation objects
+
+        Note:
+            Bandwidth allocations do not have a folder parameter
+
+        """
+        self.logger.info("Listing bandwidth allocations")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "ba-mock1",
+                    "name": "mock-allocation-1",
+                    "allocated_bandwidth": 1000,
+                    "spn_name_list": ["spn1", "spn2"],
+                    "description": "Mock bandwidth allocation 1",
+                },
+                {
+                    "id": "ba-mock2",
+                    "name": "mock-allocation-2",
+                    "allocated_bandwidth": 2000,
+                    "spn_name_list": ["spn3"],
+                    "description": "Mock bandwidth allocation 2",
+                    "qos_enabled": True,
+                    "qos_guaranteed_ratio": 50,
+                },
+            ]
+
+        try:
+            # List bandwidth allocations using the SDK
+            results = self.client.bandwidth_allocation.list()
+
+            # Convert SDK response to list of dicts for compatibility
+            return [result.model_dump() for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "N/A", "bandwidth allocations", e)
 
     # ========================================================================================================================================================================================
     # OBJECTS CONFIGURATION METHODS

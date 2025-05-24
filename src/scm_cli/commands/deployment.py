@@ -21,6 +21,7 @@ from ..utils.validators import BandwidthAllocation
 set_app = typer.Typer(help="Create or update deployment configurations")
 delete_app = typer.Typer(help="Remove deployment configurations")
 load_app = typer.Typer(help="Load deployment configurations from YAML files")
+show_app = typer.Typer(help="Display deployment configurations")
 
 # ========================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -164,4 +165,102 @@ def load_bandwidth_allocation(
     except Exception as e:
         # This will catch any other exceptions that might occur
         typer.echo(f"Error loading bandwidth allocations: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("bandwidth-allocation")
+def show_bandwidth_allocation(
+    name: str | None = typer.Option(None, "--name", help="Name of the bandwidth allocation to show"),
+    list_allocations: bool = typer.Option(False, "--list", help="List all bandwidth allocations"),
+):
+    """Display bandwidth allocations.
+
+    Example:
+    -------
+        # List all bandwidth allocations
+        scm-cli show deployment bandwidth-allocation --list
+
+        # Show a specific bandwidth allocation by name
+        scm-cli show deployment bandwidth-allocation --name primary
+
+    Note: Bandwidth allocations do not have a folder parameter.
+
+    """
+    try:
+        if list_allocations:
+            # List all bandwidth allocations
+            allocations = scm_client.list_bandwidth_allocations()
+
+            if not allocations:
+                typer.echo("No bandwidth allocations found")
+                return
+
+            typer.echo("Bandwidth Allocations:")
+            typer.echo("-" * 60)
+
+            for allocation in allocations:
+                # Display bandwidth allocation information
+                typer.echo(f"Name: {allocation.get('name', 'N/A')}")
+                typer.echo(f"  Allocated Bandwidth: {allocation.get('allocated_bandwidth', 'N/A')} Mbps")
+
+                # Display SPN names if present
+                spn_names = allocation.get("spn_name_list", [])
+                if spn_names:
+                    typer.echo(f"  SPN Names: {', '.join(spn_names)}")
+                else:
+                    typer.echo("  SPN Names: None")
+
+                typer.echo(f"  Description: {allocation.get('description', 'N/A')}")
+
+                # Display QoS settings if enabled
+                if allocation.get("qos_enabled"):
+                    typer.echo("  QoS Settings:")
+                    typer.echo("    Enabled: True")
+                    if allocation.get("qos_guaranteed_ratio") is not None:
+                        typer.echo(f"    Guaranteed Ratio: {allocation.get('qos_guaranteed_ratio')}%")
+
+                # Display ID if present
+                if allocation.get("id"):
+                    typer.echo(f"  ID: {allocation['id']}")
+
+                typer.echo("-" * 60)
+
+            return allocations
+
+        elif name:
+            # Get a specific bandwidth allocation by name
+            allocation = scm_client.get_bandwidth_allocation(name=name)
+
+            typer.echo(f"Bandwidth Allocation: {allocation.get('name', 'N/A')}")
+            typer.echo(f"Allocated Bandwidth: {allocation.get('allocated_bandwidth', 'N/A')} Mbps")
+
+            # Display SPN names if present
+            spn_names = allocation.get("spn_name_list", [])
+            if spn_names:
+                typer.echo(f"SPN Names: {', '.join(spn_names)}")
+            else:
+                typer.echo("SPN Names: None")
+
+            typer.echo(f"Description: {allocation.get('description', 'N/A')}")
+
+            # Display QoS settings if present
+            if allocation.get("qos_enabled"):
+                typer.echo("QoS Settings:")
+                typer.echo("  Enabled: True")
+                if allocation.get("qos_guaranteed_ratio") is not None:
+                    typer.echo(f"  Guaranteed Ratio: {allocation.get('qos_guaranteed_ratio')}%")
+
+            # Display ID if present
+            if allocation.get("id"):
+                typer.echo(f"ID: {allocation['id']}")
+
+            return allocation
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing bandwidth allocation: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
