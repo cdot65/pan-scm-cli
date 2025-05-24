@@ -435,3 +435,68 @@ This is necessary because the SDK doesn't allow direct type changes.
 2. **Type Flexibility**: Seamlessly handles group type changes
 3. **Simplified Workflows**: No need to manually check existence
 4. **Clear Feedback**: Logging shows create vs update operations
+
+## 13. Smart Upsert Feature for Security Zones
+
+### 13.1 Implementation
+
+The `create_zone` method now implements smart upsert logic with SDK-specific considerations:
+
+- Automatically detects existing zones and updates them
+- Handles description and tag updates seamlessly
+- Provides warnings about SDK limitations for mode changes
+- Simplified interface handling (full implementation would require proper network configuration)
+
+### 13.2 SDK Limitations
+
+The SDK doesn't support changing zone modes after creation. The implementation logs warnings about this limitation and focuses on updating other attributes.
+
+## 14. Smart Upsert Feature for Security Rules
+
+### 14.1 Problem Statement
+
+Security rules require both folder and rulebase parameters, making the upsert logic more complex than other object types.
+
+### 14.2 Solution: Rulebase-Aware Upsert
+
+The `create_security_rule` method implements smart upsert with rulebase support:
+
+#### 14.2.1 Enhanced Fetch Logic
+```python
+# Try to fetch existing rule with folder and rulebase
+existing_rule = client.security_rule.fetch(
+    name=name, 
+    folder=folder, 
+    rulebase=rulebase
+)
+```
+
+#### 14.2.2 Field Name Mapping
+
+The SDK uses different field names than our CLI interface:
+- `source_zones` → `from_`
+- `destination_zones` → `to_`
+- `source_addresses` → `source`
+- `destination_addresses` → `destination`
+- `applications` → `application`
+- `enabled` → `disabled` (inverted logic)
+- `tags` → `tag`
+
+### 14.3 Technical Implementation Details
+
+#### 14.3.1 Rulebase Support
+- Added `rulebase` parameter with default value "pre"
+- Fetch operation includes rulebase for proper rule location
+- Create operation passes rulebase to SDK
+
+#### 14.3.2 Field Updates
+- All rule attributes can be updated in place
+- Service field defaults to ["any"]
+- Proper handling of enabled/disabled inversion
+
+### 14.4 Benefits
+
+1. **Rulebase Awareness**: Properly handles pre/post/default rulebases
+2. **Field Mapping**: Transparent translation between CLI and SDK field names
+3. **Complete Updates**: All rule attributes can be modified
+4. **Consistent Pattern**: Same upsert approach as other object types
