@@ -17,6 +17,7 @@ from ..utils.validators import Address, AddressGroup
 set_app = typer.Typer(help="Create or update objects configurations")
 delete_app = typer.Typer(help="Remove objects configurations")
 load_app = typer.Typer(help="Load objects configurations from YAML files")
+show_app = typer.Typer(help="Display objects configurations")
 
 # Define typer option constants
 FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the address group")
@@ -271,4 +272,207 @@ def load_address(
         return results
     except Exception as e:
         typer.echo(f"Error loading addresses: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("address")
+def show_address(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the address to show"),
+    list_addresses: bool = typer.Option(False, "--list", help="List all addresses in the folder"),
+):
+    """Display address objects.
+
+    Example:
+    -------
+        # List all addresses in a folder
+        scm-cli show objects address --folder Texas --list
+
+        # Show a specific address by name
+        scm-cli show objects address --folder Texas --name webserver
+
+    """
+    try:
+        if list_addresses:
+            # List all addresses in the folder
+            addresses = scm_client.list_addresses(folder=folder)
+
+            if not addresses:
+                typer.echo(f"No addresses found in folder '{folder}'")
+                return
+
+            typer.echo(f"Addresses in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for addr in addresses:
+                # Display address information
+                typer.echo(f"Name: {addr.get('name', 'N/A')}")
+                typer.echo(f"  Folder: {addr.get('folder', 'N/A')}")
+                typer.echo(f"  Description: {addr.get('description', 'N/A')}")
+
+                # Display the address type and value
+                if addr.get("ip_netmask"):
+                    typer.echo("  Type: IP/Netmask")
+                    typer.echo(f"  Value: {addr['ip_netmask']}")
+                elif addr.get("ip_range"):
+                    typer.echo("  Type: IP Range")
+                    typer.echo(f"  Value: {addr['ip_range']}")
+                elif addr.get("ip_wildcard"):
+                    typer.echo("  Type: IP Wildcard")
+                    typer.echo(f"  Value: {addr['ip_wildcard']}")
+                elif addr.get("fqdn"):
+                    typer.echo("  Type: FQDN")
+                    typer.echo(f"  Value: {addr['fqdn']}")
+
+                # Display tags if present
+                if addr.get("tag"):
+                    typer.echo(f"  Tags: {', '.join(addr['tag'])}")
+
+                typer.echo("-" * 60)
+
+            return addresses
+
+        elif name:
+            # Get a specific address by name
+            address = scm_client.get_address(folder=folder, name=name)
+
+            typer.echo(f"Address: {address.get('name', 'N/A')}")
+            typer.echo(f"Folder: {address.get('folder', 'N/A')}")
+            typer.echo(f"Description: {address.get('description', 'N/A')}")
+
+            # Display the address type and value
+            if address.get("ip_netmask"):
+                typer.echo("Type: IP/Netmask")
+                typer.echo(f"Value: {address['ip_netmask']}")
+            elif address.get("ip_range"):
+                typer.echo("Type: IP Range")
+                typer.echo(f"Value: {address['ip_range']}")
+            elif address.get("ip_wildcard"):
+                typer.echo("Type: IP Wildcard")
+                typer.echo(f"Value: {address['ip_wildcard']}")
+            elif address.get("fqdn"):
+                typer.echo("Type: FQDN")
+                typer.echo(f"Value: {address['fqdn']}")
+
+            # Display tags if present
+            if address.get("tag"):
+                typer.echo(f"Tags: {', '.join(address['tag'])}")
+
+            # Display ID if present
+            if address.get("id"):
+                typer.echo(f"ID: {address['id']}")
+
+            return address
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing address: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("address-group")
+def show_address_group(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the address group to show"),
+    list_groups: bool = typer.Option(False, "--list", help="List all address groups in the folder"),
+):
+    """Display address group objects.
+
+    Examples:
+    --------
+        # List all address groups in a folder
+        scm-cli show objects address-group --folder Texas --list
+
+        # Show a specific address group by name
+        scm-cli show objects address-group --folder Texas --name web-servers
+
+    """
+    try:
+        if list_groups:
+            # List all address groups in the folder
+            groups = scm_client.list_address_groups(folder=folder)
+
+            if not groups:
+                typer.echo(f"No address groups found in folder '{folder}'")
+                return
+
+            typer.echo(f"Address Groups in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for group in groups:
+                # Display address group information
+                typer.echo(f"Name: {group.get('name', 'N/A')}")
+                typer.echo(f"  Folder: {group.get('folder', 'N/A')}")
+                
+                # Determine type based on presence of 'static' or 'dynamic' key
+                if group.get('static') is not None:
+                    typer.echo(f"  Type: static")
+                    typer.echo(f"  Members: {', '.join(group.get('static', []))}")
+                elif group.get('dynamic') is not None:
+                    typer.echo(f"  Type: dynamic")
+                    dynamic_info = group.get('dynamic', {})
+                    if dynamic_info.get('filter'):
+                        typer.echo(f"  Filter: {dynamic_info['filter']}")
+                
+                typer.echo(f"  Description: {group.get('description', 'N/A')}")
+                
+                # Display tags if present
+                if group.get("tag"):
+                    typer.echo(f"  Tags: {', '.join(group['tag'])}")
+
+                typer.echo("-" * 60)
+
+            return groups
+
+        elif name:
+            # Get a specific address group by name
+            group = scm_client.get_address_group(folder=folder, name=name)
+
+            typer.echo(f"Address Group: {group.get('name', 'N/A')}")
+            typer.echo(f"Folder: {group.get('folder', 'N/A')}")
+            
+            # Determine type based on presence of 'static' or 'dynamic' key
+            if group.get('static') is not None:
+                typer.echo("Type: static")
+                typer.echo(f"Description: {group.get('description', 'N/A')}")
+                members = group.get('static', [])
+                if members:
+                    typer.echo(f"Members ({len(members)}):")
+                    for member in members:
+                        typer.echo(f"  - {member}")
+                else:
+                    typer.echo("Members: None")
+            elif group.get('dynamic') is not None:
+                typer.echo("Type: dynamic")
+                typer.echo(f"Description: {group.get('description', 'N/A')}")
+                dynamic_info = group.get('dynamic', {})
+                if dynamic_info.get('filter'):
+                    typer.echo(f"Filter: {dynamic_info['filter']}")
+                else:
+                    typer.echo("Filter: None")
+            else:
+                typer.echo("Type: unknown")
+                typer.echo(f"Description: {group.get('description', 'N/A')}")
+
+            # Display tags if present
+            if group.get("tag"):
+                typer.echo(f"Tags: {', '.join(group['tag'])}")
+
+            # Display ID if present
+            if group.get("id"):
+                typer.echo(f"ID: {group['id']}")
+
+            return group
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing address group: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
