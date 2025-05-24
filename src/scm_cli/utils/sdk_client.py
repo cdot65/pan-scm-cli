@@ -716,6 +716,110 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
 
+    def get_security_zone(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get a security zone by name and folder.
+
+        Args:
+            folder: Folder containing the security zone
+            name: Name of the security zone to get
+
+        Returns:
+            dict[str, Any]: The security zone object
+
+        """
+        self.logger.info(f"Getting security zone: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"zone-{name}",
+                "folder": folder,
+                "name": name,
+                "network": {
+                    "layer3": ["ethernet1/1", "ethernet1/2"],
+                    "zone_protection_profile": "default",
+                    "enable_packet_buffer_protection": True,
+                },
+                "enable_user_identification": True,
+                "enable_device_identification": False,
+                "description": "Mock security zone",
+            }
+
+        try:
+            # Fetch the security zone using the SDK
+            result = self.client.security_zone.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return result.model_dump()
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_security_zones(
+        self,
+        folder: str,
+    ) -> list[dict[str, Any]]:
+        """List security zones in a folder.
+
+        Args:
+            folder: Folder to list security zones from
+
+        Returns:
+            list[dict[str, Any]]: List of security zone objects
+
+        """
+        self.logger.info(f"Listing security zones in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "zone-mock1",
+                    "folder": folder,
+                    "name": "trust",
+                    "network": {
+                        "layer3": ["ethernet1/1", "ethernet1/2"],
+                        "zone_protection_profile": "default",
+                    },
+                    "enable_user_identification": True,
+                    "description": "Trust zone for internal network",
+                },
+                {
+                    "id": "zone-mock2",
+                    "folder": folder,
+                    "name": "untrust",
+                    "network": {
+                        "layer3": ["ethernet1/3"],
+                        "zone_protection_profile": "strict",
+                    },
+                    "enable_user_identification": False,
+                    "description": "Untrust zone for external network",
+                },
+                {
+                    "id": "zone-mock3",
+                    "folder": folder,
+                    "name": "dmz",
+                    "network": {
+                        "layer3": ["ethernet1/4", "ethernet1/5"],
+                        "enable_packet_buffer_protection": True,
+                    },
+                    "enable_device_identification": True,
+                    "description": "DMZ zone for public services",
+                },
+            ]
+
+        try:
+            # List security zones using the SDK
+            results = self.client.security_zone.list(folder=folder)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [result.model_dump() for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "security zones", e)
+
     def delete_zone(
         self,
         folder: str,

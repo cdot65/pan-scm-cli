@@ -53,6 +53,7 @@ show_app.add_typer(objects.show_app, name="objects")
 set_app.add_typer(network.set_app, name="network")
 delete_app.add_typer(network.delete_app, name="network")
 load_app.add_typer(network.load_app, name="network")
+show_app.add_typer(network.show_app, name="network")
 
 # Security module
 set_app.add_typer(security.set_app, name="security")
