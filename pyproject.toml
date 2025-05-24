@@ -80,3 +80,10 @@ exclude_lines = [
     "pass",
     "raise ImportError",
 ]
+
+[tool.isort]
+# Make isort compatible with ruff/black
+profile = "black"
+line_length = 192
+# Let ruff handle import sorting
+skip_gitignore = true
