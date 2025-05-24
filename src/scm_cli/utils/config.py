@@ -87,7 +87,7 @@ def get_auth_config() -> dict[str, str]:
 
     """
     # Check if home config file exists and manually load it if Dynaconf didn't pick it up
-    home_config = {}
+    home_config: dict[str, Any] = {}
     if os.path.exists(HOME_CONFIG_PATH) and not settings.get("client_id"):
         try:
             with open(HOME_CONFIG_PATH) as f:
