@@ -210,6 +210,17 @@ def show_security_rule(
             for rule in rules:
                 # Display rule information
                 typer.echo(f"Name: {rule.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device) and rulebase
+                if rule.get("folder"):
+                    typer.echo(f"  Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'")
+                elif rule.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'")
+                elif rule.get("device"):
+                    typer.echo(f"  Location: Device '{rule['device']}' / Rulebase '{rulebase}'")
+                else:
+                    typer.echo(f"  Location: N/A / Rulebase '{rulebase}'")
+
                 typer.echo(f"  Action: {rule.get('action', 'N/A')}")
 
                 # Display source zones
@@ -263,9 +274,18 @@ def show_security_rule(
 
             typer.echo(f"\nSecurity Rule: {rule.get('name', 'N/A')}")
             typer.echo("=" * 80)
+
+            # Display container location (folder, snippet, or device) and rulebase
+            if rule.get("folder"):
+                typer.echo(f"Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'")
+            elif rule.get("snippet"):
+                typer.echo(f"Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'")
+            elif rule.get("device"):
+                typer.echo(f"Location: Device '{rule['device']}' / Rulebase '{rulebase}'")
+            else:
+                typer.echo(f"Location: N/A / Rulebase '{rulebase}'")
+
             typer.echo(f"Action: {rule.get('action', 'N/A')}")
-            typer.echo(f"Folder: {rule.get('folder', folder)}")
-            typer.echo(f"Rulebase: {rulebase}")
 
             # Display source zones
             source_zones = rule.get("from_", [])

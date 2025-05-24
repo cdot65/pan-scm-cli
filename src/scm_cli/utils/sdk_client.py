@@ -642,9 +642,8 @@ class SCMClient:
                     # Update the members/filter if provided and same type
                     if new_type == "static" and current_type == "static":
                         existing_group.static = members or []
-                    elif new_type == "dynamic" and current_type == "dynamic":
-                        if members and len(members) > 0:
-                            existing_group.dynamic = {"filter": members[0]}
+                    elif new_type == "dynamic" and current_type == "dynamic" and members and len(members) > 0:
+                        existing_group.dynamic = {"filter": members[0]}
 
                     # Perform update
                     result = self.client.address_group.update(existing_group)
@@ -1137,7 +1136,7 @@ class SCMClient:
                 existing_rule.action = action
                 existing_rule.description = description or ""
                 existing_rule.disabled = not enabled
-                
+
                 if tags is not None:
                     existing_rule.tag = tags
 

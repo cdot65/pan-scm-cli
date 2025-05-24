@@ -190,6 +190,16 @@ def show_zone(
                 # Display zone information
                 typer.echo(f"Name: {zone.get('name', 'N/A')}")
 
+                # Display container location (folder, snippet, or device)
+                if zone.get("folder"):
+                    typer.echo(f"  Location: Folder '{zone['folder']}'")
+                elif zone.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{zone['snippet']}'")
+                elif zone.get("device"):
+                    typer.echo(f"  Location: Device '{zone['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
+
                 # Display network type and interfaces
                 network = zone.get("network", {})
                 if network:
@@ -254,7 +264,16 @@ def show_zone(
 
             typer.echo(f"\nSecurity Zone: {zone.get('name', 'N/A')}")
             typer.echo("=" * 80)
-            typer.echo(f"Folder: {zone.get('folder', folder)}")
+
+            # Display container location (folder, snippet, or device)
+            if zone.get("folder"):
+                typer.echo(f"Location: Folder '{zone['folder']}'")
+            elif zone.get("snippet"):
+                typer.echo(f"Location: Snippet '{zone['snippet']}'")
+            elif zone.get("device"):
+                typer.echo(f"Location: Device '{zone['device']}'")
+            else:
+                typer.echo("Location: N/A")
 
             # Display network configuration details
             network = zone.get("network", {})
