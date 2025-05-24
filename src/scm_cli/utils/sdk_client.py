@@ -106,7 +106,6 @@ class SCMClient:
     # ========================================================================================================================================================================================
     # DEPLOYMENT CONFIGURATION METHODS
     # ========================================================================================================================================================================================
-    # region Deployment Configuration
 
     # --------------------------------------------------------------------------------- Bandwidth Allocation ---------------------------------------------------------------------------------
 
@@ -190,12 +189,9 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
 
-    # endregion
-
     # ========================================================================================================================================================================================
     # OBJECTS CONFIGURATION METHODS
     # ========================================================================================================================================================================================
-    # region Objects Configuration
 
     # ------------------------------------------------------------------------------------ Address Groups ------------------------------------------------------------------------------------
 
@@ -352,7 +348,11 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder, "address groups", e)
 
-    def delete_address_group(self, folder: str, name: str) -> bool:
+    def delete_address_group(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
         """Delete an address group.
 
         Args:
@@ -567,12 +567,9 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
 
-    # endregion
-
     # ========================================================================================================================================================================================
     # NETWORK CONFIGURATION METHODS
     # ========================================================================================================================================================================================
-    # region Network Configuration
 
     # ------------------------------------------------------------------------------------ Security Zones ------------------------------------------------------------------------------------
 
@@ -638,7 +635,11 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
 
-    def delete_zone(self, folder: str, name: str) -> bool:
+    def delete_zone(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
         """Delete a security zone.
 
         Args:
@@ -662,12 +663,9 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
 
-    # endregion
-
     # ========================================================================================================================================================================================
     # SECURITY CONFIGURATION METHODS
     # ========================================================================================================================================================================================
-    # region Security Configuration
 
     # ------------------------------------------------------------------------------------ Security Rules ------------------------------------------------------------------------------------
 
@@ -752,7 +750,11 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
 
-    def delete_security_rule(self, folder: str, name: str) -> bool:
+    def delete_security_rule(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
         """Delete a security rule.
 
         Args:
@@ -775,8 +777,6 @@ class SCMClient:
             return True
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
-
-    # endregion
 
 
 # Create a singleton instance of the SCM client

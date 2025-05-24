@@ -13,11 +13,19 @@ from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
 from ..utils.validators import Address, AddressGroup
 
+# ========================================================================================================================================================================================
+# TYPER APP CONFIGURATION
+# ========================================================================================================================================================================================
+
 # Create app groups for each action type
 set_app = typer.Typer(help="Create or update objects configurations")
 delete_app = typer.Typer(help="Remove objects configurations")
 load_app = typer.Typer(help="Load objects configurations from YAML files")
 show_app = typer.Typer(help="Display objects configurations")
+
+# ========================================================================================================================================================================================
+# COMMAND OPTIONS
+# ========================================================================================================================================================================================
 
 # Define typer option constants
 FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the address group")
@@ -34,6 +42,10 @@ IP_NETMASK_OPTION = typer.Option(None, "--ip-netmask", help="IP address with CID
 IP_RANGE_OPTION = typer.Option(None, "--ip-range", help="IP address range (e.g. 192.168.1.1-192.168.1.10)")
 IP_WILDCARD_OPTION = typer.Option(None, "--ip-wildcard", help="IP wildcard mask (e.g. 10.20.1.0/0.0.248.255)")
 FQDN_OPTION = typer.Option(None, "--fqdn", help="Fully qualified domain name (e.g. example.com)")
+
+# ========================================================================================================================================================================================
+# ADDRESS GROUP COMMANDS
+# ========================================================================================================================================================================================
 
 
 @set_app.command("address-group")
@@ -146,6 +158,11 @@ def load_address_group(
     except Exception as e:
         typer.echo(f"Error loading address groups: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# ADDRESS OBJECT COMMANDS
+# ========================================================================================================================================================================================
 
 
 @set_app.command("address")
