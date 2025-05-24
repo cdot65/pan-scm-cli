@@ -1,4 +1,4 @@
-.PHONY: ruff lint reinstall tests clean help docs-serve docs-build docs-build-dev docs-lint docs-links docs-check docs-deploy
+.PHONY: setup isort mypy flake8 format quality ruff lint reinstall tests clean help docs-serve docs-build docs-build-dev docs-lint docs-links docs-check docs-deploy
 
 # Default target
 .DEFAULT_GOAL := help
@@ -19,6 +19,40 @@ LINKCHECKER := $(POETRY) run linkchecker
 YELLOW := \033[1;33m
 GREEN := \033[0;32m
 NC := \033[0m # No Color
+
+setup:
+	@echo "Installing dependencies and pre-commit hooks..."
+	$(POETRY) install
+	$(POETRY) run pre-commit install
+	@echo "Setup complete!"
+
+isort:
+	@echo "Sorting imports with isort..."
+	$(POETRY) run isort $(SRC_DIR)
+	@echo "isort complete!"
+
+mypy:
+	@echo "Type checking with mypy..."
+	$(POETRY) run mypy $(SRC_DIR)
+	@echo "mypy complete!"
+
+flake8:
+	@echo "Running flake8..."
+	$(POETRY) run flake8 $(SRC_DIR)
+	@echo "flake8 complete!"
+
+format:
+	@echo "Formatting code with ruff only (handles import sorting and formatting)..."
+	$(POETRY) run ruff format $(SRC_DIR)
+	@echo "Formatting complete!"
+
+quality:
+	@echo "Running quality checks (lint, format, mypy, tests)..."
+	$(MAKE) lint
+	$(MAKE) format
+	$(MAKE) mypy
+	$(MAKE) tests
+	@echo "All quality checks complete!"
 
 help:
 	@echo "$(YELLOW)Available targets:$(NC)"

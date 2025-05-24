@@ -1,30 +1,30 @@
 [tool.poetry]
 name = "pan-scm-cli"
-version = "0.2.1"
+version = "0.2.2"
 description = "Network Engineer-friendly CLI for Palo Alto Networks Security Content Management"
 authors = ["Calvin Remsburg <dev@cdot.io>"]
 readme = "README.md"
-packages = [{include = "scm_cli", from = "src"}]
+packages = [{ include = "scm_cli", from = "src" }]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.14"
-typer = "0.15.2"
-pyyaml = "^6.0"
-pydantic = "^2.7.1"
-pan-scm-sdk = "0.3.22"
-dynaconf = "^3.2.10"
+python = ">=3.12,<3.14"
+typer = "^0.15.4"
+pyyaml = "^6.0.2"
+pydantic = "^2.11.5"
+pan-scm-sdk = "0.3.39"
+dynaconf = "^3.2.11"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.4.0"
-pytest-cov = "^4.1.0"
-ruff = "^0.3.0"
-flake8 = "^7.0.0"
-checkov = "^3.2.0"
-yamllint = "^1.35.1"
-pre-commit = "^3.6.0"
+pytest = "^8.3.5"
+pytest-cov = "^6.1.1"
+ruff = "^0.11.11"
+flake8 = "^7.2.0"
+checkov = "^3.2.432"
+yamllint = "^1.37.1"
+pre-commit = "^4.2.0"
 mkdocs = "^1.6.1"
-mkdocs-material = "^9.6.10"
-mkdocstrings = "^0.29.0"
+mkdocs-material = "^9.6.14"
+mkdocstrings = "^0.29.1"
 mkdocs-minify-plugin = "^0.8.0"
 mkdocs-git-revision-date-localized-plugin = "^1.4.5"
 mkdocs-include-markdown-plugin = "^7.1.5"
@@ -33,7 +33,10 @@ mkdocs-redirects = "^1.2.2"
 mkdocs-mermaid2-plugin = "^1.2.1"
 pytest-check-links = "^0.10.1"
 linkchecker = "^10.5.0"
-mkdocstrings-python = "^1.16.8"
+mkdocstrings-python = "^1.16.11"
+isort = "^5.13.2"
+mypy = "^1.10.0"
+types-PyYAML = "^6.0.12.20240311"
 
 [tool.poetry.scripts]
 scm-cli = "scm_cli:main"
@@ -43,7 +46,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 192
 
 [tool.ruff.lint]

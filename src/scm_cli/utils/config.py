@@ -33,14 +33,21 @@ settings = Dynaconf(
 
 def load_from_yaml(file_path: str, submodule: str) -> dict[str, Any]:
     """Load and parse a YAML configuration file.
+
     Args:
-        file_path: Path to the YAML file
-        submodule: The submodule key to extract from the YAML
+    ----
+        file_path: Path to the YAML file.
+        submodule: Submodule key to extract from the YAML.
+
     Returns:
-        Dict containing the parsed YAML data
+    -------
+        Parsed YAML data.
+
     Raises:
-        ValueError: If the submodule key is missing from the YAML
-        yaml.YAMLError: If the YAML file is invalid
+    ------
+        ValueError: If the submodule key is missing from the YAML.
+        yaml.YAMLError: If the YAML file is invalid.
+
     """
     try:
         with open(file_path) as f:
@@ -61,15 +68,23 @@ def load_from_yaml(file_path: str, submodule: str) -> dict[str, Any]:
 
 def get_auth_config() -> dict[str, str]:
     """Get SCM API authentication configuration from dynaconf settings.
+
     Prioritizes environment variables over config file values.
     Checks for client_id, client_secret, and tsg_id from either source.
-    Returns:
-        Dict containing client_id, client_secret, and tsg_id
-    Raises:
-        ValueError: If required authentication parameters are missing
-    Examples:
+
+    Returns
+    -------
+        Dict containing client_id, client_secret, and tsg_id.
+
+    Raises
+    ------
+        ValueError: If required authentication parameters are missing.
+
+    Examples
+    --------
         >>> auth = get_auth_config()
         >>> client = Scm(**auth)
+
     """
     # Check if home config file exists and manually load it if Dynaconf didn't pick it up
     home_config = {}
@@ -113,11 +128,17 @@ def get_auth_config() -> dict[str, str]:
 
 def get_credentials() -> dict[str, str]:
     """Get SCM API credentials from dynaconf settings.
+
     This function is kept for backward compatibility.
     Use get_auth_config() for new code.
-    Returns:
-        Dict containing client_id, client_secret, and tsg_id
-    Raises:
-        ValueError: If required credentials are missing
+
+    Returns
+    -------
+        Dict containing client_id, client_secret, and tsg_id.
+
+    Raises
+    ------
+        ValueError: If required credentials are missing.
+
     """
     return get_auth_config()

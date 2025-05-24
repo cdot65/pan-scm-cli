@@ -25,11 +25,15 @@ class MockSCMClient:
         """Mock any attribute access with a callable that returns success.
 
         Args:
+        ----
             name: Attribute name being accessed
 
         Returns:
+        -------
             A callable that returns a mock success response
+
         """
+
         def mock_callable(*args, **kwargs):
             logger.info(f"Mock SCM API call: {name}(*{args}, **{kwargs})")
             return {"status": "success", "message": f"Mock call to {name}"}
@@ -44,14 +48,18 @@ def get_scm_client(mock: bool = False) -> Any:
     either a real or mock SCM client based on the mock parameter.
 
     Args:
+    ----
         mock: If True, returns a mock client without making API calls
 
     Returns:
+    -------
         An initialized SCM client (real or mock)
 
     Examples:
+    --------
         client = get_scm_client()  # Real client
         mock_client = get_scm_client(mock=True)  # Mock client
+
     """
     if mock:
         logger.info("Creating mock SCM client")

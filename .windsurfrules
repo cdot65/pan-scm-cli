@@ -13,7 +13,7 @@ Use the `typer` library (version 0.15.2) for all CLI command definitions. Comman
 For configuration-related code, utilize `dynaconf>=3.2.10` as the configuration loader. Access settings with `settings.get("key")`, prefix environment variables with `SCM_`, and load from `~/.scm-cli/config.yaml` using `settings_files=[Path.home() / ".scm-cli" / "config.yaml"]`.
 
 **instruction 5: Leverage `pan-scm-sdk` for SCM interactions**  
-When interacting with Strata Cloud Manager, use the `pan_scm_sdk==0.3.22` library. Initialize the client with `StrataCloudManager(client_id, client_secret, tsg_id)` and call methods like `create_address()` directly, avoiding custom HTTP requests or alternative SDKs.
+When interacting with Strata Cloud Manager, use the `pan_scm_sdk==0.3.39` library. Initialize the client with `StrataCloudManager(client_id, client_secret, tsg_id)` and call methods like `create_address()` directly, avoiding custom HTTP requests or alternative SDKs.
 
 **instruction 6: Implement mock mode with a `MockSCMClient` class**  
 Support a `--mock` option in commands by returning a `MockSCMClient` class when `mock=True`. Implement this class with `__getattr__` to simulate API responses (e.g., `{"status": "success", "message": "Mock call"}`), ensuring no real API calls are made in mock mode.
