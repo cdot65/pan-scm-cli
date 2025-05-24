@@ -164,7 +164,11 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
 
-    def delete_bandwidth_allocation(self, folder: str, name: str) -> bool:
+    def delete_bandwidth_allocation(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
         """Delete a bandwidth allocation.
 
         Args:
@@ -274,6 +278,197 @@ class SCMClient:
     # OBJECTS CONFIGURATION METHODS
     # ========================================================================================================================================================================================
 
+    # ----------------------------------------------------------------------------------- Address Objects ------------------------------------------------------------------------------------
+
+    def create_address(
+        self,
+        folder: str,
+        name: str,
+        description: str = "",
+        tags: list[str] | None = None,
+        ip_netmask: str | None = None,
+        ip_range: str | None = None,
+        ip_wildcard: str | None = None,
+        fqdn: str | None = None,
+    ) -> dict[str, Any]:
+        """Create an address object.
+
+        Args:
+            folder: Folder to create the address in
+            name: Name of the address
+            description: Optional description
+            tags: Optional list of tags
+            ip_netmask: IP address with CIDR notation (e.g. "192.168.1.0/24")
+            ip_range: IP address range (e.g. "192.168.1.1-192.168.1.10")
+            ip_wildcard: IP wildcard mask (e.g. "10.20.1.0/0.0.248.255")
+            fqdn: Fully qualified domain name (e.g. "example.com")
+
+        Returns:
+            dict[str, Any]: The created address object
+
+        Note:
+            Exactly one of ip_netmask, ip_range, ip_wildcard, or fqdn must be provided.
+
+        """
+        tags = tags or []
+        self.logger.info(f"Creating address: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"addr-{name}",
+                "folder": folder,
+                "name": name,
+                "description": description,
+                "tags": tags,
+                "ip_netmask": ip_netmask,
+                "ip_range": ip_range,
+                "ip_wildcard": ip_wildcard,
+                "fqdn": fqdn,
+            }
+
+        try:
+            # Create using the SDK address service
+            address_data = {
+                "name": name,
+                "folder": folder,
+                "description": description or "",
+            }
+
+            # Add exactly one address type
+            if ip_netmask:
+                address_data["ip_netmask"] = ip_netmask
+            elif ip_range:
+                address_data["ip_range"] = ip_range
+            elif ip_wildcard:
+                address_data["ip_wildcard"] = ip_wildcard
+            elif fqdn:
+                address_data["fqdn"] = fqdn
+
+            if tags:
+                address_data["tag"] = tags
+
+            # Create the address object
+            result = self.client.address.create(address_data)
+
+            # Convert SDK response to dict for compatibility
+            return result.model_dump()
+        except Exception as e:
+            self._handle_api_exception("creation", folder, name, e)
+
+    def delete_address(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete an address object.
+
+        Args:
+            folder: Folder containing the address
+            name: Name of the address to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting address: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Get the address first to retrieve its ID
+            address = self.client.address.fetch(name=name, folder=folder)
+
+            # Delete using the address's ID
+            self.client.address.delete(object_id=str(address.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_address(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get an address object by name and folder.
+
+        Args:
+            folder: Folder containing the address
+            name: Name of the address to get
+
+        Returns:
+            dict[str, Any]: The address object
+
+        """
+        self.logger.info(f"Getting address: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"addr-{name}",
+                "folder": folder,
+                "name": name,
+                "description": "Mock address object",
+                "tags": [],
+                "ip_netmask": "192.168.1.0/24",
+            }
+
+        try:
+            # Fetch the address using the SDK
+            result = self.client.address.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return result.model_dump()
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_addresses(
+        self,
+        folder: str,
+    ) -> list[dict[str, Any]]:
+        """List address objects in a folder.
+
+        Args:
+            folder: Folder to list addresses from
+
+        Returns:
+            list[dict[str, Any]]: List of address objects
+
+        """
+        self.logger.info(f"Listing addresses in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "addr-mock1",
+                    "folder": folder,
+                    "name": "mock-address-1",
+                    "description": "Mock address 1",
+                    "tags": ["mock"],
+                    "ip_netmask": "192.168.1.0/24",
+                },
+                {
+                    "id": "addr-mock2",
+                    "folder": folder,
+                    "name": "mock-address-2",
+                    "description": "Mock address 2",
+                    "tags": ["mock"],
+                    "fqdn": "example.com",
+                },
+            ]
+
+        try:
+            # List addresses using the SDK
+            results = self.client.address.list(folder=folder)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [result.model_dump() for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "addresses", e)
+
     # ------------------------------------------------------------------------------------ Address Groups ------------------------------------------------------------------------------------
 
     def create_address_group(
@@ -343,6 +538,34 @@ class SCMClient:
             return result.dict()
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
+
+    def delete_address_group(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete an address group.
+
+        Args:
+            folder: Folder containing the address group
+            name: Name of the address group to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting address group: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Delete using the SDK address_group service
+            self.client.address_group.delete(folder=folder, name=name)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
 
     def get_address_group(
         self,
@@ -429,225 +652,6 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder, "address groups", e)
 
-    def delete_address_group(
-        self,
-        folder: str,
-        name: str,
-    ) -> bool:
-        """Delete an address group.
-
-        Args:
-            folder: Folder containing the address group
-            name: Name of the address group to delete
-
-        Returns:
-            bool: True if deletion was successful
-
-        """
-        self.logger.info(f"Deleting address group: {name} from folder {folder}")
-
-        if not self.client:
-            # Return mock result if no client is available
-            return True
-
-        try:
-            # Delete using the SDK address_group service
-            self.client.address_group.delete(folder=folder, name=name)
-            return True
-        except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
-
-    # ----------------------------------------------------------------------------------- Address Objects ------------------------------------------------------------------------------------
-
-    def create_address(
-        self,
-        folder: str,
-        name: str,
-        description: str = "",
-        tags: list[str] | None = None,
-        ip_netmask: str | None = None,
-        ip_range: str | None = None,
-        ip_wildcard: str | None = None,
-        fqdn: str | None = None,
-    ) -> dict[str, Any]:
-        """Create an address object.
-
-        Args:
-            folder: Folder to create the address in
-            name: Name of the address
-            description: Optional description
-            tags: Optional list of tags
-            ip_netmask: IP address with CIDR notation (e.g. "192.168.1.0/24")
-            ip_range: IP address range (e.g. "192.168.1.1-192.168.1.10")
-            ip_wildcard: IP wildcard mask (e.g. "10.20.1.0/0.0.248.255")
-            fqdn: Fully qualified domain name (e.g. "example.com")
-
-        Returns:
-            dict[str, Any]: The created address object
-
-        Note:
-            Exactly one of ip_netmask, ip_range, ip_wildcard, or fqdn must be provided.
-
-        """
-        tags = tags or []
-        self.logger.info(f"Creating address: {name} in folder {folder}")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return {
-                "id": f"addr-{name}",
-                "folder": folder,
-                "name": name,
-                "description": description,
-                "tags": tags,
-                "ip_netmask": ip_netmask,
-                "ip_range": ip_range,
-                "ip_wildcard": ip_wildcard,
-                "fqdn": fqdn,
-            }
-
-        try:
-            # Create using the SDK address service
-            address_data = {
-                "name": name,
-                "folder": folder,
-                "description": description or "",
-            }
-
-            # Add exactly one address type
-            if ip_netmask:
-                address_data["ip_netmask"] = ip_netmask
-            elif ip_range:
-                address_data["ip_range"] = ip_range
-            elif ip_wildcard:
-                address_data["ip_wildcard"] = ip_wildcard
-            elif fqdn:
-                address_data["fqdn"] = fqdn
-
-            if tags:
-                address_data["tag"] = tags
-
-            # Create the address object
-            result = self.client.address.create(address_data)
-
-            # Convert SDK response to dict for compatibility
-            return result.model_dump()
-        except Exception as e:
-            self._handle_api_exception("creation", folder, name, e)
-
-    def get_address(
-        self,
-        folder: str,
-        name: str,
-    ) -> dict[str, Any]:
-        """Get an address object by name and folder.
-
-        Args:
-            folder: Folder containing the address
-            name: Name of the address to get
-
-        Returns:
-            dict[str, Any]: The address object
-
-        """
-        self.logger.info(f"Getting address: {name} from folder {folder}")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return {
-                "id": f"addr-{name}",
-                "folder": folder,
-                "name": name,
-                "description": "Mock address object",
-                "tags": [],
-                "ip_netmask": "192.168.1.0/24",
-            }
-
-        try:
-            # Fetch the address using the SDK
-            result = self.client.address.fetch(name=name, folder=folder)
-
-            # Convert SDK response to dict for compatibility
-            return result.model_dump()
-        except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
-
-    def list_addresses(
-        self,
-        folder: str,
-    ) -> list[dict[str, Any]]:
-        """List address objects in a folder.
-
-        Args:
-            folder: Folder to list addresses from
-
-        Returns:
-            list[dict[str, Any]]: List of address objects
-
-        """
-        self.logger.info(f"Listing addresses in folder: {folder}")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return [
-                {
-                    "id": "addr-mock1",
-                    "folder": folder,
-                    "name": "mock-address-1",
-                    "description": "Mock address 1",
-                    "tags": ["mock"],
-                    "ip_netmask": "192.168.1.0/24",
-                },
-                {
-                    "id": "addr-mock2",
-                    "folder": folder,
-                    "name": "mock-address-2",
-                    "description": "Mock address 2",
-                    "tags": ["mock"],
-                    "fqdn": "example.com",
-                },
-            ]
-
-        try:
-            # List addresses using the SDK
-            results = self.client.address.list(folder=folder)
-
-            # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
-        except Exception as e:
-            self._handle_api_exception("listing", folder, "addresses", e)
-
-    def delete_address(
-        self,
-        folder: str,
-        name: str,
-    ) -> bool:
-        """Delete an address object.
-
-        Args:
-            folder: Folder containing the address
-            name: Name of the address to delete
-
-        Returns:
-            bool: True if deletion was successful
-
-        """
-        self.logger.info(f"Deleting address: {name} from folder {folder}")
-
-        if not self.client:
-            # Return mock result if no client is available
-            return True
-
-        try:
-            # Get the address first to retrieve its ID
-            address = self.client.address.fetch(name=name, folder=folder)
-
-            # Delete using the address's ID
-            self.client.address.delete(object_id=str(address.id))
-            return True
-        except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
-
     # ========================================================================================================================================================================================
     # NETWORK CONFIGURATION METHODS
     # ========================================================================================================================================================================================
@@ -715,6 +719,34 @@ class SCMClient:
             return result.dict()
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
+
+    def delete_zone(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete a security zone.
+
+        Args:
+            folder: Folder containing the zone
+            name: Name of the zone to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting zone: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Delete using the SDK security_zone service
+            self.client.security_zone.delete(folder=folder, name=name)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
 
     def get_security_zone(
         self,
@@ -820,34 +852,6 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder, "security zones", e)
 
-    def delete_zone(
-        self,
-        folder: str,
-        name: str,
-    ) -> bool:
-        """Delete a security zone.
-
-        Args:
-            folder: Folder containing the zone
-            name: Name of the zone to delete
-
-        Returns:
-            bool: True if deletion was successful
-
-        """
-        self.logger.info(f"Deleting zone: {name} from folder {folder}")
-
-        if not self.client:
-            # Return mock result if no client is available
-            return True
-
-        try:
-            # Delete using the SDK security_zone service
-            self.client.security_zone.delete(folder=folder, name=name)
-            return True
-        except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
-
     # ========================================================================================================================================================================================
     # SECURITY CONFIGURATION METHODS
     # ========================================================================================================================================================================================
@@ -934,6 +938,34 @@ class SCMClient:
             return result.dict()
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
+
+    def delete_security_rule(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete a security rule.
+
+        Args:
+            folder: Folder containing the security rule
+            name: Name of the security rule to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting security rule: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Delete using the SDK security_rule service
+            self.client.security_rule.delete(folder=folder, name=name)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
 
     def get_security_rule(
         self,
@@ -1045,34 +1077,6 @@ class SCMClient:
             return [result.model_dump() for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "security rules", e)
-
-    def delete_security_rule(
-        self,
-        folder: str,
-        name: str,
-    ) -> bool:
-        """Delete a security rule.
-
-        Args:
-            folder: Folder containing the security rule
-            name: Name of the security rule to delete
-
-        Returns:
-            bool: True if deletion was successful
-
-        """
-        self.logger.info(f"Deleting security rule: {name} from folder {folder}")
-
-        if not self.client:
-            # Return mock result if no client is available
-            return True
-
-        try:
-            # Delete using the SDK security_rule service
-            self.client.security_rule.delete(folder=folder, name=name)
-            return True
-        except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
 
 
 # Create a singleton instance of the SCM client
