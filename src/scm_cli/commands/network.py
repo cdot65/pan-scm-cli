@@ -43,51 +43,6 @@ DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution witho
 # ========================================================================================================================================================================================
 
 
-@set_app.command("zone")
-def set_zone(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
-    mode: str = MODE_OPTION,
-    interfaces: list[str] | None = INTERFACES_OPTION,
-    description: str | None = DESCRIPTION_OPTION,
-    tags: list[str] | None = TAGS_OPTION,
-):
-    """Create or update a security zone.
-
-    Example:
-    -------
-        scm-cli set network zone --folder Texas --name trust --mode L3 \
-        --interfaces ["ethernet1/1"] --description "Trust zone" --tags ["internal"]
-
-    """
-    try:
-        # Validate input using the Pydantic model
-        zone = Zone(
-            name=name,
-            folder=folder,
-            mode=mode,
-            interfaces=interfaces or [],
-            description=description or "",
-            tags=tags or [],
-        )
-
-        # Call the SDK client
-        result = scm_client.create_zone(
-            folder=zone.folder,
-            name=zone.name,
-            mode=zone.mode,
-            interfaces=zone.interfaces,
-            description=zone.description,
-            tags=zone.tags,
-        )
-
-        typer.echo(f"Created zone: {result['name']} in folder {result['folder']}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error creating security zone: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
 @delete_app.command("zone")
 def delete_zone(
     folder: str = FOLDER_OPTION,
@@ -154,6 +109,51 @@ def load_zone(
         raise typer.Exit(code=1) from e
     except Exception as e:
         typer.echo(f"Error loading security zones: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("zone")
+def set_zone(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    mode: str = MODE_OPTION,
+    interfaces: list[str] | None = INTERFACES_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    tags: list[str] | None = TAGS_OPTION,
+):
+    """Create or update a security zone.
+
+    Example:
+    -------
+        scm-cli set network zone --folder Texas --name trust --mode L3 \
+        --interfaces ["ethernet1/1"] --description "Trust zone" --tags ["internal"]
+
+    """
+    try:
+        # Validate input using the Pydantic model
+        zone = Zone(
+            name=name,
+            folder=folder,
+            mode=mode,
+            interfaces=interfaces or [],
+            description=description or "",
+            tags=tags or [],
+        )
+
+        # Call the SDK client
+        result = scm_client.create_zone(
+            folder=zone.folder,
+            name=zone.name,
+            mode=zone.mode,
+            interfaces=zone.interfaces,
+            description=zone.description,
+            tags=zone.tags,
+        )
+
+        typer.echo(f"Created zone: {result['name']} in folder {result['folder']}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating security zone: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
