@@ -307,6 +307,7 @@ def show_address(
             for addr in addresses:
                 # Display address information
                 typer.echo(f"Name: {addr.get('name', 'N/A')}")
+                typer.echo(f"  Folder: {addr.get('folder', 'N/A')}")
                 typer.echo(f"  Description: {addr.get('description', 'N/A')}")
 
                 # Display the address type and value
@@ -405,6 +406,7 @@ def show_address_group(
             for group in groups:
                 # Display address group information
                 typer.echo(f"Name: {group.get('name', 'N/A')}")
+                typer.echo(f"  Folder: {group.get('folder', 'N/A')}")
                 
                 # Determine type based on presence of 'static' or 'dynamic' key
                 if group.get('static') is not None:
