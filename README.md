@@ -50,6 +50,7 @@ A powerful command-line interface for managing Palo Alto Networks Strata Cloud M
   - Security rules with full policy configuration
   - Bandwidth allocation profiles
 - **Bulk Operations**: Load and manage objects in bulk using YAML files for efficient configuration management.
+- **Backup and Restore**: Export existing configurations to YAML files and restore them later:
 - **Mock Mode**: Test commands without making actual API calls, perfect for validation and development.
 - **Flexible Authentication**: Multiple authentication methods with automatic fallback:
   - Environment variables (production-ready)
@@ -180,6 +181,7 @@ Where:
   - `delete`: Remove an object
   - `load`: Bulk import from YAML file
   - `show`: Display existing objects
+  - `backup`: Export configurations to YAML file
   - `test-auth`: Verify authentication configuration
 - `<object-type>`: Resource category
   - `objects`: Address objects and address groups
@@ -298,13 +300,66 @@ addresses:
 Load the objects:
 
 ```bash
-scm-cli load objects address --folder Shared --file addresses.yaml
+scm-cli load objects address --folder Shared --file addresses.yml
 
 # Verify in mock mode first
-scm-cli load objects address --folder Shared --file addresses.yaml --mock
+scm-cli load objects address --folder Shared --file addresses.yml --mock
 ```
 
-See the `examples/` directory for more bulk operation templates.
+See the `examples/` directory for more bulk operation templates, including:
+
+- Complete RFC 1918 private network setup (`rfc1918-addresses.yml` and `rfc1918-address-group.yml`)
+- Multi-folder configuration examples across ngfw-shared, Texas, and Austin folders
+- Security zone configurations for different network modes
+- Pre and post rulebase security rule examples
+
+#### Backup and Restore Operations
+
+Export existing configurations to YAML files:
+
+```bash
+# Backup address objects from a specific folder
+scm-cli backup objects address --folder Austin
+# Creates: address-austin.yaml
+
+# Backup address groups
+scm-cli backup objects address-group --folder Texas
+# Creates: address-group-texas.yaml
+
+# Backup security zones
+scm-cli backup network security-zone --folder ngfw-shared
+# Creates: security-zone-ngfw-shared.yaml
+
+# Backup security rules
+scm-cli backup security rule --folder Austin --rulebase pre
+# Creates: rule-austin-pre.yaml
+
+# Backup bandwidth allocations
+scm-cli backup deployment bandwidth-allocation
+# Creates: bandwidth-allocations.yaml
+```
+
+Restore configurations from backup files:
+
+```bash
+# Restore addresses (preview first with --dry-run)
+scm-cli load objects address --file address-austin.yaml --dry-run
+scm-cli load objects address --file address-austin.yaml
+
+# Restore address groups
+scm-cli load objects address-group --file address-group-texas.yaml
+
+# Restore security zones
+scm-cli load network security-zone --file security-zone-ngfw-shared.yaml
+
+# Restore security rules
+scm-cli load security rule --file rule-austin-pre.yaml
+
+# Restore bandwidth allocations
+scm-cli load deployment bandwidth-allocation --file bandwidth-allocations.yaml
+```
+
+The backup feature uses the `exact_match=True` parameter to only export objects that are directly defined in the specified folder, excluding inherited objects from parent folders.
 
 ## Development
 
