@@ -165,8 +165,8 @@ def show_zone(
 ):
     """Display security zones.
 
-    Examples:
-    --------
+    Example:
+    -------
         # List all security zones in a folder
         scm-cli show network zone --folder Texas --list
 
@@ -189,61 +189,61 @@ def show_zone(
             for zone in zones:
                 # Display zone information
                 typer.echo(f"Name: {zone.get('name', 'N/A')}")
-                
+
                 # Display network type and interfaces
                 network = zone.get("network", {})
                 if network:
                     # Check which type of network configuration is present
                     if network.get("layer3"):
-                        typer.echo(f"  Type: Layer 3")
+                        typer.echo("  Type: Layer 3")
                         typer.echo(f"  Interfaces: {', '.join(network['layer3'])}")
                     elif network.get("layer2"):
-                        typer.echo(f"  Type: Layer 2")
+                        typer.echo("  Type: Layer 2")
                         typer.echo(f"  Interfaces: {', '.join(network['layer2'])}")
                     elif network.get("virtual_wire"):
-                        typer.echo(f"  Type: Virtual Wire")
+                        typer.echo("  Type: Virtual Wire")
                         typer.echo(f"  Interfaces: {', '.join(network['virtual_wire'])}")
                     elif network.get("tap"):
-                        typer.echo(f"  Type: TAP")
+                        typer.echo("  Type: TAP")
                         typer.echo(f"  Interfaces: {', '.join(network['tap'])}")
                     elif network.get("external"):
-                        typer.echo(f"  Type: External")
+                        typer.echo("  Type: External")
                         typer.echo(f"  Interfaces: {', '.join(network['external'])}")
                     elif network.get("tunnel"):
-                        typer.echo(f"  Type: Tunnel")
-                    
+                        typer.echo("  Type: Tunnel")
+
                     # Display zone protection profile if present
                     if network.get("zone_protection_profile"):
                         typer.echo(f"  Zone Protection Profile: {network['zone_protection_profile']}")
-                    
+
                     # Display packet buffer protection if enabled
                     if network.get("enable_packet_buffer_protection"):
-                        typer.echo(f"  Packet Buffer Protection: Enabled")
-                    
+                        typer.echo("  Packet Buffer Protection: Enabled")
+
                     # Display log setting if present
                     if network.get("log_setting"):
                         typer.echo(f"  Log Setting: {network['log_setting']}")
-                
+
                 # Display user/device identification settings
                 if zone.get("enable_user_identification"):
-                    typer.echo(f"  User Identification: Enabled")
+                    typer.echo("  User Identification: Enabled")
                 if zone.get("enable_device_identification"):
-                    typer.echo(f"  Device Identification: Enabled")
-                
+                    typer.echo("  Device Identification: Enabled")
+
                 # Display DoS profile settings
                 if zone.get("dos_profile"):
                     typer.echo(f"  DoS Profile: {zone['dos_profile']}")
                 if zone.get("dos_log_setting"):
                     typer.echo(f"  DoS Log Setting: {zone['dos_log_setting']}")
-                
+
                 # Display description if present
                 if zone.get("description"):
                     typer.echo(f"  Description: {zone['description']}")
-                
+
                 # Display ID if present
                 if zone.get("id"):
                     typer.echo(f"  ID: {zone['id']}")
-                
+
                 typer.echo("-" * 80)
 
             return zones
@@ -255,7 +255,7 @@ def show_zone(
             typer.echo(f"\nSecurity Zone: {zone.get('name', 'N/A')}")
             typer.echo("=" * 80)
             typer.echo(f"Folder: {zone.get('folder', folder)}")
-            
+
             # Display network configuration details
             network = zone.get("network", {})
             if network:
@@ -277,31 +277,31 @@ def show_zone(
                     typer.echo(f"Interfaces: {', '.join(network['external'])}")
                 elif network.get("tunnel"):
                     typer.echo("Type: Tunnel")
-                
+
                 # Display zone protection profile if present
                 if network.get("zone_protection_profile"):
                     typer.echo(f"Zone Protection Profile: {network['zone_protection_profile']}")
-                
+
                 # Display packet buffer protection if enabled
                 if network.get("enable_packet_buffer_protection"):
                     typer.echo("Packet Buffer Protection: Enabled")
-                
+
                 # Display log setting if present
                 if network.get("log_setting"):
                     typer.echo(f"Log Setting: {network['log_setting']}")
-            
+
             # Display user/device identification settings
             if zone.get("enable_user_identification"):
                 typer.echo("User Identification: Enabled")
             if zone.get("enable_device_identification"):
                 typer.echo("Device Identification: Enabled")
-            
+
             # Display DoS profile settings
             if zone.get("dos_profile"):
                 typer.echo(f"DoS Profile: {zone['dos_profile']}")
             if zone.get("dos_log_setting"):
                 typer.echo(f"DoS Log Setting: {zone['dos_log_setting']}")
-            
+
             # Display user ACL if present
             user_acl = zone.get("user_acl", {})
             if user_acl:
@@ -310,7 +310,7 @@ def show_zone(
                     typer.echo(f"  Include: {', '.join(user_acl['include_list'])}")
                 if user_acl.get("exclude_list"):
                     typer.echo(f"  Exclude: {', '.join(user_acl['exclude_list'])}")
-            
+
             # Display device ACL if present
             device_acl = zone.get("device_acl", {})
             if device_acl:
@@ -319,11 +319,11 @@ def show_zone(
                     typer.echo(f"  Include: {', '.join(device_acl['include_list'])}")
                 if device_acl.get("exclude_list"):
                     typer.echo(f"  Exclude: {', '.join(device_acl['exclude_list'])}")
-            
+
             # Display description if present
             if zone.get("description"):
                 typer.echo(f"Description: {zone['description']}")
-            
+
             # Display ID if present
             if zone.get("id"):
                 typer.echo(f"ID: {zone['id']}")
