@@ -14,8 +14,17 @@ The project has successfully implemented:
   - Automatically detects if address exists and updates instead of failing
   - Handles address type changes by delete/recreate when necessary
   - Avoids SDK validation errors by not setting unused fields to None
+- [x] Enhanced `create_address_group` method with smart upsert logic
+  - Automatically detects existing groups and updates them
+  - Handles group type changes (static ↔ dynamic) by delete/recreate
+  - Maintains consistent behavior with address objects
 - [x] Created comprehensive style guides for command modules, SDK client, and validators
 - [x] Implemented show commands for bandwidth allocations, security rules, and security zones
+
+## Current Work (In Progress)
+- [ ] Implement smart upsert logic for `create_zone` method
+- [ ] Implement smart upsert logic for `create_security_rule` method
+- [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
 
 ## Phase 1: Show Command Implementation (Completed ✅)
 
