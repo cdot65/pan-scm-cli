@@ -6,35 +6,58 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/pan-scm-cli.svg)](https://pypi.org/project/pan-scm-cli/)
 [![License](https://img.shields.io/github/license/cdot65/pan-scm-cli.svg)](https://github.com/cdot65/pan-scm-cli/blob/main/LICENSE)
 
-Command-line interface for Palo Alto Networks Strata Cloud Manager.
+A powerful command-line interface for managing Palo Alto Networks Strata Cloud Manager configurations. Built on the [pan-scm-sdk](https://github.com/cdot65/pan-scm-sdk), this tool provides network engineers with a consistent, user-friendly CLI experience for automating and managing SCM resources.
 
 > **NOTE**: Please refer to the [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/) for all
 > examples
 
 ## Table of Contents
 
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
+- [Strata Cloud Manager CLI](#strata-cloud-manager-cli)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Installation](#installation)
+  - [Usage](#usage)
     - [Authentication](#authentication)
+      - [Method 1: Environment Variables (Highest Priority)](#method-1-environment-variables-highest-priority)
+      - [Method 2: Config File in Home Directory](#method-2-config-file-in-home-directory)
+      - [Method 3: Local Project Configuration (Development)](#method-3-local-project-configuration-development)
+      - [Verifying Authentication](#verifying-authentication)
     - [Command Structure](#command-structure)
     - [Example Commands](#example-commands)
-- [Development](#development)
+      - [Managing Address Objects](#managing-address-objects)
+      - [Managing Address Groups](#managing-address-groups)
+      - [Managing Security Zones](#managing-security-zones)
+      - [Managing Security Rules](#managing-security-rules)
+      - [Managing Bandwidth Allocations](#managing-bandwidth-allocations)
+      - [Bulk Operations](#bulk-operations)
+  - [Development](#development)
     - [Setup](#setup)
     - [Code Quality](#code-quality)
     - [Pre-commit Hooks](#pre-commit-hooks)
-- [Contributing](#contributing)
-- [License](#license)
-- [Support](#support)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Support](#support)
+  - [Project Status](#project-status)
 
 ## Features
 
 - **Consistent Command Structure**: Intuitive command pattern that follows standard CLI conventions.
-- **Comprehensive Object Management**: Create, read, update, and delete configuration objects like addresses, address groups, security zones, and security rules.
-- **Bulk Operations**: Load and manage objects in bulk using YAML files.
-- **Mock Mode**: Test commands without making actual API calls to validate configurations.
-- **Authentication Management**: Multiple authentication methods including environment variables and configuration files.
-- **Extensive Documentation**: Comprehensive examples for all supported operations.
+- **Comprehensive Object Management**: Create, read, update, and delete configuration objects including:
+  - Address objects (IP/netmask, FQDN, IP range, wildcard)
+  - Address groups (static and dynamic)
+  - Security zones (layer3, layer2, virtual-wire, tap modes)
+  - Security rules with full policy configuration
+  - Bandwidth allocation profiles
+- **Bulk Operations**: Load and manage objects in bulk using YAML files for efficient configuration management.
+- **Mock Mode**: Test commands without making actual API calls, perfect for validation and development.
+- **Flexible Authentication**: Multiple authentication methods with automatic fallback:
+  - Environment variables (production-ready)
+  - Home directory config (~/.scm-cli/config.yaml)
+  - Local development config (.secrets.yaml)
+- **Input Validation**: Built-in Pydantic validation ensures data integrity before API calls.
+- **Comprehensive Error Handling**: Clear, actionable error messages with detailed logging options.
+- **Extensive Documentation**: Full MkDocs-based documentation with interactive CLI examples.
 
 ## Installation
 
@@ -107,11 +130,13 @@ This method is used when environment variables are not set.
 For local development, follow these steps:
 
 1. Copy the example configuration file to create a local secrets file:
+
    ```bash
    cp example-config.yaml .secrets.yaml
    ```
 
 2. Edit the `.secrets.yaml` file with your actual credentials:
+
    ```yaml
    default:
      scm_client_id: "your_client_id"
@@ -120,6 +145,7 @@ For local development, follow these steps:
    ```
 
 3. Secure the file with restrictive permissions:
+
    ```bash
    # On Linux/macOS
    chmod 600 .secrets.yaml
@@ -143,14 +169,29 @@ scm-cli test-auth --mock
 
 The CLI follows a consistent command pattern:
 
-```
+```bash
 scm-cli <action> <object-type> <object> [options]
 ```
 
 Where:
-- `<action>`: `set`, `delete`, or `load`
-- `<object-type>`: `objects`, `network`, `security`, or `deployment`
-- `<object>`: Specific object type (e.g., `address`, `address-group`, `security-zone`)
+
+- `<action>`: Operation to perform
+  - `set`: Create or update an object
+  - `delete`: Remove an object
+  - `load`: Bulk import from YAML file
+  - `test-auth`: Verify authentication configuration
+- `<object-type>`: Resource category
+  - `objects`: Address objects and address groups
+  - `network`: Security zones
+  - `security`: Security rules
+  - `deployment`: Bandwidth allocations
+- `<object>`: Specific resource type (e.g., `address`, `address-group`, `security-zone`, `rule`, `bandwidth`)
+
+Global options available for all commands:
+
+- `--mock`: Run in mock mode without API calls
+- `--folder`: Specify the folder location (default: "Shared")
+- `--list`: List all objects of the specified type
 
 ### Example Commands
 
@@ -204,6 +245,17 @@ scm-cli set security rule --folder Shared --name "Allow-Web" \
 scm-cli set security rule --list --folder Shared
 ```
 
+#### Managing Bandwidth Allocations
+
+```bash
+# Create a bandwidth allocation profile
+scm-cli set deployment bandwidth --folder Shared --name "Branch-100Mbps" \
+  --egress-guaranteed 50 --egress-burstable 100
+
+# List all bandwidth profiles
+scm-cli set deployment bandwidth --list --folder Shared
+```
+
 #### Bulk Operations
 
 Create a YAML file with multiple objects:
@@ -224,30 +276,45 @@ addresses:
     tags:
       - web
       - production
+
+  - name: db-server
+    description: "Database server"
+    fqdn: db.example.com
+    tags:
+      - database
+      - production
 ```
 
 Load the objects:
 
 ```bash
 scm-cli load objects address --folder Shared --file addresses.yaml
+
+# Verify in mock mode first
+scm-cli load objects address --folder Shared --file addresses.yaml --mock
 ```
+
+See the `examples/` directory for more bulk operation templates.
 
 ## Development
 
 ### Setup
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/cdot65/pan-scm-cli.git
    cd pan-scm-cli
    ```
 
 2. Install dependencies and pre-commit hooks:
+
    ```bash
    make setup
    ```
 
    Alternatively, you can install manually:
+
    ```bash
    poetry install
    poetry run pre-commit install
@@ -255,17 +322,21 @@ scm-cli load objects address --folder Shared --file addresses.yaml
 
 ### Code Quality
 
-This project uses [ruff](https://github.com/astral-sh/ruff) for linting and formatting:
+This project uses [ruff](https://github.com/astral-sh/ruff) for linting and formatting, along with comprehensive quality checks:
 
 ```bash
-# Run linting checks
-make lint
+# Run all quality checks (lint, format, type checking, tests)
+make quality
 
-# Format code
-make format
+# Individual checks
+make lint               # Run flake8 and yamllint
+make format             # Format code with ruff
+make fix                # Auto-fix linting issues with ruff
 
-# Auto-fix linting issues when possible
-make fix
+# Testing
+make tests              # Run the full test suite
+pytest -v               # Run tests with verbose output
+pytest -k "test_name"   # Run specific tests by pattern
 ```
 
 ### Pre-commit Hooks
@@ -278,6 +349,7 @@ make pre-commit-all
 ```
 
 The following checks run automatically before each commit:
+
 - ruff linting and formatting
 - Trailing whitespace removal
 - End-of-file fixer
@@ -293,12 +365,19 @@ We welcome contributions! To contribute:
 
 1. Fork the repository.
 2. Create a new feature branch (`git checkout -b feature/your-feature`).
-3. Make your changes, ensuring all linting and tests pass.
-4. Commit your changes (`git commit -m 'Add new feature'`).
-5. Push to your branch (`git push origin feature/your-feature`).
-6. Open a Pull Request.
+3. Make your changes, ensuring all quality checks pass:
 
-Ensure your code adheres to the project's coding standards and includes tests where appropriate.
+   ```bash
+   make quality  # Run all checks
+   ```
+
+4. Add tests for new functionality in the `tests/` directory.
+5. Update documentation if adding new features.
+6. Commit your changes (`git commit -m 'Add new feature'`).
+7. Push to your branch (`git push origin feature/your-feature`).
+8. Open a Pull Request.
+
+Ensure your code adheres to the project's coding standards and includes tests where appropriate. See [CONTRIBUTING.md](./docs/about/contributing.md) for detailed guidelines.
 
 ## License
 
@@ -306,8 +385,21 @@ This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICEN
 
 ## Support
 
-For support and questions, please refer to the [SUPPORT.md](./SUPPORT.md) file in this repository.
+- **Documentation**: [GitHub Pages site](https://cdot65.github.io/pan-scm-cli/)
+- **Issues**: [GitHub Issues](https://github.com/cdot65/pan-scm-cli/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/cdot65/pan-scm-cli/discussions)
+- **Examples**: See the `examples/` directory for configuration templates
+
+## Project Status
+
+This project is actively maintained and uses:
+
+- Python 3.12+ with Poetry for dependency management
+- pan-scm-sdk v0.3.39 for API interactions
+- Dynaconf for flexible configuration management
+- Pydantic for robust input validation
+- Comprehensive test coverage with pytest
 
 ---
 
-*Detailed documentation is available on our [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/).*
+_Detailed documentation is available on our [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/)._
