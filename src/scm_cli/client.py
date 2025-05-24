@@ -33,6 +33,7 @@ class MockSCMClient:
             A callable that returns a mock success response
 
         """
+
         def mock_callable(*args, **kwargs):
             logger.info(f"Mock SCM API call: {name}(*{args}, **{kwargs})")
             return {"status": "success", "message": f"Mock call to {name}"}

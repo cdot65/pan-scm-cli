@@ -10,7 +10,8 @@ from typing import Any
 
 # Import the actual SDK client
 from scm.client import Scm
-from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
+from scm.exceptions import (APIError, AuthenticationError, ClientError,
+                            NotFoundError)
 
 from .config import get_credentials, settings
 
