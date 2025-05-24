@@ -179,6 +179,7 @@ Where:
   - `set`: Create or update an object
   - `delete`: Remove an object
   - `load`: Bulk import from YAML file
+  - `show`: Display existing objects
   - `test-auth`: Verify authentication configuration
 - `<object-type>`: Resource category
   - `objects`: Address objects and address groups
@@ -202,7 +203,10 @@ Global options available for all commands:
 scm-cli set objects address --folder Shared --name web-server --ip-netmask 192.168.1.100/32 --description "Web server in DMZ"
 
 # List all address objects in a folder
-scm-cli set objects address --list --folder Shared
+scm-cli show objects address --folder Shared --list
+
+# Show a specific address object
+scm-cli show objects address --folder Shared --name web-server
 
 # Delete an address object
 scm-cli delete objects address --folder Shared --name web-server
@@ -216,6 +220,12 @@ scm-cli set objects address-group --folder Shared --name web-servers --type stat
 
 # Create a dynamic address group
 scm-cli set objects address-group --folder Shared --name dynamic-endpoints --type dynamic --filter "'endpoint' and 'corporate'"
+
+# List all address groups in a folder
+scm-cli show objects address-group --folder Shared --list
+
+# Show a specific address group
+scm-cli show objects address-group --folder Shared --name web-servers
 
 # Delete an address group
 scm-cli delete objects address-group --folder Shared --name web-servers
