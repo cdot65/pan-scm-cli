@@ -6,7 +6,7 @@ dynaconf settings.
 """
 
 import logging
-from typing import Any, Optional, NoReturn
+from typing import Any, NoReturn
 
 # Import the actual SDK client
 from scm.client import Scm
@@ -84,7 +84,7 @@ class SCMClient:
         name: str,
         bandwidth: int,
         description: str = "",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create a bandwidth allocation.
 
@@ -163,9 +163,9 @@ class SCMClient:
         folder: str,
         name: str,
         type: str,
-        members: Optional[list[str]] = None,
+        members: list[str] | None = None,
         description: str = "",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create an address group.
 
@@ -340,11 +340,11 @@ class SCMClient:
         folder: str,
         name: str,
         description: str = "",
-        tags: Optional[list[str]] = None,
-        ip_netmask: Optional[str] = None,
-        ip_range: Optional[str] = None,
-        ip_wildcard: Optional[str] = None,
-        fqdn: Optional[str] = None,
+        tags: list[str] | None = None,
+        ip_netmask: str | None = None,
+        ip_range: str | None = None,
+        ip_wildcard: str | None = None,
+        fqdn: str | None = None,
     ) -> dict[str, Any]:
         """Create an address object.
 
@@ -529,9 +529,9 @@ class SCMClient:
         folder: str,
         name: str,
         mode: str,
-        interfaces: Optional[list[str]] = None,
+        interfaces: list[str] | None = None,
         description: str = "",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create a security zone.
 
@@ -616,12 +616,12 @@ class SCMClient:
         name: str,
         source_zones: list[str],
         destination_zones: list[str],
-        source_addresses: Optional[list[str]] = None,
-        destination_addresses: Optional[list[str]] = None,
-        applications: Optional[list[str]] = None,
+        source_addresses: list[str] | None = None,
+        destination_addresses: list[str] | None = None,
+        applications: list[str] | None = None,
         action: str = "allow",
         description: str = "",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
         enabled: bool = True,
     ) -> dict[str, Any]:
         """Create a security rule.

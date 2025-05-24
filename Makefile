@@ -1,4 +1,4 @@
-.PHONY: setup isort mypy flake8 format quality ruff lint reinstall tests clean help docs-serve docs-build docs-build-dev docs-lint docs-links docs-check docs-deploy
+.PHONY: setup mypy flake8 format quality ruff lint reinstall tests clean help docs-serve docs-build docs-build-dev docs-lint docs-links docs-check docs-deploy
 
 # Default target
 .DEFAULT_GOAL := help
@@ -26,11 +26,6 @@ setup:
 	$(POETRY) run pre-commit install
 	@echo "Setup complete!"
 
-isort:
-	@echo "Sorting imports with isort..."
-	$(POETRY) run isort $(SRC_DIR)
-	@echo "isort complete!"
-
 mypy:
 	@echo "Type checking with mypy..."
 	$(POETRY) run mypy $(SRC_DIR)
@@ -42,8 +37,9 @@ flake8:
 	@echo "flake8 complete!"
 
 format:
-	@echo "Formatting code with ruff only (handles import sorting and formatting)..."
+	@echo "Formatting code with ruff (handles import sorting and formatting)..."
 	$(POETRY) run ruff format $(SRC_DIR)
+	$(POETRY) run ruff check --fix $(SRC_DIR)
 	@echo "Formatting complete!"
 
 quality:
@@ -72,10 +68,10 @@ help:
 	@echo "  $(YELLOW)docs-deploy$(NC) - Deploy the documentation to GitHub Pages"
 
 ruff:
-	@echo "Formatting code with ruff..."
+	@echo "Running ruff (formatting and linting with fixes)..."
 	$(RUFF) format $(SRC_DIR)
 	$(RUFF) check --fix $(SRC_DIR)
-	@echo "Formatting complete!"
+	@echo "Ruff complete!"
 
 lint:
 	@echo "Running flake8..."
