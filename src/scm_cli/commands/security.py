@@ -48,54 +48,6 @@ RULEBASE_OPTION = typer.Option("pre", "--rulebase", help="Rulebase to use (pre, 
 # ========================================================================================================================================================================================
 
 
-@set_app.command("rule")
-def set_security_rule(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
-    source_zones: list[str] = SOURCE_ZONES_OPTION,
-    destination_zones: list[str] = DESTINATION_ZONES_OPTION,
-    source_addresses: list[str] | None = SOURCE_ADDRESSES_OPTION,
-    destination_addresses: list[str] | None = DESTINATION_ADDRESSES_OPTION,
-    applications: list[str] | None = APPLICATIONS_OPTION,
-    action: str = ACTION_OPTION,
-    description: str | None = DESCRIPTION_OPTION,
-    tags: list[str] | None = TAGS_OPTION,
-    enabled: bool = ENABLED_OPTION,
-):
-    """Create or update a security rule.
-
-    Example:
-    -------
-        scm-cli set security rule --folder Texas --name test --source-zones trust --destination-zones untrust
-
-    """
-    try:
-        # Validate and create security rule
-        rule = SecurityRule(
-            folder=folder,
-            name=name,
-            source_zones=source_zones,
-            destination_zones=destination_zones,
-            source_addresses=source_addresses or ["any"],
-            destination_addresses=destination_addresses or ["any"],
-            applications=applications or ["any"],
-            action=action,
-            description=description or "",
-            tags=tags or [],
-            enabled=enabled,
-        )
-
-        # Call SDK client to create the rule
-        result = scm_client.create_security_rule(**rule.to_sdk_model())
-
-        # Format and display output
-        typer.echo(f"Created security rule: {result['name']} in folder {result['folder']}")
-
-    except Exception as e:
-        typer.echo(f"Error creating security rule: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
 @delete_app.command("rule")
 def delete_security_rule(
     folder: str = FOLDER_OPTION,
@@ -167,6 +119,54 @@ def load_security_rule(
         return results
     except Exception as e:
         typer.echo(f"Error loading security rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("rule")
+def set_security_rule(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    source_zones: list[str] = SOURCE_ZONES_OPTION,
+    destination_zones: list[str] = DESTINATION_ZONES_OPTION,
+    source_addresses: list[str] | None = SOURCE_ADDRESSES_OPTION,
+    destination_addresses: list[str] | None = DESTINATION_ADDRESSES_OPTION,
+    applications: list[str] | None = APPLICATIONS_OPTION,
+    action: str = ACTION_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    tags: list[str] | None = TAGS_OPTION,
+    enabled: bool = ENABLED_OPTION,
+):
+    """Create or update a security rule.
+
+    Example:
+    -------
+        scm-cli set security rule --folder Texas --name test --source-zones trust --destination-zones untrust
+
+    """
+    try:
+        # Validate and create security rule
+        rule = SecurityRule(
+            folder=folder,
+            name=name,
+            source_zones=source_zones,
+            destination_zones=destination_zones,
+            source_addresses=source_addresses or ["any"],
+            destination_addresses=destination_addresses or ["any"],
+            applications=applications or ["any"],
+            action=action,
+            description=description or "",
+            tags=tags or [],
+            enabled=enabled,
+        )
+
+        # Call SDK client to create the rule
+        result = scm_client.create_security_rule(**rule.to_sdk_model())
+
+        # Format and display output
+        typer.echo(f"Created security rule: {result['name']} in folder {result['folder']}")
+
+    except Exception as e:
+        typer.echo(f"Error creating security rule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 

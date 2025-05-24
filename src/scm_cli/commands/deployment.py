@@ -41,53 +41,6 @@ DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution witho
 # ========================================================================================================================================================================================
 
 
-@set_app.command("bandwidth-allocation")
-def set_bandwidth_allocation(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
-    bandwidth: int = BANDWIDTH_OPTION,
-    description: str | None = DESCRIPTION_OPTION,
-    tags: list[str] | None = TAGS_OPTION,
-):
-    """Create or update a bandwidth allocation.
-
-    Example:
-    -------
-    scm-cli set deployment bandwidth-allocation \
-        --folder Texas \
-        --name primary \
-        --bandwidth 1000 \
-        --description "Primary allocation" \
-        --tags ["production"]
-
-    """
-    try:
-        # Validate input using Pydantic model
-        allocation = BandwidthAllocation(
-            folder=folder,
-            name=name,
-            bandwidth=bandwidth,
-            description=description or "",
-            tags=tags or [],
-        )
-
-        # Call the SDK client to create the bandwidth allocation
-        result = scm_client.create_bandwidth_allocation(
-            folder=allocation.folder,
-            name=allocation.name,
-            bandwidth=allocation.bandwidth,
-            description=allocation.description,
-            tags=allocation.tags,
-        )
-
-        # Include bandwidth in the output message to match test expectations
-        typer.echo(f"Created bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error creating bandwidth allocation: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
 @delete_app.command("bandwidth-allocation")
 def delete_bandwidth_allocation(
     folder: str = FOLDER_OPTION,
@@ -165,6 +118,53 @@ def load_bandwidth_allocation(
     except Exception as e:
         # This will catch any other exceptions that might occur
         typer.echo(f"Error loading bandwidth allocations: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("bandwidth-allocation")
+def set_bandwidth_allocation(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    bandwidth: int = BANDWIDTH_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    tags: list[str] | None = TAGS_OPTION,
+):
+    """Create or update a bandwidth allocation.
+
+    Example:
+    -------
+    scm-cli set deployment bandwidth-allocation \
+        --folder Texas \
+        --name primary \
+        --bandwidth 1000 \
+        --description "Primary allocation" \
+        --tags ["production"]
+
+    """
+    try:
+        # Validate input using Pydantic model
+        allocation = BandwidthAllocation(
+            folder=folder,
+            name=name,
+            bandwidth=bandwidth,
+            description=description or "",
+            tags=tags or [],
+        )
+
+        # Call the SDK client to create the bandwidth allocation
+        result = scm_client.create_bandwidth_allocation(
+            folder=allocation.folder,
+            name=allocation.name,
+            bandwidth=allocation.bandwidth,
+            description=allocation.description,
+            tags=allocation.tags,
+        )
+
+        # Include bandwidth in the output message to match test expectations
+        typer.echo(f"Created bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating bandwidth allocation: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
