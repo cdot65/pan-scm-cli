@@ -109,7 +109,7 @@ def load_zone(
     """
     try:
         # Load and parse the YAML file
-        config = load_from_yaml(file, "zones")
+        config = load_from_yaml(str(file), "zones")
 
         if dry_run:
             typer.echo("Dry run mode: would apply the following configurations:")

@@ -120,7 +120,7 @@ def load_security_rule(
     """
     try:
         # Load and parse the YAML file
-        config = load_from_yaml(file, "security_rules")
+        config = load_from_yaml(str(file), "security_rules")
 
         if dry_run:
             typer.echo("Dry run mode: would apply the following configurations:")
