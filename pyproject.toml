@@ -11,7 +11,7 @@ python = ">=3.10,<3.14"
 typer = "0.15.2"
 pyyaml = "^6.0"
 pydantic = "^2.7.1"
-pan-scm-sdk = "0.3.22"
+pan-scm-sdk = "0.3.39"
 dynaconf = "^3.2.10"
 
 [tool.poetry.group.dev.dependencies]
