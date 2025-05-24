@@ -831,6 +831,117 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
 
+    def get_security_rule(
+        self,
+        folder: str,
+        name: str,
+        rulebase: str = "pre",
+    ) -> dict[str, Any]:
+        """Get a security rule by name and folder.
+
+        Args:
+            folder: Folder containing the security rule
+            name: Name of the security rule to get
+            rulebase: Rulebase to use (pre, post, or default)
+
+        Returns:
+            dict[str, Any]: The security rule object
+
+        """
+        self.logger.info(f"Getting security rule: {name} from folder {folder} in rulebase {rulebase}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"sr-{name}",
+                "folder": folder,
+                "name": name,
+                "from_": ["trust"],
+                "to_": ["untrust"],
+                "source": ["any"],
+                "destination": ["any"],
+                "application": ["web-browsing", "ssl"],
+                "service": ["application-default"],
+                "action": "allow",
+                "description": "Mock security rule",
+                "tag": ["mock"],
+                "disabled": False,
+                "log_end": True,
+            }
+
+        try:
+            # Fetch the security rule using the SDK
+            result = self.client.security_rule.fetch(name=name, folder=folder, rulebase=rulebase)
+
+            # Convert SDK response to dict for compatibility
+            return result.model_dump()
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_security_rules(
+        self,
+        folder: str,
+        rulebase: str = "pre",
+    ) -> list[dict[str, Any]]:
+        """List security rules in a folder and rulebase.
+
+        Args:
+            folder: Folder to list security rules from
+            rulebase: Rulebase to use (pre, post, or default)
+
+        Returns:
+            list[dict[str, Any]]: List of security rule objects
+
+        """
+        self.logger.info(f"Listing security rules in folder: {folder}, rulebase: {rulebase}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "sr-mock1",
+                    "folder": folder,
+                    "name": "Allow Web Traffic",
+                    "from_": ["trust"],
+                    "to_": ["untrust"],
+                    "source": ["internal-net"],
+                    "destination": ["any"],
+                    "application": ["web-browsing", "ssl"],
+                    "service": ["application-default"],
+                    "action": "allow",
+                    "description": "Allow web browsing from internal network",
+                    "tag": ["mock", "web"],
+                    "disabled": False,
+                    "log_end": True,
+                },
+                {
+                    "id": "sr-mock2",
+                    "folder": folder,
+                    "name": "Block Malicious IPs",
+                    "from_": ["any"],
+                    "to_": ["any"],
+                    "source": ["malicious-ip-list"],
+                    "destination": ["any"],
+                    "application": ["any"],
+                    "service": ["any"],
+                    "action": "deny",
+                    "description": "Block known malicious IP addresses",
+                    "tag": ["mock", "security"],
+                    "disabled": False,
+                    "log_start": True,
+                    "log_end": True,
+                },
+            ]
+
+        try:
+            # List security rules using the SDK
+            results = self.client.security_rule.list(folder=folder, rulebase=rulebase)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [result.model_dump() for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "security rules", e)
+
     def delete_security_rule(
         self,
         folder: str,

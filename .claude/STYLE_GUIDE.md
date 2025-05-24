@@ -3,6 +3,7 @@
 This guide defines the coding standards and patterns for the pan-scm-cli project. All code contributions should follow these guidelines to maintain consistency throughout the codebase.
 
 ## Table of Contents
+
 1. [Module Structure](#module-structure)
 2. [Section Organization](#section-organization)
 3. [Command Architecture](#command-architecture)
@@ -18,7 +19,9 @@ This guide defines the coding standards and patterns for the pan-scm-cli project
 ## Module Structure
 
 ### Import Organization
+
 Imports should be organized in the following order:
+
 1. Standard library imports
 2. Third-party imports
 3. Local imports (with relative imports for package modules)
@@ -37,7 +40,9 @@ from ..utils.validators import ValidatorModel
 ```
 
 ### Module Docstring
+
 Every module must start with a concise docstring:
+
 ```python
 """Module-level commands for Strata Cloud Manager.
 
@@ -51,6 +56,7 @@ the SCM API, organized by action types.
 Use 192-character width section separators to organize code:
 
 ### Major Sections (Double Lines)
+
 ```python
 # ========================================================================================================================================================================================
 # SECTION NAME
@@ -58,17 +64,20 @@ Use 192-character width section separators to organize code:
 ```
 
 ### Subsections (Single Line with Centered Title)
+
 ```python
 # ------------------------------------------------------------------------------------ Subsection Name ------------------------------------------------------------------------------------
 ```
 
 ### Standard Section Order for Command Modules
+
 1. Module docstring and imports
 2. TYPER APP CONFIGURATION
 3. COMMAND OPTIONS
 4. [RESOURCE] COMMANDS (e.g., ADDRESS COMMANDS, ZONE COMMANDS)
 
 ### Standard Section Order for SDK Client
+
 1. Module docstring and imports
 2. Class definition
 3. API METHODS (with navigation guide)
@@ -78,6 +87,7 @@ Use 192-character width section separators to organize code:
 7. SECURITY CONFIGURATION METHODS
 
 ### Standard Section Order for Validators
+
 1. Module docstring and imports
 2. TYPE DEFINITIONS
 3. DEPLOYMENT CONFIGURATION MODELS
@@ -89,7 +99,9 @@ Use 192-character width section separators to organize code:
 ## Command Architecture
 
 ### Typer App Structure
+
 Create separate Typer apps for each action type:
+
 ```python
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -111,7 +123,9 @@ deployment_app.add_typer(load_app, name="load")
 ```
 
 ### Command Options Pattern
+
 Define all options as constants with descriptive names:
+
 ```python
 # ========================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -135,6 +149,7 @@ MODE_OPTION = typer.Option(..., "--mode", "-m", help="Zone mode (L2, L3, externa
 ## Function Patterns
 
 ### Command Function Structure
+
 ```python
 @set_app.command("resource-name")
 def set_resource_name(
@@ -145,11 +160,11 @@ def set_resource_name(
     tags: list[str] | None = TAGS_OPTION,
 ):
     """Brief description of what the command does.
-    
+
     Example:
     -------
     scm-cli set module resource-name --folder Texas --name example --param value
-    
+
     """
     try:
         # Input validation (if using Pydantic)
@@ -160,7 +175,7 @@ def set_resource_name(
             description=description or "",
             tags=tags or [],
         )
-        
+
         # SDK client call
         result = scm_client.create_resource(
             folder=folder,
@@ -169,17 +184,18 @@ def set_resource_name(
             description=description,
             tags=tags,
         )
-        
+
         # Success output
         typer.echo(f"Created resource: {result['name']} in folder {result['folder']}")
         return result
-        
+
     except Exception as e:
         typer.echo(f"Error creating resource: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 ```
 
 ### Load Command Pattern
+
 ```python
 @load_app.command("resource-name")
 def load_resource_name(
@@ -187,25 +203,25 @@ def load_resource_name(
     dry_run: bool = DRY_RUN_OPTION,
 ):
     """Load resources from a YAML file.
-    
+
     Example:
     -------
     scm-cli load module resource-name --file resources.yml
     scm-cli load module resource-name --file resources.yml --dry-run
-    
+
     """
     try:
         # Load and validate YAML
         data = load_from_yaml(file)
-        
+
         if dry_run:
             typer.echo("Dry run mode - no changes will be made")
             typer.echo(yaml.dump(data, default_flow_style=False))
             return
-        
+
         # Validate data structure
         items = validate_yaml_file(data, ValidatorModel, "resources")
-        
+
         # Process each item
         created_count = 0
         for item in items:
@@ -215,16 +231,17 @@ def load_resource_name(
                 created_count += 1
             except Exception as e:
                 typer.echo(f"Error creating {item.name}: {str(e)}", err=True)
-        
+
         # Summary
         typer.echo(f"\nSuccessfully created {created_count} resources from {file}")
-        
+
     except Exception as e:
         typer.echo(f"Error loading resources: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 ```
 
 ### Show Command Pattern (for objects that support listing)
+
 ```python
 @show_app.command("resource-name")
 def show_resource_name(
@@ -233,12 +250,12 @@ def show_resource_name(
     name: str | None = typer.Option(None, "--name", "-n", help="Show specific resource by name"),
 ):
     """Show resource details.
-    
+
     Examples:
     --------
     scm-cli show module resource-name --folder Texas --list
     scm-cli show module resource-name --folder Texas --name example
-    
+
     """
     try:
         if list_items:
@@ -246,7 +263,7 @@ def show_resource_name(
             if not items:
                 typer.echo(f"No resources found in folder {folder}")
                 return
-            
+
             typer.echo(f"\nResources in folder {folder}:")
             typer.echo("-" * 50)
             for item in items:
@@ -254,7 +271,7 @@ def show_resource_name(
                 if item.get('description'):
                     typer.echo(f"  Description: {item['description']}")
                 typer.echo("-" * 50)
-        
+
         elif name:
             item = scm_client.get_resource(folder=folder, name=name)
             typer.echo(f"\nResource details for '{name}':")
@@ -262,11 +279,11 @@ def show_resource_name(
             for key, value in item.items():
                 if value is not None and value != []:
                     typer.echo(f"{key}: {value}")
-        
+
         else:
             typer.echo("Please specify either --list or --name option")
             raise typer.Exit(code=1)
-            
+
     except Exception as e:
         typer.echo(f"Error showing resource: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -275,7 +292,9 @@ def show_resource_name(
 ## Documentation Standards
 
 ### Command Docstrings
+
 Every command must have a docstring with:
+
 1. Brief description (one line)
 2. Blank line
 3. Example(s) section with separator line
@@ -300,75 +319,80 @@ Additional important information if needed.
 ```
 
 ### Function/Method Docstrings (Google Format)
+
 ```python
 def function_name(param1: type, param2: type | None = None) -> ReturnType:
     """Brief description of function.
-    
+
     Longer description if needed, explaining what the function
     does in more detail.
-    
+
     Args:
         param1: Description of param1
         param2: Description of param2 (optional)
-        
+
     Returns:
         Description of return value
-        
+
     Raises:
         ExceptionType: When this exception is raised
-        
+
     """
 ```
 
 ## Error Handling
 
 ### Standard Error Pattern
+
 ```python
 try:
     # Operation code
     result = perform_operation()
-    
+
 except ValidationError as e:
     typer.echo(f"Validation error: {str(e)}", err=True)
     raise typer.Exit(code=1) from e
-    
+
 except AuthenticationError as e:
     typer.echo(f"Authentication failed: {str(e)}", err=True)
     raise typer.Exit(code=1) from e
-    
+
 except Exception as e:
     typer.echo(f"Error [action] [resource]: {str(e)}", err=True)
     raise typer.Exit(code=1) from e
 ```
 
 ### SDK Client Error Handling
+
 ```python
 def _handle_api_exception(self, operation: str, folder: str, resource_name: str, exception: Exception) -> NoReturn:
     """Handle API exceptions with proper logging and error formatting.
-    
+
     Args:
         operation: The operation being performed
         folder: The folder containing the resource
         resource_name: The name of the resource
         exception: The exception that was raised
-        
+
     Raises:
         Exception: Re-raises the original exception after logging
-        
+
     """
     if isinstance(exception, AuthenticationError):
         self.logger.error(f"Authentication error during {operation} of {resource_name}: {str(exception)}")
     elif isinstance(exception, NotFoundError):
         self.logger.error(f"Resource not found: {resource_name} in folder {folder}")
     # ... other exception types
-    
+
     raise exception
 ```
 
 ## Type Annotations
 
 ### Modern Python Type Hints
+
 Use Python 3.10+ union syntax:
+
 ```python
 # Preferred
 param: str | None = None
@@ -380,6 +404,7 @@ items: Optional[List[str]] = None
 ```
 
 ### Common Type Patterns
+
 ```python
 # Required string
 name: str = NAME_OPTION
@@ -406,8 +431,10 @@ def function() -> NoReturn:  # For functions that always raise
 ## Naming Conventions
 
 ### Commands
+
 - Use kebab-case for command names
 - Be descriptive but concise
+
 ```python
 @set_app.command("bandwidth-allocation")  # Good
 @set_app.command("ba")  # Too short
@@ -415,8 +442,10 @@ def function() -> NoReturn:  # For functions that always raise
 ```
 
 ### Functions
+
 - Use snake_case
 - Prefix with action verb
+
 ```python
 def set_address_group():  # Good
 def delete_security_rule():  # Good
@@ -425,8 +454,10 @@ def address_group():  # Missing action verb
 ```
 
 ### Constants
+
 - Use UPPER_SNAKE_CASE
 - Suffix with `_OPTION` for Typer options
+
 ```python
 FOLDER_OPTION = typer.Option(...)  # Good
 NAME_OPTION = typer.Option(...)  # Good
@@ -435,8 +466,10 @@ FOLDER = typer.Option(...)  # Missing suffix
 ```
 
 ### Variables
+
 - Use snake_case
 - Be descriptive
+
 ```python
 created_count = 0  # Good
 address_groups = []  # Good
@@ -447,6 +480,7 @@ createdCount = 0  # Wrong style
 ## Output Formatting
 
 ### Success Messages
+
 ```python
 # Creation
 typer.echo(f"Created {resource_type}: {name} in folder {folder}")
@@ -462,6 +496,7 @@ typer.echo(f"\nSuccessfully created {count} {resource_type}s from {file}")
 ```
 
 ### Error Messages
+
 ```python
 # Standard format
 typer.echo(f"Error {action} {resource}: {str(error)}", err=True)
@@ -473,6 +508,7 @@ typer.echo(f"Resource not found: {name} in folder {folder}", err=True)
 ```
 
 ### List/Show Output
+
 ```python
 # List header
 typer.echo(f"\n{Resource}s in folder {folder}:")
@@ -493,14 +529,18 @@ typer.echo(f"No {resource}s found in folder {folder}")
 ## SDK Client Patterns
 
 ### Method Organization
+
 Group methods by configuration type:
+
 1. Deployment Configuration (bandwidth allocations)
 2. Objects Configuration (addresses, address groups)
 3. Network Configuration (zones)
 4. Security Configuration (rules)
 
 ### Method Naming
+
 Use consistent CRUD naming:
+
 ```python
 def create_resource():  # Create new
 def get_resource():     # Get single item
@@ -510,7 +550,9 @@ def delete_resource():  # Delete existing
 ```
 
 ### Mock Mode Support
+
 Always check for client availability:
+
 ```python
 if not self.client:
     # Return mock data
@@ -530,6 +572,7 @@ except Exception as e:
 ```
 
 ### Return Types
+
 - Always return dictionaries for consistency
 - Convert SDK model objects using `model_dump()` or `dict()`
 - Return bool for delete operations
@@ -537,40 +580,43 @@ except Exception as e:
 ## Validator Patterns
 
 ### Model Structure
+
 ```python
 class ResourceModel(BaseModel):
     """Model for resource configurations with folder path."""
-    
+
     # Required fields
     folder: str = Field(..., description="Folder path for the resource")
     name: str = Field(..., description="Name of the resource")
-    
+
     # Optional fields with defaults
     description: str = Field("", description="Description of the resource")
     tags: list[str] = Field(default_factory=list, description="List of tags")
-    
+
     # Type-specific fields
     specific_field: str = Field(..., description="Resource-specific field")
 ```
 
 ### Validation Methods
+
 ```python
 @model_validator(mode="after")
 def validate_resource(self) -> "ResourceModel":
     """Validate resource constraints.
-    
+
     Returns:
         The validated resource model
-        
+
     Raises:
         ValueError: If validation fails
-        
+
     """
     # Validation logic
     return self
 ```
 
 ### SDK Model Conversion
+
 ```python
 def to_sdk_model(self) -> dict[str, Any]:
     """Convert CLI model to SDK model format."""
@@ -582,21 +628,22 @@ def to_sdk_model(self) -> dict[str, Any]:
 ```
 
 ### Utility Functions
+
 ```python
 def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str) -> list[ModelT]:
     """Validate a YAML data structure against a Pydantic model.
-    
+
     Args:
         data: The parsed YAML data
         model_class: The Pydantic model class to validate against
         key: The key in the YAML data that contains the items
-        
+
     Returns:
         A list of validated model instances
-        
+
     Raises:
         ValueError: If validation fails
-        
+
     """
 ```
 
