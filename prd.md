@@ -377,13 +377,61 @@ This avoids SDK validation errors that occur when trying to change address types
 ### 11.5 Future Considerations
 
 This pattern should be extended to other object types:
-- Address Groups
-- Security Zones
+- Address Groups ✅ (Completed)
+- Security Zones (In Progress)
 - Security Rules
 - Bandwidth Allocations
 
 Each will require similar logic adapted to their specific constraints and SDK requirements.
-- Env vars only: Set variables, unset config file, run `test-auth`.
-- Config file only: Unset variables, create `config.yaml`, run `test-auth`.
-- Both: Set variables and create `config.yaml` with different values, confirm env vars win.
+
+## 12. Smart Upsert Feature for Address Groups
+
+### 12.1 Problem Statement
+
+Similar to address objects, attempting to create an address group that already exists would result in an error, requiring manual intervention.
+
+### 12.2 Solution: Intelligent Create/Update Logic
+
+The `create_address_group` method now implements smart upsert logic similar to address objects:
+
+#### 12.2.1 Basic Upsert Flow
+```python
+# Try to fetch existing address group
+existing_group = client.address_group.fetch(name=name, folder=folder)
+if existing_group:
+    # Update existing
+    existing_group.description = new_description
+    existing_group.static = new_members  # or dynamic filter
+    result = client.address_group.update(existing_group)
+else:
+    # Create new
+    result = client.address_group.create(group_data)
 ```
+
+#### 12.2.2 Group Type Change Handling
+
+When changing group types (static ↔ dynamic), the method:
+1. Detects the type change
+2. Deletes the existing group
+3. Creates a new group with the new type
+
+This is necessary because the SDK doesn't allow direct type changes.
+
+### 12.3 Technical Implementation Details
+
+#### 12.3.1 Type Detection
+- Checks for presence of `static` or `dynamic` attributes
+- Compares current type with requested type
+- Decides on update vs. recreate strategy
+
+#### 12.3.2 Field Management
+- Updates only fields that are changing
+- Handles static member lists vs dynamic filter expressions
+- Preserves existing values when not explicitly changed
+
+### 12.4 Benefits
+
+1. **Consistent Behavior**: Same upsert pattern as address objects
+2. **Type Flexibility**: Seamlessly handles group type changes
+3. **Simplified Workflows**: No need to manually check existence
+4. **Clear Feedback**: Logging shows create vs update operations
