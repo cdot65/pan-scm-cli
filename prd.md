@@ -83,7 +83,7 @@ This ensures flexibility for users and aligns the implementation with the README
 - **Existing Dependencies**:
   - `python>=3.10,<3.14`
   - `dynaconf>=3.2.10` (for config management)
-  - `pan-scm-sdk==0.3.22` (SCM API client)
+  - `pan-scm-sdk==0.3.39` (SCM API client)
   - `typer==0.15.2` (CLI framework)
 - **No New Dependencies Required**
 

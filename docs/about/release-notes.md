@@ -2,7 +2,7 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
-## Version 0.3.23
+## Version 0.3.39
 
 **Released:** March 29, 2025
 
