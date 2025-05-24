@@ -14,10 +14,18 @@ from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
 from ..utils.validators import Zone
 
+# ========================================================================================================================================================================================
+# TYPER APP CONFIGURATION
+# ========================================================================================================================================================================================
+
 # Create app groups for each action type
 set_app = typer.Typer(help="Create or update network configurations")
 delete_app = typer.Typer(help="Remove network configurations")
 load_app = typer.Typer(help="Load network configurations from YAML files")
+
+# ========================================================================================================================================================================================
+# COMMAND OPTIONS
+# ========================================================================================================================================================================================
 
 # Define typer option constants
 FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the zone")
@@ -28,6 +36,10 @@ DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of th
 TAGS_OPTION = typer.Option(None, "--tags", help="List of tags")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
+
+# ========================================================================================================================================================================================
+# SECURITY ZONE COMMANDS
+# ========================================================================================================================================================================================
 
 
 @set_app.command("zone")
@@ -109,7 +121,7 @@ def load_zone(
     """
     try:
         # Load and parse the YAML file
-        config = load_from_yaml(file, "zones")
+        config = load_from_yaml(str(file), "zones")
 
         if dry_run:
             typer.echo("Dry run mode: would apply the following configurations:")

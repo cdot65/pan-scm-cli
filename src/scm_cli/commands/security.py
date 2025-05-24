@@ -13,10 +13,18 @@ from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
 from ..utils.validators import SecurityRule
 
+# ========================================================================================================================================================================================
+# TYPER APP CONFIGURATION
+# ========================================================================================================================================================================================
+
 # Create app groups for each action type
 set_app = typer.Typer(help="Create or update security configurations")
 delete_app = typer.Typer(help="Remove security configurations")
 load_app = typer.Typer(help="Load security configurations from YAML files")
+
+# ========================================================================================================================================================================================
+# COMMAND OPTIONS
+# ========================================================================================================================================================================================
 
 # Define typer option constants
 FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the security rule")
@@ -32,6 +40,10 @@ TAGS_OPTION = typer.Option(None, "--tags", help="List of tags")
 ENABLED_OPTION = typer.Option(True, "--enabled/--disabled", help="Enable or disable the security rule")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
+
+# ========================================================================================================================================================================================
+# SECURITY RULE COMMANDS
+# ========================================================================================================================================================================================
 
 
 @set_app.command("rule")
@@ -120,7 +132,7 @@ def load_security_rule(
     """
     try:
         # Load and parse the YAML file
-        config = load_from_yaml(file, "security_rules")
+        config = load_from_yaml(str(file), "security_rules")
 
         if dry_run:
             typer.echo("Dry run mode: would apply the following configurations:")

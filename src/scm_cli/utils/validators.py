@@ -9,11 +9,18 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field, model_validator
 
+# ========================================================================================================================================================================================
+# TYPE DEFINITIONS
+# ========================================================================================================================================================================================
+
 # Create a type variable bound to BaseModel
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
+# ========================================================================================================================================================================================
+# DEPLOYMENT CONFIGURATION MODELS
+# ========================================================================================================================================================================================
 
-# CLI-specific wrapper models that include folder information
+
 class BandwidthAllocation(BaseModel):
     """Model for bandwidth allocation configurations with folder path."""
 
@@ -26,6 +33,11 @@ class BandwidthAllocation(BaseModel):
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert CLI model to SDK model format."""
         return {"name": self.name, "allocated_bandwidth": self.bandwidth, "description": self.description, "tags": self.tags}
+
+
+# ========================================================================================================================================================================================
+# OBJECTS CONFIGURATION MODELS
+# ========================================================================================================================================================================================
 
 
 class AddressGroup(BaseModel):
@@ -44,65 +56,12 @@ class AddressGroup(BaseModel):
 
         if self.type == "static":
             model_data["type"] = "static"
-            model_data["static"] = {"addresses": self.members}
+            model_data["members"] = self.members
         else:
             model_data["type"] = "dynamic"
             # Handle dynamic group fields if needed
 
         return model_data
-
-
-class Zone(BaseModel):
-    """Model for security zone configurations with folder path."""
-
-    folder: str = Field(..., description="Folder path for the zone")
-    name: str = Field(..., description="Name of the zone")
-    mode: str = Field(..., description="Zone mode (L2, L3, external, virtual-wire, tunnel)")
-    interfaces: list[str] = Field(default_factory=list, description="List of interfaces")
-    description: str = Field("", description="Description of the zone")
-    tags: list[str] = Field(default_factory=list, description="List of tags")
-
-    def to_sdk_model(self) -> dict[str, Any]:
-        """Convert CLI model to SDK model format."""
-        return {
-            "name": self.name,
-            "mode": self.mode,
-            "interfaces": self.interfaces,
-            "description": self.description,
-            "tags": self.tags,
-        }
-
-
-class SecurityRule(BaseModel):
-    """Model for security rule configurations with folder path."""
-
-    folder: str = Field(..., description="Folder path for the security rule")
-    name: str = Field(..., description="Name of the security rule")
-    source_zones: list[str] = Field(..., description="List of source zones")
-    destination_zones: list[str] = Field(..., description="List of destination zones")
-    source_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of source addresses")
-    destination_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of destination addresses")
-    applications: list[str] = Field(default_factory=lambda: ["any"], description="List of applications")
-    action: str = Field("allow", description="Action to take")
-    description: str = Field("", description="Description of the security rule")
-    tags: list[str] = Field(default_factory=list, description="List of tags")
-    enabled: bool = Field(True, description="Whether the rule is enabled")
-
-    def to_sdk_model(self) -> dict[str, Any]:
-        """Convert CLI model to SDK model format."""
-        return {
-            "folder": self.folder,
-            "name": self.name,
-            "source_zones": self.source_zones,
-            "destination_zones": self.destination_zones,
-            "source_addresses": self.source_addresses,
-            "destination_addresses": self.destination_addresses,
-            "applications": self.applications,
-            "action": self.action,
-            "description": self.description,
-            "tags": self.tags,
-            "enabled": self.enabled,
-        }
 
 
 class Address(BaseModel):
@@ -154,6 +113,74 @@ class Address(BaseModel):
             raise ValueError("Only one of 'ip_netmask', 'ip_range', 'ip_wildcard', or 'fqdn' can be provided.")
 
         return self
+
+
+# ========================================================================================================================================================================================
+# NETWORK CONFIGURATION MODELS
+# ========================================================================================================================================================================================
+
+
+class Zone(BaseModel):
+    """Model for security zone configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the zone")
+    name: str = Field(..., description="Name of the zone")
+    mode: str = Field(..., description="Zone mode (L2, L3, external, virtual-wire, tunnel)")
+    interfaces: list[str] = Field(default_factory=list, description="List of interfaces")
+    description: str = Field("", description="Description of the zone")
+    tags: list[str] = Field(default_factory=list, description="List of tags")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        return {
+            "name": self.name,
+            "mode": self.mode,
+            "interfaces": self.interfaces,
+            "description": self.description,
+            "tags": self.tags,
+        }
+
+
+# ========================================================================================================================================================================================
+# SECURITY CONFIGURATION MODELS
+# ========================================================================================================================================================================================
+
+
+class SecurityRule(BaseModel):
+    """Model for security rule configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the security rule")
+    name: str = Field(..., description="Name of the security rule")
+    source_zones: list[str] = Field(..., description="List of source zones")
+    destination_zones: list[str] = Field(..., description="List of destination zones")
+    source_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of source addresses")
+    destination_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of destination addresses")
+    applications: list[str] = Field(default_factory=lambda: ["any"], description="List of applications")
+    action: str = Field("allow", description="Action to take")
+    description: str = Field("", description="Description of the security rule")
+    tags: list[str] = Field(default_factory=list, description="List of tags")
+    enabled: bool = Field(True, description="Whether the rule is enabled")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        return {
+            "folder": self.folder,
+            "name": self.name,
+            "source_zones": self.source_zones,
+            "destination_zones": self.destination_zones,
+            "source_addresses": self.source_addresses,
+            "destination_addresses": self.destination_addresses,
+            "applications": self.applications,
+            "action": self.action,
+            "description": self.description,
+            "tags": self.tags,
+            "enabled": self.enabled,
+        }
+
+
+# ========================================================================================================================================================================================
+# UTILITY FUNCTIONS
+# ========================================================================================================================================================================================
 
 
 def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str) -> list[ModelT]:

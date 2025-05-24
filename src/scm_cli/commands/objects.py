@@ -13,11 +13,19 @@ from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
 from ..utils.validators import Address, AddressGroup
 
+# ========================================================================================================================================================================================
+# TYPER APP CONFIGURATION
+# ========================================================================================================================================================================================
+
 # Create app groups for each action type
 set_app = typer.Typer(help="Create or update objects configurations")
 delete_app = typer.Typer(help="Remove objects configurations")
 load_app = typer.Typer(help="Load objects configurations from YAML files")
 show_app = typer.Typer(help="Display objects configurations")
+
+# ========================================================================================================================================================================================
+# COMMAND OPTIONS
+# ========================================================================================================================================================================================
 
 # Define typer option constants
 FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the address group")
@@ -34,6 +42,10 @@ IP_NETMASK_OPTION = typer.Option(None, "--ip-netmask", help="IP address with CID
 IP_RANGE_OPTION = typer.Option(None, "--ip-range", help="IP address range (e.g. 192.168.1.1-192.168.1.10)")
 IP_WILDCARD_OPTION = typer.Option(None, "--ip-wildcard", help="IP wildcard mask (e.g. 10.20.1.0/0.0.248.255)")
 FQDN_OPTION = typer.Option(None, "--fqdn", help="Fully qualified domain name (e.g. example.com)")
+
+# ========================================================================================================================================================================================
+# ADDRESS GROUP COMMANDS
+# ========================================================================================================================================================================================
 
 
 @set_app.command("address-group")
@@ -116,7 +128,7 @@ def load_address_group(
     """
     try:
         # Load and parse the YAML file
-        config = load_from_yaml(file, "address_groups")
+        config = load_from_yaml(str(file), "address_groups")
 
         if dry_run:
             typer.echo("Dry run mode: would apply the following configurations:")
@@ -146,6 +158,11 @@ def load_address_group(
     except Exception as e:
         typer.echo(f"Error loading address groups: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# ADDRESS OBJECT COMMANDS
+# ========================================================================================================================================================================================
 
 
 @set_app.command("address")
@@ -241,7 +258,7 @@ def load_address(
     """
     try:
         # Load and parse the YAML file
-        config = load_from_yaml(file, "addresses")
+        config = load_from_yaml(str(file), "addresses")
 
         if dry_run:
             typer.echo("Dry run mode: would apply the following configurations:")
@@ -382,7 +399,7 @@ def show_address_group(
 ):
     """Display address group objects.
 
-    Examples:
+    Examples
     --------
         # List all address groups in a folder
         scm-cli show objects address-group --folder Texas --list
@@ -407,19 +424,19 @@ def show_address_group(
                 # Display address group information
                 typer.echo(f"Name: {group.get('name', 'N/A')}")
                 typer.echo(f"  Folder: {group.get('folder', 'N/A')}")
-                
+
                 # Determine type based on presence of 'static' or 'dynamic' key
-                if group.get('static') is not None:
-                    typer.echo(f"  Type: static")
+                if group.get("static") is not None:
+                    typer.echo("  Type: static")
                     typer.echo(f"  Members: {', '.join(group.get('static', []))}")
-                elif group.get('dynamic') is not None:
-                    typer.echo(f"  Type: dynamic")
-                    dynamic_info = group.get('dynamic', {})
-                    if dynamic_info.get('filter'):
+                elif group.get("dynamic") is not None:
+                    typer.echo("  Type: dynamic")
+                    dynamic_info = group.get("dynamic", {})
+                    if dynamic_info.get("filter"):
                         typer.echo(f"  Filter: {dynamic_info['filter']}")
-                
+
                 typer.echo(f"  Description: {group.get('description', 'N/A')}")
-                
+
                 # Display tags if present
                 if group.get("tag"):
                     typer.echo(f"  Tags: {', '.join(group['tag'])}")
@@ -434,23 +451,23 @@ def show_address_group(
 
             typer.echo(f"Address Group: {group.get('name', 'N/A')}")
             typer.echo(f"Folder: {group.get('folder', 'N/A')}")
-            
+
             # Determine type based on presence of 'static' or 'dynamic' key
-            if group.get('static') is not None:
+            if group.get("static") is not None:
                 typer.echo("Type: static")
                 typer.echo(f"Description: {group.get('description', 'N/A')}")
-                members = group.get('static', [])
+                members = group.get("static", [])
                 if members:
                     typer.echo(f"Members ({len(members)}):")
                     for member in members:
                         typer.echo(f"  - {member}")
                 else:
                     typer.echo("Members: None")
-            elif group.get('dynamic') is not None:
+            elif group.get("dynamic") is not None:
                 typer.echo("Type: dynamic")
                 typer.echo(f"Description: {group.get('description', 'N/A')}")
-                dynamic_info = group.get('dynamic', {})
-                if dynamic_info.get('filter'):
+                dynamic_info = group.get("dynamic", {})
+                if dynamic_info.get("filter"):
                     typer.echo(f"Filter: {dynamic_info['filter']}")
                 else:
                     typer.echo("Filter: None")

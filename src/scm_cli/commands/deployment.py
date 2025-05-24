@@ -13,10 +13,18 @@ from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
 from ..utils.validators import BandwidthAllocation
 
+# ========================================================================================================================================================================================
+# TYPER APP CONFIGURATION
+# ========================================================================================================================================================================================
+
 # Create app groups for each action type
 set_app = typer.Typer(help="Create or update deployment configurations")
 delete_app = typer.Typer(help="Remove deployment configurations")
 load_app = typer.Typer(help="Load deployment configurations from YAML files")
+
+# ========================================================================================================================================================================================
+# COMMAND OPTIONS
+# ========================================================================================================================================================================================
 
 # Define typer option constants
 FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the bandwidth allocation")
@@ -26,6 +34,10 @@ DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of th
 TAGS_OPTION = typer.Option(None, "--tags", help="List of tags")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
+
+# ========================================================================================================================================================================================
+# BANDWIDTH ALLOCATION COMMANDS
+# ========================================================================================================================================================================================
 
 
 @set_app.command("bandwidth-allocation")
@@ -113,7 +125,7 @@ def load_bandwidth_allocation(
     try:
         # Load and parse the YAML file - specifically catch ValueError
         try:
-            config = load_from_yaml(file, "bandwidth_allocations")
+            config = load_from_yaml(str(file), "bandwidth_allocations")
         except ValueError as ve:
             # Directly capture and re-raise the ValueError with the original message
             typer.echo(f"Error loading bandwidth allocations: {str(ve)}", err=True)
