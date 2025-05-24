@@ -58,6 +58,7 @@ load_app.add_typer(network.load_app, name="network")
 set_app.add_typer(security.set_app, name="security")
 delete_app.add_typer(security.delete_app, name="security")
 load_app.add_typer(security.load_app, name="security")
+show_app.add_typer(security.show_app, name="security")
 
 # Deployment module
 set_app.add_typer(deployment.set_app, name="deployment")

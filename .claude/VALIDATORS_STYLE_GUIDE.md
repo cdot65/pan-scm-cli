@@ -3,6 +3,7 @@
 This guide defines the specific patterns and standards for the validators module (`src/scm_cli/utils/validators.py`).
 
 ## Table of Contents
+
 1. [Module Structure](#module-structure)
 2. [Model Design Patterns](#model-design-patterns)
 3. [Field Definitions](#field-definitions)
@@ -15,6 +16,7 @@ This guide defines the specific patterns and standards for the validators module
 ## Module Structure
 
 ### Standard Module Layout
+
 ```python
 """Model validators for scm-cli.
 
@@ -42,6 +44,7 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 ```
 
 ### Section Organization
+
 Use 192-character separators to organize models by configuration type:
 
 1. TYPE DEFINITIONS
@@ -54,28 +57,30 @@ Use 192-character separators to organize models by configuration type:
 ## Model Design Patterns
 
 ### Basic Model Structure
+
 ```python
 class ResourceModel(BaseModel):
     """Model for resource configurations with folder path."""
-    
+
     # Container/location field (always required)
     folder: str = Field(..., description="Folder path for the resource")
-    
+
     # Identity field (always required)
     name: str = Field(..., description="Name of the resource")
-    
+
     # Type-specific required fields
     required_field: type = Field(..., description="Description of required field")
-    
+
     # Optional fields with defaults
     description: str = Field("", description="Description of the resource")
     tags: list[str] = Field(default_factory=list, description="List of tags")
-    
+
     # Type-specific optional fields
     optional_field: type | None = Field(None, description="Description of optional field")
 ```
 
 ### Model Naming Convention
+
 - Use PascalCase for model class names
 - Match the resource type name (e.g., `AddressGroup`, `SecurityRule`)
 - Don't include "Model" suffix in the name
@@ -84,6 +89,7 @@ class ResourceModel(BaseModel):
 ## Field Definitions
 
 ### Field Declaration Patterns
+
 ```python
 # Required fields - use ellipsis
 folder: str = Field(..., description="Folder path for the resource")
@@ -109,6 +115,7 @@ bandwidth: int = Field(..., description="Bandwidth value in Mbps")
 ```
 
 ### Field Constraints
+
 ```python
 # String length constraints
 name: str = Field(..., min_length=1, max_length=63)
@@ -126,6 +133,7 @@ action: str = Field("allow", description="Action to take")
 ```
 
 ### Field Descriptions
+
 - Always include a description for every field
 - Be concise but clear
 - Include valid values for constrained fields
@@ -134,73 +142,78 @@ action: str = Field("allow", description="Action to take")
 ## Validation Patterns
 
 ### Model Validators
+
 ```python
 @model_validator(mode="after")
 def validate_resource(self) -> "ResourceModel":
     """Validate resource constraints.
-    
+
     Returns:
         The validated resource model
-        
+
     Raises:
         ValueError: If validation fails
-        
+
     """
     # Validation logic
     if some_condition:
         raise ValueError("Clear error message")
-    
+
     return self
 ```
 
 ### Common Validation Patterns
 
 #### Mutually Exclusive Fields
+
 ```python
 @model_validator(mode="after")
 def validate_address_type(self) -> "Address":
     """Validate that exactly one address type is provided.
-    
+
     Returns:
         Address: The validated address object
-        
+
     Raises:
         ValueError: If zero or multiple address types are provided
-        
+
     """
     address_fields = ["ip_netmask", "ip_range", "ip_wildcard", "fqdn"]
     provided = [field for field in address_fields if getattr(self, field) is not None]
-    
+
     if len(provided) == 0:
         raise ValueError("Exactly one of 'ip_netmask', 'ip_range', 'ip_wildcard', or 'fqdn' must be provided.")
     elif len(provided) > 1:
         raise ValueError("Only one of 'ip_netmask', 'ip_range', 'ip_wildcard', or 'fqdn' can be provided.")
-    
+
     return self
 ```
 
 #### Conditional Requirements
+
 ```python
 @model_validator(mode="after")
 def validate_group_type(self) -> "AddressGroup":
     """Validate group type specific requirements."""
     if self.type == "dynamic" and not self.filter:
         raise ValueError("Dynamic groups require a filter expression")
-    
+
     if self.type == "static" and not self.members:
         raise ValueError("Static groups require at least one member")
-    
+
     return self
 ```
 
 ## Type Annotations
 
 ### Import Requirements
+
 ```python
 from typing import Any, TypeVar
 ```
 
 ### Type Patterns
+
 ```python
 # Basic types
 field: str
@@ -223,6 +236,7 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 ```
 
 ### Generic Model Type
+
 ```python
 # Define at module level
 ModelT = TypeVar("ModelT", bound=BaseModel)
@@ -234,6 +248,7 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
 ## SDK Model Conversion
 
 ### Conversion Method Pattern
+
 ```python
 def to_sdk_model(self) -> dict[str, Any]:
     """Convert CLI model to SDK model format."""
@@ -242,11 +257,11 @@ def to_sdk_model(self) -> dict[str, Any]:
         "name": self.name,
         "description": self.description,
     }
-    
+
     # Handle optional fields
     if self.tags:
         model_data["tags"] = self.tags
-    
+
     # Handle type-specific logic
     if self.type == "static":
         model_data["type"] = "static"
@@ -254,11 +269,12 @@ def to_sdk_model(self) -> dict[str, Any]:
     else:
         model_data["type"] = "dynamic"
         # Handle dynamic fields
-    
+
     return model_data
 ```
 
 ### Field Mapping Patterns
+
 ```python
 # Direct mapping
 "name": self.name
@@ -281,33 +297,34 @@ if self.type == "dynamic":
 ## Utility Functions
 
 ### YAML Validation Function
+
 ```python
 def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str) -> list[ModelT]:
     """Validate a YAML data structure against a Pydantic model.
-    
+
     Args:
         data: The parsed YAML data
         model_class: The Pydantic model class to validate against
         key: The key in the YAML data that contains the items to validate
-        
+
     Returns:
         A list of validated model instances
-        
+
     Raises:
         ValueError: If the key is not found in the data or the data is empty
         ValidationError: If any item fails validation
-        
+
     """
     if not data:
         raise ValueError("YAML data is empty or could not be parsed")
-    
+
     if key not in data:
         raise ValueError(f"Key '{key}' not found in YAML data")
-    
+
     items = data[key]
     if not items or not isinstance(items, list):
         raise ValueError(f"'{key}' should be a non-empty list")
-    
+
     validated_items = []
     for idx, item in enumerate(items):
         try:
@@ -315,23 +332,25 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
             validated_items.append(model)
         except Exception as e:
             raise ValueError(f"Validation error in item {idx}: {str(e)}") from e
-    
+
     return validated_items
 ```
 
 ## Documentation Standards
 
 ### Model Class Docstrings
+
 ```python
 class ResourceModel(BaseModel):
     """Model for resource configurations with folder path."""
 ```
 
 Or for more complex models:
+
 ```python
 class Address(BaseModel):
     """Model for address objects with container information.
-    
+
     Attributes
     ----------
         folder (str): The folder where the address object is located
@@ -342,47 +361,53 @@ class Address(BaseModel):
         ip_range (Optional[str]): IP address range (e.g. "192.168.1.1-192.168.1.10")
         ip_wildcard (Optional[str]): IP wildcard mask (e.g. "10.20.1.0/0.0.248.255")
         fqdn (Optional[str]): Fully qualified domain name (e.g. "example.com")
-        
+
     """
 ```
 
 ### Method Docstrings (Google Format)
+
 ```python
 def to_sdk_model(self) -> dict[str, Any]:
     """Convert CLI model to SDK model format.
-    
+
     Returns:
         dict[str, Any]: Model data formatted for SDK consumption
-        
+
     """
 ```
 
 ### Validation Method Docstrings
+
 ```python
 @model_validator(mode="after")
 def validate_constraints(self) -> "ModelName":
     """Validate model-specific constraints.
-    
+
     Returns:
         ModelName: The validated model instance
-        
+
     Raises:
         ValueError: If validation constraints are not met
-        
+
     """
 ```
 
 ## Model Organization Guidelines
 
 ### Grouping Related Models
+
 Keep models organized by their configuration type:
+
 - Deployment models together
 - Object models together
 - Network models together
 - Security models together
 
 ### Model Dependencies
+
 If models reference each other:
+
 ```python
 # Forward references if needed
 from __future__ import annotations
@@ -394,21 +419,25 @@ related: list["OtherModel"]
 ## Common Patterns by Resource Type
 
 ### Address Objects
+
 - Mutually exclusive type fields (ip_netmask, ip_range, ip_wildcard, fqdn)
 - Exactly one type must be provided
 - Name constraints (min/max length)
 
 ### Address Groups
+
 - Type field determines structure (static vs dynamic)
 - Static groups have members list
 - Dynamic groups have filter expression
 
 ### Security Rules
+
 - Lists with defaults (source_addresses default to ["any"])
 - Boolean flags (enabled)
 - Action constraints
 
 ### Zones
+
 - Mode determines valid configurations
 - Interface lists
 
