@@ -36,6 +36,7 @@ linkchecker = "^10.5.0"
 mkdocstrings-python = "^1.16.11"
 isort = "^5.13.2"
 mypy = "^1.10.0"
+types-PyYAML = "^6.0.12.20240311"
 
 [tool.poetry.scripts]
 scm-cli = "scm_cli:main"
