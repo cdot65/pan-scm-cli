@@ -228,6 +228,95 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creation", folder, name, e)
 
+    def get_address_group(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get an address group by name and folder.
+
+        Args:
+        ----
+            folder: Folder containing the address group
+            name: Name of the address group to get
+
+        Returns:
+        -------
+            The address group object
+
+        """
+        self.logger.info(f"Getting address group: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"ag-{name}",
+                "folder": folder,
+                "name": name,
+                "description": "Mock address group",
+                "type": "static",
+                "members": ["192.168.1.0/24", "10.0.0.0/8"],
+                "tags": ["mock"],
+            }
+
+        try:
+            # Fetch the address group using the SDK
+            result = self.client.address_group.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return result.model_dump()
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_address_groups(
+        self,
+        folder: str,
+    ) -> list[dict[str, Any]]:
+        """List address groups in a folder.
+
+        Args:
+        ----
+            folder: Folder to list address groups from
+
+        Returns:
+        -------
+            List of address group objects
+
+        """
+        self.logger.info(f"Listing address groups in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "ag-mock1",
+                    "folder": folder,
+                    "name": "mock-group-1",
+                    "description": "Mock address group 1",
+                    "type": "static",
+                    "members": ["192.168.1.0/24", "10.0.0.0/8"],
+                    "tags": ["mock"],
+                },
+                {
+                    "id": "ag-mock2",
+                    "folder": folder,
+                    "name": "mock-group-2",
+                    "description": "Mock address group 2",
+                    "type": "dynamic",
+                    "filter": "'tag1' and 'tag2'",
+                    "tags": ["mock", "dynamic"],
+                },
+            ]
+
+        try:
+            # List address groups using the SDK
+            results = self.client.address_group.list(folder=folder)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [result.model_dump() for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "address groups", e)
+
     def delete_address_group(self, folder: str, name: str) -> bool:
         """Delete an address group.
 

@@ -20,17 +20,20 @@ app = typer.Typer(
 set_app = typer.Typer(help="Create or update configurations", name="set")
 delete_app = typer.Typer(help="Remove configurations", name="delete")
 load_app = typer.Typer(help="Load configurations from YAML files", name="load")
+show_app = typer.Typer(help="Display configurations", name="show")
 
 # Register the action apps with the main app
 app.add_typer(set_app, name="set")
 app.add_typer(delete_app, name="delete")
 app.add_typer(load_app, name="load")
+app.add_typer(show_app, name="show")
 
 # Register object type apps with each action
 # Objects module
 set_app.add_typer(objects.set_app, name="objects")
 delete_app.add_typer(objects.delete_app, name="objects")
 load_app.add_typer(objects.load_app, name="objects")
+show_app.add_typer(objects.show_app, name="objects")
 
 # Network module
 set_app.add_typer(network.set_app, name="network")
@@ -102,6 +105,8 @@ def callback():
       - scm-cli set objects address-group --folder Texas --name test123 --type static
       - scm-cli delete security security-rule --folder Texas --name test123
       - scm-cli load network zone --file config/security_zones.yml
+      - scm-cli show objects address --folder Texas --list
+      - scm-cli show objects address --folder Texas --name webserver
       - scm-cli test-auth
 
     """
