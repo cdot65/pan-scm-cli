@@ -22,6 +22,7 @@ set_app = typer.Typer(help="Create or update objects configurations")
 delete_app = typer.Typer(help="Remove objects configurations")
 load_app = typer.Typer(help="Load objects configurations from YAML files")
 show_app = typer.Typer(help="Display objects configurations")
+backup_app = typer.Typer(help="Backup objects configurations to YAML files")
 
 # ========================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -46,6 +47,65 @@ FQDN_OPTION = typer.Option(None, "--fqdn", help="Fully qualified domain name (e.
 # ========================================================================================================================================================================================
 # ADDRESS GROUP COMMANDS
 # ========================================================================================================================================================================================
+
+
+@backup_app.command("address-group")
+def backup_address_group(
+    folder: str = FOLDER_OPTION,
+):
+    """Backup all address groups from a folder to a YAML file.
+
+    The backup file will be named 'address-group-{folder}.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup objects address-group --folder Austin
+
+    """
+    try:
+        # List all address groups in the folder with exact_match=True
+        groups = scm_client.list_address_groups(folder=folder, exact_match=True)
+
+        if not groups:
+            typer.echo(f"No address groups found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for group in groups:
+            # The list method returns dict objects already, but let's ensure we exclude any None values
+            group_dict = {k: v for k, v in group.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            group_dict.pop("id", None)
+
+            # Convert SDK format back to CLI format for consistency
+            if "static" in group_dict:
+                group_dict["type"] = "static"
+                group_dict["members"] = group_dict.pop("static", [])
+            elif "dynamic" in group_dict:
+                group_dict["type"] = "dynamic"
+                dynamic_info = group_dict.pop("dynamic", {})
+                if dynamic_info.get("filter"):
+                    group_dict["filter"] = dynamic_info["filter"]
+
+            backup_data.append(group_dict)
+
+        # Create the YAML structure
+        yaml_data = {"address_groups": backup_data}
+
+        # Generate filename
+        filename = f"address-group-{folder.lower()}.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} address groups to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up address groups: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
 
 
 @delete_app.command("address-group")
@@ -285,6 +345,54 @@ def show_address_group(
 # ========================================================================================================================================================================================
 # ADDRESS OBJECT COMMANDS
 # ========================================================================================================================================================================================
+
+
+@backup_app.command("address")
+def backup_address(
+    folder: str = FOLDER_OPTION,
+):
+    """Backup all address objects from a folder to a YAML file.
+
+    The backup file will be named 'address-{folder}.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup objects address --folder Austin
+
+    """
+    try:
+        # List all addresses in the folder with exact_match=True
+        addresses = scm_client.list_addresses(folder=folder, exact_match=True)
+
+        if not addresses:
+            typer.echo(f"No addresses found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for addr in addresses:
+            # The list method returns dict objects already, but let's ensure we exclude any None values
+            addr_dict = {k: v for k, v in addr.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            addr_dict.pop("id", None)
+            backup_data.append(addr_dict)
+
+        # Create the YAML structure
+        yaml_data = {"addresses": backup_data}
+
+        # Generate filename
+        filename = f"address-{folder.lower()}.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} addresses to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up addresses: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
 
 
 @delete_app.command("address")

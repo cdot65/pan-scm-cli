@@ -8,22 +8,24 @@
 
 ### 1.2 Version
 
-0.3.0 (Major Feature Enhancements)
+0.4.0 (Major Feature Enhancements)
 
 ### 1.3 Description
 
 This PRD covers multiple enhancements to the `pan-scm-cli` project:
 1. **Authentication Enhancement**: Support for authentication via the `~/.scm-cli/config.yaml` file
 2. **Show Commands**: Implementation of show commands for all resource types
-3. **Smart Upsert Logic**: Intelligent create/update handling for address objects
+3. **Smart Upsert Logic**: Intelligent create/update handling for all object types
+4. **Backup Commands**: New backup functionality for exporting configurations to YAML files
 
-### 1.4 Latest Enhancement: Smart Upsert for Address Objects
+### 1.4 Latest Enhancement: Backup Commands
 
-The `create_address` method has been enhanced to intelligently handle existing objects:
-- Automatically detects if an address exists and updates it instead of failing
-- Handles address type changes (e.g., IP to FQDN) by deleting and recreating the object
-- Prevents SDK validation errors by properly managing field updates
-- Provides clear logging of whether objects are being created or updated
+The CLI now supports backing up configurations to YAML files with the following features:
+- `backup` command for all configuration types (objects, network, security, deployment)
+- Uses `exact_match=True` to only backup objects from the specified folder
+- Generates YAML files with naming convention: `{configuration-item-type}-{location}.yaml`
+- Excludes system fields and converts SDK format to CLI format for consistency
+- Supports all object types: addresses, address groups, security zones, security rules, and bandwidth allocations
 
 ### 1.4 Purpose
 
@@ -500,3 +502,81 @@ The SDK uses different field names than our CLI interface:
 2. **Field Mapping**: Transparent translation between CLI and SDK field names
 3. **Complete Updates**: All rule attributes can be modified
 4. **Consistent Pattern**: Same upsert approach as other object types
+
+## 15. Backup Commands Feature
+
+### 15.1 Problem Statement
+
+Users need a way to export their SCM configurations to YAML files for:
+- Version control and change tracking
+- Disaster recovery and backup purposes
+- Migration between environments
+- Documentation and auditing
+
+### 15.2 Solution: Backup Commands
+
+New `backup` command added to the CLI with the following capabilities:
+
+#### 15.2.1 Command Structure
+```bash
+scm-cli backup <object-type> <object> --folder <folder-name>
+```
+
+#### 15.2.2 Supported Commands
+- `scm-cli backup objects address --folder Austin`
+- `scm-cli backup objects address-group --folder Austin`
+- `scm-cli backup network security-zone --folder Austin`
+- `scm-cli backup security rule --folder Austin --rulebase pre`
+- `scm-cli backup deployment bandwidth` (no folder needed)
+
+### 15.3 Technical Implementation Details
+
+#### 15.3.1 SDK Client Updates
+- Added `exact_match: bool = False` parameter to all list methods
+- When `exact_match=True`, only objects defined exactly in the specified folder are returned
+- Updated methods: `list_addresses()`, `list_address_groups()`, `list_security_zones()`, `list_security_rules()`
+
+#### 15.3.2 Backup Implementation
+- Uses `exact_match=True` to avoid backing up inherited objects
+- Removes system fields like `id` that shouldn't be in backups
+- Converts SDK field names back to CLI field names for consistency
+- Excludes None/empty values using dictionary comprehension
+
+#### 15.3.3 File Naming Convention
+- `address-{folder}.yaml` for address objects
+- `address-group-{folder}.yaml` for address groups
+- `security-zone-{folder}.yaml` for security zones
+- `rule-{folder}-{rulebase}.yaml` for security rules
+- `bandwidth-allocations.yaml` for bandwidth allocations (global)
+
+### 15.4 Data Transformation
+
+The backup commands perform intelligent data transformation:
+
+1. **Address Groups**: Converts SDK format (static/dynamic keys) to CLI format (type field with members/filter)
+2. **Security Zones**: Extracts mode and interfaces from network configuration
+3. **Security Rules**: Maps SDK fields (from_, to_, etc.) back to CLI fields (source_zones, destination_zones, etc.)
+4. **Bandwidth Allocations**: Maps allocated_bandwidth to bandwidth
+
+### 15.5 Benefits
+
+1. **Version Control**: YAML files can be tracked in git
+2. **Disaster Recovery**: Easy restoration from backups
+3. **Migration**: Move configurations between environments
+4. **Auditing**: Clear visibility into what's configured
+5. **Automation**: Generated files can be used with `load` commands
+
+## 16. Style Guide Updates
+
+### 16.1 Section Separators
+
+All code files now use consistent 191-character separators:
+- Major sections: Double lines of equals signs (=)
+- Subsections: Single lines of dashes (-) with centered titles
+
+### 16.2 Alphabetical Ordering
+
+The main.py file has been updated with alphabetical ordering:
+- Action app groups: backup, delete, load, set, show
+- Module registrations follow the same alphabetical pattern
+- Improves code organization and readability

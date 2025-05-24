@@ -494,17 +494,19 @@ class SCMClient:
     def list_addresses(
         self,
         folder: str,
+        exact_match: bool = False,
     ) -> list[dict[str, Any]]:
         """List address objects in a folder.
 
         Args:
             folder: Folder to list addresses from
+            exact_match: If True, only return objects defined exactly in the specified folder
 
         Returns:
             list[dict[str, Any]]: List of address objects
 
         """
-        self.logger.info(f"Listing addresses in folder: {folder}")
+        self.logger.info(f"Listing addresses in folder: {folder} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -529,7 +531,7 @@ class SCMClient:
 
         try:
             # List addresses using the SDK
-            results = self.client.address.list(folder=folder)
+            results = self.client.address.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
             return [result.model_dump() for result in results]
@@ -727,17 +729,19 @@ class SCMClient:
     def list_address_groups(
         self,
         folder: str,
+        exact_match: bool = False,
     ) -> list[dict[str, Any]]:
         """List address groups in a folder.
 
         Args:
             folder: Folder to list address groups from
+            exact_match: If True, only return objects defined exactly in the specified folder
 
         Returns:
             list[dict[str, Any]]: List of address group objects
 
         """
-        self.logger.info(f"Listing address groups in folder: {folder}")
+        self.logger.info(f"Listing address groups in folder: {folder} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -764,7 +768,7 @@ class SCMClient:
 
         try:
             # List address groups using the SDK
-            results = self.client.address_group.list(folder=folder)
+            results = self.client.address_group.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
             return [result.model_dump() for result in results]
@@ -966,17 +970,19 @@ class SCMClient:
     def list_security_zones(
         self,
         folder: str,
+        exact_match: bool = False,
     ) -> list[dict[str, Any]]:
         """List security zones in a folder.
 
         Args:
             folder: Folder to list security zones from
+            exact_match: If True, only return objects defined exactly in the specified folder
 
         Returns:
             list[dict[str, Any]]: List of security zone objects
 
         """
-        self.logger.info(f"Listing security zones in folder: {folder}")
+        self.logger.info(f"Listing security zones in folder: {folder} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -1018,7 +1024,7 @@ class SCMClient:
 
         try:
             # List security zones using the SDK
-            results = self.client.security_zone.list(folder=folder)
+            results = self.client.security_zone.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
             return [result.model_dump() for result in results]
@@ -1232,18 +1238,20 @@ class SCMClient:
         self,
         folder: str,
         rulebase: str = "pre",
+        exact_match: bool = False,
     ) -> list[dict[str, Any]]:
         """List security rules in a folder and rulebase.
 
         Args:
             folder: Folder to list security rules from
             rulebase: Rulebase to use (pre, post, or default)
+            exact_match: If True, only return objects defined exactly in the specified folder
 
         Returns:
             list[dict[str, Any]]: List of security rule objects
 
         """
-        self.logger.info(f"Listing security rules in folder: {folder}, rulebase: {rulebase}")
+        self.logger.info(f"Listing security rules in folder: {folder}, rulebase: {rulebase} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -1285,7 +1293,7 @@ class SCMClient:
 
         try:
             # List security rules using the SDK
-            results = self.client.security_rule.list(folder=folder, rulebase=rulebase)
+            results = self.client.security_rule.list(folder=folder, rulebase=rulebase, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
             return [result.model_dump() for result in results]

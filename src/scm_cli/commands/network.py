@@ -23,6 +23,7 @@ set_app = typer.Typer(help="Create or update network configurations")
 delete_app = typer.Typer(help="Remove network configurations")
 load_app = typer.Typer(help="Load network configurations from YAML files")
 show_app = typer.Typer(help="Display network configurations")
+backup_app = typer.Typer(help="Backup network configurations to YAML files")
 
 # ========================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -356,4 +357,80 @@ def show_zone(
 
     except Exception as e:
         typer.echo(f"Error showing security zone: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BACKUP COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("security-zone")
+def backup_security_zone(
+    folder: str = FOLDER_OPTION,
+):
+    """Backup all security zones from a folder to a YAML file.
+
+    The backup file will be named 'security-zone-{folder}.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup network security-zone --folder Austin
+
+    """
+    try:
+        # List all security zones in the folder with exact_match=True
+        zones = scm_client.list_security_zones(folder=folder, exact_match=True)
+
+        if not zones:
+            typer.echo(f"No security zones found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for zone in zones:
+            # The list method returns dict objects already, but let's ensure we exclude any None values
+            zone_dict = {k: v for k, v in zone.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            zone_dict.pop("id", None)
+
+            # Extract mode from network configuration for easier restoration
+            network = zone_dict.get("network", {})
+            if network:
+                if "layer3" in network:
+                    zone_dict["mode"] = "layer3"
+                elif "layer2" in network:
+                    zone_dict["mode"] = "layer2"
+                elif "virtual_wire" in network:
+                    zone_dict["mode"] = "virtual-wire"
+                elif "tap" in network:
+                    zone_dict["mode"] = "tap"
+                elif "external" in network:
+                    zone_dict["mode"] = "external"
+                elif "tunnel" in network:
+                    zone_dict["mode"] = "tunnel"
+
+                # Extract interfaces from the network config
+                for mode_key in ["layer3", "layer2", "virtual_wire", "tap", "external", "tunnel"]:
+                    if mode_key in network and isinstance(network[mode_key], list):
+                        zone_dict["interfaces"] = network[mode_key]
+                        break
+
+            backup_data.append(zone_dict)
+
+        # Create the YAML structure
+        yaml_data = {"security_zones": backup_data}
+
+        # Generate filename
+        filename = f"security-zone-{folder.lower()}.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} security zones to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up security zones: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
