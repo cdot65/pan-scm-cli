@@ -399,8 +399,8 @@ def backup_security_rule(
         # Convert SDK models to dictionaries, excluding unset values
         backup_data = []
         for rule in rules:
-            # The list method returns dict objects already, but let's ensure we exclude any None values
-            rule_dict = {k: v for k, v in rule.items() if v is not None}
+            # The list method already returns dicts with exclude_unset=True
+            rule_dict = rule.copy()
             # Remove system fields that shouldn't be in backup
             rule_dict.pop("id", None)
 

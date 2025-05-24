@@ -5,6 +5,7 @@ with Palo Alto Networks Strata Cloud Manager. It uses the credentials from
 dynaconf settings.
 """
 
+import json
 import logging
 from typing import Any, NoReturn
 
@@ -226,7 +227,7 @@ class SCMClient:
             result = self.client.bandwidth_allocation.fetch(name=name)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", "N/A", name, e)
 
@@ -270,7 +271,7 @@ class SCMClient:
             results = self.client.bandwidth_allocation.list()
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", "N/A", "bandwidth allocations", e)
 
@@ -419,7 +420,7 @@ class SCMClient:
                 self.logger.info(f"Successfully created address '{name}'")
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -487,7 +488,7 @@ class SCMClient:
             result = self.client.address.fetch(name=name, folder=folder)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder, name, e)
 
@@ -534,7 +535,7 @@ class SCMClient:
             results = self.client.address.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "addresses", e)
 
@@ -722,7 +723,7 @@ class SCMClient:
             result = self.client.address_group.fetch(name=name, folder=folder)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder, name, e)
 
@@ -771,7 +772,7 @@ class SCMClient:
             results = self.client.address_group.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "address groups", e)
 
@@ -963,7 +964,7 @@ class SCMClient:
             result = self.client.security_zone.fetch(name=name, folder=folder)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder, name, e)
 
@@ -1027,7 +1028,7 @@ class SCMClient:
             results = self.client.security_zone.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "security zones", e)
 
@@ -1230,7 +1231,7 @@ class SCMClient:
             result = self.client.security_rule.fetch(name=name, folder=folder, rulebase=rulebase)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder, name, e)
 
@@ -1296,7 +1297,7 @@ class SCMClient:
             results = self.client.security_rule.list(folder=folder, rulebase=rulebase, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "security rules", e)
 

@@ -389,32 +389,11 @@ def backup_security_zone(
         # Convert SDK models to dictionaries, excluding unset values
         backup_data = []
         for zone in zones:
-            # The list method returns dict objects already, but let's ensure we exclude any None values
-            zone_dict = {k: v for k, v in zone.items() if v is not None}
+            # The list method already returns dicts with exclude_unset=True
+            zone_dict = zone.copy()
             # Remove system fields that shouldn't be in backup
             zone_dict.pop("id", None)
 
-            # Extract mode from network configuration for easier restoration
-            network = zone_dict.get("network", {})
-            if network:
-                if "layer3" in network:
-                    zone_dict["mode"] = "layer3"
-                elif "layer2" in network:
-                    zone_dict["mode"] = "layer2"
-                elif "virtual_wire" in network:
-                    zone_dict["mode"] = "virtual-wire"
-                elif "tap" in network:
-                    zone_dict["mode"] = "tap"
-                elif "external" in network:
-                    zone_dict["mode"] = "external"
-                elif "tunnel" in network:
-                    zone_dict["mode"] = "tunnel"
-
-                # Extract interfaces from the network config
-                for mode_key in ["layer3", "layer2", "virtual_wire", "tap", "external", "tunnel"]:
-                    if mode_key in network and isinstance(network[mode_key], list):
-                        zone_dict["interfaces"] = network[mode_key]
-                        break
 
             backup_data.append(zone_dict)
 
