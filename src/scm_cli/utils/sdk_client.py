@@ -308,10 +308,11 @@ class SCMClient:
 
         Note:
             Exactly one of ip_netmask, ip_range, ip_wildcard, or fqdn must be provided.
+            If an address with the same name already exists in the folder, it will be updated.
 
         """
         tags = tags or []
-        self.logger.info(f"Creating address: {name} in folder {folder}")
+        self.logger.info(f"Creating or updating address: {name} in folder {folder}")
 
         if not self.client:
             # Return mock data if no client is available
@@ -328,7 +329,18 @@ class SCMClient:
             }
 
         try:
-            # Create using the SDK address service
+            # First, try to fetch the existing address
+            existing_address = None
+            try:
+                existing_address = self.client.address.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing address '{name}' in folder '{folder}', updating...")
+            except NotFoundError:
+                self.logger.info(f"Address '{name}' not found in folder '{folder}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching address '{name}': {str(fetch_error)}")
+
+            # Prepare address data
             address_data = {
                 "name": name,
                 "folder": folder,
@@ -348,13 +360,68 @@ class SCMClient:
             if tags:
                 address_data["tag"] = tags
 
-            # Create the address object
-            result = self.client.address.create(address_data)
+            # If address exists, update it
+            if existing_address:
+                # Check if address type is changing
+                current_type = None
+                new_type = None
+
+                # Determine current address type
+                if hasattr(existing_address, "ip_netmask") and existing_address.ip_netmask:
+                    current_type = "ip_netmask"
+                elif hasattr(existing_address, "ip_range") and existing_address.ip_range:
+                    current_type = "ip_range"
+                elif hasattr(existing_address, "ip_wildcard") and existing_address.ip_wildcard:
+                    current_type = "ip_wildcard"
+                elif hasattr(existing_address, "fqdn") and existing_address.fqdn:
+                    current_type = "fqdn"
+
+                # Determine new address type
+                if ip_netmask:
+                    new_type = "ip_netmask"
+                elif ip_range:
+                    new_type = "ip_range"
+                elif ip_wildcard:
+                    new_type = "ip_wildcard"
+                elif fqdn:
+                    new_type = "fqdn"
+
+                # If the address type is changing, we need to delete and recreate
+                if current_type and new_type and current_type != new_type:
+                    self.logger.info(f"Address type changing from {current_type} to {new_type}, deleting and recreating...")
+                    # Delete the existing address
+                    self.client.address.delete(object_id=str(existing_address.id))
+                    # Create new address with new type
+                    result = self.client.address.create(address_data)
+                    self.logger.info(f"Successfully recreated address '{name}' with new type")
+                else:
+                    # Update only the fields that are changing
+                    existing_address.description = description or ""
+                    if tags is not None:  # Only update tags if explicitly provided
+                        existing_address.tag = tags
+
+                    # Update the address value if provided and same type
+                    if ip_netmask and current_type == "ip_netmask":
+                        existing_address.ip_netmask = ip_netmask
+                    elif ip_range and current_type == "ip_range":
+                        existing_address.ip_range = ip_range
+                    elif ip_wildcard and current_type == "ip_wildcard":
+                        existing_address.ip_wildcard = ip_wildcard
+                    elif fqdn and current_type == "fqdn":
+                        existing_address.fqdn = fqdn
+
+                    # Perform update
+                    result = self.client.address.update(existing_address)
+                    self.logger.info(f"Successfully updated address '{name}'")
+            else:
+                # Create new address
+                result = self.client.address.create(address_data)
+                self.logger.info(f"Successfully created address '{name}'")
 
             # Convert SDK response to dict for compatibility
             return result.model_dump()
         except Exception as e:
-            self._handle_api_exception("creation", folder, name, e)
+            self._handle_api_exception("creation/update", folder, name, e)
 
     def delete_address(
         self,
