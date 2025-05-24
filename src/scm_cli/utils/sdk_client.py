@@ -5,6 +5,7 @@ with Palo Alto Networks Strata Cloud Manager. It uses the credentials from
 dynaconf settings.
 """
 
+import json
 import logging
 from typing import Any, NoReturn
 
@@ -226,7 +227,7 @@ class SCMClient:
             result = self.client.bandwidth_allocation.fetch(name=name)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", "N/A", name, e)
 
@@ -270,7 +271,7 @@ class SCMClient:
             results = self.client.bandwidth_allocation.list()
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", "N/A", "bandwidth allocations", e)
 
@@ -419,7 +420,7 @@ class SCMClient:
                 self.logger.info(f"Successfully created address '{name}'")
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -487,24 +488,26 @@ class SCMClient:
             result = self.client.address.fetch(name=name, folder=folder)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder, name, e)
 
     def list_addresses(
         self,
         folder: str,
+        exact_match: bool = False,
     ) -> list[dict[str, Any]]:
         """List address objects in a folder.
 
         Args:
             folder: Folder to list addresses from
+            exact_match: If True, only return objects defined exactly in the specified folder
 
         Returns:
             list[dict[str, Any]]: List of address objects
 
         """
-        self.logger.info(f"Listing addresses in folder: {folder}")
+        self.logger.info(f"Listing addresses in folder: {folder} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -529,10 +532,10 @@ class SCMClient:
 
         try:
             # List addresses using the SDK
-            results = self.client.address.list(folder=folder)
+            results = self.client.address.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "addresses", e)
 
@@ -720,24 +723,26 @@ class SCMClient:
             result = self.client.address_group.fetch(name=name, folder=folder)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder, name, e)
 
     def list_address_groups(
         self,
         folder: str,
+        exact_match: bool = False,
     ) -> list[dict[str, Any]]:
         """List address groups in a folder.
 
         Args:
             folder: Folder to list address groups from
+            exact_match: If True, only return objects defined exactly in the specified folder
 
         Returns:
             list[dict[str, Any]]: List of address group objects
 
         """
-        self.logger.info(f"Listing address groups in folder: {folder}")
+        self.logger.info(f"Listing address groups in folder: {folder} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -764,10 +769,10 @@ class SCMClient:
 
         try:
             # List address groups using the SDK
-            results = self.client.address_group.list(folder=folder)
+            results = self.client.address_group.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "address groups", e)
 
@@ -959,24 +964,26 @@ class SCMClient:
             result = self.client.security_zone.fetch(name=name, folder=folder)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder, name, e)
 
     def list_security_zones(
         self,
         folder: str,
+        exact_match: bool = False,
     ) -> list[dict[str, Any]]:
         """List security zones in a folder.
 
         Args:
             folder: Folder to list security zones from
+            exact_match: If True, only return objects defined exactly in the specified folder
 
         Returns:
             list[dict[str, Any]]: List of security zone objects
 
         """
-        self.logger.info(f"Listing security zones in folder: {folder}")
+        self.logger.info(f"Listing security zones in folder: {folder} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -1018,10 +1025,10 @@ class SCMClient:
 
         try:
             # List security zones using the SDK
-            results = self.client.security_zone.list(folder=folder)
+            results = self.client.security_zone.list(folder=folder, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "security zones", e)
 
@@ -1224,7 +1231,7 @@ class SCMClient:
             result = self.client.security_rule.fetch(name=name, folder=folder, rulebase=rulebase)
 
             # Convert SDK response to dict for compatibility
-            return result.model_dump()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder, name, e)
 
@@ -1232,18 +1239,20 @@ class SCMClient:
         self,
         folder: str,
         rulebase: str = "pre",
+        exact_match: bool = False,
     ) -> list[dict[str, Any]]:
         """List security rules in a folder and rulebase.
 
         Args:
             folder: Folder to list security rules from
             rulebase: Rulebase to use (pre, post, or default)
+            exact_match: If True, only return objects defined exactly in the specified folder
 
         Returns:
             list[dict[str, Any]]: List of security rule objects
 
         """
-        self.logger.info(f"Listing security rules in folder: {folder}, rulebase: {rulebase}")
+        self.logger.info(f"Listing security rules in folder: {folder}, rulebase: {rulebase} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -1285,10 +1294,10 @@ class SCMClient:
 
         try:
             # List security rules using the SDK
-            results = self.client.security_rule.list(folder=folder, rulebase=rulebase)
+            results = self.client.security_rule.list(folder=folder, rulebase=rulebase, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
-            return [result.model_dump() for result in results]
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder, "security rules", e)
 

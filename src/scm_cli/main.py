@@ -10,9 +10,9 @@ import typer
 from .client import get_scm_client
 from .commands import deployment, network, objects, security
 
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 # MAIN CLI APPLICATION
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 
 app = typer.Typer(
     name="scm-cli",
@@ -20,56 +20,64 @@ app = typer.Typer(
     add_completion=True,
 )
 
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 # ACTION APP GROUPS
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 
 # Create app groups for each action
-set_app = typer.Typer(help="Create or update configurations", name="set")
+backup_app = typer.Typer(help="Backup configurations to YAML files", name="backup")
 delete_app = typer.Typer(help="Remove configurations", name="delete")
 load_app = typer.Typer(help="Load configurations from YAML files", name="load")
+set_app = typer.Typer(help="Create or update configurations", name="set")
 show_app = typer.Typer(help="Display configurations", name="show")
 
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 # APP REGISTRATION
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 
-# ------------------------------------------------------------------------------------ Register Action Apps ------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------- Register Action Apps -----------------------------------------------------------------------------------
 
-app.add_typer(set_app, name="set")
+app.add_typer(backup_app, name="backup")
 app.add_typer(delete_app, name="delete")
 app.add_typer(load_app, name="load")
+app.add_typer(set_app, name="set")
 app.add_typer(show_app, name="show")
 
-# ---------------------------------------------------------------------------------- Register Module Commands ----------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------- Register Module Commands ---------------------------------------------------------------------------------
 
-# Objects module
-set_app.add_typer(objects.set_app, name="objects")
-delete_app.add_typer(objects.delete_app, name="objects")
-load_app.add_typer(objects.load_app, name="objects")
-show_app.add_typer(objects.show_app, name="objects")
+# Backup commands
+backup_app.add_typer(deployment.backup_app, name="deployment")
+backup_app.add_typer(network.backup_app, name="network")
+backup_app.add_typer(objects.backup_app, name="objects")
+backup_app.add_typer(security.backup_app, name="security")
 
-# Network module
-set_app.add_typer(network.set_app, name="network")
+# Delete commands
+delete_app.add_typer(deployment.delete_app, name="deployment")
 delete_app.add_typer(network.delete_app, name="network")
-load_app.add_typer(network.load_app, name="network")
-show_app.add_typer(network.show_app, name="network")
-
-# Security module
-set_app.add_typer(security.set_app, name="security")
+delete_app.add_typer(objects.delete_app, name="objects")
 delete_app.add_typer(security.delete_app, name="security")
+
+# Load commands
+load_app.add_typer(deployment.load_app, name="deployment")
+load_app.add_typer(network.load_app, name="network")
+load_app.add_typer(objects.load_app, name="objects")
 load_app.add_typer(security.load_app, name="security")
+
+# Set commands
+set_app.add_typer(deployment.set_app, name="deployment")
+set_app.add_typer(network.set_app, name="network")
+set_app.add_typer(objects.set_app, name="objects")
+set_app.add_typer(security.set_app, name="security")
+
+# Show commands
+show_app.add_typer(deployment.show_app, name="deployment")
+show_app.add_typer(network.show_app, name="network")
+show_app.add_typer(objects.show_app, name="objects")
 show_app.add_typer(security.show_app, name="security")
 
-# Deployment module
-set_app.add_typer(deployment.set_app, name="deployment")
-delete_app.add_typer(deployment.delete_app, name="deployment")
-load_app.add_typer(deployment.load_app, name="deployment")
-show_app.add_typer(deployment.show_app, name="deployment")
-
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 # CLI COMMANDS
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 
 
 @app.command()
@@ -134,9 +142,9 @@ def callback():
     pass
 
 
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 # MAIN ENTRY POINT
-# ========================================================================================================================================================================================
+# ============================================================================================================================================================================================
 
 
 if __name__ == "__main__":

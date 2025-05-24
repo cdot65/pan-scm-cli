@@ -87,13 +87,15 @@ Commands are organized by resource type:
 
 ### General Style Guide (`.claude/STYLE_GUIDE.md`)
 Covers patterns for command modules and general project standards:
-- Module structure and section organization with 192-character separators
+- Module structure and section organization with 191-character separators
 - Command architecture patterns for Typer apps
 - Documentation standards (Google format docstrings)
 - Error handling patterns
 - Type annotation conventions (Python 3.10+ syntax)
 - Naming conventions for commands, functions, and variables
 - Output formatting standards
+- Alphabetical ordering requirements in main.py
+- Backup command patterns and implementation
 
 ### SDK Client Style Guide (`.claude/SDK_CLIENT_STYLE_GUIDE.md`)
 Specific patterns for `src/scm_cli/utils/sdk_client.py`:
@@ -104,6 +106,7 @@ Specific patterns for `src/scm_cli/utils/sdk_client.py`:
 - Error handling with `_handle_api_exception`
 - Logging standards and levels
 - SDK field mapping and data transformation
+- List methods with `exact_match` parameter support
 
 ### Validators Style Guide (`.claude/VALIDATORS_STYLE_GUIDE.md`)
 Specific patterns for `src/scm_cli/utils/validators.py`:

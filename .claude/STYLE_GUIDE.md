@@ -53,20 +53,20 @@ the SCM API, organized by action types.
 
 ## Section Organization
 
-Use 192-character width section separators to organize code:
+Use 191-character width section separators to organize code:
 
 ### Major Sections (Double Lines)
 
 ```python
-# ========================================================================================================================================================================================
+# =======================================================================================================================================================================================
 # SECTION NAME
-# ========================================================================================================================================================================================
+# =======================================================================================================================================================================================
 ```
 
 ### Subsections (Single Line with Centered Title)
 
 ```python
-# ------------------------------------------------------------------------------------ Subsection Name ------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------- Subsection Name -----------------------------------------------------------------------------------
 ```
 
 ### Standard Section Order for Command Modules
@@ -75,6 +75,7 @@ Use 192-character width section separators to organize code:
 2. TYPER APP CONFIGURATION
 3. COMMAND OPTIONS
 4. [RESOURCE] COMMANDS (e.g., ADDRESS COMMANDS, ZONE COMMANDS)
+5. BACKUP COMMANDS (if applicable)
 
 ### Standard Section Order for SDK Client
 
@@ -95,6 +96,14 @@ Use 192-character width section separators to organize code:
 5. NETWORK CONFIGURATION MODELS
 6. SECURITY CONFIGURATION MODELS
 7. UTILITY FUNCTIONS
+
+### Alphabetical Ordering in main.py
+
+All entries should be alphabetically ordered for consistency:
+
+1. **Action App Groups**: backup, delete, load, set, show
+2. **Action App Registration**: Same alphabetical order
+3. **Module Commands**: Group by action type first, then alphabetically by module (deployment, network, objects, security)
 
 ## Command Architecture
 
