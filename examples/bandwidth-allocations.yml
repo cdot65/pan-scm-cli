@@ -1,0 +1,77 @@
+# Example bandwidth allocations for different folders
+bandwidth_allocations:
+  # Austin folder examples
+  - name: austin-primary-link
+    folder: Austin
+    bandwidth: 1000
+    description: "Austin primary internet link - 1Gbps"
+    tags:
+      - primary
+      - austin
+
+  - name: austin-backup-link
+    folder: Austin
+    bandwidth: 500
+    description: "Austin backup internet link - 500Mbps"
+    tags:
+      - backup
+      - austin
+
+  - name: austin-guest-allocation
+    folder: Austin
+    bandwidth: 100
+    description: "Austin guest network bandwidth - 100Mbps"
+    tags:
+      - guest
+      - austin
+
+  # Texas folder examples
+  - name: texas-hq-allocation
+    folder: Texas
+    bandwidth: 2000
+    description: "Texas HQ bandwidth allocation - 2Gbps"
+    tags:
+      - headquarters
+      - texas
+
+  - name: texas-branch-allocation
+    folder: Texas
+    bandwidth: 250
+    description: "Texas branch office bandwidth - 250Mbps"
+    tags:
+      - branch
+      - texas
+
+  - name: texas-vpn-allocation
+    folder: Texas
+    bandwidth: 300
+    description: "Texas VPN tunnel bandwidth - 300Mbps"
+    tags:
+      - vpn
+      - texas
+
+  # ngfw-shared folder examples
+  - name: shared-cloud-services
+    folder: ngfw-shared
+    bandwidth: 5000
+    description: "Shared cloud services bandwidth - 5Gbps"
+    tags:
+      - cloud
+      - shared
+
+  - name: shared-internet-primary
+    folder: ngfw-shared
+    bandwidth: 10000
+    description: "Shared primary internet connection - 10Gbps"
+    tags:
+      - internet
+      - primary
+      - shared
+
+  - name: shared-disaster-recovery
+    folder: ngfw-shared
+    bandwidth: 1000
+    description: "Shared DR site bandwidth - 1Gbps"
+    tags:
+      - disaster-recovery
+      - shared

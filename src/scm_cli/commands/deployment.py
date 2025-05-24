@@ -42,6 +42,59 @@ DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution witho
 # ========================================================================================================================================================================================
 
 
+@backup_app.command("bandwidth")
+def backup_bandwidth_allocation():
+    """Backup all bandwidth allocations to a YAML file.
+
+    The backup file will be named 'bandwidth-allocations.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup deployment bandwidth
+
+    Note: Bandwidth allocations are global and do not have a folder parameter.
+
+    """
+    try:
+        # List all bandwidth allocations
+        allocations = scm_client.list_bandwidth_allocations()
+
+        if not allocations:
+            typer.echo("No bandwidth allocations found")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for allocation in allocations:
+            # The list method returns dict objects already, but let's ensure we exclude any None values
+            allocation_dict = {k: v for k, v in allocation.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            allocation_dict.pop("id", None)
+
+            # Map SDK fields to CLI fields for consistency
+            if "allocated_bandwidth" in allocation_dict:
+                allocation_dict["bandwidth"] = allocation_dict.pop("allocated_bandwidth")
+
+            backup_data.append(allocation_dict)
+
+        # Create the YAML structure
+        yaml_data = {"bandwidth_allocations": backup_data}
+
+        # Generate filename (no folder parameter for bandwidth allocations)
+        filename = "bandwidth-allocations.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} bandwidth allocations to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up bandwidth allocations: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
 @delete_app.command("bandwidth-allocation")
 def delete_bandwidth_allocation(
     folder: str = FOLDER_OPTION,
@@ -264,62 +317,4 @@ def show_bandwidth_allocation(
 
     except Exception as e:
         typer.echo(f"Error showing bandwidth allocation: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
-# ========================================================================================================================================================================================
-# BACKUP COMMANDS
-# ========================================================================================================================================================================================
-
-
-@backup_app.command("bandwidth")
-def backup_bandwidth_allocation():
-    """Backup all bandwidth allocations to a YAML file.
-
-    The backup file will be named 'bandwidth-allocations.yaml' in the current directory.
-
-    Example:
-    -------
-    scm-cli backup deployment bandwidth
-
-    Note: Bandwidth allocations are global and do not have a folder parameter.
-
-    """
-    try:
-        # List all bandwidth allocations
-        allocations = scm_client.list_bandwidth_allocations()
-
-        if not allocations:
-            typer.echo("No bandwidth allocations found")
-            return
-
-        # Convert SDK models to dictionaries, excluding unset values
-        backup_data = []
-        for allocation in allocations:
-            # The list method returns dict objects already, but let's ensure we exclude any None values
-            allocation_dict = {k: v for k, v in allocation.items() if v is not None}
-            # Remove system fields that shouldn't be in backup
-            allocation_dict.pop("id", None)
-
-            # Map SDK fields to CLI fields for consistency
-            if "allocated_bandwidth" in allocation_dict:
-                allocation_dict["bandwidth"] = allocation_dict.pop("allocated_bandwidth")
-
-            backup_data.append(allocation_dict)
-
-        # Create the YAML structure
-        yaml_data = {"bandwidth_allocations": backup_data}
-
-        # Generate filename (no folder parameter for bandwidth allocations)
-        filename = "bandwidth-allocations.yaml"
-
-        # Write to YAML file
-        with open(filename, "w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
-
-        typer.echo(f"Successfully backed up {len(backup_data)} bandwidth allocations to {filename}")
-        return filename
-
-    except Exception as e:
-        typer.echo(f"Error backing up bandwidth allocations: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

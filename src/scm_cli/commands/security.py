@@ -49,6 +49,76 @@ RULEBASE_OPTION = typer.Option("pre", "--rulebase", help="Rulebase to use (pre, 
 # ========================================================================================================================================================================================
 
 
+@backup_app.command("rule")
+def backup_security_rule(
+    folder: str = FOLDER_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Backup all security rules from a folder and rulebase to a YAML file.
+
+    The backup file will be named 'rule-{folder}-{rulebase}.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup security rule --folder Austin --rulebase pre
+
+    """
+    try:
+        # List all security rules in the folder and rulebase with exact_match=True
+        rules = scm_client.list_security_rules(folder=folder, rulebase=rulebase, exact_match=True)
+
+        if not rules:
+            typer.echo(f"No security rules found in folder '{folder}' rulebase '{rulebase}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for rule in rules:
+            # The list method already returns dicts with exclude_unset=True
+            rule_dict = rule.copy()
+            # Remove system fields that shouldn't be in backup
+            rule_dict.pop("id", None)
+
+            # Convert SDK format back to CLI format for consistency
+            # Map SDK field names to CLI field names
+            if "from_" in rule_dict:
+                rule_dict["source_zones"] = rule_dict.pop("from_", [])
+            if "to_" in rule_dict:
+                rule_dict["destination_zones"] = rule_dict.pop("to_", [])
+            if "source" in rule_dict:
+                rule_dict["source_addresses"] = rule_dict.pop("source", [])
+            if "destination" in rule_dict:
+                rule_dict["destination_addresses"] = rule_dict.pop("destination", [])
+            if "application" in rule_dict:
+                rule_dict["applications"] = rule_dict.pop("application", [])
+
+            # Convert disabled to enabled for CLI consistency
+            if "disabled" in rule_dict:
+                rule_dict["enabled"] = not rule_dict.pop("disabled", False)
+
+            # Add rulebase info
+            rule_dict["rulebase"] = rulebase
+
+            backup_data.append(rule_dict)
+
+        # Create the YAML structure
+        yaml_data = {"security_rules": backup_data}
+
+        # Generate filename
+        filename = f"rule-{folder.lower()}-{rulebase}.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} security rules to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up security rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
 @delete_app.command("rule")
 def delete_security_rule(
     folder: str = FOLDER_OPTION,
@@ -101,17 +171,20 @@ def load_security_rule(
             rule = SecurityRule(**rule_data)
 
             # Call the SDK client to create the security rule
+            sdk_data = rule.to_sdk_model()
             result = scm_client.create_security_rule(
-                folder=rule.folder,
-                name=rule.name,
-                source_zones=rule.source_zones,
-                destination_zones=rule.destination_zones,
-                source_addresses=rule.source_addresses,
-                destination_addresses=rule.destination_addresses,
-                applications=rule.applications,
-                action=rule.action,
-                description=rule.description,
-                tags=rule.tags,
+                folder=sdk_data["folder"],
+                name=sdk_data["name"],
+                source_zones=sdk_data["source_zones"],
+                destination_zones=sdk_data["destination_zones"],
+                source_addresses=sdk_data["source_addresses"],
+                destination_addresses=sdk_data["destination_addresses"],
+                applications=sdk_data["applications"],
+                action=sdk_data["action"],
+                description=sdk_data["description"],
+                tags=sdk_data["tags"],
+                enabled=sdk_data["enabled"],
+                rulebase=sdk_data["rulebase"],
             )
 
             results.append(result)
@@ -366,79 +439,4 @@ def show_security_rule(
 
     except Exception as e:
         typer.echo(f"Error showing security rule: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
-# ========================================================================================================================================================================================
-# BACKUP COMMANDS
-# ========================================================================================================================================================================================
-
-
-@backup_app.command("rule")
-def backup_security_rule(
-    folder: str = FOLDER_OPTION,
-    rulebase: str = RULEBASE_OPTION,
-):
-    """Backup all security rules from a folder and rulebase to a YAML file.
-
-    The backup file will be named 'rule-{folder}-{rulebase}.yaml' in the current directory.
-
-    Example:
-    -------
-    scm-cli backup security rule --folder Austin --rulebase pre
-
-    """
-    try:
-        # List all security rules in the folder and rulebase with exact_match=True
-        rules = scm_client.list_security_rules(folder=folder, rulebase=rulebase, exact_match=True)
-
-        if not rules:
-            typer.echo(f"No security rules found in folder '{folder}' rulebase '{rulebase}'")
-            return
-
-        # Convert SDK models to dictionaries, excluding unset values
-        backup_data = []
-        for rule in rules:
-            # The list method already returns dicts with exclude_unset=True
-            rule_dict = rule.copy()
-            # Remove system fields that shouldn't be in backup
-            rule_dict.pop("id", None)
-
-            # Convert SDK format back to CLI format for consistency
-            # Map SDK field names to CLI field names
-            if "from_" in rule_dict:
-                rule_dict["source_zones"] = rule_dict.pop("from_", [])
-            if "to_" in rule_dict:
-                rule_dict["destination_zones"] = rule_dict.pop("to_", [])
-            if "source" in rule_dict:
-                rule_dict["source_addresses"] = rule_dict.pop("source", [])
-            if "destination" in rule_dict:
-                rule_dict["destination_addresses"] = rule_dict.pop("destination", [])
-            if "application" in rule_dict:
-                rule_dict["applications"] = rule_dict.pop("application", [])
-
-            # Convert disabled to enabled for CLI consistency
-            if "disabled" in rule_dict:
-                rule_dict["enabled"] = not rule_dict.pop("disabled", False)
-
-            # Add rulebase info
-            rule_dict["rulebase"] = rulebase
-
-            backup_data.append(rule_dict)
-
-        # Create the YAML structure
-        yaml_data = {"security_rules": backup_data}
-
-        # Generate filename
-        filename = f"rule-{folder.lower()}-{rulebase}.yaml"
-
-        # Write to YAML file
-        with open(filename, "w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
-
-        typer.echo(f"Successfully backed up {len(backup_data)} security rules to {filename}")
-        return filename
-
-    except Exception as e:
-        typer.echo(f"Error backing up security rules: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

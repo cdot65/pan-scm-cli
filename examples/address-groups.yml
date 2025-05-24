@@ -1,22 +1,101 @@
----
-# Example address groups configuration YAML file
+# Example address groups for different folders
 address_groups:
-  - name: "web-servers"
-    folder: "Texas"
-    type: "static"
-    members: ["web-server-1", "web-server-2", "web-server-3"]
-    description: "Web server farm address group"
-    tags: ["web", "production"]
+  # Austin folder examples
+  - name: austin-web-servers
+    type: static
+    description: "All web servers in Austin office"
+    folder: Austin
+    members:
+      - austin-web-server
+      - web-server1
+      - web-server2
+    tags:
+      - web
+      - austin
+      - production
 
-  - name: "database-servers"
-    folder: "Texas"
-    type: "static"
-    members: ["db-server-1", "db-server-2"]
-    description: "Database server farm address group"
-    tags: ["database", "production"]
+  - name: austin-db-servers
+    type: static
+    description: "Database servers in Austin"
+    folder: Austin
+    members:
+      - austin-db-server
+    tags:
+      - database
+      - austin
 
-  - name: "dynamic-endpoints"
-    folder: "California"
-    type: "dynamic"
-    description: "Dynamic address group for mobile endpoints"
-    tags: ["mobile", "dynamic"]
+  - name: austin-dynamic-endpoints
+    type: dynamic
+    description: "Dynamic group for Austin endpoints"
+    folder: Austin
+    filter: "'austin' and 'endpoint'"
+    tags:
+      - dynamic
+      - austin
+
+  # Texas folder examples
+  - name: texas-email-servers
+    type: static
+    description: "Email infrastructure in Texas"
+    folder: Texas
+    members:
+      - texas-mail-server
+    tags:
+      - email
+      - texas
+
+  - name: texas-branch-networks
+    type: static
+    description: "All Texas branch networks"
+    folder: Texas
+    members:
+      - texas-branch-network
+      - texas-wildcard-subnet
+    tags:
+      - branch
+      - network
+      - texas
+
+  - name: texas-dynamic-servers
+    type: dynamic
+    description: "Dynamic group for Texas servers"
+    folder: Texas
+    filter: "'texas' and 'server'"
+    tags:
+      - dynamic
+      - texas
+
+  # ngfw-shared folder examples
+  - name: public-dns-servers
+    type: static
+    description: "Public DNS server addresses"
+    folder: ngfw-shared
+    members:
+      - google-dns-primary
+      - google-dns-secondary
+      - cloudflare-dns
+    tags:
+      - dns
+      - public
+      - shared
+
+  - name: all-internal-services
+    type: static
+    description: "All internal service ranges"
+    folder: ngfw-shared
+    members:
+      - internal-services
+    tags:
+      - internal
+      - services
+      - shared
+
+  - name: dynamic-cloud-services
+    type: dynamic
+    description: "Dynamic group for cloud services"
+    folder: ngfw-shared
+    filter: "'cloud' and 'service'"
+    tags:
+      - dynamic
+      - cloud
+      - shared

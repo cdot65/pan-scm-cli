@@ -1,0 +1,4 @@
+security_rules:
+  - name: Auto-VPN-Default-Snippet
+    folder: ngfw-shared
+    rulebase: pre

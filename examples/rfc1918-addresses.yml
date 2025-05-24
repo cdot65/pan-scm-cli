@@ -1,0 +1,28 @@
+# Complete RFC 1918 Configuration
+# This file creates all RFC 1918 address objects and groups in one operation
+# Usage: scm-cli load objects address --file examples/rfc1918-complete.yml
+
+addresses:
+  # Class A Private Network - 10.0.0.0/8
+  - name: rfc1918-10-0-0-0-8
+    ip_netmask: 10.0.0.0/8
+    description: "RFC 1918 Class A private network (10.0.0.0 - 10.255.255.255)"
+    folder: ngfw-shared
+    tags:
+      - rfc1918
+
+  # Class B Private Networks - 172.16.0.0/12
+  - name: rfc1918-172-16-0-0-12
+    ip_netmask: 172.16.0.0/12
+    description: "RFC 1918 Class B private network (172.16.0.0 - 172.31.255.255)"
+    folder: ngfw-shared
+    tags:
+      - rfc1918
+
+  # Class C Private Network - 192.168.0.0/16
+  - name: rfc1918-192-168-0-0-16
+    ip_netmask: 192.168.0.0/16
+    description: "RFC 1918 Class C private network (192.168.0.0 - 192.168.255.255)"
+    folder: ngfw-shared
+    tags:
+      - rfc1918
