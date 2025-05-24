@@ -54,7 +54,7 @@ def test_auth(
         False,
         "--mock",
         help="Test authentication in mock mode without making API calls",
-    )
+    ),
 ):
     """Test authentication configuration.
 
