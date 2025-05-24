@@ -44,7 +44,7 @@ class AddressGroup(BaseModel):
 
         if self.type == "static":
             model_data["type"] = "static"
-            model_data["static"] = {"addresses": self.members}
+            model_data["members"] = self.members
         else:
             model_data["type"] = "dynamic"
             # Handle dynamic group fields if needed

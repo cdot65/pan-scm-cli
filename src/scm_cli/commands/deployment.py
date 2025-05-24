@@ -113,7 +113,7 @@ def load_bandwidth_allocation(
     try:
         # Load and parse the YAML file - specifically catch ValueError
         try:
-            config = load_from_yaml(file, "bandwidth_allocations")
+            config = load_from_yaml(str(file), "bandwidth_allocations")
         except ValueError as ve:
             # Directly capture and re-raise the ValueError with the original message
             typer.echo(f"Error loading bandwidth allocations: {str(ve)}", err=True)

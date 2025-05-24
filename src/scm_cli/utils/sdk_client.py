@@ -6,7 +6,7 @@ dynaconf settings.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional, NoReturn
 
 # Import the actual SDK client
 from scm.client import Scm
@@ -52,18 +52,16 @@ class SCMClient:
             self.tsg_id = "mock-tsg-id"
             # In mock mode, methods will return mock data instead of making API calls
 
-    def _handle_api_exception(self, operation: str, folder: str, resource_name: str, exception: Exception) -> None:
+    def _handle_api_exception(self, operation: str, folder: str, resource_name: str, exception: Exception) -> NoReturn:
         """Handle API exceptions with proper logging and error formatting.
 
         Args:
-        ----
             operation: The operation being performed (create, update, delete, etc.)
             folder: The folder containing the resource
             resource_name: The name of the resource being operated on
             exception: The exception that was raised
 
         Raises:
-        ------
             Exception: Re-raises the original exception after logging
 
         """
@@ -86,12 +84,11 @@ class SCMClient:
         name: str,
         bandwidth: int,
         description: str = "",
-        tags: list[str] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Create a bandwidth allocation.
 
         Args:
-        ----
             folder: Folder to create the bandwidth allocation in
             name: Name of the bandwidth allocation
             bandwidth: Bandwidth in Mbps
@@ -99,8 +96,7 @@ class SCMClient:
             tags: Optional list of tags
 
         Returns:
-        -------
-            The created bandwidth allocation object
+            dict[str, Any]: The created bandwidth allocation object
 
         """
         tags = tags or []
@@ -141,13 +137,11 @@ class SCMClient:
         """Delete a bandwidth allocation.
 
         Args:
-        ----
             folder: Folder containing the bandwidth allocation
             name: Name of the bandwidth allocation to delete
 
         Returns:
-        -------
-            True if deletion was successful
+            bool: True if deletion was successful
 
         """
         self.logger.info(f"Deleting bandwidth allocation: {name} from folder {folder}")
@@ -169,14 +163,13 @@ class SCMClient:
         folder: str,
         name: str,
         type: str,
-        members: list[str] = None,
+        members: Optional[list[str]] = None,
         description: str = "",
-        tags: list[str] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Create an address group.
 
         Args:
-        ----
             folder: Folder to create the address group in
             name: Name of the address group
             type: Type of address group ("static" or "dynamic")
@@ -185,8 +178,7 @@ class SCMClient:
             tags: Optional list of tags
 
         Returns:
-        -------
-            The created address group object
+            dict[str, Any]: The created address group object
 
         """
         members = members or []
@@ -242,13 +234,11 @@ class SCMClient:
         """Get an address group by name and folder.
 
         Args:
-        ----
             folder: Folder containing the address group
             name: Name of the address group to get
 
         Returns:
-        -------
-            The address group object
+            dict[str, Any]: The address group object
 
         """
         self.logger.info(f"Getting address group: {name} from folder {folder}")
@@ -281,12 +271,10 @@ class SCMClient:
         """List address groups in a folder.
 
         Args:
-        ----
             folder: Folder to list address groups from
 
         Returns:
-        -------
-            List of address group objects
+            list[dict[str, Any]]: List of address group objects
 
         """
         self.logger.info(f"Listing address groups in folder: {folder}")
@@ -327,13 +315,11 @@ class SCMClient:
         """Delete an address group.
 
         Args:
-        ----
             folder: Folder containing the address group
             name: Name of the address group to delete
 
         Returns:
-        -------
-            True if deletion was successful
+            bool: True if deletion was successful
 
         """
         self.logger.info(f"Deleting address group: {name} from folder {folder}")
@@ -354,16 +340,15 @@ class SCMClient:
         folder: str,
         name: str,
         description: str = "",
-        tags: list[str] = None,
-        ip_netmask: str = None,
-        ip_range: str = None,
-        ip_wildcard: str = None,
-        fqdn: str = None,
+        tags: Optional[list[str]] = None,
+        ip_netmask: Optional[str] = None,
+        ip_range: Optional[str] = None,
+        ip_wildcard: Optional[str] = None,
+        fqdn: Optional[str] = None,
     ) -> dict[str, Any]:
         """Create an address object.
 
         Args:
-        ----
             folder: Folder to create the address in
             name: Name of the address
             description: Optional description
@@ -374,11 +359,9 @@ class SCMClient:
             fqdn: Fully qualified domain name (e.g. "example.com")
 
         Returns:
-        -------
-            The created address object
+            dict[str, Any]: The created address object
 
         Note:
-        ----
             Exactly one of ip_netmask, ip_range, ip_wildcard, or fqdn must be provided.
 
         """
@@ -436,13 +419,11 @@ class SCMClient:
         """Get an address object by name and folder.
 
         Args:
-        ----
             folder: Folder containing the address
             name: Name of the address to get
 
         Returns:
-        -------
-            The address object
+            dict[str, Any]: The address object
 
         """
         self.logger.info(f"Getting address: {name} from folder {folder}")
@@ -474,12 +455,10 @@ class SCMClient:
         """List address objects in a folder.
 
         Args:
-        ----
             folder: Folder to list addresses from
 
         Returns:
-        -------
-            List of address objects
+            list[dict[str, Any]]: List of address objects
 
         """
         self.logger.info(f"Listing addresses in folder: {folder}")
@@ -522,13 +501,11 @@ class SCMClient:
         """Delete an address object.
 
         Args:
-        ----
             folder: Folder containing the address
             name: Name of the address to delete
 
         Returns:
-        -------
-            True if deletion was successful
+            bool: True if deletion was successful
 
         """
         self.logger.info(f"Deleting address: {name} from folder {folder}")
@@ -552,14 +529,13 @@ class SCMClient:
         folder: str,
         name: str,
         mode: str,
-        interfaces: list[str] = None,
+        interfaces: Optional[list[str]] = None,
         description: str = "",
-        tags: list[str] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Create a security zone.
 
         Args:
-        ----
             folder: Folder to create the zone in
             name: Name of the zone
             mode: Zone mode (L2, L3, external, virtual-wire, tunnel)
@@ -568,8 +544,7 @@ class SCMClient:
             tags: Optional list of tags
 
         Returns:
-        -------
-            The created zone object
+            dict[str, Any]: The created zone object
 
         """
         interfaces = interfaces or []
@@ -615,13 +590,11 @@ class SCMClient:
         """Delete a security zone.
 
         Args:
-        ----
             folder: Folder containing the zone
             name: Name of the zone to delete
 
         Returns:
-        -------
-            True if deletion was successful
+            bool: True if deletion was successful
 
         """
         self.logger.info(f"Deleting zone: {name} from folder {folder}")
@@ -643,18 +616,17 @@ class SCMClient:
         name: str,
         source_zones: list[str],
         destination_zones: list[str],
-        source_addresses: list[str] = None,
-        destination_addresses: list[str] = None,
-        applications: list[str] = None,
+        source_addresses: Optional[list[str]] = None,
+        destination_addresses: Optional[list[str]] = None,
+        applications: Optional[list[str]] = None,
         action: str = "allow",
         description: str = "",
-        tags: list[str] = None,
+        tags: Optional[list[str]] = None,
         enabled: bool = True,
     ) -> dict[str, Any]:
         """Create a security rule.
 
         Args:
-        ----
             folder: Folder to create the rule in
             name: Name of the rule
             source_zones: List of source zones
@@ -668,8 +640,7 @@ class SCMClient:
             enabled: Whether the rule is enabled (default True)
 
         Returns:
-        -------
-            The created security rule object
+            dict[str, Any]: The created security rule object
 
         """
         source_addresses = source_addresses or ["any"]
@@ -724,13 +695,11 @@ class SCMClient:
         """Delete a security rule.
 
         Args:
-        ----
             folder: Folder containing the security rule
             name: Name of the security rule to delete
 
         Returns:
-        -------
-            True if deletion was successful
+            bool: True if deletion was successful
 
         """
         self.logger.info(f"Deleting security rule: {name} from folder {folder}")
