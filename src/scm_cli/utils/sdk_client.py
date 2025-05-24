@@ -210,15 +210,21 @@ class SCMClient:
             group_data = {
                 "name": name,
                 "folder": folder,  # Include folder in the data object
-                "type": type,
                 "description": description or "",
             }
 
-            if type.lower() == "static" and members:
-                group_data["members"] = members
+            # SDK expects either 'static' or 'dynamic' key, not 'type'
+            if type.lower() == "static":
+                group_data["static"] = members or []
+            elif type.lower() == "dynamic":
+                # For dynamic groups, we expect the filter to be passed in members parameter
+                if members and len(members) > 0:
+                    group_data["dynamic"] = {"filter": members[0]}
+                else:
+                    raise ValueError("Dynamic address groups require a filter expression")
 
             if tags:
-                group_data["tags"] = tags
+                group_data["tag"] = tags  # SDK expects 'tag', not 'tags'
 
             # Updated to match SDK's expected method signature
             result = self.client.address_group.create(group_data)
