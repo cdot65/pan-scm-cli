@@ -22,8 +22,14 @@ The project has successfully implemented:
 - [x] Implemented show commands for bandwidth allocations, security rules, and security zones
 
 ## Current Work (In Progress)
-- [ ] Implement smart upsert logic for `create_zone` method
-- [ ] Implement smart upsert logic for `create_security_rule` method
+- [x] Implement smart upsert logic for `create_zone` method
+  - Added automatic detection and update of existing zones
+  - Noted SDK limitations for mode changes
+  - Simplified interface handling
+- [x] Implement smart upsert logic for `create_security_rule` method
+  - Added rulebase parameter support
+  - Implemented field name mapping (from_, to_, etc.)
+  - Handles all rule attributes updates
 - [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
 
 ## Phase 1: Show Command Implementation (Completed ✅)
