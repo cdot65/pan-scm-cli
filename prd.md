@@ -1,4 +1,4 @@
-# Product Requirements Document (PRD): `pan-scm-cli` Authentication Enhancement
+# Product Requirements Document (PRD): `pan-scm-cli` Feature Enhancements
 
 ## 1. Overview
 
@@ -8,11 +8,22 @@
 
 ### 1.2 Version
 
-0.2.1 (Feature Enhancement)
+0.3.0 (Major Feature Enhancements)
 
 ### 1.3 Description
 
-This PRD addresses a critical gap in the `pan-scm-cli` project: the lack of support for authentication via the `~/.scm-cli/config.yaml` file, despite its inclusion in the README as a supported method. The CLI currently relies on environment variables (`SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`), but the promised config file functionality is missing. This enhancement will integrate Dynaconf to enable seamless authentication from both sources, ensuring consistency with documented features.
+This PRD covers multiple enhancements to the `pan-scm-cli` project:
+1. **Authentication Enhancement**: Support for authentication via the `~/.scm-cli/config.yaml` file
+2. **Show Commands**: Implementation of show commands for all resource types
+3. **Smart Upsert Logic**: Intelligent create/update handling for address objects
+
+### 1.4 Latest Enhancement: Smart Upsert for Address Objects
+
+The `create_address` method has been enhanced to intelligently handle existing objects:
+- Automatically detects if an address exists and updates it instead of failing
+- Handles address type changes (e.g., IP to FQDN) by deleting and recreating the object
+- Prevents SDK validation errors by properly managing field updates
+- Provides clear logging of whether objects are being created or updated
 
 ### 1.4 Purpose
 
@@ -297,9 +308,81 @@ Use `--mock` for simulation:
 scm-cli test-auth --mock
 ```
 
+### 10.2 Test Scenarios
+- Env vars only: Set variables, unset config file, run `test-auth`.
+- Config file only: Unset variables, create `config.yaml`, run `test-auth`.
+- Both: Set variables and create `config.yaml` with different values, confirm env vars win.
+
+## 11. Smart Upsert Feature for Address Objects
+
+### 11.1 Problem Statement
+
+Previously, attempting to create an address that already exists would result in an error, requiring users to:
+1. Check if the address exists
+2. Delete it if it does
+3. Create the new address
+
+This was cumbersome and error-prone, especially in automation scenarios.
+
+### 11.2 Solution: Intelligent Create/Update Logic
+
+The `create_address` method in `sdk_client.py` now implements smart upsert logic:
+
+#### 11.2.1 Basic Upsert Flow
+```python
+# Try to fetch existing address
+existing_address = client.address.fetch(name=name, folder=folder)
+if existing_address:
+    # Update existing
+    existing_address.description = new_description
+    result = client.address.update(existing_address)
+else:
+    # Create new
+    result = client.address.create(address_data)
 ```
 
-### 10.2 Test Scenarios
+#### 11.2.2 Address Type Change Handling
+
+When changing address types (e.g., IP to FQDN), the method:
+1. Detects the type change
+2. Deletes the existing address
+3. Creates a new address with the new type
+
+This avoids SDK validation errors that occur when trying to change address types directly.
+
+### 11.3 Technical Implementation Details
+
+#### 11.3.1 Type Detection
+- Uses `hasattr()` and value checks to determine current address type
+- Maps user input to determine desired address type
+- Compares types to decide on update vs. recreate strategy
+
+#### 11.3.2 Field Management
+- Only updates fields that are actually changing
+- Avoids setting fields to `None` which causes SDK validation errors
+- Preserves existing values when not explicitly changed
+
+#### 11.3.3 Error Handling
+- Gracefully handles `NotFoundError` when address doesn't exist
+- Logs all operations clearly for debugging
+- Maintains consistent error messages via `_handle_api_exception`
+
+### 11.4 Benefits
+
+1. **Idempotent Operations**: Running the same command multiple times produces the same result
+2. **Simplified Automation**: No need for complex existence checks in scripts
+3. **Better User Experience**: Clear logging shows whether objects are created or updated
+4. **Type Flexibility**: Seamlessly handles address type changes without manual intervention
+
+### 11.5 Future Considerations
+
+This pattern should be extended to other object types:
+- Address Groups
+- Security Zones
+- Security Rules
+- Bandwidth Allocations
+
+Each will require similar logic adapted to their specific constraints and SDK requirements.
 - Env vars only: Set variables, unset config file, run `test-auth`.
 - Config file only: Unset variables, create `config.yaml`, run `test-auth`.
 - Both: Set variables and create `config.yaml` with different values, confirm env vars win.
