@@ -54,7 +54,7 @@ def test_auth(
         False,
         "--mock",
         help="Test authentication in mock mode without making API calls",
-    )
+    ),
 ):
     """Test authentication configuration.
 
@@ -63,9 +63,11 @@ def test_auth(
 
     If run with --mock, simulates authentication without API calls.
 
-    Examples:
+    Examples
+    --------
         scm-cli test-auth
         scm-cli test-auth --mock
+
     """
     try:
         client = get_scm_client(mock=mock)
@@ -75,7 +77,7 @@ def test_auth(
             # The Scm client has been successfully initialized at this point
             typer.echo(typer.style("Authentication successful!", fg="green"))
             typer.echo("Successfully initialized SCM client with credentials from environment variables or config file")
-            
+
             # Try to get network locations as a simple test
             try:
                 # Address Objects is a basic endpoint we can use to test connectivity
@@ -95,11 +97,13 @@ def callback():
 
     The CLI follows the pattern: <action> <object-type> <object> [options]
 
-    Examples:
+    Examples
+    --------
       - scm-cli set objects address-group --folder Texas --name test123 --type static
       - scm-cli delete security security-rule --folder Texas --name test123
       - scm-cli load network zone --file config/security_zones.yml
       - scm-cli test-auth
+
     """
     pass
 
