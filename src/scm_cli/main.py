@@ -53,16 +53,19 @@ show_app.add_typer(objects.show_app, name="objects")
 set_app.add_typer(network.set_app, name="network")
 delete_app.add_typer(network.delete_app, name="network")
 load_app.add_typer(network.load_app, name="network")
+show_app.add_typer(network.show_app, name="network")
 
 # Security module
 set_app.add_typer(security.set_app, name="security")
 delete_app.add_typer(security.delete_app, name="security")
 load_app.add_typer(security.load_app, name="security")
+show_app.add_typer(security.show_app, name="security")
 
 # Deployment module
 set_app.add_typer(deployment.set_app, name="deployment")
 delete_app.add_typer(deployment.delete_app, name="deployment")
 load_app.add_typer(deployment.load_app, name="deployment")
+show_app.add_typer(deployment.show_app, name="deployment")
 
 # ========================================================================================================================================================================================
 # CLI COMMANDS

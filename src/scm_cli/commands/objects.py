@@ -48,56 +48,6 @@ FQDN_OPTION = typer.Option(None, "--fqdn", help="Fully qualified domain name (e.
 # ========================================================================================================================================================================================
 
 
-@set_app.command("address-group")
-def set_address_group(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
-    type: str = TYPE_OPTION,
-    members: list[str] | None = MEMBERS_OPTION,
-    description: str | None = DESCRIPTION_OPTION,
-    tags: list[str] | None = TAGS_OPTION,
-):
-    """Create or update an address group.
-
-    Example:
-    -------
-        scm-cli set objects address-group \
-        --folder Texas \
-        --name test123 \
-        --type static \
-        --members ["abc", "xyz"] \
-        --description "test" \
-        --tags ["abc", "automation"]
-
-    """
-    try:
-        # Validate inputs using the Pydantic model
-        address_group = AddressGroup(
-            folder=folder,
-            name=name,
-            type=type,
-            members=members or [],
-            description=description or "",
-            tags=tags or [],
-        )
-
-        # Call the SDK client to create the address group
-        result = scm_client.create_address_group(
-            folder=address_group.folder,
-            name=address_group.name,
-            type=address_group.type,
-            members=address_group.members,
-            description=address_group.description,
-            tags=address_group.tags,
-        )
-
-        typer.echo(f"Created address group: {result['name']} in folder {result['folder']}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error creating address group: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
 @delete_app.command("address-group")
 def delete_address_group(
     folder: str = FOLDER_OPTION,
@@ -160,234 +110,53 @@ def load_address_group(
         raise typer.Exit(code=1) from e
 
 
-# ========================================================================================================================================================================================
-# ADDRESS OBJECT COMMANDS
-# ========================================================================================================================================================================================
-
-
-@set_app.command("address")
-def set_address(
+@set_app.command("address-group")
+def set_address_group(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    type: str = TYPE_OPTION,
+    members: list[str] | None = MEMBERS_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     tags: list[str] | None = TAGS_OPTION,
-    ip_netmask: str | None = IP_NETMASK_OPTION,
-    ip_range: str | None = IP_RANGE_OPTION,
-    ip_wildcard: str | None = IP_WILDCARD_OPTION,
-    fqdn: str | None = FQDN_OPTION,
 ):
-    """Create or update an address object.
+    """Create or update an address group.
 
     Example:
     -------
-        scm-cli set objects address \
+        scm-cli set objects address-group \
         --folder Texas \
-        --name webserver \
-        --ip-netmask 192.168.1.100/32 \
-        --description "Web server" \
-        --tags ["server", "web"]
-
-    Note: Exactly one of ip-netmask, ip-range, ip-wildcard, or fqdn must be provided.
+        --name test123 \
+        --type static \
+        --members ["abc", "xyz"] \
+        --description "test" \
+        --tags ["abc", "automation"]
 
     """
     try:
         # Validate inputs using the Pydantic model
-        address = Address(
+        address_group = AddressGroup(
             folder=folder,
             name=name,
+            type=type,
+            members=members or [],
             description=description or "",
             tags=tags or [],
-            ip_netmask=ip_netmask,
-            ip_range=ip_range,
-            ip_wildcard=ip_wildcard,
-            fqdn=fqdn,
         )
 
-        # Call the SDK client to create the address
-        result = scm_client.create_address(
-            folder=address.folder,
-            name=address.name,
-            description=address.description,
-            tags=address.tags,
-            ip_netmask=address.ip_netmask,
-            ip_range=address.ip_range,
-            ip_wildcard=address.ip_wildcard,
-            fqdn=address.fqdn,
+        # Call the SDK client to create the address group
+        result = scm_client.create_address_group(
+            folder=address_group.folder,
+            name=address_group.name,
+            type=address_group.type,
+            members=address_group.members,
+            description=address_group.description,
+            tags=address_group.tags,
         )
 
-        typer.echo(f"Created address: {result['name']} in folder {result['folder']}")
+        typer.echo(f"Created address group: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
-        typer.echo(f"Error creating address: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
-@delete_app.command("address")
-def delete_address(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
-):
-    """Delete an address object.
-
-    Example:
-    -------
-    scm-cli delete objects address --folder Texas --name webserver
-
-    """
-    try:
-        result = scm_client.delete_address(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted address: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting address: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
-@load_app.command("address")
-def load_address(
-    file: Path = FILE_OPTION,
-    dry_run: bool = DRY_RUN_OPTION,
-):
-    """Load address objects from a YAML file.
-
-    Example:
-    -------
-    scm-cli load objects address --file config/addresses.yml
-
-    """
-    try:
-        # Load and parse the YAML file
-        config = load_from_yaml(str(file), "addresses")
-
-        if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
-            typer.echo(yaml.dump(config["addresses"]))
-            return
-
-        # Apply each address
-        results = []
-        for addr_data in config["addresses"]:
-            # Validate using the Pydantic model
-            address = Address(**addr_data)
-
-            # Call the SDK client to create the address
-            result = scm_client.create_address(
-                folder=address.folder,
-                name=address.name,
-                description=address.description,
-                tags=address.tags,
-                ip_netmask=address.ip_netmask,
-                ip_range=address.ip_range,
-                ip_wildcard=address.ip_wildcard,
-                fqdn=address.fqdn,
-            )
-
-            results.append(result)
-            typer.echo(f"Applied address: {result['name']} in folder {result['folder']}")
-
-        return results
-    except Exception as e:
-        typer.echo(f"Error loading addresses: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
-@show_app.command("address")
-def show_address(
-    folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the address to show"),
-    list_addresses: bool = typer.Option(False, "--list", help="List all addresses in the folder"),
-):
-    """Display address objects.
-
-    Example:
-    -------
-        # List all addresses in a folder
-        scm-cli show objects address --folder Texas --list
-
-        # Show a specific address by name
-        scm-cli show objects address --folder Texas --name webserver
-
-    """
-    try:
-        if list_addresses:
-            # List all addresses in the folder
-            addresses = scm_client.list_addresses(folder=folder)
-
-            if not addresses:
-                typer.echo(f"No addresses found in folder '{folder}'")
-                return
-
-            typer.echo(f"Addresses in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for addr in addresses:
-                # Display address information
-                typer.echo(f"Name: {addr.get('name', 'N/A')}")
-                typer.echo(f"  Folder: {addr.get('folder', 'N/A')}")
-                typer.echo(f"  Description: {addr.get('description', 'N/A')}")
-
-                # Display the address type and value
-                if addr.get("ip_netmask"):
-                    typer.echo("  Type: IP/Netmask")
-                    typer.echo(f"  Value: {addr['ip_netmask']}")
-                elif addr.get("ip_range"):
-                    typer.echo("  Type: IP Range")
-                    typer.echo(f"  Value: {addr['ip_range']}")
-                elif addr.get("ip_wildcard"):
-                    typer.echo("  Type: IP Wildcard")
-                    typer.echo(f"  Value: {addr['ip_wildcard']}")
-                elif addr.get("fqdn"):
-                    typer.echo("  Type: FQDN")
-                    typer.echo(f"  Value: {addr['fqdn']}")
-
-                # Display tags if present
-                if addr.get("tag"):
-                    typer.echo(f"  Tags: {', '.join(addr['tag'])}")
-
-                typer.echo("-" * 60)
-
-            return addresses
-
-        elif name:
-            # Get a specific address by name
-            address = scm_client.get_address(folder=folder, name=name)
-
-            typer.echo(f"Address: {address.get('name', 'N/A')}")
-            typer.echo(f"Folder: {address.get('folder', 'N/A')}")
-            typer.echo(f"Description: {address.get('description', 'N/A')}")
-
-            # Display the address type and value
-            if address.get("ip_netmask"):
-                typer.echo("Type: IP/Netmask")
-                typer.echo(f"Value: {address['ip_netmask']}")
-            elif address.get("ip_range"):
-                typer.echo("Type: IP Range")
-                typer.echo(f"Value: {address['ip_range']}")
-            elif address.get("ip_wildcard"):
-                typer.echo("Type: IP Wildcard")
-                typer.echo(f"Value: {address['ip_wildcard']}")
-            elif address.get("fqdn"):
-                typer.echo("Type: FQDN")
-                typer.echo(f"Value: {address['fqdn']}")
-
-            # Display tags if present
-            if address.get("tag"):
-                typer.echo(f"Tags: {', '.join(address['tag'])}")
-
-            # Display ID if present
-            if address.get("id"):
-                typer.echo(f"ID: {address['id']}")
-
-            return address
-
-        else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
-
-    except Exception as e:
-        typer.echo(f"Error showing address: {str(e)}", err=True)
+        typer.echo(f"Error creating address group: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
@@ -492,4 +261,235 @@ def show_address_group(
 
     except Exception as e:
         typer.echo(f"Error showing address group: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# ADDRESS OBJECT COMMANDS
+# ========================================================================================================================================================================================
+
+
+@delete_app.command("address")
+def delete_address(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+):
+    """Delete an address object.
+
+    Example:
+    -------
+    scm-cli delete objects address --folder Texas --name webserver
+
+    """
+    try:
+        result = scm_client.delete_address(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted address: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting address: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("address")
+def load_address(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+):
+    """Load address objects from a YAML file.
+
+    Example:
+    -------
+    scm-cli load objects address --file config/addresses.yml
+
+    """
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "addresses")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["addresses"]))
+            return
+
+        # Apply each address
+        results = []
+        for addr_data in config["addresses"]:
+            # Validate using the Pydantic model
+            address = Address(**addr_data)
+
+            # Call the SDK client to create the address
+            result = scm_client.create_address(
+                folder=address.folder,
+                name=address.name,
+                description=address.description,
+                tags=address.tags,
+                ip_netmask=address.ip_netmask,
+                ip_range=address.ip_range,
+                ip_wildcard=address.ip_wildcard,
+                fqdn=address.fqdn,
+            )
+
+            results.append(result)
+            typer.echo(f"Applied address: {result['name']} in folder {result['folder']}")
+
+        return results
+    except Exception as e:
+        typer.echo(f"Error loading addresses: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("address")
+def set_address(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    tags: list[str] | None = TAGS_OPTION,
+    ip_netmask: str | None = IP_NETMASK_OPTION,
+    ip_range: str | None = IP_RANGE_OPTION,
+    ip_wildcard: str | None = IP_WILDCARD_OPTION,
+    fqdn: str | None = FQDN_OPTION,
+):
+    """Create or update an address object.
+
+    Example:
+    -------
+        scm-cli set objects address \
+        --folder Texas \
+        --name webserver \
+        --ip-netmask 192.168.1.100/32 \
+        --description "Web server" \
+        --tags ["server", "web"]
+
+    Note: Exactly one of ip-netmask, ip-range, ip-wildcard, or fqdn must be provided.
+
+    """
+    try:
+        # Validate inputs using the Pydantic model
+        address = Address(
+            folder=folder,
+            name=name,
+            description=description or "",
+            tags=tags or [],
+            ip_netmask=ip_netmask,
+            ip_range=ip_range,
+            ip_wildcard=ip_wildcard,
+            fqdn=fqdn,
+        )
+
+        # Call the SDK client to create the address
+        result = scm_client.create_address(
+            folder=address.folder,
+            name=address.name,
+            description=address.description,
+            tags=address.tags,
+            ip_netmask=address.ip_netmask,
+            ip_range=address.ip_range,
+            ip_wildcard=address.ip_wildcard,
+            fqdn=address.fqdn,
+        )
+
+        typer.echo(f"Created address: {result['name']} in folder {result['folder']}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating address: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("address")
+def show_address(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the address to show"),
+    list_addresses: bool = typer.Option(False, "--list", help="List all addresses in the folder"),
+):
+    """Display address objects.
+
+    Example:
+    -------
+        # List all addresses in a folder
+        scm-cli show objects address --folder Texas --list
+
+        # Show a specific address by name
+        scm-cli show objects address --folder Texas --name webserver
+
+    """
+    try:
+        if list_addresses:
+            # List all addresses in the folder
+            addresses = scm_client.list_addresses(folder=folder)
+
+            if not addresses:
+                typer.echo(f"No addresses found in folder '{folder}'")
+                return
+
+            typer.echo(f"Addresses in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for addr in addresses:
+                # Display address information
+                typer.echo(f"Name: {addr.get('name', 'N/A')}")
+                typer.echo(f"  Folder: {addr.get('folder', 'N/A')}")
+                typer.echo(f"  Description: {addr.get('description', 'N/A')}")
+
+                # Display the address type and value
+                if addr.get("ip_netmask"):
+                    typer.echo("  Type: IP/Netmask")
+                    typer.echo(f"  Value: {addr['ip_netmask']}")
+                elif addr.get("ip_range"):
+                    typer.echo("  Type: IP Range")
+                    typer.echo(f"  Value: {addr['ip_range']}")
+                elif addr.get("ip_wildcard"):
+                    typer.echo("  Type: IP Wildcard")
+                    typer.echo(f"  Value: {addr['ip_wildcard']}")
+                elif addr.get("fqdn"):
+                    typer.echo("  Type: FQDN")
+                    typer.echo(f"  Value: {addr['fqdn']}")
+
+                # Display tags if present
+                if addr.get("tag"):
+                    typer.echo(f"  Tags: {', '.join(addr['tag'])}")
+
+                typer.echo("-" * 60)
+
+            return addresses
+
+        elif name:
+            # Get a specific address by name
+            address = scm_client.get_address(folder=folder, name=name)
+
+            typer.echo(f"Address: {address.get('name', 'N/A')}")
+            typer.echo(f"Folder: {address.get('folder', 'N/A')}")
+            typer.echo(f"Description: {address.get('description', 'N/A')}")
+
+            # Display the address type and value
+            if address.get("ip_netmask"):
+                typer.echo("Type: IP/Netmask")
+                typer.echo(f"Value: {address['ip_netmask']}")
+            elif address.get("ip_range"):
+                typer.echo("Type: IP Range")
+                typer.echo(f"Value: {address['ip_range']}")
+            elif address.get("ip_wildcard"):
+                typer.echo("Type: IP Wildcard")
+                typer.echo(f"Value: {address['ip_wildcard']}")
+            elif address.get("fqdn"):
+                typer.echo("Type: FQDN")
+                typer.echo(f"Value: {address['fqdn']}")
+
+            # Display tags if present
+            if address.get("tag"):
+                typer.echo(f"Tags: {', '.join(address['tag'])}")
+
+            # Display ID if present
+            if address.get("id"):
+                typer.echo(f"ID: {address['id']}")
+
+            return address
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing address: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
