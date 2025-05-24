@@ -45,7 +45,7 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 
 ### Section Organization
 
-Use 192-character separators to organize models by configuration type:
+Use 191-character separators to organize models by configuration type:
 
 1. TYPE DEFINITIONS
 2. DEPLOYMENT CONFIGURATION MODELS
@@ -454,4 +454,4 @@ related: list["OtherModel"]
 - [ ] to_sdk_model() handles field mapping correctly
 - [ ] Docstrings follow Google format
 - [ ] Utility functions have comprehensive error handling
-- [ ] 192-character separators used for sections
+- [ ] 191-character separators used for sections

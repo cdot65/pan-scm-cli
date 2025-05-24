@@ -4,10 +4,13 @@
 The project has successfully implemented:
 - ✅ Authentication via environment variables and config file
 - ✅ Basic CRUD operations: set, delete, load
-- ✅ Show command for address objects, address groups, security zones, and security rules
+- ✅ Show command for all resource types
+- ✅ Backup command for all resource types
+- ✅ Smart upsert logic for all object types (except bandwidth allocations)
 - ✅ Comprehensive test coverage for existing commands
 - ✅ Documentation with examples
-- ✅ Smart upsert logic for address objects (create or update existing)
+- ✅ Consistent style guide with 191-character separators
+- ✅ Alphabetical ordering in main.py
 
 ## Recent Improvements (Completed ✅)
 - [x] Enhanced `create_address` method to handle existing objects gracefully
@@ -20,16 +23,14 @@ The project has successfully implemented:
   - Maintains consistent behavior with address objects
 - [x] Created comprehensive style guides for command modules, SDK client, and validators
 - [x] Implemented show commands for bandwidth allocations, security rules, and security zones
+- [x] Implemented backup commands for all resource types
+  - Added `exact_match` parameter to SDK list methods
+  - Creates YAML files with proper naming conventions
+  - Converts SDK format to CLI format for consistency
+  - Excludes system fields and None values
+- [x] Updated main.py with 191-character separators and alphabetical ordering
 
 ## Current Work (In Progress)
-- [x] Implement smart upsert logic for `create_zone` method
-  - Added automatic detection and update of existing zones
-  - Noted SDK limitations for mode changes
-  - Simplified interface handling
-- [x] Implement smart upsert logic for `create_security_rule` method
-  - Added rulebase parameter support
-  - Implemented field name mapping (from_, to_, etc.)
-  - Handles all rule attributes updates
 - [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
 
 ## Phase 1: Show Command Implementation (Completed ✅)
@@ -60,6 +61,19 @@ The project has successfully implemented:
 - [x] Implement `show deployment bandwidth-allocation` command
 - [x] Add SDK client methods for listing and fetching allocations
 - [x] Add tests and documentation
+
+## Phase 1.5: Backup Command Implementation (Completed ✅)
+
+### All Resource Types (Completed ✅)
+- [x] Implement `backup objects address` command
+- [x] Implement `backup objects address-group` command  
+- [x] Implement `backup network security-zone` command
+- [x] Implement `backup security rule` command
+- [x] Implement `backup deployment bandwidth` command
+- [x] Update SDK client with `exact_match` parameter for list methods
+- [x] Add field mapping from SDK to CLI format
+- [x] Implement proper file naming conventions
+- [x] Exclude system fields and None values from backups
 
 ## Phase 2: Update Command Implementation
 
