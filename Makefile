@@ -42,9 +42,8 @@ flake8:
 	@echo "flake8 complete!"
 
 format:
-	@echo "Formatting code with ruff format and isort..."
+	@echo "Formatting code with ruff only (handles import sorting and formatting)..."
 	$(POETRY) run ruff format $(SRC_DIR)
-	$(POETRY) run isort $(SRC_DIR)
 	@echo "Formatting complete!"
 
 quality:
