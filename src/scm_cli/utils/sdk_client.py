@@ -21,7 +21,24 @@ logger = logging.getLogger(__name__)
 
 
 class SCMClient:
-    """Client for the SCM SDK."""
+    """Client for the SCM SDK.
+
+    This client provides methods for interacting with Palo Alto Networks
+    Strata Cloud Manager API, organized by configuration type:
+
+    Deployment Configuration:
+        - Bandwidth Allocation: create, delete
+
+    Objects Configuration:
+        - Address Groups: create, get, list, delete
+        - Address Objects: create, get, list, delete
+
+    Network Configuration:
+        - Security Zones: create, delete
+
+    Security Configuration:
+        - Security Rules: create, delete
+    """
 
     def __init__(self):
         """Initialize the SCM client with logger and credentials."""
@@ -77,6 +94,21 @@ class SCMClient:
             self.logger.error(f"Unexpected error during {operation} of {resource_name}: {str(exception)}")
 
         raise exception
+
+    # ========================================================================================================================================================================================
+    # API METHODS - Quick Navigation:
+    # - Deployment Configuration: Bandwidth Allocation
+    # - Objects Configuration: Address Groups, Address Objects
+    # - Network Configuration: Security Zones
+    # - Security Configuration: Security Rules
+    # ========================================================================================================================================================================================
+
+    # ========================================================================================================================================================================================
+    # DEPLOYMENT CONFIGURATION METHODS
+    # ========================================================================================================================================================================================
+    # region Deployment Configuration
+
+    # --------------------------------------------------------------------------------- Bandwidth Allocation ---------------------------------------------------------------------------------
 
     def create_bandwidth_allocation(
         self,
@@ -157,6 +189,15 @@ class SCMClient:
             return True
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
+
+    # endregion
+
+    # ========================================================================================================================================================================================
+    # OBJECTS CONFIGURATION METHODS
+    # ========================================================================================================================================================================================
+    # region Objects Configuration
+
+    # ------------------------------------------------------------------------------------ Address Groups ------------------------------------------------------------------------------------
 
     def create_address_group(
         self,
@@ -334,6 +375,8 @@ class SCMClient:
             return True
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
+
+    # ----------------------------------------------------------------------------------- Address Objects ------------------------------------------------------------------------------------
 
     def create_address(
         self,
@@ -524,6 +567,15 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
 
+    # endregion
+
+    # ========================================================================================================================================================================================
+    # NETWORK CONFIGURATION METHODS
+    # ========================================================================================================================================================================================
+    # region Network Configuration
+
+    # ------------------------------------------------------------------------------------ Security Zones ------------------------------------------------------------------------------------
+
     def create_zone(
         self,
         folder: str,
@@ -609,6 +661,15 @@ class SCMClient:
             return True
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
+
+    # endregion
+
+    # ========================================================================================================================================================================================
+    # SECURITY CONFIGURATION METHODS
+    # ========================================================================================================================================================================================
+    # region Security Configuration
+
+    # ------------------------------------------------------------------------------------ Security Rules ------------------------------------------------------------------------------------
 
     def create_security_rule(
         self,
@@ -714,6 +775,8 @@ class SCMClient:
             return True
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
+
+    # endregion
 
 
 # Create a singleton instance of the SCM client
