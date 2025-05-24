@@ -125,19 +125,46 @@ class Zone(BaseModel):
 
     folder: str = Field(..., description="Folder path for the zone")
     name: str = Field(..., description="Name of the zone")
-    mode: str = Field(..., description="Zone mode (L2, L3, external, virtual-wire, tunnel)")
-    interfaces: list[str] = Field(default_factory=list, description="List of interfaces")
-    description: str = Field("", description="Description of the zone")
-    tags: list[str] = Field(default_factory=list, description="List of tags")
+    network: dict[str, Any] = Field(default_factory=dict, description="Network configuration")
+    description: str | None = Field(None, description="Description of the zone")
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+    enable_user_identification: bool | None = Field(None, description="Enable user identification")
+    enable_device_identification: bool | None = Field(None, description="Enable device identification")
+    tags: list[str] | None = Field(None, description="List of tags")
 
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert CLI model to SDK model format."""
+        # Extract mode and interfaces from network config
+        mode = "layer3"  # default
+        interfaces = []
+
+        if self.network:
+            if "layer3" in self.network:
+                mode = "layer3"
+                interfaces = self.network.get("layer3", [])
+            elif "layer2" in self.network:
+                mode = "layer2"
+                interfaces = self.network.get("layer2", [])
+            elif "virtual_wire" in self.network:
+                mode = "virtual-wire"
+                interfaces = self.network.get("virtual_wire", [])
+            elif "tap" in self.network:
+                mode = "tap"
+                interfaces = self.network.get("tap", [])
+            elif "external" in self.network:
+                mode = "external"
+                interfaces = self.network.get("external", [])
+            elif "tunnel" in self.network:
+                mode = "tunnel"
+                interfaces = self.network.get("tunnel", [])
+
         return {
             "name": self.name,
-            "mode": self.mode,
-            "interfaces": self.interfaces,
-            "description": self.description,
-            "tags": self.tags,
+            "mode": mode,
+            "interfaces": interfaces,
+            "description": self.description or "",
+            "tags": self.tags or [],
         }
 
 
@@ -151,18 +178,30 @@ class SecurityRule(BaseModel):
 
     folder: str = Field(..., description="Folder path for the security rule")
     name: str = Field(..., description="Name of the security rule")
-    source_zones: list[str] = Field(..., description="List of source zones")
-    destination_zones: list[str] = Field(..., description="List of destination zones")
+    rulebase: str = Field("pre", description="Rulebase (pre, post, or default)")
+    source_zones: list[str] = Field(default_factory=lambda: ["any"], description="List of source zones")
+    destination_zones: list[str] = Field(default_factory=lambda: ["any"], description="List of destination zones")
     source_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of source addresses")
     destination_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of destination addresses")
     applications: list[str] = Field(default_factory=lambda: ["any"], description="List of applications")
+    service: list[str] = Field(default_factory=lambda: ["any"], description="List of services")
     action: str = Field("allow", description="Action to take")
-    description: str = Field("", description="Description of the security rule")
-    tags: list[str] = Field(default_factory=list, description="List of tags")
+    description: str | None = Field(None, description="Description of the security rule")
+    tags: list[str] | None = Field(None, description="List of tags")
     enabled: bool = Field(True, description="Whether the rule is enabled")
+    tag: list[str] | None = Field(None, description="Alternative tags field from API")
+    source_user: list[str] | None = Field(None, description="Source users")
+    source_hip: list[str] | None = Field(None, description="Source HIP profiles")
+    destination_hip: list[str] | None = Field(None, description="Destination HIP profiles")
+    category: list[str] | None = Field(None, description="URL categories")
+    negate_source: bool | None = Field(None, description="Negate source")
+    negate_destination: bool | None = Field(None, description="Negate destination")
 
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert CLI model to SDK model format."""
+        # Use tag field if tags is not provided
+        tags_list = self.tags if self.tags is not None else (self.tag or [])
+
         return {
             "folder": self.folder,
             "name": self.name,
@@ -172,9 +211,10 @@ class SecurityRule(BaseModel):
             "destination_addresses": self.destination_addresses,
             "applications": self.applications,
             "action": self.action,
-            "description": self.description,
-            "tags": self.tags,
+            "description": self.description or "",
+            "tags": tags_list,
             "enabled": self.enabled,
+            "rulebase": self.rulebase,
         }
 
 

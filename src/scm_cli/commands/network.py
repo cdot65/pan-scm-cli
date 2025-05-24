@@ -44,6 +44,55 @@ DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution witho
 # ========================================================================================================================================================================================
 
 
+@backup_app.command("security-zone")
+def backup_security_zone(
+    folder: str = FOLDER_OPTION,
+):
+    """Backup all security zones from a folder to a YAML file.
+
+    The backup file will be named 'security-zone-{folder}.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup network security-zone --folder Austin
+
+    """
+    try:
+        # List all security zones in the folder with exact_match=True
+        zones = scm_client.list_security_zones(folder=folder, exact_match=True)
+
+        if not zones:
+            typer.echo(f"No security zones found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for zone in zones:
+            # The list method already returns dicts with exclude_unset=True
+            zone_dict = zone.copy()
+            # Remove system fields that shouldn't be in backup
+            zone_dict.pop("id", None)
+
+            backup_data.append(zone_dict)
+
+        # Create the YAML structure
+        yaml_data = {"security_zones": backup_data}
+
+        # Generate filename
+        filename = f"security-zone-{folder.lower()}.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} security zones to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up security zones: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
 @delete_app.command("zone")
 def delete_zone(
     folder: str = FOLDER_OPTION,
@@ -67,38 +116,39 @@ def delete_zone(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command("zone")
-def load_zone(
+@load_app.command("security-zone")
+def load_security_zone(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
 ):
     """Load security zones from a YAML file.
 
-    Example: scm-cli load network zone --file config/security_zones.yml
+    Example: scm-cli load network security-zone --file security-zone-austin.yaml
     """
     try:
         # Load and parse the YAML file
-        config = load_from_yaml(str(file), "zones")
+        config = load_from_yaml(str(file), "security_zones")
 
         if dry_run:
             typer.echo("Dry run mode: would apply the following configurations:")
-            typer.echo(yaml.dump(config["zones"]))
+            typer.echo(yaml.dump(config["security_zones"]))
             return
 
         # Apply each zone
         results = []
-        for zone_data in config["zones"]:
+        for zone_data in config["security_zones"]:
             # Validate using the Pydantic model
             zone = Zone(**zone_data)
 
-            # Call the SDK client to create the zone
+            # Convert to SDK model and create the zone
+            sdk_data = zone.to_sdk_model()
             result = scm_client.create_zone(
                 folder=zone.folder,
-                name=zone.name,
-                mode=zone.mode,
-                interfaces=zone.interfaces,
-                description=zone.description,
-                tags=zone.tags,
+                name=sdk_data["name"],
+                mode=sdk_data["mode"],
+                interfaces=sdk_data["interfaces"],
+                description=sdk_data["description"],
+                tags=sdk_data["tags"],
             )
 
             results.append(result)
@@ -357,59 +407,4 @@ def show_zone(
 
     except Exception as e:
         typer.echo(f"Error showing security zone: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
-
-
-# ========================================================================================================================================================================================
-# BACKUP COMMANDS
-# ========================================================================================================================================================================================
-
-
-@backup_app.command("security-zone")
-def backup_security_zone(
-    folder: str = FOLDER_OPTION,
-):
-    """Backup all security zones from a folder to a YAML file.
-
-    The backup file will be named 'security-zone-{folder}.yaml' in the current directory.
-
-    Example:
-    -------
-    scm-cli backup network security-zone --folder Austin
-
-    """
-    try:
-        # List all security zones in the folder with exact_match=True
-        zones = scm_client.list_security_zones(folder=folder, exact_match=True)
-
-        if not zones:
-            typer.echo(f"No security zones found in folder '{folder}'")
-            return
-
-        # Convert SDK models to dictionaries, excluding unset values
-        backup_data = []
-        for zone in zones:
-            # The list method already returns dicts with exclude_unset=True
-            zone_dict = zone.copy()
-            # Remove system fields that shouldn't be in backup
-            zone_dict.pop("id", None)
-
-
-            backup_data.append(zone_dict)
-
-        # Create the YAML structure
-        yaml_data = {"security_zones": backup_data}
-
-        # Generate filename
-        filename = f"security-zone-{folder.lower()}.yaml"
-
-        # Write to YAML file
-        with open(filename, "w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
-
-        typer.echo(f"Successfully backed up {len(backup_data)} security zones to {filename}")
-        return filename
-
-    except Exception as e:
-        typer.echo(f"Error backing up security zones: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
