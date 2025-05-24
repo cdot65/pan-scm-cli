@@ -1,0 +1,26 @@
+address_groups:
+  - name: public dns
+    description: public DNS servers
+    tag:
+      - Services
+    folder: Austin
+    type: static
+    members:
+      - Cloudflare DNS
+  - name: web-servers
+    description: web servers
+    tag:
+      - Services
+    folder: Austin
+    type: static
+    members:
+      - web-server1
+      - web-server2
+      - web-server3
+      - web-server4
+      - web-server5
+      - web-server6
+      - web-server7
+      - web-server8
+      - web-server9
+      - web-server10

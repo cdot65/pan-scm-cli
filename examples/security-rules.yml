@@ -1,35 +1,174 @@
----
-# Example security rules configuration YAML file
+# Example security rules for different folders and rulebases
 security_rules:
-  - name: "allow-internal-web"
-    folder: "Texas"
-    source_zones: ["trust"]
-    destination_zones: ["dmz"]
-    source_addresses: ["any"]
-    destination_addresses: ["web-servers"]
-    applications: ["web-browsing", "ssl"]
-    action: "allow"
-    description: "Allow internal users to access web servers"
-    tags: ["web", "internal"]
+  # Austin folder pre-rulebase examples
+  - name: austin-allow-web-dmz
+    folder: Austin
+    rulebase: pre
+    source_zones:
+      - austin-trust
+    destination_zones:
+      - austin-dmz
+    source_addresses:
+      - any
+    destination_addresses:
+      - austin-web-servers
+    applications:
+      - web-browsing
+      - ssl
+    service:
+      - application-default
+    action: allow
     enabled: true
+    description: "Allow web traffic to DMZ servers"
+    tags:
+      - web
+      - austin
+    log_start: false
+    log_end: true
 
-  - name: "allow-outbound"
-    folder: "Texas"
-    source_zones: ["trust"]
-    destination_zones: ["untrust"]
-    source_addresses: ["any"]
-    destination_addresses: ["any"]
-    applications: ["web-browsing", "ssl", "dns"]
-    action: "allow"
-    description: "Allow outbound internet access"
-    tags: ["outbound"]
+  - name: austin-guest-internet
+    folder: Austin
+    rulebase: pre
+    source_zones:
+      - austin-guest
+    destination_zones:
+      - any
+    source_addresses:
+      - any
+    destination_addresses:
+      - any
+    applications:
+      - web-browsing
+      - ssl
+      - dns
+    service:
+      - application-default
+    action: allow
     enabled: true
+    description: "Allow guest internet access"
+    tags:
+      - guest
+      - internet
+    category:
+      - any
 
-  - name: "block-malicious"
-    folder: "Texas"
-    source_zones: ["untrust"]
-    destination_zones: ["any"]
-    action: "deny"
-    description: "Block known malicious sources"
-    tags: ["security"]
+  # Texas folder pre-rulebase examples
+  - name: texas-internal-access
+    folder: Texas
+    rulebase: pre
+    source_zones:
+      - texas-internal
+    destination_zones:
+      - texas-internal
+    source_addresses:
+      - texas-branch-networks
+    destination_addresses:
+      - any
+    applications:
+      - any
+    service:
+      - any
+    action: allow
     enabled: true
+    description: "Allow internal zone communication"
+    tags:
+      - internal
+      - texas
+
+  - name: texas-vpn-to-internal
+    folder: Texas
+    rulebase: pre
+    source_zones:
+      - texas-vpn
+    destination_zones:
+      - texas-internal
+    source_addresses:
+      - any
+    destination_addresses:
+      - texas-branch-networks
+    applications:
+      - any
+    service:
+      - any
+    action: allow
+    enabled: true
+    description: "Allow VPN access to internal resources"
+    tags:
+      - vpn
+      - texas
+    source_user:
+      - any
+
+  # ngfw-shared folder pre-rulebase examples
+  - name: shared-dns-policy
+    folder: ngfw-shared
+    rulebase: pre
+    source_zones:
+      - any
+    destination_zones:
+      - any
+    source_addresses:
+      - any
+    destination_addresses:
+      - public-dns-servers
+    applications:
+      - dns
+    service:
+      - application-default
+    action: allow
+    enabled: true
+    description: "Allow DNS queries to public DNS servers"
+    tags:
+      - dns
+      - shared
+
+  - name: shared-block-malicious
+    folder: ngfw-shared
+    rulebase: pre
+    source_zones:
+      - any
+    destination_zones:
+      - any
+    source_addresses:
+      - any
+    destination_addresses:
+      - any
+    applications:
+      - any
+    service:
+      - any
+    action: deny
+    enabled: true
+    description: "Block known malicious traffic"
+    tags:
+      - security
+      - block
+    category:
+      - malware
+      - phishing
+      - command-and-control
+
+  # ngfw-shared folder post-rulebase example
+  - name: shared-default-deny
+    folder: ngfw-shared
+    rulebase: post
+    source_zones:
+      - any
+    destination_zones:
+      - any
+    source_addresses:
+      - any
+    destination_addresses:
+      - any
+    applications:
+      - any
+    service:
+      - any
+    action: deny
+    enabled: true
+    description: "Default deny all rule"
+    tags:
+      - security
+      - cleanup
+    log_start: true
+    log_end: true

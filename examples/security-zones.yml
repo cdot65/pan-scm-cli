@@ -1,23 +1,134 @@
----
-# Example security zones configuration YAML file
-zones:
-  - name: "trust"
-    folder: "Texas"
-    mode: "layer3"
-    interfaces: ["ethernet1/1", "ethernet1/2"]
-    description: "Internal trusted network zone"
-    tags: ["internal", "trusted"]
+# Example security zones for different folders
+security_zones:
+  # Austin folder examples
+  - name: austin-trust
+    folder: Austin
+    network:
+      layer3:
+        - ethernet1/1
+        - ethernet1/2
+      enable_packet_buffer_protection: true
+      zone_protection_profile: strict
+      log_setting: "Austin-Logging"
+    enable_user_identification: true
+    enable_device_identification: false
+    description: "Austin trusted network zone"
+    tags:
+      - trust
+      - austin
 
-  - name: "untrust"
-    folder: "Texas"
-    mode: "layer3"
-    interfaces: ["ethernet1/3"]
-    description: "External untrusted network zone"
-    tags: ["external", "untrusted"]
+  - name: austin-dmz
+    folder: Austin
+    network:
+      layer3:
+        - ethernet1/3
+      enable_packet_buffer_protection: true
+      zone_protection_profile: dmz-protection
+      log_setting: "Austin-Logging"
+    enable_user_identification: false
+    enable_device_identification: false
+    description: "Austin DMZ zone"
+    tags:
+      - dmz
+      - austin
 
-  - name: "dmz"
-    folder: "Texas"
-    mode: "layer3"
-    interfaces: ["ethernet1/4"]
-    description: "DMZ network zone"
-    tags: ["dmz"]
+  - name: austin-guest
+    folder: Austin
+    network:
+      layer2:
+        - ethernet1/4
+    enable_user_identification: true
+    enable_device_identification: true
+    description: "Austin guest network zone"
+    tags:
+      - guest
+      - austin
+
+  # Texas folder examples
+  - name: texas-internal
+    folder: Texas
+    network:
+      layer3:
+        - ethernet1/5
+        - ethernet1/6
+      enable_packet_buffer_protection: true
+      zone_protection_profile: standard
+      log_setting: "Texas-Logging"
+    enable_user_identification: true
+    enable_device_identification: false
+    description: "Texas internal network zone"
+    tags:
+      - internal
+      - texas
+
+  - name: texas-external
+    folder: Texas
+    network:
+      layer3:
+        - ethernet1/7
+      enable_packet_buffer_protection: true
+      zone_protection_profile: internet-edge
+      log_setting: "Texas-Logging"
+    enable_user_identification: false
+    enable_device_identification: false
+    description: "Texas external/internet zone"
+    tags:
+      - external
+      - texas
+
+  - name: texas-vpn
+    folder: Texas
+    network:
+      tunnel:
+        - tunnel.1
+        - tunnel.2
+    enable_user_identification: true
+    enable_device_identification: false
+    description: "Texas VPN tunnel zone"
+    tags:
+      - vpn
+      - texas
+
+  # ngfw-shared folder examples
+  - name: shared-untrust
+    folder: ngfw-shared
+    network:
+      layer3:
+        - ethernet1/8
+      enable_packet_buffer_protection: true
+      zone_protection_profile: best-practice
+      log_setting: "Cortex Data Lake"
+    enable_user_identification: false
+    enable_device_identification: false
+    description: "Shared untrust/internet zone"
+    tags:
+      - untrust
+      - shared
+
+  - name: shared-trust
+    folder: ngfw-shared
+    network:
+      layer3:
+        - ethernet1/9
+        - ethernet1/10
+      enable_packet_buffer_protection: true
+      log_setting: "Cortex Data Lake"
+    enable_user_identification: true
+    enable_device_identification: true
+    description: "Shared trust zone"
+    tags:
+      - trust
+      - shared
+
+  - name: shared-tap-zone
+    folder: ngfw-shared
+    network:
+      tap:
+        - ethernet1/11
+    enable_user_identification: false
+    enable_device_identification: false
+    description: "Shared TAP mode zone for monitoring"
+    tags:
+      - tap
+      - monitoring
+      - shared
