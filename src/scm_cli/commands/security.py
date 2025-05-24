@@ -22,6 +22,7 @@ set_app = typer.Typer(help="Create or update security configurations")
 delete_app = typer.Typer(help="Remove security configurations")
 load_app = typer.Typer(help="Load security configurations from YAML files")
 show_app = typer.Typer(help="Display security configurations")
+backup_app = typer.Typer(help="Backup security configurations to YAML files")
 
 # ========================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -365,4 +366,79 @@ def show_security_rule(
 
     except Exception as e:
         typer.echo(f"Error showing security rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BACKUP COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("rule")
+def backup_security_rule(
+    folder: str = FOLDER_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Backup all security rules from a folder and rulebase to a YAML file.
+
+    The backup file will be named 'rule-{folder}-{rulebase}.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup security rule --folder Austin --rulebase pre
+
+    """
+    try:
+        # List all security rules in the folder and rulebase with exact_match=True
+        rules = scm_client.list_security_rules(folder=folder, rulebase=rulebase, exact_match=True)
+
+        if not rules:
+            typer.echo(f"No security rules found in folder '{folder}' rulebase '{rulebase}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for rule in rules:
+            # The list method returns dict objects already, but let's ensure we exclude any None values
+            rule_dict = {k: v for k, v in rule.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            rule_dict.pop("id", None)
+
+            # Convert SDK format back to CLI format for consistency
+            # Map SDK field names to CLI field names
+            if "from_" in rule_dict:
+                rule_dict["source_zones"] = rule_dict.pop("from_", [])
+            if "to_" in rule_dict:
+                rule_dict["destination_zones"] = rule_dict.pop("to_", [])
+            if "source" in rule_dict:
+                rule_dict["source_addresses"] = rule_dict.pop("source", [])
+            if "destination" in rule_dict:
+                rule_dict["destination_addresses"] = rule_dict.pop("destination", [])
+            if "application" in rule_dict:
+                rule_dict["applications"] = rule_dict.pop("application", [])
+
+            # Convert disabled to enabled for CLI consistency
+            if "disabled" in rule_dict:
+                rule_dict["enabled"] = not rule_dict.pop("disabled", False)
+
+            # Add rulebase info
+            rule_dict["rulebase"] = rulebase
+
+            backup_data.append(rule_dict)
+
+        # Create the YAML structure
+        yaml_data = {"security_rules": backup_data}
+
+        # Generate filename
+        filename = f"rule-{folder.lower()}-{rulebase}.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} security rules to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up security rules: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
