@@ -405,15 +405,19 @@ def show_address_group(
             for group in groups:
                 # Display address group information
                 typer.echo(f"Name: {group.get('name', 'N/A')}")
-                typer.echo(f"  Type: {group.get('type', 'N/A')}")
+                
+                # Determine type based on presence of 'static' or 'dynamic' key
+                if group.get('static') is not None:
+                    typer.echo(f"  Type: static")
+                    typer.echo(f"  Members: {', '.join(group.get('static', []))}")
+                elif group.get('dynamic') is not None:
+                    typer.echo(f"  Type: dynamic")
+                    dynamic_info = group.get('dynamic', {})
+                    if dynamic_info.get('filter'):
+                        typer.echo(f"  Filter: {dynamic_info['filter']}")
+                
                 typer.echo(f"  Description: {group.get('description', 'N/A')}")
-
-                # Display type-specific information
-                if group.get("type") == "static" and group.get("members"):
-                    typer.echo(f"  Members: {', '.join(group['members'])}")
-                elif group.get("type") == "dynamic" and group.get("filter"):
-                    typer.echo(f"  Filter: {group['filter']}")
-
+                
                 # Display tags if present
                 if group.get("tag"):
                     typer.echo(f"  Tags: {', '.join(group['tag'])}")
@@ -428,22 +432,29 @@ def show_address_group(
 
             typer.echo(f"Address Group: {group.get('name', 'N/A')}")
             typer.echo(f"Folder: {group.get('folder', 'N/A')}")
-            typer.echo(f"Type: {group.get('type', 'N/A')}")
-            typer.echo(f"Description: {group.get('description', 'N/A')}")
-
-            # Display type-specific information
-            if group.get("type") == "static":
-                if group.get("members"):
-                    typer.echo(f"Members ({len(group['members'])}):")
-                    for member in group["members"]:
+            
+            # Determine type based on presence of 'static' or 'dynamic' key
+            if group.get('static') is not None:
+                typer.echo("Type: static")
+                typer.echo(f"Description: {group.get('description', 'N/A')}")
+                members = group.get('static', [])
+                if members:
+                    typer.echo(f"Members ({len(members)}):")
+                    for member in members:
                         typer.echo(f"  - {member}")
                 else:
                     typer.echo("Members: None")
-            elif group.get("type") == "dynamic":
-                if group.get("filter"):
-                    typer.echo(f"Filter: {group['filter']}")
+            elif group.get('dynamic') is not None:
+                typer.echo("Type: dynamic")
+                typer.echo(f"Description: {group.get('description', 'N/A')}")
+                dynamic_info = group.get('dynamic', {})
+                if dynamic_info.get('filter'):
+                    typer.echo(f"Filter: {dynamic_info['filter']}")
                 else:
                     typer.echo("Filter: None")
+            else:
+                typer.echo("Type: unknown")
+                typer.echo(f"Description: {group.get('description', 'N/A')}")
 
             # Display tags if present
             if group.get("tag"):
