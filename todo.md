@@ -41,6 +41,38 @@ The project has successfully implemented:
   - Show command with membership details
   - Load/backup YAML support
   - Delete functionality
+- [x] Implemented full Application Filter support (all CRUD operations)
+  - Smart upsert logic for filters
+  - List-based attribute filtering (category, subcategory, technology, risk)
+  - Boolean security attribute filtering
+  - Show command with filter criteria display
+  - Load/backup YAML support
+  - Delete functionality
+  - Fixed SDK service name (singular not plural)
+  - Fixed boolean field handling (omit when false)
+- [x] Implemented full Dynamic User Group support (all CRUD operations)
+  - Smart upsert logic for dynamic groups
+  - Tag-based filter expressions
+  - Show command with filter display
+  - Load/backup YAML support
+  - Delete functionality
+  - Created comprehensive example YAML file
+- [x] Implemented full External Dynamic List support (all CRUD operations)
+  - Smart upsert logic for EDLs
+  - Support for all EDL types (predefined_ip, predefined_url, ip, domain, url, imsi, imei)
+  - Complex configuration support (recurring schedules, authentication, certificates)
+  - Show command with detailed configuration display
+  - Load/backup YAML support with flattened structure
+  - Delete functionality
+  - Fixed SDK service name (external_dynamic_list not external_dynamic_lists)
+  - Created comprehensive example YAML file
+- [x] Implemented full HIP Object support (all CRUD operations)
+  - Smart upsert logic for HIP objects
+  - Support for all HIP criteria types (host info, network, patch mgmt, disk encryption, mobile, certificate)
+  - Show command with detailed criteria display
+  - Load/backup YAML support with flattened structure
+  - Delete functionality
+  - Created comprehensive example YAML file with 11 HIP policies
 
 ## Current Work (In Progress)
 - [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
@@ -88,6 +120,56 @@ The project has successfully implemented:
 - [x] Add member management functionality
 - [x] Add tests and documentation
 
+### Application Filters (Completed ✅)
+- [x] Implement `show objects application-filter` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_application_filters()` and `get_application_filter()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add complex filter criteria support (lists and booleans)
+- [x] Fix SDK service naming (application_filter not application_filters)
+- [x] Fix boolean field handling in API requests
+- [x] Add tests and documentation
+
+### Dynamic User Groups (Completed ✅)
+- [x] Implement `show objects dynamic-user-group` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_dynamic_user_groups()` and `get_dynamic_user_group()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add tag-based filter expression support
+- [x] Create comprehensive example YAML file
+- [x] Add tests and documentation
+
+### External Dynamic Lists (Completed ✅)
+- [x] Implement `show objects external-dynamic-list` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_external_dynamic_lists()` and `get_external_dynamic_list()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for all EDL types with proper configuration
+- [x] Create comprehensive example YAML file with all EDL types
+- [x] Add tests and documentation
+
+### HIP Objects (Completed ✅)
+- [x] Implement `show objects hip-object` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_hip_objects()` and `get_hip_object()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for all HIP criteria types (host info, network, patch mgmt, disk encryption, mobile, certificate)
+- [x] Create comprehensive example YAML file with 11 different HIP policies
+- [x] Add tests and documentation
+
+### HIP Profiles (Completed ✅)
+- [x] Implement `show objects hip-profile` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_hip_profiles()` and `get_hip_profile()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for complex match criteria with boolean operators
+- [x] Create example YAML file with various profile configurations
+- [x] Add tests and documentation
+
+### HTTP Server Profiles (Completed ✅)
+- [x] Implement `show objects http-server-profile` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_http_server_profiles()` and `get_http_server_profile()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for complex server configurations with authentication and TLS
+- [x] Discover and fix required field issue (http_method)
+- [x] Create comprehensive example YAML file with 10 profile configurations
+- [x] Add tests and documentation
+
 ## Phase 1.5: Backup Command Implementation (Completed ✅)
 
 ### All Resource Types (Completed ✅)
@@ -95,6 +177,12 @@ The project has successfully implemented:
 - [x] Implement `backup objects address-group` command  
 - [x] Implement `backup objects application` command
 - [x] Implement `backup objects application-group` command
+- [x] Implement `backup objects application-filter` command
+- [x] Implement `backup objects dynamic-user-group` command
+- [x] Implement `backup objects external-dynamic-list` command
+- [x] Implement `backup objects hip-object` command
+- [x] Implement `backup objects hip-profile` command
+- [x] Implement `backup objects http-server-profile` command
 - [x] Implement `backup network security-zone` command
 - [x] Implement `backup security rule` command
 - [x] Implement `backup deployment bandwidth` command

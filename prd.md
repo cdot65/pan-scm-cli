@@ -652,3 +652,530 @@ All commands have been thoroughly tested with the Austin folder:
 - ✅ Backup command exports to properly formatted YAML
 
 Note: When using the CLI, application references must be valid existing applications in the SCM system.
+
+## 18. Application Filter Support
+
+### 18.1 Problem Statement
+
+Application filters are essential for dynamic application selection in security policies. They allow administrators to create criteria-based selections rather than static lists, enabling more flexible and maintainable security configurations.
+
+### 18.2 Solution: Full Application Filter Management
+
+Implemented comprehensive support for application filters with all CRUD operations and complex filtering capabilities.
+
+#### 18.2.1 Application Filter Features
+- **Create/Update**: Support for all filter criteria including:
+  - List-based attributes: category, subcategory, technology, risk levels
+  - Boolean security flags: Same 9 attributes as applications
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific filters with detailed criteria
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove filters by name and folder
+- **Backup**: Export filters to YAML with proper formatting
+
+#### 18.2.2 Key Implementation Fixes
+- **SDK Service Name**: Fixed usage of `application_filter` (singular) instead of `application_filters` (plural)
+- **Boolean Field Handling**: API rejects explicit `false` values; implementation now omits boolean fields when false
+- **List Attribute Support**: Proper handling of multiple values for category, subcategory, technology, and risk
+
+### 18.3 Technical Implementation Details
+
+#### 18.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_application_filter()`: Smart upsert with conditional boolean field inclusion
+- `delete_application_filter()`: Remove by name and folder
+- `get_application_filter()`: Fetch specific filter with all criteria
+- `list_application_filters()`: List with exact_match support
+
+#### 18.3.2 Command Implementation
+In `objects.py`, added full command set:
+- `set`: Create/update with list and boolean options
+- `show`: Display with criteria formatting
+- `load`: Import from YAML with validation
+- `delete`: Remove filters
+- `backup`: Export to YAML format
+
+#### 18.3.3 Validation Model
+Extended `validators.py` with:
+- `ApplicationFilter` model with list and boolean fields
+- Risk value validation (1-5 range)
+- Proper `to_sdk_model()` with conditional field inclusion
+
+### 18.4 Benefits
+
+1. **Dynamic Policy Management**: Enable criteria-based application selection
+2. **Reduced Maintenance**: Automatically include new applications matching criteria
+3. **Complex Filtering**: Combine multiple criteria for precise selection
+4. **API Compatibility**: Proper handling of SDK quirks and validation rules
+5. **Bulk Operations**: YAML-based import/export for large-scale management
+
+### 18.5 Example Usage
+
+```bash
+# Create a high-risk application filter
+scm-cli set objects application-filter \
+  --folder Texas \
+  --name high-risk-apps \
+  --category business-systems \
+  --subcategory database \
+  --technology client-server \
+  --risk 4 --risk 5 \
+  --has-known-vulnerabilities
+
+# List all filters
+scm-cli show objects application-filter --folder Texas --list
+
+# Backup filters
+scm-cli backup objects application-filter --folder Texas
+```
+
+### 18.6 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates filters with all criteria types
+- ✅ Show command displays detailed filter information
+- ✅ Load command imports from YAML files correctly
+- ✅ Delete command removes filters cleanly
+- ✅ Backup command exports to properly formatted YAML
+- ✅ Boolean field handling works correctly (omits false values)
+- ✅ SDK service name issue resolved
+
+## 19. Dynamic User Group Support
+
+### 19.1 Problem Statement
+
+Dynamic user groups are essential for automatically grouping users based on tag attributes. They enable dynamic security policies that adapt as user attributes change, eliminating the need for manual group maintenance.
+
+### 19.2 Solution: Full Dynamic User Group Management
+
+Implemented comprehensive support for dynamic user groups with all CRUD operations and tag-based filter expressions.
+
+#### 19.2.1 Dynamic User Group Features
+- **Create/Update**: Support for tag-based filter expressions
+  - Simple tag matching: "'Engineering' and 'Developer'"
+  - Attribute-based filters: "tag.Department='IT' and tag.Role='Admin'"
+  - Complex expressions with boolean logic
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific groups with filter expressions
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove groups by name and folder
+- **Backup**: Export groups to YAML with proper formatting
+
+#### 19.2.2 Filter Expression Syntax
+- Uses single quotes around tag values
+- Supports boolean operators: and, or
+- Allows attribute-based filtering with tag.attribute syntax
+- Supports comparison operators for numeric values
+
+### 19.3 Technical Implementation Details
+
+#### 19.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_dynamic_user_group()`: Smart upsert with filter expression support
+- `delete_dynamic_user_group()`: Remove by name and folder
+- `get_dynamic_user_group()`: Fetch specific group with filter
+- `list_dynamic_user_groups()`: List with exact_match support
+
+#### 19.3.2 Command Implementation
+In `objects.py`, added full command set:
+- `set`: Create/update with filter expression
+- `show`: Display with filter formatting
+- `load`: Import from YAML with validation
+- `delete`: Remove groups
+- `backup`: Export to YAML format with tag field mapping
+
+#### 19.3.3 Validation Model
+Extended `validators.py` with:
+- `DynamicUserGroup` model with filter field
+- Tag field mapping (tags → tag for SDK)
+- Proper `to_sdk_model()` method
+
+### 19.4 Benefits
+
+1. **Automated User Management**: Groups update automatically as user tags change
+2. **Flexible Filtering**: Complex tag-based expressions for precise grouping
+3. **Scalability**: Handle large user populations without manual maintenance
+4. **Policy Agility**: Security policies adapt dynamically to user changes
+5. **Bulk Operations**: YAML-based import/export for migration
+
+### 19.5 Example Usage
+
+```bash
+# Create a dynamic user group
+scm-cli set objects dynamic-user-group \
+  --folder Texas \
+  --name it-admins \
+  --filter "'IT' and 'Admin'" \
+  --description "IT administrators"
+
+# List all groups
+scm-cli show objects dynamic-user-group --folder Texas --list
+
+# Backup groups
+scm-cli backup objects dynamic-user-group --folder Texas
+```
+
+### 19.6 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates groups with filter expressions
+- ✅ Show command displays filter expressions correctly
+- ✅ Load command imports from YAML files
+- ✅ Delete command removes groups cleanly
+- ✅ Backup command exports with proper tag field mapping
+- ✅ Example YAML file created with comprehensive patterns
+
+## 20. External Dynamic List Support
+
+### 20.1 Problem Statement
+
+External Dynamic Lists (EDLs) are crucial for integrating third-party threat intelligence feeds and maintaining dynamic blocklists/allowlists. They enable automatic updates from external sources without manual intervention, keeping security policies current with the latest threat intelligence.
+
+### 20.2 Solution: Full External Dynamic List Management
+
+Implemented comprehensive support for all EDL types with complete CRUD operations, complex configurations, and multiple update schedules.
+
+#### 20.2.1 External Dynamic List Features
+- **Create/Update**: Support for all EDL types with specific configurations
+  - Predefined lists (IP and URL) from Palo Alto Networks
+  - Custom IP, Domain, URL, IMSI, and IMEI lists
+  - Recurring update schedules (5 minutes to monthly)
+  - Authentication support (username/password, certificates)
+  - Exception list management
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific EDLs with configuration details
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove EDLs by name and folder
+- **Backup**: Export EDLs to YAML with flattened structure
+
+#### 20.2.2 Supported EDL Types
+1. **Predefined IP** (`predefined_ip`): Palo Alto managed IP lists
+2. **Predefined URL** (`predefined_url`): Palo Alto managed URL lists
+3. **IP** (`ip`): Custom IP address lists
+4. **Domain** (`domain`): Domain name lists with optional subdomain expansion
+5. **URL** (`url`): Custom URL pattern lists
+6. **IMSI** (`imsi`): Mobile subscriber identity lists
+7. **IMEI** (`imei`): Mobile equipment identity lists
+
+### 20.3 Technical Implementation Details
+
+#### 20.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_external_dynamic_list()`: Smart upsert with type-specific configuration
+- `delete_external_dynamic_list()`: Remove by name and folder
+- `get_external_dynamic_list()`: Fetch specific EDL with full configuration
+- `list_external_dynamic_lists()`: List with exact_match support
+
+#### 20.3.2 Validator Model
+Created `ExternalDynamicList` model in `validators.py` with:
+- Type validation ensuring proper EDL type selection
+- Recurring schedule validation (daily/weekly/monthly require hour)
+- Complex type configuration building
+- Flattened YAML structure for easier editing
+
+#### 20.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_external_dynamic_list()`: Export with flattened structure
+- `delete_external_dynamic_list()`: Remove by name and folder
+- `load_external_dynamic_list()`: Import with full validation
+- `set_external_dynamic_list()`: Create/update with all options
+- `show_external_dynamic_list()`: Display with configuration details
+
+### 20.4 Usage Examples
+
+```bash
+# Create a predefined IP list
+scm-cli set objects external-dynamic-list \
+  --folder Texas \
+  --name paloalto-bulletproof \
+  --type predefined_ip \
+  --url "panw-bulletproof-ip-list"
+
+# Create a custom IP list with hourly updates
+scm-cli set objects external-dynamic-list \
+  --folder Texas \
+  --name custom-blocklist \
+  --type ip \
+  --url "https://example.com/blocklist.txt" \
+  --recurring hourly
+
+# Create a domain list with authentication
+scm-cli set objects external-dynamic-list \
+  --folder Texas \
+  --name malicious-domains \
+  --type domain \
+  --url "https://secure.example.com/domains.txt" \
+  --recurring daily \
+  --hour 03 \
+  --username api_user \
+  --password secure_pass \
+  --expand-domain
+
+# List all EDLs
+scm-cli show objects external-dynamic-list --folder Texas --list
+
+# Backup EDLs
+scm-cli backup objects external-dynamic-list --folder Texas
+```
+
+### 20.5 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates EDLs with all configuration types
+- ✅ Show command displays detailed configuration including recurring schedules
+- ✅ Load command imports from YAML files with proper validation
+- ✅ Delete command removes EDLs cleanly
+- ✅ Backup command exports with flattened structure for easy editing
+- ✅ SDK service name corrected (external_dynamic_list not external_dynamic_lists)
+- ✅ Comprehensive example YAML file created with all EDL types
+
+## 21. HIP Object Support
+
+### 21.1 Problem Statement
+
+Host Information Profiles (HIP) are essential for enforcing endpoint compliance in security policies. They enable dynamic security based on device state, ensuring that only compliant endpoints can access sensitive resources. The CLI needed comprehensive HIP object management to complete its security configuration capabilities.
+
+### 21.2 Solution: Full HIP Object Management
+
+Implemented comprehensive support for HIP objects with all CRUD operations and multiple criteria types for endpoint validation.
+
+#### 21.2.1 HIP Object Features
+- **Create/Update**: Support for all HIP criteria types
+  - Host information (domain, OS, client version, managed state, etc.)
+  - Network information (WiFi, mobile, ethernet, unknown)
+  - Patch management (installation status, missing patches, severity)
+  - Disk encryption (installation status, encrypted locations, vendors)
+  - Mobile device (jailbreak status, passcode, last check-in, applications)
+  - Certificate (profile and attributes)
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific HIP objects with detailed criteria
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove HIP objects by name and folder
+- **Backup**: Export HIP objects to YAML with flattened structure
+
+#### 21.2.2 Supported Criteria Types
+1. **Host Information**: OS type, domain membership, managed state, client version
+2. **Network Information**: Connection type restrictions (WiFi, ethernet, mobile)
+3. **Patch Management**: Missing patches, severity thresholds, vendor-specific
+4. **Disk Encryption**: Encryption status, specific locations, vendor support
+5. **Mobile Device**: Jailbreak detection, passcode requirements, app control
+6. **Certificate**: Profile validation, attribute matching
+
+### 21.3 Technical Implementation Details
+
+#### 21.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_hip_object()`: Smart upsert with all criteria types
+- `delete_hip_object()`: Remove by name and folder
+- `get_hip_object()`: Fetch specific HIP object with full criteria
+- `list_hip_objects()`: List with exact_match support
+
+#### 21.3.2 Validator Model
+Created `HIPObject` model in `validators.py` with:
+- Flattened field structure for easier CLI usage
+- Criteria pair validation (e.g., domain criteria requires domain value)
+- Complex nested structure building for SDK compatibility
+- Comprehensive `to_sdk_model()` method
+
+#### 21.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_hip_object()`: Export with flattened structure for easy editing
+- `delete_hip_object()`: Remove by name and folder
+- `load_hip_object()`: Import with full validation
+- `set_hip_object()`: Create/update with simplified CLI options
+- `show_hip_object()`: Display with formatted criteria sections
+
+### 21.4 Usage Examples
+
+```bash
+# Create a Windows workstation compliance policy
+scm-cli set objects hip-object \
+  --folder Texas \
+  --name windows-compliance \
+  --description "Windows workstation compliance" \
+  --host-info-os Microsoft \
+  --host-info-os-value All \
+  --host-info-managed \
+  --disk-encryption-enabled \
+  --patch-management-enabled
+
+# Create a mobile device policy
+scm-cli set objects hip-object \
+  --folder Texas \
+  --name mobile-secure \
+  --description "Mobile device security" \
+  --mobile-device-jailbroken false \
+  --mobile-device-disk-encrypted \
+  --mobile-device-passcode-set
+
+# Create a network-based restriction
+scm-cli set objects hip-object \
+  --folder Texas \
+  --name wifi-only \
+  --description "WiFi network only" \
+  --network-info-type is \
+  --network-info-value wifi
+
+# List all HIP objects
+scm-cli show objects hip-object --folder Texas --list
+
+# Backup HIP objects
+scm-cli backup objects hip-object --folder Texas
+```
+
+### 21.5 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates HIP objects with all criteria types
+- ✅ Show command displays formatted criteria sections
+- ✅ Load command imports from YAML files with validation
+- ✅ Delete command removes HIP objects cleanly
+- ✅ Backup command exports with flattened structure for easy editing
+- ✅ Comprehensive example YAML file created with 11 different HIP policies
+- ✅ SDK service name correct (hip_object)
+
+## 22. HIP Profile Support
+
+### 22.1 Problem Statement
+
+HIP profiles combine multiple HIP objects to create comprehensive endpoint compliance policies. They enable administrators to define complex compliance requirements by matching multiple HIP objects with boolean operators (is/is-not).
+
+### 22.2 Solution: Full HIP Profile Management
+
+Implemented comprehensive support for HIP profiles with all CRUD operations and complex match criteria handling.
+
+#### 22.2.1 HIP Profile Features
+- **Create/Update**: Support for complex match criteria
+  - Match multiple HIP objects with boolean operators
+  - JSON-based match configuration for CLI
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific profiles with match criteria
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove profiles by name and folder
+- **Backup**: Export profiles to YAML with proper formatting
+
+#### 22.2.2 Match Criteria Format
+- CLI uses JSON format: `{"hip-object-1": {"is": true}, "hip-object-2": {"is-not": true}}`
+- YAML uses standard format for readability
+- SDK requires nested structure with match field
+
+### 22.3 Technical Implementation Details
+
+#### 22.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_hip_profile()`: Smart upsert with match criteria handling
+- `delete_hip_profile()`: Remove by name and folder
+- `get_hip_profile()`: Fetch specific profile with match criteria
+- `list_hip_profiles()`: List with exact_match support
+
+#### 22.3.2 Validator Model
+Created `HIPProfile` model in `validators.py` with:
+- Match field for HIP object criteria
+- Proper `to_sdk_model()` method
+- Support for both CLI JSON and YAML formats
+
+#### 22.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_hip_profile()`: Export to YAML format
+- `delete_hip_profile()`: Remove by name and folder
+- `load_hip_profile()`: Import with validation
+- `set_hip_profile()`: Create/update with JSON match parameter
+- `show_hip_profile()`: Display with formatted match criteria
+
+### 22.4 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates profiles with complex match criteria
+- ✅ Show command displays match criteria properly
+- ✅ Load command imports from YAML files
+- ✅ Delete command removes profiles cleanly
+- ✅ Backup command exports to YAML format
+- ✅ SDK service name correct (hip_profile)
+- ✅ Example YAML file created with various profile configurations
+
+## 23. HTTP Server Profile Support
+
+### 23.1 Problem Statement
+
+HTTP server profiles are essential for log forwarding and SIEM integration in modern security architectures. They enable sending logs to external systems via HTTP/HTTPS for centralized monitoring, analysis, and compliance requirements.
+
+### 23.2 Solution: Full HTTP Server Profile Management
+
+Implemented comprehensive support for HTTP server profiles with all CRUD operations and complex server configurations.
+
+#### 23.2.1 HTTP Server Profile Features
+- **Create/Update**: Support for complex server configurations
+  - Multiple server configurations per profile
+  - HTTP/HTTPS protocol support with port specification
+  - Authentication (username/password)
+  - TLS version and certificate profile options
+  - Custom format configurations for different log types
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific profiles with server details
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove profiles by name and folder
+- **Backup**: Export profiles to YAML with proper field mapping
+
+#### 23.2.2 Server Configuration Requirements
+- **Required fields**: name, address, protocol, port, http_method
+- **Optional fields**: tls_version, certificate_profile, username, password
+- **Format config**: Custom headers and payload formats per log type
+
+### 23.3 Technical Implementation Details
+
+#### 23.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_http_server_profile()`: Smart upsert with server configuration handling
+- `delete_http_server_profile()`: Remove by name and folder
+- `get_http_server_profile()`: Fetch specific profile with server details
+- `list_http_server_profiles()`: List with exact_match support
+
+#### 23.3.2 Validator Model
+Created `HTTPServerProfile` model in `validators.py` with:
+- Server list validation with required fields
+- Format configuration support
+- Proper `to_sdk_model()` method
+- Field mapping (servers → server for SDK)
+
+#### 23.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_http_server_profile()`: Export with field mapping (server → servers)
+- `delete_http_server_profile()`: Remove by name and folder
+- `load_http_server_profile()`: Import with validation
+- `set_http_server_profile()`: Create/update with JSON server configuration
+- `show_http_server_profile()`: Display with formatted server details
+
+### 23.4 Usage Examples
+
+```bash
+# Create an HTTP server profile for syslog forwarding
+scm-cli set objects http-server-profile \
+  --folder Texas \
+  --name syslog-collector \
+  --servers '[{"name": "primary-syslog", "address": "syslog.example.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' \
+  --description "Primary syslog collector"
+
+# Create a profile with authentication
+scm-cli set objects http-server-profile \
+  --folder Texas \
+  --name splunk-hec \
+  --servers '[{"name": "splunk-server", "address": "10.0.1.100", "protocol": "HTTPS", "port": 8088, "http_method": "POST", "username": "hec_user", "password": "secure_token"}]'
+
+# List all profiles
+scm-cli show objects http-server-profile --folder Texas --list
+
+# Backup profiles
+scm-cli backup objects http-server-profile --folder Texas
+```
+
+### 23.5 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates profiles with server configurations
+- ✅ Show command displays server details properly
+- ✅ Load command imports from YAML files
+- ✅ Delete command removes profiles cleanly
+- ✅ Backup command exports with field mapping (server → servers)
+- ✅ SDK service name correct (http_server_profile)
+- ✅ Example YAML file created with 10 different profile configurations
+- ✅ Required field discovery: http_method is mandatory for all servers
