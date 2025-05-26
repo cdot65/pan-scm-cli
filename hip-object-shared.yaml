@@ -1,0 +1,8 @@
+hip_objects:
+- folder: Shared
+  name: test-hip-windows
+  description: Test Windows HIP policy
+  host_info_os: Microsoft
+  host_info_os_value: All
+  host_info_managed: true
+  disk_encryption_enabled: true

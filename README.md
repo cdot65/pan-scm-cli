@@ -46,6 +46,14 @@ A powerful command-line interface for managing Palo Alto Networks Strata Cloud M
 - **Comprehensive Object Management**: Create, read, update, and delete configuration objects including:
   - Address objects (IP/netmask, FQDN, IP range, wildcard)
   - Address groups (static and dynamic)
+  - Applications (custom application definitions with security attributes)
+  - Application groups (logical grouping of applications)
+  - Application filters (dynamic application selection based on criteria)
+  - Dynamic user groups (tag-based user grouping)
+  - External dynamic lists (EDLs for threat intelligence integration)
+  - HIP objects (Host Information Profiles for endpoint compliance)
+  - HIP profiles (HIP object combinations for policy enforcement)
+  - HTTP server profiles (Log forwarding and integration configurations)
   - Security zones (layer3, layer2, virtual-wire, tap modes)
   - Security rules with full policy configuration
   - Bandwidth allocation profiles
@@ -268,6 +276,129 @@ scm-cli set deployment bandwidth --folder Shared --name "Branch-100Mbps" \
 scm-cli set deployment bandwidth --list --folder Shared
 ```
 
+#### Managing Applications
+
+```bash
+# Create a custom application
+scm-cli set objects application --folder Shared --name custom-app \
+  --category business-systems --subcategory database \
+  --technology client-server --risk 3 \
+  --ports "tcp/8080,tcp/8443" --description "Custom business application"
+
+# List all applications
+scm-cli show objects application --folder Shared --list
+
+# Show specific application details
+scm-cli show objects application --folder Shared --name custom-app
+```
+
+#### Managing Application Groups
+
+```bash
+# Create an application group
+scm-cli set objects application-group --folder Shared --name business-apps \
+  --members "salesforce,ms-365,custom-app"
+
+# List all application groups
+scm-cli show objects application-group --folder Shared --list
+```
+
+#### Managing Application Filters
+
+```bash
+# Create an application filter for high-risk apps
+scm-cli set objects application-filter --folder Shared --name high-risk-filter \
+  --category "file-sharing,peer-to-peer" --risk 4 --risk 5 \
+  --has-known-vulnerabilities --transfers-files
+
+# List all application filters
+scm-cli show objects application-filter --folder Shared --list
+```
+
+#### Managing Dynamic User Groups
+
+```bash
+# Create a dynamic user group based on tags
+scm-cli set objects dynamic-user-group --folder Shared --name it-admins \
+  --filter "'IT' and 'Admin'" --description "IT administrators group"
+
+# List all dynamic user groups
+scm-cli show objects dynamic-user-group --folder Shared --list
+```
+
+#### Managing External Dynamic Lists
+
+```bash
+# Create a predefined IP blocklist
+scm-cli set objects external-dynamic-list --folder Shared \
+  --name paloalto-bulletproof --type predefined_ip \
+  --url "panw-bulletproof-ip-list"
+
+# Create a custom IP blocklist with hourly updates
+scm-cli set objects external-dynamic-list --folder Shared \
+  --name custom-threats --type ip \
+  --url "https://example.com/threats.txt" --recurring hourly
+
+# List all external dynamic lists
+scm-cli show objects external-dynamic-list --folder Shared --list
+```
+
+#### Managing HIP Objects
+
+```bash
+# Create a HIP object for Windows patch management
+scm-cli set objects hip-object --folder Shared --name windows-security-compliance \
+  --description "Windows security compliance check" \
+  --patch-management-vendor-name "Microsoft Corporation" \
+  --patch-management-product-name "Windows" \
+  --patch-management-criteria-is-installed yes \
+  --patch-management-missing-patches check-not-exist
+
+# Create a HIP object for disk encryption
+scm-cli set objects hip-object --folder Shared --name disk-encryption-check \
+  --disk-encryption-vendor-name "BitLocker" \
+  --disk-encryption-product-name "BitLocker Drive Encryption" \
+  --disk-encryption-criteria-is-installed is \
+  --disk-encryption-state is
+
+# List all HIP objects
+scm-cli show objects hip-object --folder Shared --list
+
+# Show specific HIP object details
+scm-cli show objects hip-object --folder Shared --name windows-security-compliance
+```
+
+#### Managing HIP Profiles
+
+```bash
+# Create a HIP profile with multiple match criteria
+scm-cli set objects hip-profile --folder Shared --name secure-endpoints \
+  --match '{"windows-security-compliance": {"is": true}, "disk-encryption-check": {"is": true}}' \
+  --description "Profile for fully compliant Windows endpoints"
+
+# List all HIP profiles
+scm-cli show objects hip-profile --folder Shared --list
+
+# Show specific HIP profile details
+scm-cli show objects hip-profile --folder Shared --name secure-endpoints
+```
+
+#### Managing HTTP Server Profiles
+
+```bash
+# Create an HTTP server profile for syslog forwarding
+scm-cli set objects http-server-profile --folder Shared --name syslog-collector \
+  --servers '[{"name": "primary-syslog", "address": "syslog.example.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' \
+  --description "Primary syslog collector"
+
+# Create an HTTP server profile with authentication
+scm-cli set objects http-server-profile --folder Shared --name splunk-hec \
+  --servers '[{"name": "splunk-server", "address": "10.0.1.100", "protocol": "HTTPS", "port": 8088, "http_method": "POST", "username": "hec_user", "password": "secure_token"}]'
+
+# List all HTTP server profiles
+scm-cli show objects http-server-profile --folder Shared --list
+```
+
 #### Bulk Operations
 
 Create a YAML file with multiple objects:
@@ -312,6 +443,14 @@ See the `examples/` directory for more bulk operation templates, including:
 - Multi-folder configuration examples across ngfw-shared, Texas, and Austin folders
 - Security zone configurations for different network modes
 - Pre and post rulebase security rule examples
+- Application definitions with security attributes (`applications.yml`)
+- Application group configurations (`application-groups.yml`)
+- Application filter criteria (`application-filters.yml`)
+- Dynamic user group filter expressions (`dynamic-user-groups.yml`)
+- External dynamic list configurations for all EDL types (`external-dynamic-lists.yml`)
+- HIP object configurations for endpoint compliance (`hip-objects.yml`)
+- HIP profile configurations for policy enforcement (`hip-profiles.yml`)
+- HTTP server profile configurations for log forwarding (`http-server-profiles.yml`)
 
 #### Backup and Restore Operations
 
@@ -337,6 +476,38 @@ scm-cli backup security rule --folder Austin --rulebase pre
 # Backup bandwidth allocations
 scm-cli backup deployment bandwidth-allocation
 # Creates: bandwidth-allocations.yaml
+
+# Backup applications
+scm-cli backup objects application --folder Texas
+# Creates: application-texas.yaml
+
+# Backup application groups
+scm-cli backup objects application-group --folder Texas
+# Creates: application-group-texas.yaml
+
+# Backup application filters
+scm-cli backup objects application-filter --folder Texas
+# Creates: application-filter-texas.yaml
+
+# Backup dynamic user groups
+scm-cli backup objects dynamic-user-group --folder Texas
+# Creates: dynamic-user-group-texas.yaml
+
+# Backup external dynamic lists
+scm-cli backup objects external-dynamic-list --folder Texas
+# Creates: external-dynamic-list-texas.yaml
+
+# Backup HIP objects
+scm-cli backup objects hip-object --folder Texas
+# Creates: hip-object-texas.yaml
+
+# Backup HIP profiles
+scm-cli backup objects hip-profile --folder Texas
+# Creates: hip-profile-texas.yaml
+
+# Backup HTTP server profiles
+scm-cli backup objects http-server-profile --folder Texas
+# Creates: http-server-profile-texas.yaml
 ```
 
 Restore configurations from backup files:

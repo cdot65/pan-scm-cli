@@ -47,7 +47,7 @@ The CLI follows a consistent pattern: `scm-cli <action> <object-type> <object> [
 
 Commands are organized by resource type:
 
-- `commands/objects.py`: Address and address group management
+- `commands/objects.py`: Address, address group, application, application group, application filter, dynamic user group, external dynamic list, HIP object, HIP profile, and HTTP server profile management
 - `commands/network.py`: Security zone management
 - `commands/security.py`: Security rule management
 - `commands/deployment.py`: Bandwidth allocation management
@@ -126,3 +126,13 @@ Always refer to the appropriate style guide when writing or modifying code to en
 - Bulk operations use YAML files - see `examples/` for formats
 - All commands support `--mock` flag for testing
 - Documentation uses MkDocs Material with custom Termynal integration for CLI examples
+- SDK service names use singular form (e.g., `application_filter` not `application_filters`, `external_dynamic_list` not `external_dynamic_lists`, `hip_object` not `hip_objects`, `hip_profile` not `hip_profiles`, `http_server_profile` not `http_server_profiles`)
+- Boolean fields in API requests should be omitted when false to avoid validation errors
+- Dynamic user group filters use tag-based expressions with specific syntax requirements
+- External dynamic lists support various types (predefined_ip, predefined_url, ip, domain, url, imsi, imei) with different configuration requirements
+- Predefined EDLs use short names (e.g., "panw-bulletproof-ip-list") not full URLs for the url field
+- HIP objects use a flattened field structure in validators for easier CLI usage, which is then converted to nested SDK format
+- HIP object criteria types include host info, network info, patch management, disk encryption, mobile device, and certificate validation
+- HIP profiles reference HIP objects through match criteria with boolean operators (is/is-not)
+- HTTP server profiles require the `http_method` field for all server configurations (discovered through API testing)
+- HTTP server profile `server` field is returned as singular from API but we use plural `servers` in YAML for consistency
