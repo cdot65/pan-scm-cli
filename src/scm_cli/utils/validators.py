@@ -115,6 +115,63 @@ class Address(BaseModel):
         return self
 
 
+class Application(BaseModel):
+    """Model for application configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the application")
+    name: str = Field(..., min_length=1, max_length=63, description="Name of the application")
+    category: str = Field(..., max_length=50, description="High-level category")
+    subcategory: str = Field(..., max_length=50, description="Specific sub-category")
+    technology: str = Field(..., max_length=50, description="Underlying technology")
+    risk: int = Field(..., ge=1, le=5, description="Risk level (1-5)")
+    description: str = Field("", max_length=1023, description="Description of the application")
+    ports: list[str] = Field(default_factory=list, description="Associated TCP/UDP ports")
+    evasive: bool = Field(False, description="Uses evasive techniques")
+    pervasive: bool = Field(False, description="Widely used")
+    excessive_bandwidth_use: bool = Field(False, description="Uses excessive bandwidth")
+    used_by_malware: bool = Field(False, description="Used by malware")
+    transfers_files: bool = Field(False, description="Transfers files")
+    has_known_vulnerabilities: bool = Field(False, description="Has known vulnerabilities")
+    tunnels_other_apps: bool = Field(False, description="Tunnels other applications")
+    prone_to_misuse: bool = Field(False, description="Prone to misuse")
+    no_certifications: bool = Field(False, description="Lacks certifications")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+            "category": self.category,
+            "subcategory": self.subcategory,
+            "technology": self.technology,
+            "risk": self.risk,
+            "description": self.description,
+        }
+
+        # Add optional fields only if they are not default values
+        if self.ports:
+            model_data["ports"] = self.ports
+        if self.evasive:
+            model_data["evasive"] = self.evasive
+        if self.pervasive:
+            model_data["pervasive"] = self.pervasive
+        if self.excessive_bandwidth_use:
+            model_data["excessive_bandwidth_use"] = self.excessive_bandwidth_use
+        if self.used_by_malware:
+            model_data["used_by_malware"] = self.used_by_malware
+        if self.transfers_files:
+            model_data["transfers_files"] = self.transfers_files
+        if self.has_known_vulnerabilities:
+            model_data["has_known_vulnerabilities"] = self.has_known_vulnerabilities
+        if self.tunnels_other_apps:
+            model_data["tunnels_other_apps"] = self.tunnels_other_apps
+        if self.prone_to_misuse:
+            model_data["prone_to_misuse"] = self.prone_to_misuse
+        if self.no_certifications:
+            model_data["no_certifications"] = self.no_certifications
+
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # NETWORK CONFIGURATION MODELS
 # ========================================================================================================================================================================================
