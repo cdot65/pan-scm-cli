@@ -580,3 +580,75 @@ The main.py file has been updated with alphabetical ordering:
 - Action app groups: backup, delete, load, set, show
 - Module registrations follow the same alphabetical pattern
 - Improves code organization and readability
+
+## 17. Application and Application Group Support
+
+### 17.1 Problem Statement
+
+The CLI needed to support custom application definitions and application group management to provide complete object configuration capabilities. Applications are critical for defining security policies and require complex attribute management.
+
+### 17.2 Solution: Full Application Management
+
+Implemented comprehensive support for both applications and application groups with all CRUD operations.
+
+#### 17.2.1 Application Features
+- **Create/Update**: Support for all application attributes including:
+  - Basic properties: name, category, subcategory, technology, risk level
+  - Port definitions: TCP/UDP port specifications
+  - Security attributes: 9 boolean flags for security characteristics
+- **Show**: List all or display specific applications with detailed attribute information
+- **Load**: Bulk import from YAML files
+- **Delete**: Remove applications by name
+- **Backup**: Export applications to YAML with proper formatting
+
+#### 17.2.2 Application Group Features
+- **Create/Update**: Simple member list management
+- **Show**: Display group membership
+- **Load**: Bulk import groups from YAML
+- **Delete**: Remove groups by name
+- **Backup**: Export groups to YAML format
+
+### 17.3 Technical Implementation Details
+
+#### 17.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_application()`: Smart upsert with full attribute support
+- `delete_application()`: Remove by name and folder
+- `get_application()`: Fetch specific application
+- `list_applications()`: List with exact_match support
+- `create_application_group()`: Smart upsert for groups
+- `delete_application_group()`: Remove groups
+- `get_application_group()`: Fetch specific group
+- `list_application_groups()`: List with exact_match support
+
+#### 17.3.2 Command Implementation
+In `objects.py`, added full command sets for both types:
+- Application commands: set, show, load, delete, backup
+- Application group commands: set, show, load, delete, backup
+- Proper option handling for all application attributes
+- Consistent error handling and user feedback
+
+#### 17.3.3 Validation Models
+Extended `validators.py` with:
+- `Application` model with all SDK fields
+- `ApplicationGroup` model with member validation
+- Proper `to_sdk_model()` methods for both
+
+### 17.4 Benefits
+
+1. **Complete Object Coverage**: CLI now supports all major object types
+2. **Security Policy Support**: Applications are essential for rule definitions
+3. **Bulk Operations**: YAML-based load/backup for migration scenarios
+4. **Attribute Management**: Full control over all security characteristics
+5. **Group Organization**: Logical grouping of related applications
+
+### 17.5 Testing Results
+
+All commands have been thoroughly tested with the Austin folder:
+- ✅ Set command creates applications with all attributes
+- ✅ Show command displays detailed application information
+- ✅ Load command imports from YAML files
+- ✅ Delete command removes applications cleanly
+- ✅ Backup command exports to properly formatted YAML
+
+Note: When using the CLI, application references must be valid existing applications in the SCM system.
