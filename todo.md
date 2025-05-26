@@ -29,6 +29,18 @@ The project has successfully implemented:
   - Converts SDK format to CLI format for consistency
   - Excludes system fields and None values
 - [x] Updated main.py with 191-character separators and alphabetical ordering
+- [x] Implemented full Application support (all CRUD operations)
+  - Smart upsert logic for create/update operations
+  - Full attribute support including 9 security flags
+  - Show command with list and detailed views
+  - Load/backup YAML support
+  - Delete functionality
+- [x] Implemented full Application Group support (all CRUD operations)
+  - Smart upsert logic for groups
+  - Member management
+  - Show command with membership details
+  - Load/backup YAML support
+  - Delete functionality
 
 ## Current Work (In Progress)
 - [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
@@ -62,11 +74,27 @@ The project has successfully implemented:
 - [x] Add SDK client methods for listing and fetching allocations
 - [x] Add tests and documentation
 
+### Applications (Completed ✅)
+- [x] Implement `show objects application` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_applications()` and `get_application()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add comprehensive attribute support (9 security flags)
+- [x] Add tests and documentation
+
+### Application Groups (Completed ✅)
+- [x] Implement `show objects application-group` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_application_groups()` and `get_application_group()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add member management functionality
+- [x] Add tests and documentation
+
 ## Phase 1.5: Backup Command Implementation (Completed ✅)
 
 ### All Resource Types (Completed ✅)
 - [x] Implement `backup objects address` command
 - [x] Implement `backup objects address-group` command  
+- [x] Implement `backup objects application` command
+- [x] Implement `backup objects application-group` command
 - [x] Implement `backup network security-zone` command
 - [x] Implement `backup security rule` command
 - [x] Implement `backup deployment bandwidth` command
