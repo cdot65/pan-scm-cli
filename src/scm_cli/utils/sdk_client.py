@@ -1047,6 +1047,185 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder, "applications", e)
 
+    # --------------------------------------------------------------------------------- Application Groups -------------------------------------------------------------------------------
+
+    def create_application_group(
+        self,
+        folder: str,
+        name: str,
+        members: list[str],
+    ) -> dict[str, Any]:
+        """Create an application group.
+
+        Args:
+            folder: Folder to create the application group in
+            name: Name of the application group
+            members: List of application names
+
+        Returns:
+            dict[str, Any]: The created application group object
+
+        Note:
+            If an application group with the same name already exists in the folder, it will be updated.
+
+        """
+        self.logger.info(f"Creating or updating application group: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"app-group-{name}",
+                "folder": folder,
+                "name": name,
+                "members": members,
+            }
+
+        try:
+            # First, try to fetch the existing application group
+            existing_group = None
+            try:
+                existing_group = self.client.application_group.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing application group '{name}' in folder '{folder}', updating...")
+            except NotFoundError:
+                self.logger.info(f"Application group '{name}' not found in folder '{folder}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching application group '{name}': {str(fetch_error)}")
+
+            # Prepare application group data
+            group_data = {
+                "name": name,
+                "folder": folder,
+                "members": members,
+            }
+
+            # If application group exists, update it
+            if existing_group:
+                # Update members
+                existing_group.members = members
+
+                # Perform update
+                result = self.client.application_group.update(existing_group)
+                self.logger.info(f"Successfully updated application group '{name}'")
+            else:
+                # Create new application group
+                result = self.client.application_group.create(group_data)
+                self.logger.info(f"Successfully created application group '{name}'")
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("creation/update", folder, name, e)
+
+    def delete_application_group(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete an application group.
+
+        Args:
+            folder: Folder containing the application group
+            name: Name of the application group to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting application group: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Get the application group first to retrieve its ID
+            group = self.client.application_group.fetch(name=name, folder=folder)
+
+            # Delete using the application group's ID
+            self.client.application_group.delete(object_id=str(group.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_application_group(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get an application group by name and folder.
+
+        Args:
+            folder: Folder containing the application group
+            name: Name of the application group to get
+
+        Returns:
+            dict[str, Any]: The application group object
+
+        """
+        self.logger.info(f"Getting application group: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"app-group-{name}",
+                "folder": folder,
+                "name": name,
+                "members": ["ssl", "web-browsing"],
+            }
+
+        try:
+            # Fetch the application group using the SDK
+            result = self.client.application_group.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_application_groups(
+        self,
+        folder: str,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List application groups in a folder.
+
+        Args:
+            folder: Folder to list application groups from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of application group objects
+
+        """
+        self.logger.info(f"Listing application groups in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "app-group-mock1",
+                    "folder": folder,
+                    "name": "web-apps",
+                    "members": ["ssl", "web-browsing"],
+                },
+                {
+                    "id": "app-group-mock2",
+                    "folder": folder,
+                    "name": "database-apps",
+                    "members": ["ms-sql", "mysql", "oracle-database"],
+                },
+            ]
+
+        try:
+            # List application groups using the SDK
+            results = self.client.application_group.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "application groups", e)
+
     # ========================================================================================================================================================================================
     # NETWORK CONFIGURATION METHODS
     # ========================================================================================================================================================================================

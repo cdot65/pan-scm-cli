@@ -1,0 +1,124 @@
+---
+# Example application groups for different folders
+application_groups:
+  # Austin folder examples
+  - name: austin-web-apps
+    folder: Austin
+    members:
+      - ssl
+      - web-browsing
+      - http
+      - https
+
+  - name: austin-database-apps
+    folder: Austin
+    members:
+      - ms-sql
+      - mysql
+      - oracle-database
+      - austin-custom-db  # Reference to custom app from applications.yml
+
+  - name: austin-chat-apps
+    folder: Austin
+    members:
+      - skype-base
+      - ms-teams
+      - slack-base
+      - austin-internal-chat  # Reference to custom app from applications.yml
+
+  - name: austin-file-transfer
+    folder: Austin
+    members:
+      - ftp
+      - sftp
+      - scp
+      - austin-file-server  # Reference to custom app from applications.yml
+
+  # Texas folder examples
+  - name: texas-business-apps
+    folder: Texas
+    members:
+      - salesforce
+      - servicenow
+      - texas-crm-system  # Reference to custom app from applications.yml
+
+  - name: texas-dev-tools
+    folder: Texas
+    members:
+      - github
+      - jenkins
+      - git-base
+      - texas-dev-tool  # Reference to custom app from applications.yml
+
+  - name: texas-microsoft-365
+    folder: Texas
+    members:
+      - ms-office365
+      - ms-exchange-online
+      - ms-sharepoint-online
+      - ms-onedrive
+
+  - name: texas-backup-services
+    folder: Texas
+    members:
+      - rsync
+      - texas-backup-app  # Reference to custom app from applications.yml
+
+  # ngfw-shared folder examples
+  - name: shared-social-media
+    folder: ngfw-shared
+    members:
+      - facebook
+      - twitter
+      - linkedin
+      - instagram
+
+  - name: shared-streaming-media
+    folder: ngfw-shared
+    members:
+      - netflix
+      - youtube
+      - spotify
+      - apple-tv
+
+  - name: shared-email-apps
+    folder: ngfw-shared
+    members:
+      - smtp
+      - pop3
+      - imap
+      - gmail-base
+
+  - name: shared-monitoring-apps
+    folder: ngfw-shared
+    members:
+      - snmp-base
+      - snmptrap
+      - syslog
+      - shared-monitoring-tool  # Reference to custom app from applications.yml
+
+  - name: shared-security-tools
+    folder: ngfw-shared
+    members:
+      - nmap
+      - shared-security-scanner  # Reference to custom app from applications.yml
+
+  - name: shared-log-management
+    folder: ngfw-shared
+    members:
+      - syslog
+      - shared-log-collector  # Reference to custom app from applications.yml
+
+  - name: shared-vpn-apps
+    folder: ngfw-shared
+    members:
+      - ipsec
+      - ssl-vpn
+      - openvpn
+
+  - name: shared-dns-apps
+    folder: ngfw-shared
+    members:
+      - dns
+      - dns-over-https
+      - dns-over-tls

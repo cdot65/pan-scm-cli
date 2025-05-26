@@ -11,7 +11,7 @@ import yaml
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import Address, AddressGroup, Application
+from ..utils.validators import Address, AddressGroup, Application, ApplicationGroup
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -59,6 +59,9 @@ HAS_KNOWN_VULNERABILITIES_OPTION = typer.Option(False, "--has-known-vulnerabilit
 TUNNELS_OTHER_APPS_OPTION = typer.Option(False, "--tunnels-other-apps", help="Tunnels other applications")
 PRONE_TO_MISUSE_OPTION = typer.Option(False, "--prone-to-misuse", help="Prone to misuse")
 NO_CERTIFICATIONS_OPTION = typer.Option(False, "--no-certifications", help="Lacks certifications")
+
+# Application group-specific options
+APP_GROUP_MEMBERS_OPTION = typer.Option(..., "--members", help="List of application names in the group")
 
 # ========================================================================================================================================================================================
 # ADDRESS GROUP COMMANDS
@@ -1008,4 +1011,255 @@ def show_application(
 
     except Exception as e:
         typer.echo(f"Error showing application: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# APPLICATION GROUP COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("application-group")
+def backup_application_group(
+    folder: str = FOLDER_OPTION,
+):
+    """Backup all application groups from a folder to a YAML file.
+
+    The backup file will be named 'application-group-{folder}.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup objects application-group --folder Austin
+
+    """
+    try:
+        # List all application groups in the folder with exact_match=True
+        groups = scm_client.list_application_groups(folder=folder, exact_match=True)
+
+        if not groups:
+            typer.echo(f"No application groups found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for group in groups:
+            # The list method returns dict objects already, but let's ensure we exclude any None values
+            group_dict = {k: v for k, v in group.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            group_dict.pop("id", None)
+            backup_data.append(group_dict)
+
+        # Create the YAML structure
+        yaml_data = {"application_groups": backup_data}
+
+        # Generate filename
+        filename = f"application-group-{folder.lower()}.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} application groups to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up application groups: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("application-group")
+def delete_application_group(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+):
+    """Delete an application group.
+
+    Example:
+    -------
+    scm-cli delete objects application-group --folder Texas --name web-apps
+
+    """
+    try:
+        result = scm_client.delete_application_group(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted application group: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting application group: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("application-group")
+def load_application_group(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+):
+    """Load application groups from a YAML file.
+
+    Example:
+    -------
+    scm-cli load objects application-group --file config/application_groups.yml
+
+    """
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "application_groups")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["application_groups"]))
+            return
+
+        # Apply each application group
+        results = []
+        for group_data in config["application_groups"]:
+            # Validate using the Pydantic model
+            app_group = ApplicationGroup(**group_data)
+
+            # Call the SDK client to create the application group
+            result = scm_client.create_application_group(
+                folder=app_group.folder,
+                name=app_group.name,
+                members=app_group.members,
+            )
+
+            results.append(result)
+            typer.echo(f"Applied application group: {result['name']} in folder {result['folder']}")
+
+        return results
+    except Exception as e:
+        typer.echo(f"Error loading application groups: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("application-group")
+def set_application_group(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    members: list[str] = APP_GROUP_MEMBERS_OPTION,
+):
+    """Create or update an application group.
+
+    Example:
+    -------
+        scm-cli set objects application-group \
+        --folder Texas \
+        --name web-apps \
+        --members ["ssl", "web-browsing", "http", "https"]
+
+    """
+    try:
+        # Validate inputs using the Pydantic model
+        app_group = ApplicationGroup(
+            folder=folder,
+            name=name,
+            members=members,
+        )
+
+        # Call the SDK client to create the application group
+        result = scm_client.create_application_group(
+            folder=app_group.folder,
+            name=app_group.name,
+            members=app_group.members,
+        )
+
+        typer.echo(f"Created application group: {result['name']} in folder {result['folder']}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating application group: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("application-group")
+def show_application_group(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the application group to show"),
+    list_groups: bool = typer.Option(False, "--list", help="List all application groups in the folder"),
+):
+    """Display application group objects.
+
+    Example:
+    -------
+        # List all application groups in a folder
+        scm-cli show objects application-group --folder Texas --list
+
+        # Show a specific application group by name
+        scm-cli show objects application-group --folder Texas --name web-apps
+
+    """
+    try:
+        if list_groups:
+            # List all application groups in the folder
+            groups = scm_client.list_application_groups(folder=folder)
+
+            if not groups:
+                typer.echo(f"No application groups found in folder '{folder}'")
+                return
+
+            typer.echo(f"Application Groups in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for group in groups:
+                # Display application group information
+                typer.echo(f"Name: {group.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if group.get("folder"):
+                    typer.echo(f"  Location: Folder '{group['folder']}'")
+                elif group.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{group['snippet']}'")
+                elif group.get("device"):
+                    typer.echo(f"  Location: Device '{group['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
+
+                # Display members
+                members = group.get("members", [])
+                if members:
+                    typer.echo(f"  Members ({len(members)}): {', '.join(members)}")
+                else:
+                    typer.echo("  Members: None")
+
+                typer.echo("-" * 60)
+
+            return groups
+
+        elif name:
+            # Get a specific application group by name
+            group = scm_client.get_application_group(folder=folder, name=name)
+
+            typer.echo(f"Application Group: {group.get('name', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if group.get("folder"):
+                typer.echo(f"Location: Folder '{group['folder']}'")
+            elif group.get("snippet"):
+                typer.echo(f"Location: Snippet '{group['snippet']}'")
+            elif group.get("device"):
+                typer.echo(f"Location: Device '{group['device']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            # Display members
+            members = group.get("members", [])
+            if members:
+                typer.echo(f"Members ({len(members)}):")
+                for member in members:
+                    typer.echo(f"  - {member}")
+            else:
+                typer.echo("Members: None")
+
+            # Display ID if present
+            if group.get("id"):
+                typer.echo(f"ID: {group['id']}")
+
+            return group
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing application group: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
