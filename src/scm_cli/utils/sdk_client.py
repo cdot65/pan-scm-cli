@@ -776,6 +776,277 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder, "address groups", e)
 
+    # ------------------------------------------------------------------------------------- Applications -------------------------------------------------------------------------------------
+
+    def create_application(
+        self,
+        folder: str,
+        name: str,
+        category: str,
+        subcategory: str,
+        technology: str,
+        risk: int,
+        description: str = "",
+        ports: list[str] | None = None,
+        evasive: bool = False,
+        pervasive: bool = False,
+        excessive_bandwidth_use: bool = False,
+        used_by_malware: bool = False,
+        transfers_files: bool = False,
+        has_known_vulnerabilities: bool = False,
+        tunnels_other_apps: bool = False,
+        prone_to_misuse: bool = False,
+        no_certifications: bool = False,
+    ) -> dict[str, Any]:
+        """Create an application.
+
+        Args:
+            folder: Folder to create the application in
+            name: Name of the application
+            category: High-level category
+            subcategory: Specific sub-category
+            technology: Underlying technology
+            risk: Risk level (1-5)
+            description: Optional description
+            ports: Optional list of TCP/UDP ports
+            evasive: Uses evasive techniques
+            pervasive: Widely used
+            excessive_bandwidth_use: Uses excessive bandwidth
+            used_by_malware: Used by malware
+            transfers_files: Transfers files
+            has_known_vulnerabilities: Has known vulnerabilities
+            tunnels_other_apps: Tunnels other applications
+            prone_to_misuse: Prone to misuse
+            no_certifications: Lacks certifications
+
+        Returns:
+            dict[str, Any]: The created application object
+
+        Note:
+            If an application with the same name already exists in the folder, it will be updated.
+
+        """
+        ports = ports or []
+        self.logger.info(f"Creating or updating application: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"app-{name}",
+                "folder": folder,
+                "name": name,
+                "category": category,
+                "subcategory": subcategory,
+                "technology": technology,
+                "risk": risk,
+                "description": description,
+                "ports": ports,
+            }
+
+        try:
+            # First, try to fetch the existing application
+            existing_app = None
+            try:
+                existing_app = self.client.application.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing application '{name}' in folder '{folder}', updating...")
+            except NotFoundError:
+                self.logger.info(f"Application '{name}' not found in folder '{folder}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching application '{name}': {str(fetch_error)}")
+
+            # Prepare application data
+            app_data = {
+                "name": name,
+                "folder": folder,
+                "category": category,
+                "subcategory": subcategory,
+                "technology": technology,
+                "risk": risk,
+                "description": description or "",
+            }
+
+            # Add optional fields only if they have non-default values
+            if ports:
+                app_data["ports"] = ports
+            if evasive:
+                app_data["evasive"] = evasive
+            if pervasive:
+                app_data["pervasive"] = pervasive
+            if excessive_bandwidth_use:
+                app_data["excessive_bandwidth_use"] = excessive_bandwidth_use
+            if used_by_malware:
+                app_data["used_by_malware"] = used_by_malware
+            if transfers_files:
+                app_data["transfers_files"] = transfers_files
+            if has_known_vulnerabilities:
+                app_data["has_known_vulnerabilities"] = has_known_vulnerabilities
+            if tunnels_other_apps:
+                app_data["tunnels_other_apps"] = tunnels_other_apps
+            if prone_to_misuse:
+                app_data["prone_to_misuse"] = prone_to_misuse
+            if no_certifications:
+                app_data["no_certifications"] = no_certifications
+
+            # If application exists, update it
+            if existing_app:
+                # Update all fields
+                existing_app.category = category
+                existing_app.subcategory = subcategory
+                existing_app.technology = technology
+                existing_app.risk = risk
+                existing_app.description = description or ""
+
+                # Update optional fields
+                if ports is not None:
+                    existing_app.ports = ports
+                existing_app.evasive = evasive
+                existing_app.pervasive = pervasive
+                existing_app.excessive_bandwidth_use = excessive_bandwidth_use
+                existing_app.used_by_malware = used_by_malware
+                existing_app.transfers_files = transfers_files
+                existing_app.has_known_vulnerabilities = has_known_vulnerabilities
+                existing_app.tunnels_other_apps = tunnels_other_apps
+                existing_app.prone_to_misuse = prone_to_misuse
+                existing_app.no_certifications = no_certifications
+
+                # Perform update
+                result = self.client.application.update(existing_app)
+                self.logger.info(f"Successfully updated application '{name}'")
+            else:
+                # Create new application
+                result = self.client.application.create(app_data)
+                self.logger.info(f"Successfully created application '{name}'")
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("creation/update", folder, name, e)
+
+    def delete_application(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete an application.
+
+        Args:
+            folder: Folder containing the application
+            name: Name of the application to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting application: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Get the application first to retrieve its ID
+            app = self.client.application.fetch(name=name, folder=folder)
+
+            # Delete using the application's ID
+            self.client.application.delete(object_id=str(app.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_application(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get an application by name and folder.
+
+        Args:
+            folder: Folder containing the application
+            name: Name of the application to get
+
+        Returns:
+            dict[str, Any]: The application object
+
+        """
+        self.logger.info(f"Getting application: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"app-{name}",
+                "folder": folder,
+                "name": name,
+                "category": "business-systems",
+                "subcategory": "database",
+                "technology": "client-server",
+                "risk": 3,
+                "description": "Mock application",
+                "ports": ["tcp/1521"],
+            }
+
+        try:
+            # Fetch the application using the SDK
+            result = self.client.application.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_applications(
+        self,
+        folder: str,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List applications in a folder.
+
+        Args:
+            folder: Folder to list applications from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of application objects
+
+        """
+        self.logger.info(f"Listing applications in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "app-mock1",
+                    "folder": folder,
+                    "name": "mock-app-1",
+                    "category": "business-systems",
+                    "subcategory": "database",
+                    "technology": "client-server",
+                    "risk": 3,
+                    "description": "Mock application 1",
+                    "ports": ["tcp/1521"],
+                },
+                {
+                    "id": "app-mock2",
+                    "folder": folder,
+                    "name": "mock-app-2",
+                    "category": "collaboration",
+                    "subcategory": "instant-messaging",
+                    "technology": "browser-based",
+                    "risk": 2,
+                    "description": "Mock application 2",
+                    "ports": ["tcp/443"],
+                },
+            ]
+
+        try:
+            # List applications using the SDK
+            results = self.client.application.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "applications", e)
+
     # ========================================================================================================================================================================================
     # NETWORK CONFIGURATION METHODS
     # ========================================================================================================================================================================================

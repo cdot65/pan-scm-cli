@@ -11,7 +11,7 @@ import yaml
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import Address, AddressGroup
+from ..utils.validators import Address, AddressGroup, Application
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -43,6 +43,22 @@ IP_NETMASK_OPTION = typer.Option(None, "--ip-netmask", help="IP address with CID
 IP_RANGE_OPTION = typer.Option(None, "--ip-range", help="IP address range (e.g. 192.168.1.1-192.168.1.10)")
 IP_WILDCARD_OPTION = typer.Option(None, "--ip-wildcard", help="IP wildcard mask (e.g. 10.20.1.0/0.0.248.255)")
 FQDN_OPTION = typer.Option(None, "--fqdn", help="Fully qualified domain name (e.g. example.com)")
+
+# Application-specific options
+CATEGORY_OPTION = typer.Option(..., "--category", help="High-level category (max 50 chars)")
+SUBCATEGORY_OPTION = typer.Option(..., "--subcategory", help="Specific sub-category (max 50 chars)")
+TECHNOLOGY_OPTION = typer.Option(..., "--technology", help="Underlying technology (max 50 chars)")
+RISK_OPTION = typer.Option(..., "--risk", min=1, max=5, help="Risk level (1-5)")
+PORTS_OPTION = typer.Option(None, "--ports", help="List of TCP/UDP ports (e.g. tcp/80, udp/53)")
+EVASIVE_OPTION = typer.Option(False, "--evasive", help="Uses evasive techniques")
+PERVASIVE_OPTION = typer.Option(False, "--pervasive", help="Widely used")
+EXCESSIVE_BANDWIDTH_OPTION = typer.Option(False, "--excessive-bandwidth-use", help="Uses excessive bandwidth")
+USED_BY_MALWARE_OPTION = typer.Option(False, "--used-by-malware", help="Used by malware")
+TRANSFERS_FILES_OPTION = typer.Option(False, "--transfers-files", help="Transfers files")
+HAS_KNOWN_VULNERABILITIES_OPTION = typer.Option(False, "--has-known-vulnerabilities", help="Has known vulnerabilities")
+TUNNELS_OTHER_APPS_OPTION = typer.Option(False, "--tunnels-other-apps", help="Tunnels other applications")
+PRONE_TO_MISUSE_OPTION = typer.Option(False, "--prone-to-misuse", help="Prone to misuse")
+NO_CERTIFICATIONS_OPTION = typer.Option(False, "--no-certifications", help="Lacks certifications")
 
 # ========================================================================================================================================================================================
 # ADDRESS GROUP COMMANDS
@@ -638,4 +654,358 @@ def show_address(
 
     except Exception as e:
         typer.echo(f"Error showing address: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# APPLICATION COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("application")
+def backup_application(
+    folder: str = FOLDER_OPTION,
+):
+    """Backup all applications from a folder to a YAML file.
+
+    The backup file will be named 'application-{folder}.yaml' in the current directory.
+
+    Example:
+    -------
+    scm-cli backup objects application --folder Austin
+
+    """
+    try:
+        # List all applications in the folder with exact_match=True
+        applications = scm_client.list_applications(folder=folder, exact_match=True)
+
+        if not applications:
+            typer.echo(f"No applications found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for app in applications:
+            # The list method returns dict objects already, but let's ensure we exclude any None values
+            app_dict = {k: v for k, v in app.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            app_dict.pop("id", None)
+            backup_data.append(app_dict)
+
+        # Create the YAML structure
+        yaml_data = {"applications": backup_data}
+
+        # Generate filename
+        filename = f"application-{folder.lower()}.yaml"
+
+        # Write to YAML file
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} applications to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up applications: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("application")
+def delete_application(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+):
+    """Delete an application.
+
+    Example:
+    -------
+    scm-cli delete objects application --folder Texas --name custom-app
+
+    """
+    try:
+        result = scm_client.delete_application(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted application: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting application: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("application")
+def load_application(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+):
+    """Load applications from a YAML file.
+
+    Example:
+    -------
+    scm-cli load objects application --file config/applications.yml
+
+    """
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "applications")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["applications"]))
+            return
+
+        # Apply each application
+        results = []
+        for app_data in config["applications"]:
+            # Validate using the Pydantic model
+            application = Application(**app_data)
+
+            # Call the SDK client to create the application
+            result = scm_client.create_application(
+                folder=application.folder,
+                name=application.name,
+                category=application.category,
+                subcategory=application.subcategory,
+                technology=application.technology,
+                risk=application.risk,
+                description=application.description,
+                ports=application.ports,
+                evasive=application.evasive,
+                pervasive=application.pervasive,
+                excessive_bandwidth_use=application.excessive_bandwidth_use,
+                used_by_malware=application.used_by_malware,
+                transfers_files=application.transfers_files,
+                has_known_vulnerabilities=application.has_known_vulnerabilities,
+                tunnels_other_apps=application.tunnels_other_apps,
+                prone_to_misuse=application.prone_to_misuse,
+                no_certifications=application.no_certifications,
+            )
+
+            results.append(result)
+            typer.echo(f"Applied application: {result['name']} in folder {result['folder']}")
+
+        return results
+    except Exception as e:
+        typer.echo(f"Error loading applications: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("application")
+def set_application(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    category: str = CATEGORY_OPTION,
+    subcategory: str = SUBCATEGORY_OPTION,
+    technology: str = TECHNOLOGY_OPTION,
+    risk: int = RISK_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    ports: list[str] | None = PORTS_OPTION,
+    tags: list[str] | None = TAGS_OPTION,
+    evasive: bool = EVASIVE_OPTION,
+    pervasive: bool = PERVASIVE_OPTION,
+    excessive_bandwidth_use: bool = EXCESSIVE_BANDWIDTH_OPTION,
+    used_by_malware: bool = USED_BY_MALWARE_OPTION,
+    transfers_files: bool = TRANSFERS_FILES_OPTION,
+    has_known_vulnerabilities: bool = HAS_KNOWN_VULNERABILITIES_OPTION,
+    tunnels_other_apps: bool = TUNNELS_OTHER_APPS_OPTION,
+    prone_to_misuse: bool = PRONE_TO_MISUSE_OPTION,
+    no_certifications: bool = NO_CERTIFICATIONS_OPTION,
+):
+    """Create or update an application.
+
+    Example:
+    -------
+        scm-cli set objects application \
+        --folder Texas \
+        --name custom-database \
+        --category business-systems \
+        --subcategory database \
+        --technology client-server \
+        --risk 3 \
+        --description "Custom database application" \
+        --ports ["tcp/1521", "tcp/1522"] \
+        --transfers-files
+
+    """
+    try:
+        # Validate inputs using the Pydantic model
+        application = Application(
+            folder=folder,
+            name=name,
+            category=category,
+            subcategory=subcategory,
+            technology=technology,
+            risk=risk,
+            description=description or "",
+            ports=ports or [],
+            evasive=evasive,
+            pervasive=pervasive,
+            excessive_bandwidth_use=excessive_bandwidth_use,
+            used_by_malware=used_by_malware,
+            transfers_files=transfers_files,
+            has_known_vulnerabilities=has_known_vulnerabilities,
+            tunnels_other_apps=tunnels_other_apps,
+            prone_to_misuse=prone_to_misuse,
+            no_certifications=no_certifications,
+        )
+
+        # Call the SDK client to create the application
+        result = scm_client.create_application(
+            folder=application.folder,
+            name=application.name,
+            category=application.category,
+            subcategory=application.subcategory,
+            technology=application.technology,
+            risk=application.risk,
+            description=application.description,
+            ports=application.ports,
+            evasive=application.evasive,
+            pervasive=application.pervasive,
+            excessive_bandwidth_use=application.excessive_bandwidth_use,
+            used_by_malware=application.used_by_malware,
+            transfers_files=application.transfers_files,
+            has_known_vulnerabilities=application.has_known_vulnerabilities,
+            tunnels_other_apps=application.tunnels_other_apps,
+            prone_to_misuse=application.prone_to_misuse,
+            no_certifications=application.no_certifications,
+        )
+
+        typer.echo(f"Created application: {result['name']} in folder {result['folder']}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating application: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("application")
+def show_application(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the application to show"),
+    list_applications: bool = typer.Option(False, "--list", help="List all applications in the folder"),
+):
+    """Display application objects.
+
+    Example:
+    -------
+        # List all applications in a folder
+        scm-cli show objects application --folder Texas --list
+
+        # Show a specific application by name
+        scm-cli show objects application --folder Texas --name custom-database
+
+    """
+    try:
+        if list_applications:
+            # List all applications in the folder
+            applications = scm_client.list_applications(folder=folder)
+
+            if not applications:
+                typer.echo(f"No applications found in folder '{folder}'")
+                return
+
+            typer.echo(f"Applications in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for app in applications:
+                # Display application information
+                typer.echo(f"Name: {app.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if app.get("folder"):
+                    typer.echo(f"  Location: Folder '{app['folder']}'")
+                elif app.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{app['snippet']}'")
+                elif app.get("device"):
+                    typer.echo(f"  Location: Device '{app['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
+
+                typer.echo(f"  Category: {app.get('category', 'N/A')}")
+                typer.echo(f"  Subcategory: {app.get('subcategory', 'N/A')}")
+                typer.echo(f"  Technology: {app.get('technology', 'N/A')}")
+                typer.echo(f"  Risk: {app.get('risk', 'N/A')}")
+                typer.echo(f"  Description: {app.get('description', 'N/A')}")
+
+                # Display ports if present
+                if app.get("ports"):
+                    typer.echo(f"  Ports: {', '.join(app['ports'])}")
+
+                # Display security attributes if any are true
+                attrs = []
+                if app.get("evasive"):
+                    attrs.append("Evasive")
+                if app.get("pervasive"):
+                    attrs.append("Pervasive")
+                if app.get("excessive_bandwidth_use"):
+                    attrs.append("Excessive Bandwidth")
+                if app.get("used_by_malware"):
+                    attrs.append("Used by Malware")
+                if app.get("transfers_files"):
+                    attrs.append("Transfers Files")
+                if app.get("has_known_vulnerabilities"):
+                    attrs.append("Has Vulnerabilities")
+                if app.get("tunnels_other_apps"):
+                    attrs.append("Tunnels Apps")
+                if app.get("prone_to_misuse"):
+                    attrs.append("Prone to Misuse")
+                if app.get("no_certifications"):
+                    attrs.append("No Certifications")
+
+                if attrs:
+                    typer.echo(f"  Attributes: {', '.join(attrs)}")
+
+                typer.echo("-" * 60)
+
+            return applications
+
+        elif name:
+            # Get a specific application by name
+            application = scm_client.get_application(folder=folder, name=name)
+
+            typer.echo(f"Application: {application.get('name', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if application.get("folder"):
+                typer.echo(f"Location: Folder '{application['folder']}'")
+            elif application.get("snippet"):
+                typer.echo(f"Location: Snippet '{application['snippet']}'")
+            elif application.get("device"):
+                typer.echo(f"Location: Device '{application['device']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            typer.echo(f"Category: {application.get('category', 'N/A')}")
+            typer.echo(f"Subcategory: {application.get('subcategory', 'N/A')}")
+            typer.echo(f"Technology: {application.get('technology', 'N/A')}")
+            typer.echo(f"Risk: {application.get('risk', 'N/A')}")
+            typer.echo(f"Description: {application.get('description', 'N/A')}")
+
+            # Display ports if present
+            if application.get("ports"):
+                typer.echo(f"Ports: {', '.join(application['ports'])}")
+
+            # Display security attributes
+            typer.echo("Security Attributes:")
+            typer.echo(f"  Evasive: {application.get('evasive', False)}")
+            typer.echo(f"  Pervasive: {application.get('pervasive', False)}")
+            typer.echo(f"  Excessive Bandwidth Use: {application.get('excessive_bandwidth_use', False)}")
+            typer.echo(f"  Used by Malware: {application.get('used_by_malware', False)}")
+            typer.echo(f"  Transfers Files: {application.get('transfers_files', False)}")
+            typer.echo(f"  Has Known Vulnerabilities: {application.get('has_known_vulnerabilities', False)}")
+            typer.echo(f"  Tunnels Other Apps: {application.get('tunnels_other_apps', False)}")
+            typer.echo(f"  Prone to Misuse: {application.get('prone_to_misuse', False)}")
+            typer.echo(f"  No Certifications: {application.get('no_certifications', False)}")
+
+            # Display ID if present
+            if application.get("id"):
+                typer.echo(f"ID: {application['id']}")
+
+            return application
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing application: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
