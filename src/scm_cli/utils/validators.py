@@ -172,6 +172,21 @@ class Application(BaseModel):
         return model_data
 
 
+class ApplicationGroup(BaseModel):
+    """Model for application group configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the application group")
+    name: str = Field(..., min_length=1, max_length=63, description="Name of the application group")
+    members: list[str] = Field(..., min_length=1, description="List of application names")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        return {
+            "name": self.name,
+            "members": self.members,
+        }
+
+
 # ========================================================================================================================================================================================
 # NETWORK CONFIGURATION MODELS
 # ========================================================================================================================================================================================
