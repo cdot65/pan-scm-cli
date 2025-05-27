@@ -15,6 +15,7 @@ This guide defines the coding standards and patterns for the pan-scm-cli project
 9. [Output Formatting](#output-formatting)
 10. [SDK Client Patterns](#sdk-client-patterns)
 11. [Validator Patterns](#validator-patterns)
+12. [Command Module Style Guide](#command-module-style-guide)
 
 ## Module Structure
 
@@ -656,11 +657,27 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
     """
 ```
 
+## Command Module Style Guide
+
+A comprehensive command styling guide has been created specifically for command modules. See `src/scm_cli/commands/command-styling.md` for detailed patterns and conventions specific to implementing CLI commands.
+
+### Key Areas Covered
+
+1. **Module Structure**: Docstrings, imports, section separators
+2. **Typer App Organization**: Action groups, command registration
+3. **Command Implementation Patterns**: Standardized patterns for backup, delete, load, set, and show commands
+4. **Error Handling**: Consistent error messages and exit codes
+5. **Output Formatting**: Success messages, list displays, detail views
+6. **Type Hints**: Modern Python 3.10+ syntax
+7. **Naming Conventions**: Commands, functions, variables
+
+The command styling guide complements this general style guide with specific patterns observed in the address, address-group, and application object implementations.
+
 ## Code Review Checklist
 
 Before submitting code, ensure:
 
-- [ ] Follows section organization with 192-character separators
+- [ ] Follows section organization with 191-character separators
 - [ ] Uses consistent naming conventions
 - [ ] Includes proper docstrings for all functions/commands
 - [ ] Has appropriate type annotations
@@ -672,3 +689,4 @@ Before submitting code, ensure:
 - [ ] Groups related functionality appropriately
 - [ ] Maintains consistent import organization
 - [ ] Uses modern Python syntax (3.10+)
+- [ ] Follows command-specific patterns from command-styling.md (for command modules)

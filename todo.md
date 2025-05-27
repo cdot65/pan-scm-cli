@@ -215,6 +215,17 @@ The project has successfully implemented:
 - [x] Create comprehensive example YAML file with various tag configurations
 - [x] Add tests and documentation
 
+## Command Styling Guide (Completed ✅)
+- [x] Review styling patterns for address, address-group, and application objects
+- [x] Create command-styling.md guide in src/scm_cli/commands/ directory
+- [x] Document module structure conventions (docstrings, imports, separators)
+- [x] Document command organization patterns (app groups, option constants)
+- [x] Document implementation patterns for each command type (backup, delete, load, set, show)
+- [x] Document error handling and output formatting conventions
+- [x] Document type hints and naming conventions
+- [x] Update prd.md with style guide information
+- [x] Update todo.md with completion status
+
 ## Phase 1.5: Backup Command Implementation (Completed ✅)
 
 ### All Resource Types (Completed ✅)

@@ -1615,3 +1615,38 @@ All commands have been tested and verified:
 - ✅ SDK service name correct (tag)
 - ✅ Example YAML file created with comprehensive tag configurations
 - ✅ Color validation works for all 42 supported colors
+
+## 29. Command Styling Guidelines
+
+### 29.1 Overview
+
+A comprehensive command styling guide has been created to ensure consistency across all CLI command modules. The guide is located at `src/scm_cli/commands/command-styling.md` and documents the patterns observed in the address, address-group, and application object implementations.
+
+### 29.2 Key Styling Principles
+
+#### 29.2.1 Module Structure
+- Comprehensive module docstrings with command lists and examples
+- Organized imports (standard library, third-party, local)
+- Consistent 191-character section separators
+
+#### 29.2.2 Command Organization
+- Separate Typer apps for each action type (set, delete, load, show, backup)
+- Consistent command order per object type
+- Common options defined as constants for reusability
+
+#### 29.2.3 Implementation Patterns
+- Standardized patterns for each command type (backup, delete, load, set, show)
+- Consistent error handling with user-friendly messages
+- Proper type hints using Python 3.10+ syntax
+
+#### 29.2.4 Output Formatting
+- Consistent success message formats
+- Structured list and detail output formats
+- Clear error messages with exit codes
+
+### 29.3 Benefits
+
+1. **Consistency**: All commands follow the same patterns
+2. **Maintainability**: Easy to add new object types following the guide
+3. **Readability**: Developers can quickly understand any command module
+4. **User Experience**: Consistent CLI behavior across all commands
