@@ -1,0 +1,174 @@
+# Example HTTP server profile configurations for Strata Cloud Manager
+# HTTP server profiles define HTTP/HTTPS servers for log forwarding and integration
+
+http_server_profiles:
+  # Basic syslog forwarding profile
+  - name: syslog-http-forward
+    folder: Texas
+    description: "Forward logs to syslog server via HTTPS"
+    tag_registration: true
+    servers:
+      - name: primary-syslog
+        address: syslog.example.com
+        protocol: HTTPS
+        port: 443
+        tls_version: "1.2"
+        http_method: POST
+
+  # SIEM integration profile with authentication
+  - name: siem-integration
+    folder: Texas
+    description: "SIEM platform integration for security events"
+    tag_registration: false
+    servers:
+      - name: siem-primary
+        address: siem.security.local
+        protocol: HTTPS
+        port: 8443
+        tls_version: "1.3"
+        certificate_profile: siem-cert-profile
+        http_method: POST
+        username: siem_user
+        password: secure_password
+
+  # Load balancer with multiple servers
+  - name: log-collector-cluster
+    folder: Austin
+    description: "Load balanced log collection cluster"
+    tag_registration: true
+    servers:
+      - name: collector-1
+        address: collector1.logs.local
+        protocol: HTTP
+        port: 8080
+        http_method: POST
+      - name: collector-2
+        address: collector2.logs.local
+        protocol: HTTP
+        port: 8080
+        http_method: POST
+      - name: collector-3
+        address: collector3.logs.local
+        protocol: HTTP
+        port: 8080
+        http_method: POST
+
+  # Threat intelligence platform
+  - name: threat-intel-feed
+    folder: Austin
+    description: "Threat intelligence platform integration"
+    tag_registration: true
+    servers:
+      - name: ti-server
+        address: threatintel.security.com
+        protocol: HTTPS
+        port: 443
+        tls_version: "1.2"
+        http_method: GET
+
+  # Cloud logging service
+  - name: cloud-logging
+    folder: ngfw-shared
+    description: "Cloud-based centralized logging"
+    tag_registration: false
+    servers:
+      - name: cloud-log-endpoint
+        address: logs.cloudprovider.com
+        protocol: HTTPS
+        port: 443
+        tls_version: "1.3"
+        http_method: PUT
+        certificate_profile: cloud-cert
+
+  # Compliance reporting server
+  - name: compliance-reporting
+    folder: ngfw-shared
+    description: "Compliance and audit log forwarding"
+    tag_registration: true
+    servers:
+      - name: compliance-server
+        address: compliance.internal.local
+        protocol: HTTPS
+        port: 9443
+        tls_version: "1.2"
+        http_method: POST
+        username: compliance_writer
+        password: comp_pass123
+
+  # Development logging endpoint
+  - name: dev-log-endpoint
+    folder: Shared
+    description: "Development environment log collection"
+    tag_registration: false
+    servers:
+      - name: dev-server
+        address: 192.168.100.50
+        protocol: HTTP
+        port: 8888
+        http_method: POST
+
+  # Security orchestration platform
+  - name: soar-platform
+    folder: Shared
+    description: "SOAR platform integration for automated response"
+    tag_registration: true
+    servers:
+      - name: soar-endpoint
+        address: soar.security.local
+        protocol: HTTPS
+        port: 443
+        tls_version: "1.3"
+        certificate_profile: soar-cert
+        http_method: POST
+        username: soar_integration
+        password: soar_secret
+
+  # Backup log server
+  - name: backup-log-server
+    folder: Shared
+    description: "Backup logging endpoint"
+    tag_registration: false
+    servers:
+      - name: backup-logs
+        address: backup-logs.datacenter.local
+        protocol: HTTP
+        port: 5000
+        http_method: POST
+
+  # Advanced profile with format configuration
+  - name: advanced-siem-profile
+    folder: Texas
+    description: "Advanced SIEM with custom format configuration"
+    tag_registration: true
+    servers:
+      - name: advanced-siem
+        address: advanced-siem.enterprise.com
+        protocol: HTTPS
+        port: 443
+        tls_version: "1.2"
+        certificate_profile: enterprise-cert
+        http_method: POST
+        username: api_user
+        password: api_key_123
+    format_config:
+      traffic:
+        name: "Custom Traffic Format"
+        url_format: "/api/v1/traffic/logs"
+        headers:
+          - name: "Content-Type"
+            value: "application/json"
+          - name: "X-API-Key"
+            value: "{{api_key}}"
+        params:
+          - name: "source"
+            value: "palo-alto"
+          - name: "format"
+            value: "json"
+        payload: '{"timestamp": "{{timestamp}}", "source_ip": "{{src_ip}}", "dest_ip": "{{dst_ip}}", "action": "{{action}}"}'
+      threat:
+        name: "Custom Threat Format"
+        url_format: "/api/v1/threat/logs"
+        headers:
+          - name: "Content-Type"
+            value: "application/json"
+        payload: '{"threat_id": "{{threat_id}}", "severity": "{{severity}}", "action": "{{action}}"}'

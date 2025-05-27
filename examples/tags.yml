@@ -1,0 +1,204 @@
+# Example tags for Palo Alto Networks Strata Cloud Manager
+# Tags are used to label and categorize configuration objects for easier management
+# Each tag can have a name, color, and optional comments
+
+tags:
+  # Environment tags
+  - name: Production
+    folder: Texas
+    color: Red
+    comments: Production environment - handle with care
+
+  - name: Development
+    folder: Texas
+    color: Green
+    comments: Development environment - safe for testing
+
+  - name: Staging
+    folder: Texas
+    color: Yellow
+    comments: Staging environment - pre-production testing
+
+  # Priority tags
+  - name: Critical
+    folder: Texas
+    color: Red-Orange
+    comments: Critical infrastructure components
+
+  - name: High-Priority
+    folder: Texas
+    color: Orange
+    comments: High priority resources
+
+  - name: Low-Priority
+    folder: Texas
+    color: Gray
+    comments: Low priority resources
+
+  # Department tags
+  - name: Finance
+    folder: Texas
+    color: Gold
+    comments: Finance department resources
+
+  - name: HR
+    folder: Texas
+    color: Lavender
+    comments: Human Resources department
+
+  - name: IT
+    folder: Texas
+    color: Blue
+    comments: IT department infrastructure
+
+  - name: Marketing
+    folder: Texas
+    color: Magenta
+    comments: Marketing department resources
+
+  # Location tags
+  - name: US-East
+    folder: Texas
+    color: Azure Blue
+    comments: US East Coast data centers
+
+  - name: US-West
+    folder: Texas
+    color: Turquoise Blue
+    comments: US West Coast data centers
+
+  - name: Europe
+    folder: Texas
+    color: Medium Blue
+    comments: European data centers
+
+  - name: Asia-Pacific
+    folder: Texas
+    color: Cobalt Blue
+    comments: Asia Pacific region
+
+  # Security classification
+  - name: Public
+    folder: Texas
+    color: Light Green
+    comments: Public-facing resources
+
+  - name: Internal
+    folder: Texas
+    color: Yellow-Orange
+    comments: Internal resources only
+
+  - name: Restricted
+    folder: Texas
+    color: Maroon
+    comments: Restricted access - authorization required
+
+  - name: Confidential
+    folder: Texas
+    color: Purple
+    comments: Confidential data - strict access control
+
+  # Service type tags
+  - name: Web-Service
+    folder: Texas
+    color: Cyan
+    comments: Web service applications
+
+  - name: Database
+    folder: Texas
+    color: Brown
+    comments: Database servers and services
+
+  - name: Application
+    folder: Texas
+    color: Lime
+    comments: Application servers
+
+  - name: Infrastructure
+    folder: Texas
+    color: Copper
+    comments: Infrastructure services
+
+  # Compliance tags
+  - name: PCI-DSS
+    folder: Texas
+    color: Red Violet
+    comments: PCI DSS compliance required
+
+  - name: HIPAA
+    folder: Texas
+    color: Orchid
+    comments: HIPAA compliance required
+
+  - name: SOX
+    folder: Texas
+    color: Violet Blue
+    comments: SOX compliance required
+
+  - name: GDPR
+    folder: Texas
+    color: Medium Violet
+    comments: GDPR compliance required
+
+  # Project tags
+  - name: Project-Alpha
+    folder: Texas
+    color: Forest Green
+    comments: Project Alpha resources
+
+  - name: Project-Beta
+    folder: Texas
+    color: Olive
+    comments: Project Beta resources
+
+  - name: Migration-2024
+    folder: Texas
+    color: Salmon
+    comments: 2024 migration project
+
+  - name: Legacy
+    folder: Texas
+    color: Light Gray
+    comments: Legacy systems - scheduled for retirement
+
+  # Maintenance tags
+  - name: Maintenance-Required
+    folder: Texas
+    color: Burnt Sienna
+    comments: Requires maintenance
+
+  - name: Backup-Required
+    folder: Texas
+    color: Mahogany
+    comments: Backup configuration required
+
+  - name: Monitor
+    folder: Texas
+    color: Thistle
+    comments: Enhanced monitoring enabled
+
+  - name: Temporary
+    folder: Texas
+    color: Peach
+    comments: Temporary resource - review for removal
+
+  # Cost center tags
+  - name: Cost-Center-1000
+    folder: Texas
+    color: Chestnut
+    comments: Cost center 1000 - Corporate
+
+  - name: Cost-Center-2000
+    folder: Texas
+    color: Blue Gray
+    comments: Cost center 2000 - Operations
+
+  - name: Cost-Center-3000
+    folder: Texas
+    color: Medium Rose
+    comments: Cost center 3000 - Research
+
+  - name: Shared-Service
+    folder: Texas
+    color: Blue Violet
+    comments: Shared service - multiple cost centers

@@ -33,6 +33,12 @@ class SCMClient:
     Objects Configuration:
         - Address Groups: create, get, list, delete
         - Address Objects: create, get, list, delete
+        - Application Filters: create, get, list, delete
+        - Applications: create, get, list, delete
+        - Application Groups: create, get, list, delete
+        - Dynamic User Groups: create, get, list, delete
+        - External Dynamic Lists: create, get, list, delete
+        - HIP Objects: create, get, list, delete
 
     Network Configuration:
         - Security Zones: create, delete
@@ -1226,8 +1232,2356 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder, "application groups", e)
 
+    # -------------------------------------------------------------------------------- Application Filters -------------------------------------------------------------------------------
+
+    def create_application_filter(
+        self,
+        folder: str,
+        name: str,
+        category: list[str],
+        subcategory: list[str],
+        technology: list[str],
+        risk: list[int],
+        evasive: bool = False,
+        pervasive: bool = False,
+        excessive_bandwidth_use: bool = False,
+        used_by_malware: bool = False,
+        transfers_files: bool = False,
+        has_known_vulnerabilities: bool = False,
+        tunnels_other_apps: bool = False,
+        prone_to_misuse: bool = False,
+        no_certifications: bool = False,
+    ) -> dict[str, Any]:
+        """Create an application filter.
+
+        Args:
+            folder: Folder to create the application filter in
+            name: Name of the application filter
+            category: List of category strings
+            subcategory: List of subcategory strings
+            technology: List of technology strings
+            risk: List of risk levels (1-5)
+            evasive: Uses evasive techniques
+            pervasive: Widely used
+            excessive_bandwidth_use: Uses excessive bandwidth
+            used_by_malware: Used by malware
+            transfers_files: Transfers files
+            has_known_vulnerabilities: Has known vulnerabilities
+            tunnels_other_apps: Tunnels other applications
+            prone_to_misuse: Prone to misuse
+            no_certifications: Lacks certifications
+
+        Returns:
+            dict[str, Any]: The created application filter object
+
+        Note:
+            If an application filter with the same name already exists in the folder, it will be updated.
+
+        """
+        self.logger.info(f"Creating or updating application filter: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"app-filter-{name}",
+                "folder": folder,
+                "name": name,
+                "category": category,
+                "sub_category": subcategory,
+                "technology": technology,
+                "risk": risk,
+                "evasive": evasive,
+                "pervasive": pervasive,
+                "excessive_bandwidth_use": excessive_bandwidth_use,
+                "used_by_malware": used_by_malware,
+                "transfers_files": transfers_files,
+                "has_known_vulnerabilities": has_known_vulnerabilities,
+                "tunnels_other_apps": tunnels_other_apps,
+                "prone_to_misuse": prone_to_misuse,
+                "no_certifications": no_certifications,
+            }
+
+        try:
+            # First, try to fetch the existing application filter
+            existing_filter = None
+            try:
+                existing_filter = self.client.application_filter.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing application filter '{name}' in folder '{folder}', updating...")
+            except NotFoundError:
+                self.logger.info(f"Application filter '{name}' not found in folder '{folder}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching application filter '{name}': {str(fetch_error)}")
+
+            # Prepare application filter data
+            filter_data = {
+                "name": name,
+                "folder": folder,
+                "category": category,
+                "sub_category": subcategory,
+                "technology": technology,
+                "risk": risk,
+            }
+
+            # Only add boolean fields if they're True
+            if evasive:
+                filter_data["evasive"] = evasive
+            if pervasive:
+                filter_data["pervasive"] = pervasive
+            if excessive_bandwidth_use:
+                filter_data["excessive_bandwidth_use"] = excessive_bandwidth_use
+            if used_by_malware:
+                filter_data["used_by_malware"] = used_by_malware
+            if transfers_files:
+                filter_data["transfers_files"] = transfers_files
+            if has_known_vulnerabilities:
+                filter_data["has_known_vulnerabilities"] = has_known_vulnerabilities
+            if tunnels_other_apps:
+                filter_data["tunnels_other_apps"] = tunnels_other_apps
+            if prone_to_misuse:
+                filter_data["prone_to_misuse"] = prone_to_misuse
+            if no_certifications:
+                filter_data["no_certifications"] = no_certifications
+
+            # If application filter exists, update it
+            if existing_filter:
+                # Update all fields
+                existing_filter.category = category
+                existing_filter.sub_category = subcategory
+                existing_filter.technology = technology
+                existing_filter.risk = risk
+                existing_filter.evasive = evasive
+                existing_filter.pervasive = pervasive
+                existing_filter.excessive_bandwidth_use = excessive_bandwidth_use
+                existing_filter.used_by_malware = used_by_malware
+                existing_filter.transfers_files = transfers_files
+                existing_filter.has_known_vulnerabilities = has_known_vulnerabilities
+                existing_filter.tunnels_other_apps = tunnels_other_apps
+                existing_filter.prone_to_misuse = prone_to_misuse
+                existing_filter.no_certifications = no_certifications
+
+                # Perform update
+                result = self.client.application_filter.update(existing_filter)
+                self.logger.info(f"Successfully updated application filter '{name}'")
+            else:
+                # Create new application filter
+                result = self.client.application_filter.create(filter_data)
+                self.logger.info(f"Successfully created application filter '{name}'")
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("creation/update", folder, name, e)
+
+    def delete_application_filter(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete an application filter.
+
+        Args:
+            folder: Folder containing the application filter
+            name: Name of the application filter to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting application filter: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Get the application filter first to retrieve its ID
+            filter_obj = self.client.application_filter.fetch(name=name, folder=folder)
+
+            # Delete using the application filter's ID
+            self.client.application_filter.delete(object_id=str(filter_obj.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_application_filter(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get an application filter by name and folder.
+
+        Args:
+            folder: Folder containing the application filter
+            name: Name of the application filter to get
+
+        Returns:
+            dict[str, Any]: The application filter object
+
+        """
+        self.logger.info(f"Getting application filter: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"app-filter-{name}",
+                "folder": folder,
+                "name": name,
+                "category": ["business-systems", "networking"],
+                "sub_category": ["database", "routing"],
+                "technology": ["client-server", "network-protocol"],
+                "risk": [1, 2, 3],
+                "evasive": False,
+                "pervasive": True,
+                "excessive_bandwidth_use": False,
+                "used_by_malware": False,
+                "transfers_files": True,
+                "has_known_vulnerabilities": False,
+                "tunnels_other_apps": False,
+                "prone_to_misuse": False,
+                "no_certifications": False,
+            }
+
+        try:
+            # Fetch the application filter using the SDK
+            result = self.client.application_filter.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_application_filters(
+        self,
+        folder: str,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List application filters in a folder.
+
+        Args:
+            folder: Folder to list application filters from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of application filter objects
+
+        """
+        self.logger.info(f"Listing application filters in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "app-filter-mock1",
+                    "folder": folder,
+                    "name": "high-risk-apps",
+                    "category": ["business-systems"],
+                    "sub_category": ["database"],
+                    "technology": ["client-server"],
+                    "risk": [4, 5],
+                    "evasive": True,
+                    "pervasive": False,
+                    "excessive_bandwidth_use": False,
+                    "used_by_malware": True,
+                    "transfers_files": False,
+                    "has_known_vulnerabilities": True,
+                    "tunnels_other_apps": False,
+                    "prone_to_misuse": True,
+                    "no_certifications": False,
+                },
+                {
+                    "id": "app-filter-mock2",
+                    "folder": folder,
+                    "name": "file-transfer-apps",
+                    "category": ["collaboration"],
+                    "sub_category": ["file-sharing"],
+                    "technology": ["peer-to-peer", "client-server"],
+                    "risk": [2, 3],
+                    "evasive": False,
+                    "pervasive": True,
+                    "excessive_bandwidth_use": True,
+                    "used_by_malware": False,
+                    "transfers_files": True,
+                    "has_known_vulnerabilities": False,
+                    "tunnels_other_apps": False,
+                    "prone_to_misuse": False,
+                    "no_certifications": False,
+                },
+            ]
+
+        try:
+            # List application filters using the SDK
+            results = self.client.application_filter.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "application filters", e)
+
+    # ---------------------------------------------------------------------------------- Dynamic User Groups --------------------------------------------------------------------------------
+
+    def create_dynamic_user_group(
+        self,
+        folder: str,
+        name: str,
+        filter: str,
+        description: str = "",
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create a dynamic user group.
+
+        Args:
+            folder: Folder to create the dynamic user group in
+            name: Name of the dynamic user group
+            filter: Tag-based filter expression
+            description: Optional description
+            tags: Optional list of tags
+
+        Returns:
+            dict[str, Any]: The created dynamic user group object
+
+        Note:
+            If a dynamic user group with the same name already exists in the folder, it will be updated.
+
+        """
+        tags = tags or []
+        self.logger.info(f"Creating or updating dynamic user group: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"dug-{name}",
+                "folder": folder,
+                "name": name,
+                "filter": filter,
+                "description": description,
+                "tag": tags,
+            }
+
+        try:
+            # First, try to fetch the existing dynamic user group
+            existing_group = None
+            try:
+                existing_group = self.client.dynamic_user_group.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing dynamic user group '{name}' in folder '{folder}', updating...")
+            except NotFoundError:
+                self.logger.info(f"Dynamic user group '{name}' not found in folder '{folder}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching dynamic user group '{name}': {str(fetch_error)}")
+
+            # Prepare dynamic user group data
+            group_data = {
+                "name": name,
+                "folder": folder,
+                "filter": filter,
+                "description": description or "",
+            }
+
+            if tags:
+                group_data["tag"] = tags  # SDK expects 'tag', not 'tags'
+
+            # If dynamic user group exists, update it
+            if existing_group:
+                # Update fields
+                existing_group.filter = filter
+                existing_group.description = description or ""
+                if tags is not None:  # Only update tags if explicitly provided
+                    existing_group.tag = tags
+
+                # Perform update
+                result = self.client.dynamic_user_group.update(existing_group)
+                self.logger.info(f"Successfully updated dynamic user group '{name}'")
+            else:
+                # Create new dynamic user group
+                result = self.client.dynamic_user_group.create(group_data)
+                self.logger.info(f"Successfully created dynamic user group '{name}'")
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("creation/update", folder, name, e)
+
+    def delete_dynamic_user_group(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete a dynamic user group.
+
+        Args:
+            folder: Folder containing the dynamic user group
+            name: Name of the dynamic user group to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting dynamic user group: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Get the dynamic user group first to retrieve its ID
+            group = self.client.dynamic_user_group.fetch(name=name, folder=folder)
+
+            # Delete using the dynamic user group's ID
+            self.client.dynamic_user_group.delete(object_id=str(group.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_dynamic_user_group(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get a dynamic user group by name and folder.
+
+        Args:
+            folder: Folder containing the dynamic user group
+            name: Name of the dynamic user group to get
+
+        Returns:
+            dict[str, Any]: The dynamic user group object
+
+        """
+        self.logger.info(f"Getting dynamic user group: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"dug-{name}",
+                "folder": folder,
+                "name": name,
+                "filter": "tag.Department='IT' and tag.Environment='Production'",
+                "description": "Mock dynamic user group",
+                "tag": ["mock", "test"],
+            }
+
+        try:
+            # Fetch the dynamic user group using the SDK
+            result = self.client.dynamic_user_group.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_dynamic_user_groups(
+        self,
+        folder: str,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List dynamic user groups in a folder.
+
+        Args:
+            folder: Folder to list dynamic user groups from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of dynamic user group objects
+
+        """
+        self.logger.info(f"Listing dynamic user groups in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "dug-mock1",
+                    "folder": folder,
+                    "name": "it-admins",
+                    "filter": "tag.Department='IT' and tag.Role='Admin'",
+                    "description": "IT administrators group",
+                    "tag": ["mock", "admin"],
+                },
+                {
+                    "id": "dug-mock2",
+                    "folder": folder,
+                    "name": "remote-workers",
+                    "filter": "tag.Location='Remote' and tag.Status='Active'",
+                    "description": "Remote workers group",
+                    "tag": ["mock", "remote"],
+                },
+            ]
+
+        try:
+            # List dynamic user groups using the SDK
+            results = self.client.dynamic_user_group.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "dynamic user groups", e)
+
     # ========================================================================================================================================================================================
     # NETWORK CONFIGURATION METHODS
+    # ========================================================================================================================================================================================
+
+    # ------------------------------------------------------------------------------------ External Dynamic Lists --------------------------------------------------------------------------------
+
+    def create_external_dynamic_list(
+        self,
+        folder: str,
+        name: str,
+        type_config: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create an external dynamic list.
+
+        Args:
+            folder: Folder to create the EDL in
+            name: Name of the EDL
+            type_config: Type configuration with EDL type and settings
+
+        Returns:
+            dict[str, Any]: The created EDL object
+
+        Note:
+            This uses smart upsert logic - if an EDL with the same name already exists, it will be updated.
+
+        """
+        self.logger.info(f"Creating or updating external dynamic list: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"edl-{name}",
+                "folder": folder,
+                "name": name,
+                "type": type_config,
+            }
+
+        try:
+            # Prepare the EDL data
+            edl_data = {
+                "folder": folder,
+                "name": name,
+                "type": type_config,
+            }
+
+            # First, try to fetch the existing EDL
+            try:
+                existing_edl = self.client.external_dynamic_list.fetch(name=name, folder=folder)
+                # Update existing EDL
+                edl_data["id"] = str(existing_edl.id)
+                result = self.client.external_dynamic_list.update(edl_data)
+            except Exception:
+                # EDL doesn't exist, create new one
+                result = self.client.external_dynamic_list.create(edl_data)
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("creation/update", folder, name, e)
+
+    def delete_external_dynamic_list(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete an external dynamic list.
+
+        Args:
+            folder: Folder containing the EDL
+            name: Name of the EDL to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting external dynamic list: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Get the EDL first to retrieve its ID
+            edl = self.client.external_dynamic_list.fetch(name=name, folder=folder)
+
+            # Delete using the EDL's ID
+            self.client.external_dynamic_list.delete(edl_id=str(edl.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_external_dynamic_list(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get an external dynamic list by name and folder.
+
+        Args:
+            folder: Folder containing the EDL
+            name: Name of the EDL to get
+
+        Returns:
+            dict[str, Any]: The EDL object
+
+        """
+        self.logger.info(f"Getting external dynamic list: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"edl-{name}",
+                "folder": folder,
+                "name": name,
+                "type": {
+                    "predefined_ip": {
+                        "url": "https://example.com/blocklist.txt",
+                        "description": "Mock external IP blocklist",
+                        "exception_list": ["192.168.1.0/24", "10.0.0.0/8"],
+                    }
+                },
+            }
+
+        try:
+            # Fetch the EDL using the SDK
+            result = self.client.external_dynamic_list.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_external_dynamic_lists(
+        self,
+        folder: str,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List external dynamic lists in a folder.
+
+        Args:
+            folder: Folder to list EDLs from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of EDL objects
+
+        """
+        self.logger.info(f"Listing external dynamic lists in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "edl-mock1",
+                    "folder": folder,
+                    "name": "paloalto-bulletproof-ip-list",
+                    "type": {
+                        "predefined_ip": {
+                            "url": "https://saasedl.paloaltonetworks.com/feeds/BulletproofIPList",
+                            "description": "Palo Alto Networks Bulletproof IP addresses",
+                        }
+                    },
+                },
+                {
+                    "id": "edl-mock2",
+                    "folder": folder,
+                    "name": "custom-blocklist",
+                    "type": {
+                        "ip": {
+                            "url": "https://example.com/custom-blocklist.txt",
+                            "description": "Custom IP blocklist",
+                            "recurring": {"hourly": {}},
+                            "exception_list": ["192.168.0.0/16"],
+                        }
+                    },
+                },
+                {
+                    "id": "edl-mock3",
+                    "folder": folder,
+                    "name": "malicious-domains",
+                    "type": {
+                        "domain": {
+                            "url": "https://example.com/malicious-domains.txt",
+                            "description": "Known malicious domains",
+                            "recurring": {"daily": {"at": "03"}},
+                            "expand_domain": True,
+                        }
+                    },
+                },
+            ]
+
+        try:
+            # List EDLs using the SDK
+            results = self.client.external_dynamic_list.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "external dynamic lists", e)
+
+    # ------------------------------------------------------------------------------------ HIP Objects ------------------------------------------------------------------------------------
+
+    def create_hip_object(
+        self,
+        folder: str,
+        name: str,
+        description: str | None = None,
+        host_info: dict[str, Any] | None = None,
+        network_info: dict[str, Any] | None = None,
+        patch_management: dict[str, Any] | None = None,
+        disk_encryption: dict[str, Any] | None = None,
+        mobile_device: dict[str, Any] | None = None,
+        certificate: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create a HIP object.
+
+        Args:
+            folder: Folder to create the HIP object in
+            name: Name of the HIP object
+            description: Description of the HIP object
+            host_info: Host information criteria
+            network_info: Network information criteria
+            patch_management: Patch management criteria
+            disk_encryption: Disk encryption criteria
+            mobile_device: Mobile device criteria
+            certificate: Certificate criteria
+
+        Returns:
+            dict[str, Any]: The created HIP object
+
+        Note:
+            This uses smart upsert logic - if a HIP object with the same name already exists, it will be updated.
+
+        """
+        self.logger.info(f"Creating or updating HIP object: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"hip-{name}",
+                "folder": folder,
+                "name": name,
+                "description": description or "Mock HIP object",
+                "host_info": host_info,
+                "network_info": network_info,
+                "patch_management": patch_management,
+                "disk_encryption": disk_encryption,
+                "mobile_device": mobile_device,
+                "certificate": certificate,
+            }
+
+        try:
+            # Prepare the HIP object data
+            hip_data = {
+                "folder": folder,
+                "name": name,
+            }
+
+            # Add optional fields if provided
+            if description:
+                hip_data["description"] = description
+            if host_info:
+                hip_data["host_info"] = host_info
+            if network_info:
+                hip_data["network_info"] = network_info
+            if patch_management:
+                hip_data["patch_management"] = patch_management
+            if disk_encryption:
+                hip_data["disk_encryption"] = disk_encryption
+            if mobile_device:
+                hip_data["mobile_device"] = mobile_device
+            if certificate:
+                hip_data["certificate"] = certificate
+
+            # First, try to fetch the existing HIP object
+            try:
+                existing_hip = self.client.hip_object.fetch(name=name, folder=folder)
+                # Update existing HIP object
+                hip_data["id"] = str(existing_hip.id)
+                result = self.client.hip_object.update(hip_data)
+            except Exception:
+                # HIP object doesn't exist, create new one
+                result = self.client.hip_object.create(hip_data)
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("creation/update", folder, name, e)
+
+    def delete_hip_object(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete a HIP object.
+
+        Args:
+            folder: Folder containing the HIP object
+            name: Name of the HIP object to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting HIP object: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock result if no client is available
+            return True
+
+        try:
+            # Get the HIP object first to retrieve its ID
+            hip_obj = self.client.hip_object.fetch(name=name, folder=folder)
+
+            # Delete using the HIP object's ID
+            self.client.hip_object.delete(object_id=str(hip_obj.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_hip_object(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get a HIP object by name and folder.
+
+        Args:
+            folder: Folder containing the HIP object
+            name: Name of the HIP object to get
+
+        Returns:
+            dict[str, Any]: The HIP object
+
+        """
+        self.logger.info(f"Getting HIP object: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"hip-{name}",
+                "folder": folder,
+                "name": name,
+                "description": "Mock Windows workstation policy",
+                "host_info": {
+                    "criteria": {
+                        "os": {"contains": {"Microsoft": "All"}},
+                        "managed": True,
+                    }
+                },
+                "disk_encryption": {
+                    "criteria": {
+                        "is_installed": True,
+                        "encrypted_locations": [
+                            {
+                                "name": "C:",
+                                "encryption_state": {"is": "encrypted"},
+                            }
+                        ],
+                    },
+                    "vendor": [{"name": "BitLocker", "product": []}],
+                },
+            }
+
+        try:
+            # Fetch the HIP object using the SDK
+            result = self.client.hip_object.fetch(name=name, folder=folder)
+
+            # Convert SDK response to dict for compatibility
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_hip_objects(
+        self,
+        folder: str,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List HIP objects in a folder.
+
+        Args:
+            folder: Folder to list HIP objects from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of HIP objects
+
+        """
+        self.logger.info(f"Listing HIP objects in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "hip-mock1",
+                    "folder": folder,
+                    "name": "windows-workstation",
+                    "description": "Windows workstation compliance policy",
+                    "host_info": {
+                        "criteria": {
+                            "os": {"contains": {"Microsoft": "All"}},
+                            "managed": True,
+                        }
+                    },
+                    "disk_encryption": {
+                        "criteria": {"is_installed": True},
+                        "vendor": [{"name": "BitLocker", "product": []}],
+                    },
+                },
+                {
+                    "id": "hip-mock2",
+                    "folder": folder,
+                    "name": "mobile-device-policy",
+                    "description": "Mobile device compliance policy",
+                    "mobile_device": {
+                        "criteria": {
+                            "jailbroken": False,
+                            "disk_encrypted": True,
+                            "passcode_set": True,
+                            "last_checkin_time": {"days": 7},
+                        }
+                    },
+                },
+                {
+                    "id": "hip-mock3",
+                    "folder": folder,
+                    "name": "patch-compliance",
+                    "description": "Patch management compliance",
+                    "patch_management": {
+                        "criteria": {
+                            "is_installed": True,
+                            "missing_patches": {
+                                "check": "has-none",
+                                "severity": 50,
+                            },
+                        },
+                        "vendor": [{"name": "Microsoft", "product": ["Windows"]}],
+                    },
+                },
+            ]
+
+        try:
+            # List HIP objects using the SDK
+            results = self.client.hip_object.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "HIP objects", e)
+
+    # ------------------------------------------------------------------------------------ HIP Profiles --------------------------------------------------------------------------------------
+
+    def create_hip_profile(
+        self,
+        folder: str,
+        name: str,
+        match: str,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a HIP profile.
+
+        Args:
+            folder: Folder where the HIP profile will be created
+            name: Name of the HIP profile
+            match: Match criteria for the HIP profile
+            description: Optional description of the HIP profile
+
+        Returns:
+            dict[str, Any]: Created HIP profile object
+
+        """
+        self.logger.info(f"Creating/updating HIP profile '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock response if no client is available
+            return {
+                "id": f"hip-profile-{name}",
+                "folder": folder,
+                "name": name,
+                "match": match,
+                "description": description or f"Mock HIP profile for {name}",
+            }
+
+        try:
+            # Check if HIP profile already exists
+            try:
+                existing = self.client.hip_profile.fetch(name=name, folder=folder)
+                if existing:
+                    # Update existing HIP profile
+                    self.logger.info(f"HIP profile '{name}' already exists, updating...")
+                    existing.description = description if description is not None else existing.description
+                    existing.match = match
+                    updated = self.client.hip_profile.update(existing)
+                    return json.loads(updated.model_dump_json(exclude_unset=True))
+            except Exception as fetch_error:
+                # HIP profile doesn't exist, create new one
+                self.logger.debug(f"HIP profile '{name}' not found, creating new: {fetch_error}")
+
+            # Prepare the profile data
+            profile_data = {
+                "folder": folder,
+                "name": name,
+                "match": match,
+            }
+
+            if description:
+                profile_data["description"] = description
+
+            # Create the HIP profile
+            result = self.client.hip_profile.create(profile_data)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", name, "HIP profile", e)
+
+    def delete_hip_profile(self, folder: str, name: str) -> bool:
+        """Delete a HIP profile.
+
+        Args:
+            folder: Folder containing the HIP profile
+            name: Name of the HIP profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting HIP profile '{name}' from folder: {folder}")
+
+        if not self.client:
+            self.logger.info(f"Mock mode: Would delete HIP profile '{name}'")
+            return True
+
+        try:
+            # First fetch the HIP profile to get its ID
+            hip_profile = self.client.hip_profile.fetch(name=name, folder=folder)
+            self.client.hip_profile.delete(str(hip_profile.id))
+            self.logger.info(f"Successfully deleted HIP profile '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", name, "HIP profile", e)
+
+    def get_hip_profile(self, folder: str, name: str) -> dict[str, Any]:
+        """Get a specific HIP profile by name.
+
+        Args:
+            folder: Folder containing the HIP profile
+            name: Name of the HIP profile
+
+        Returns:
+            dict[str, Any]: HIP profile object
+
+        """
+        self.logger.info(f"Getting HIP profile '{name}' from folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"hip-profile-{name}",
+                "folder": folder,
+                "name": name,
+                "match": "'custom-check' and 'endpoint-management'",
+                "description": f"Mock HIP profile for {name}",
+            }
+
+        try:
+            # Fetch the HIP profile by name and folder
+            result = self.client.hip_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", name, "HIP profile", e)
+
+    def list_hip_profiles(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List HIP profiles in a folder.
+
+        Args:
+            folder: Folder to list HIP profiles from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of HIP profiles
+
+        """
+        self.logger.info(f"Listing HIP profiles in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "hip-profile-mock1",
+                    "folder": folder,
+                    "name": "endpoint-compliance",
+                    "match": "'endpoint-management' and 'patch-management'",
+                    "description": "Endpoint compliance profile",
+                },
+                {
+                    "id": "hip-profile-mock2",
+                    "folder": folder,
+                    "name": "mobile-device-policy",
+                    "match": "'mobile-device' and 'disk-encryption'",
+                    "description": "Mobile device security policy",
+                },
+            ]
+
+        try:
+            # List HIP profiles using the SDK
+            results = self.client.hip_profile.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "HIP profiles", e)
+
+    # ------------------------------------------------------------------------------------ HTTP Server Profiles -------------------------------------------------------------------------------
+
+    def create_http_server_profile(
+        self,
+        folder: str,
+        name: str,
+        servers: list[dict[str, Any]],
+        description: str | None = None,
+        tag_registration: bool = False,
+        format_config: dict[str, dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update an HTTP server profile.
+
+        Args:
+            folder: Folder where the HTTP server profile will be created
+            name: Name of the HTTP server profile
+            servers: List of server configurations
+            description: Optional description of the HTTP server profile
+            tag_registration: Whether to register tags on match
+            format_config: Optional format configuration for different log types
+
+        Returns:
+            dict[str, Any]: Created HTTP server profile object
+
+        """
+        self.logger.info(f"Creating/updating HTTP server profile '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock response if no client is available
+            return {
+                "id": f"http-server-profile-{name}",
+                "folder": folder,
+                "name": name,
+                "server": servers,
+                "description": description or f"Mock HTTP server profile for {name}",
+                "tag_registration": tag_registration,
+            }
+
+        try:
+            # Check if HTTP server profile already exists
+            try:
+                existing = self.client.http_server_profile.fetch(name=name, folder=folder)
+                if existing:
+                    # Update existing HTTP server profile
+                    self.logger.info(f"HTTP server profile '{name}' already exists, updating...")
+                    existing.description = description if description is not None else existing.description
+                    existing.server = servers
+                    existing.tag_registration = tag_registration
+                    if format_config:
+                        existing.format = format_config
+                    updated = self.client.http_server_profile.update(existing)
+                    return json.loads(updated.model_dump_json(exclude_unset=True))
+            except Exception as fetch_error:
+                # HTTP server profile doesn't exist, create new one
+                self.logger.debug(f"HTTP server profile '{name}' not found, creating new: {fetch_error}")
+
+            # Prepare the profile data
+            profile_data = {
+                "folder": folder,
+                "name": name,
+                "server": servers,
+            }
+
+            if description:
+                profile_data["description"] = description
+                
+            if tag_registration:
+                profile_data["tag_registration"] = tag_registration
+                
+            if format_config:
+                profile_data["format"] = format_config
+
+            # Create the HTTP server profile
+            result = self.client.http_server_profile.create(profile_data)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", name, "HTTP server profile", e)
+
+    def delete_http_server_profile(self, folder: str, name: str) -> bool:
+        """Delete an HTTP server profile.
+
+        Args:
+            folder: Folder containing the HTTP server profile
+            name: Name of the HTTP server profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting HTTP server profile '{name}' from folder: {folder}")
+
+        if not self.client:
+            self.logger.info(f"Mock mode: Would delete HTTP server profile '{name}'")
+            return True
+
+        try:
+            # First fetch the HTTP server profile to get its ID
+            http_server_profile = self.client.http_server_profile.fetch(name=name, folder=folder)
+            self.client.http_server_profile.delete(str(http_server_profile.id))
+            self.logger.info(f"Successfully deleted HTTP server profile '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", name, "HTTP server profile", e)
+
+    def get_http_server_profile(self, folder: str, name: str) -> dict[str, Any]:
+        """Get a specific HTTP server profile by name.
+
+        Args:
+            folder: Folder containing the HTTP server profile
+            name: Name of the HTTP server profile
+
+        Returns:
+            dict[str, Any]: HTTP server profile object
+
+        """
+        self.logger.info(f"Getting HTTP server profile '{name}' from folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"http-server-profile-{name}",
+                "folder": folder,
+                "name": name,
+                "server": [
+                    {
+                        "name": "mock-server",
+                        "address": "192.168.1.100",
+                        "protocol": "HTTPS",
+                        "port": 443,
+                        "tls_version": "1.2",
+                    }
+                ],
+                "description": f"Mock HTTP server profile for {name}",
+                "tag_registration": False,
+            }
+
+        try:
+            # Fetch the HTTP server profile by name and folder
+            result = self.client.http_server_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", name, "HTTP server profile", e)
+
+    def list_http_server_profiles(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List HTTP server profiles in a folder.
+
+        Args:
+            folder: Folder to list HTTP server profiles from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of HTTP server profiles
+
+        """
+        self.logger.info(f"Listing HTTP server profiles in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "http-server-profile-mock1",
+                    "folder": folder,
+                    "name": "syslog-http-profile",
+                    "server": [
+                        {
+                            "name": "syslog-server-1",
+                            "address": "syslog.example.com",
+                            "protocol": "HTTPS",
+                            "port": 443,
+                            "tls_version": "1.2",
+                        }
+                    ],
+                    "description": "Syslog HTTP forwarding profile",
+                    "tag_registration": True,
+                },
+                {
+                    "id": "http-server-profile-mock2",
+                    "folder": folder,
+                    "name": "siem-http-profile",
+                    "server": [
+                        {
+                            "name": "siem-server",
+                            "address": "siem.example.com",
+                            "protocol": "HTTP",
+                            "port": 8080,
+                            "http_method": "POST",
+                        }
+                    ],
+                    "description": "SIEM integration profile",
+                    "tag_registration": False,
+                },
+            ]
+
+        try:
+            # List HTTP server profiles using the SDK
+            results = self.client.http_server_profile.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "HTTP server profiles", e)
+
+    # ------------------------------------------------------------------------------------ Log Forwarding Profiles -------------------------------------------------------------------------
+
+    def create_log_forwarding_profile(
+        self,
+        folder: str,
+        name: str,
+        match_list: list[dict[str, Any]] | None = None,
+        description: str | None = None,
+        enhanced_application_logging: bool = False,
+    ) -> dict[str, Any]:
+        """Create or update a log forwarding profile.
+
+        Args:
+            folder: Folder where the log forwarding profile will be created
+            name: Name of the log forwarding profile
+            match_list: List of match profile configurations
+            description: Optional description of the log forwarding profile
+            enhanced_application_logging: Whether to enable enhanced application logging
+
+        Returns:
+            dict[str, Any]: Created log forwarding profile object
+
+        """
+        self.logger.info(f"Creating/updating log forwarding profile '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock response if no client is available
+            return {
+                "id": f"log-forwarding-profile-{name}",
+                "folder": folder,
+                "name": name,
+                "match_list": match_list or [
+                    {
+                        "name": "default-match",
+                        "log_type": "traffic",
+                        "send_to_panorama": True,
+                    }
+                ],
+                "description": description or f"Mock log forwarding profile for {name}",
+                "enhanced_application_logging": enhanced_application_logging,
+            }
+
+        try:
+            # Check if log forwarding profile already exists
+            try:
+                existing = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
+                if existing:
+                    # Update existing log forwarding profile
+                    self.logger.info(f"Log forwarding profile '{name}' already exists, updating...")
+                    existing.description = description if description is not None else existing.description
+                    existing.enhanced_application_logging = enhanced_application_logging
+                    if match_list:
+                        existing.match_list = match_list
+                    updated = self.client.log_forwarding_profile.update(existing)
+                    return json.loads(updated.model_dump_json(exclude_unset=True))
+            except Exception as fetch_error:
+                # Log forwarding profile doesn't exist, create new one
+                self.logger.debug(f"Log forwarding profile '{name}' not found, creating new: {fetch_error}")
+
+            # Prepare the profile data
+            profile_data = {
+                "folder": folder,
+                "name": name,
+            }
+
+            if description:
+                profile_data["description"] = description
+                
+            if enhanced_application_logging:
+                profile_data["enhanced_application_logging"] = enhanced_application_logging
+                
+            if match_list:
+                # Ensure each match has a filter field (API seems to require it despite SDK showing optional)
+                for match in match_list:
+                    if "filter" not in match or match["filter"] is None:
+                        match["filter"] = "All Logs"
+                profile_data["match_list"] = match_list
+
+            # Create the log forwarding profile
+            result = self.client.log_forwarding_profile.create(profile_data)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", name, "log forwarding profile", e)
+
+    def delete_log_forwarding_profile(self, folder: str, name: str) -> bool:
+        """Delete a log forwarding profile.
+
+        Args:
+            folder: Folder containing the log forwarding profile
+            name: Name of the log forwarding profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting log forwarding profile '{name}' from folder: {folder}")
+
+        if not self.client:
+            # Mock deletion
+            self.logger.info(f"Mock mode: Would delete log forwarding profile '{name}' from folder '{folder}'")
+            return True
+
+        try:
+            # First, fetch the log forwarding profile to get its ID
+            profile = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
+            if profile:
+                # Delete using the ID
+                self.client.log_forwarding_profile.delete(str(profile.id))
+                self.logger.info(f"Successfully deleted log forwarding profile '{name}'")
+                return True
+            else:
+                self.logger.warning(f"Log forwarding profile '{name}' not found in folder '{folder}'")
+                return False
+        except Exception as e:
+            self._handle_api_exception("deleting", name, "log forwarding profile", e)
+            return False
+
+    def get_log_forwarding_profile(self, folder: str, name: str) -> dict[str, Any] | None:
+        """Get a specific log forwarding profile by name.
+
+        Args:
+            folder: Folder containing the log forwarding profile
+            name: Name of the log forwarding profile
+
+        Returns:
+            dict[str, Any] | None: Log forwarding profile object if found, None otherwise
+
+        """
+        self.logger.info(f"Getting log forwarding profile '{name}' from folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"log-forwarding-profile-{name}",
+                "folder": folder,
+                "name": name,
+                "match_list": [
+                    {
+                        "name": "traffic-logs",
+                        "log_type": "traffic",
+                        "send_to_panorama": True,
+                        "send_syslog": ["syslog-server-1"],
+                    }
+                ],
+                "description": f"Mock log forwarding profile for {name}",
+                "enhanced_application_logging": True,
+            }
+
+        try:
+            # Fetch the log forwarding profile
+            profile = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
+            return json.loads(profile.model_dump_json(exclude_unset=True)) if profile else None
+        except Exception as e:
+            self.logger.error(f"Failed to get log forwarding profile '{name}': {str(e)}")
+            return None
+
+    def list_log_forwarding_profiles(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List all log forwarding profiles in a folder.
+
+        Args:
+            folder: Folder to list log forwarding profiles from
+            exact_match: If True, only return profiles directly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of log forwarding profile objects
+
+        """
+        self.logger.info(f"Listing log forwarding profiles in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "log-forwarding-profile-mock1",
+                    "folder": folder,
+                    "name": "default-log-forwarding",
+                    "match_list": [
+                        {
+                            "name": "all-traffic",
+                            "log_type": "traffic",
+                            "send_to_panorama": True,
+                        },
+                        {
+                            "name": "threat-logs",
+                            "log_type": "threat",
+                            "send_to_panorama": True,
+                            "send_syslog": ["syslog-server-1"],
+                        }
+                    ],
+                    "description": "Default log forwarding profile",
+                    "enhanced_application_logging": False,
+                },
+                {
+                    "id": "log-forwarding-profile-mock2",
+                    "folder": folder,
+                    "name": "security-log-forwarding",
+                    "match_list": [
+                        {
+                            "name": "security-traffic",
+                            "log_type": "traffic",
+                            "filter": "severity eq high",
+                            "send_to_panorama": True,
+                            "send_http": ["http-server-1"],
+                        }
+                    ],
+                    "description": "Security log forwarding profile",
+                    "enhanced_application_logging": True,
+                },
+            ]
+
+        try:
+            # List log forwarding profiles using the SDK
+            results = self.client.log_forwarding_profile.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "log forwarding profiles", e)
+
+    # ------------------------------------------------------------------------------------ Services ---------------------------------------------------------------------------------------
+
+    def create_service(
+        self,
+        folder: str,
+        name: str,
+        protocol: dict[str, Any],
+        description: str | None = None,
+        tag: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a service.
+
+        Args:
+            folder: Folder where the service will be created
+            name: Name of the service
+            protocol: Protocol configuration (tcp or udp with port)
+            description: Optional description
+            tag: Optional list of tags
+
+        Returns:
+            dict[str, Any]: Created service object
+
+        """
+        self.logger.info(f"Creating/updating service '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock response if no client is available
+            return {
+                "id": f"service-{name}",
+                "folder": folder,
+                "name": name,
+                "protocol": protocol,
+                "description": description or f"Mock service for {name}",
+                "tag": tag or [],
+            }
+
+        try:
+            # Check if service already exists
+            try:
+                existing = self.client.service.fetch(name=name, folder=folder)
+                if existing:
+                    # Update existing service
+                    self.logger.info(f"Service '{name}' already exists, updating...")
+                    existing.protocol = protocol
+                    if description is not None:
+                        existing.description = description
+                    if tag is not None:
+                        existing.tag = tag
+                    updated = self.client.service.update(existing)
+                    return json.loads(updated.model_dump_json(exclude_unset=True))
+            except Exception as fetch_error:
+                # Service doesn't exist, create new one
+                self.logger.debug(f"Service '{name}' not found, creating new: {fetch_error}")
+
+            # Prepare the service data
+            service_data = {
+                "folder": folder,
+                "name": name,
+                "protocol": protocol,
+            }
+
+            if description:
+                service_data["description"] = description
+                
+            if tag:
+                service_data["tag"] = tag
+
+            # Create the service
+            result = self.client.service.create(service_data)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", name, "service", e)
+
+    def delete_service(self, folder: str, name: str) -> bool:
+        """Delete a service.
+
+        Args:
+            folder: Folder containing the service
+            name: Name of the service to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting service '{name}' from folder: {folder}")
+
+        if not self.client:
+            self.logger.info(f"Mock mode: Would delete service '{name}'")
+            return True
+
+        try:
+            # First fetch the service to get its ID
+            service = self.client.service.fetch(name=name, folder=folder)
+            self.client.service.delete(str(service.id))
+            self.logger.info(f"Successfully deleted service '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", name, "service", e)
+            return False
+
+    def get_service(self, folder: str, name: str) -> dict[str, Any]:
+        """Get a specific service by name.
+
+        Args:
+            folder: Folder containing the service
+            name: Name of the service
+
+        Returns:
+            dict[str, Any]: Service object
+
+        """
+        self.logger.info(f"Getting service '{name}' from folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"service-{name}",
+                "folder": folder,
+                "name": name,
+                "protocol": {
+                    "tcp": {
+                        "port": "80,443",
+                        "override": {
+                            "timeout": 3600,
+                            "halfclose_timeout": 120,
+                            "timewait_timeout": 15,
+                        }
+                    }
+                },
+                "description": f"Mock service for {name}",
+                "tag": ["web", "production"],
+            }
+
+        try:
+            # Fetch the service by name and folder
+            result = self.client.service.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", name, "service", e)
+
+    def list_services(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List services in a folder.
+
+        Args:
+            folder: Folder to list services from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of services
+
+        """
+        self.logger.info(f"Listing services in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "service-mock1",
+                    "folder": folder,
+                    "name": "web-browsing",
+                    "protocol": {
+                        "tcp": {
+                            "port": "80,443",
+                        }
+                    },
+                    "description": "Web browsing ports",
+                    "tag": ["web", "standard"],
+                },
+                {
+                    "id": "service-mock2",
+                    "folder": folder,
+                    "name": "dns",
+                    "protocol": {
+                        "udp": {
+                            "port": "53",
+                        }
+                    },
+                    "description": "DNS service",
+                    "tag": ["infrastructure"],
+                },
+                {
+                    "id": "service-mock3",
+                    "folder": folder,
+                    "name": "ssh-custom",
+                    "protocol": {
+                        "tcp": {
+                            "port": "2222",
+                            "override": {
+                                "timeout": 7200,
+                            }
+                        }
+                    },
+                    "description": "Custom SSH port",
+                    "tag": ["management", "secure"],
+                },
+            ]
+
+        try:
+            # List services using the SDK
+            results = self.client.service.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "services", e)
+
+    # ------------------------------------------------------------------------------------ Service Groups ----------------------------------------------------------------------------------
+
+    def create_service_group(
+        self,
+        folder: str,
+        name: str,
+        members: list[str],
+        tag: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a service group.
+
+        Args:
+            folder: Folder where the service group will be created
+            name: Name of the service group
+            members: List of service or service group names
+            tag: Optional list of tags
+
+        Returns:
+            dict[str, Any]: Created service group object
+
+        """
+        self.logger.info(f"Creating/updating service group '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock response if no client is available
+            return {
+                "id": f"service-group-{name}",
+                "folder": folder,
+                "name": name,
+                "members": members,
+                "tag": tag or [],
+            }
+
+        try:
+            # Check if service group already exists
+            try:
+                existing = self.client.service_group.fetch(name=name, folder=folder)
+                if existing:
+                    # Update existing service group
+                    self.logger.info(f"Service group '{name}' already exists, updating...")
+                    existing.members = members
+                    if tag is not None:
+                        existing.tag = tag
+                    updated = self.client.service_group.update(existing)
+                    return json.loads(updated.model_dump_json(exclude_unset=True))
+            except Exception as fetch_error:
+                # Service group doesn't exist, create new one
+                self.logger.debug(f"Service group '{name}' not found, creating new: {fetch_error}")
+
+            # Prepare the service group data
+            service_group_data = {
+                "folder": folder,
+                "name": name,
+                "members": members,
+            }
+
+            if tag:
+                service_group_data["tag"] = tag
+
+            # Create the service group
+            result = self.client.service_group.create(service_group_data)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", name, "service group", e)
+
+    def delete_service_group(self, folder: str, name: str) -> bool:
+        """Delete a service group.
+
+        Args:
+            folder: Folder containing the service group
+            name: Name of the service group to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting service group '{name}' from folder: {folder}")
+
+        if not self.client:
+            self.logger.info(f"Mock mode: Would delete service group '{name}'")
+            return True
+
+        try:
+            # First fetch the service group to get its ID
+            service_group = self.client.service_group.fetch(name=name, folder=folder)
+            self.client.service_group.delete(str(service_group.id))
+            self.logger.info(f"Successfully deleted service group '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", name, "service group", e)
+            return False
+
+    def get_service_group(self, folder: str, name: str) -> dict[str, Any]:
+        """Get a specific service group by name.
+
+        Args:
+            folder: Folder containing the service group
+            name: Name of the service group
+
+        Returns:
+            dict[str, Any]: Service group object
+
+        """
+        self.logger.info(f"Getting service group '{name}' from folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"service-group-{name}",
+                "folder": folder,
+                "name": name,
+                "members": ["web-browsing", "ssl", "custom-web"],
+                "tag": ["production", "web"],
+            }
+
+        try:
+            # Fetch the service group by name and folder
+            result = self.client.service_group.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", name, "service group", e)
+
+    def list_service_groups(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List service groups in a folder.
+
+        Args:
+            folder: Folder to list service groups from
+            exact_match: If True, only return objects defined exactly in the specified folder
+
+        Returns:
+            list[dict[str, Any]]: List of service groups
+
+        """
+        self.logger.info(f"Listing service groups in folder: {folder} (exact_match={exact_match})")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "service-group-mock1",
+                    "folder": folder,
+                    "name": "web-services",
+                    "members": ["web-browsing", "ssl", "custom-web"],
+                    "tag": ["web", "standard"],
+                },
+                {
+                    "id": "service-group-mock2",
+                    "folder": folder,
+                    "name": "database-services",
+                    "members": ["mysql-cluster", "mssql", "oracle"],
+                    "tag": ["database", "backend"],
+                },
+                {
+                    "id": "service-group-mock3",
+                    "folder": folder,
+                    "name": "infrastructure-services",
+                    "members": ["dns", "ntp", "snmp", "syslog"],
+                    "tag": ["infrastructure", "management"],
+                },
+            ]
+
+        try:
+            # List service groups using the SDK
+            results = self.client.service_group.list(folder=folder, exact_match=exact_match)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "service groups", e)
+
+    # ------------------------------------------------------------------------------------ Syslog Server Profiles ------------------------------------------------------------------------------------
+
+    def create_syslog_server_profile(
+        self,
+        syslog_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create or update a syslog server profile using smart upsert logic.
+
+        Args:
+            syslog_data: The syslog server profile data
+
+        Returns:
+            Created/updated syslog server profile data
+        """
+        # Determine container (folder, snippet, or device)
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+
+        for field in container_fields:
+            if field in syslog_data and syslog_data[field] is not None:
+                container_field = field
+                container_value = syslog_data[field]
+                break
+
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        # Return mock data if no client
+        if not self.client:
+            return syslog_data
+
+        # Check if syslog server profile already exists
+        try:
+            existing = self.client.syslog_server_profile.fetch(
+                name=syslog_data["name"], **{container_field: container_value}
+            )
+            # Update existing syslog server profile
+            for key, value in syslog_data.items():
+                if key not in container_fields and value is not None:
+                    setattr(existing, key, value)
+            updated = existing.update()
+            self.logger.info(
+                f"Updated existing syslog server profile '{syslog_data['name']}' in {container_field} '{container_value}'"
+            )
+            return json.loads(updated.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            # If profile doesn't exist, create new one
+            self.logger.debug(f"Syslog server profile '{syslog_data['name']}' not found, creating new: {e}")
+            # Create new syslog server profile
+            try:
+                created = self.client.syslog_server_profile.create(syslog_data)
+                self.logger.info(
+                    f"Created new syslog server profile '{syslog_data['name']}' in {container_field} '{container_value}'"
+                )
+                return json.loads(created.model_dump_json(exclude_unset=True))
+            except Exception as create_error:
+                self._handle_api_exception(
+                    "creating", container_value, f"syslog server profile '{syslog_data['name']}'", create_error
+                )
+
+    def delete_syslog_server_profile(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> None:
+        """Delete a syslog server profile.
+
+        Args:
+            name: Name of the syslog server profile to delete
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+        """
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete syslog server profile: {name}")
+            return
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            self.client.syslog_server_profile.delete(name, **container_kwargs)
+            self.logger.info(f"Deleted syslog server profile: {name}")
+        except Exception as e:
+            self._handle_api_exception(
+                "deleting", folder or snippet or device, f"syslog server profile '{name}'", e
+            )
+
+    def get_syslog_server_profile(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific syslog server profile.
+
+        Args:
+            name: Name of the syslog server profile to retrieve
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        Returns:
+            Syslog server profile data or None if not found
+        """
+        if not self.client:
+            return {
+                "id": "syslog-mock",
+                "name": name,
+                "folder": folder or "Texas",
+                "server": [
+                    {
+                        "name": "primary-syslog",
+                        "server": "192.168.1.100",
+                        "transport": "UDP",
+                        "port": 514,
+                        "format": "BSD",
+                        "facility": "LOG_USER",
+                    }
+                ],
+            }
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            result = self.client.syslog_server_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Syslog server profile '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception(
+                "retrieving", folder or snippet or device, f"syslog server profile '{name}'", e
+            )
+
+    def list_syslog_server_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List syslog server profiles in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return exact matches
+
+        Returns:
+            List of syslog server profiles
+        """
+        if not self.client:
+            return [
+                {
+                    "id": "syslog-mock1",
+                    "folder": folder or "Texas",
+                    "name": "primary-syslog-profile",
+                    "server": [
+                        {
+                            "name": "syslog-server-1",
+                            "server": "192.168.1.100",
+                            "transport": "UDP",
+                            "port": 514,
+                            "format": "BSD",
+                            "facility": "LOG_USER",
+                        }
+                    ],
+                },
+                {
+                    "id": "syslog-mock2",
+                    "folder": folder or "Texas",
+                    "name": "backup-syslog-profile",
+                    "server": [
+                        {
+                            "name": "syslog-server-2",
+                            "server": "192.168.1.101",
+                            "transport": "TCP",
+                            "port": 514,
+                            "format": "IETF",
+                            "facility": "LOG_LOCAL0",
+                        }
+                    ],
+                },
+                {
+                    "id": "syslog-mock3",
+                    "folder": folder or "Texas",
+                    "name": "secure-syslog-profile",
+                    "server": [
+                        {
+                            "name": "secure-syslog",
+                            "server": "syslog.example.com",
+                            "transport": "SSL",
+                            "port": 6514,
+                            "format": "BSD",
+                            "facility": "LOG_LOCAL1",
+                        }
+                    ],
+                },
+            ]
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            # List syslog server profiles using the SDK
+            results = self.client.syslog_server_profile.list(exact_match=exact_match, **container_kwargs)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device, "syslog server profiles", e)
+
+    # ------------------------------------------------------------------------------------ Tags ------------------------------------------------------------------------------------
+
+    def create_tag(
+        self,
+        tag_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create or update a tag using smart upsert logic.
+
+        Args:
+            tag_data: The tag data
+
+        Returns:
+            Created/updated tag data
+        """
+        # Determine container (folder, snippet, or device)
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+
+        for field in container_fields:
+            if field in tag_data and tag_data[field] is not None:
+                container_field = field
+                container_value = tag_data[field]
+                break
+
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        # Return mock data if no client
+        if not self.client:
+            return tag_data
+
+        # Check if tag already exists
+        try:
+            existing = self.client.tag.fetch(
+                name=tag_data["name"], **{container_field: container_value}
+            )
+            # Update existing tag
+            for key, value in tag_data.items():
+                if key not in container_fields and value is not None:
+                    setattr(existing, key, value)
+            updated = existing.update()
+            self.logger.info(
+                f"Updated existing tag '{tag_data['name']}' in {container_field} '{container_value}'"
+            )
+            return json.loads(updated.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            # If tag doesn't exist, create new one
+            self.logger.debug(f"Tag '{tag_data['name']}' not found, creating new: {e}")
+            # Create new tag
+            try:
+                created = self.client.tag.create(tag_data)
+                self.logger.info(
+                    f"Created new tag '{tag_data['name']}' in {container_field} '{container_value}'"
+                )
+                return json.loads(created.model_dump_json(exclude_unset=True))
+            except Exception as create_error:
+                self._handle_api_exception(
+                    "creating", container_value, f"tag '{tag_data['name']}'", create_error
+                )
+
+    def delete_tag(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> None:
+        """Delete a tag.
+
+        Args:
+            name: Name of the tag to delete
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+        """
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete tag: {name}")
+            return
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            # First fetch the tag to get its ID
+            tag = self.client.tag.fetch(name=name, **container_kwargs)
+            self.client.tag.delete(str(tag.id))
+            self.logger.info(f"Deleted tag: {name}")
+        except Exception as e:
+            self._handle_api_exception(
+                "deleting", folder or snippet or device, f"tag '{name}'", e
+            )
+
+    def get_tag(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific tag.
+
+        Args:
+            name: Name of the tag to retrieve
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        Returns:
+            Tag data or None if not found
+        """
+        if not self.client:
+            return {
+                "id": "tag-mock",
+                "name": name,
+                "folder": folder or "Texas",
+                "color": "Blue",
+                "comments": "Mock tag for testing",
+            }
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            result = self.client.tag.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Tag '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception(
+                "retrieving", folder or snippet or device, f"tag '{name}'", e
+            )
+
+    def list_tags(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List tags in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return exact matches
+
+        Returns:
+            List of tags
+        """
+        if not self.client:
+            return [
+                {
+                    "id": "tag-mock1",
+                    "folder": folder or "Texas",
+                    "name": "Production",
+                    "color": "Red",
+                    "comments": "Production environment resources",
+                },
+                {
+                    "id": "tag-mock2",
+                    "folder": folder or "Texas",
+                    "name": "Development",
+                    "color": "Green",
+                    "comments": "Development environment resources",
+                },
+                {
+                    "id": "tag-mock3",
+                    "folder": folder or "Texas",
+                    "name": "Critical",
+                    "color": "Orange",
+                    "comments": "Critical infrastructure",
+                },
+            ]
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            # List tags using the SDK
+            results = self.client.tag.list(exact_match=exact_match, **container_kwargs)
+
+            # Convert SDK response to list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device, "tags", e)
+
     # ========================================================================================================================================================================================
 
     # ------------------------------------------------------------------------------------ Security Zones ------------------------------------------------------------------------------------

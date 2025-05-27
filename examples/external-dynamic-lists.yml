@@ -1,0 +1,154 @@
+# External Dynamic Lists Configuration Example
+# This file demonstrates how to configure various types of external dynamic lists (EDLs)
+# in Palo Alto Networks Strata Cloud Manager using scm-cli
+
+external_dynamic_lists:
+  # Predefined IP Lists - These are managed by Palo Alto Networks
+  - folder: "Texas"
+    name: "paloalto-bulletproof-ip-list"
+    type: "predefined_ip"
+    url: "https://saasedl.paloaltonetworks.com/feeds/BulletproofIPList"
+    description: "Palo Alto Networks Bulletproof IP addresses"
+    exception_list:
+      - "192.168.1.0/24"  # Local network exception
+      - "10.0.0.0/8"      # Corporate network exception
+
+  - folder: "Texas"
+    name: "paloalto-high-risk-ip-list"
+    type: "predefined_ip"
+    url: "https://saasedl.paloaltonetworks.com/feeds/HighRiskIPList"
+    description: "Known high-risk IP addresses"
+
+  # Predefined URL Lists
+  - folder: "Texas"
+    name: "paloalto-malicious-urls"
+    type: "predefined_url"
+    url: "https://saasedl.paloaltonetworks.com/feeds/MaliciousURLFeed"
+    description: "Known malicious URLs"
+
+  # Custom IP Lists with Various Update Frequencies
+  - folder: "Austin"
+    name: "critical-blocklist"
+    type: "ip"
+    url: "https://example.com/critical-blocklist.txt"
+    description: "Critical IP blocklist - updated every 5 minutes"
+    recurring: "five_minute"
+    exception_list:
+      - "192.168.0.0/16"
+
+  - folder: "Austin"
+    name: "standard-blocklist"
+    type: "ip"
+    url: "https://example.com/standard-blocklist.txt"
+    description: "Standard IP blocklist - updated hourly"
+    recurring: "hourly"
+
+  - folder: "Austin"
+    name: "daily-threat-feed"
+    type: "ip"
+    url: "https://example.com/daily-threats.txt"
+    description: "Daily threat intelligence feed - updated at 3 AM"
+    recurring: "daily"
+    hour: "03"
+
+  - folder: "Austin"
+    name: "weekly-blocklist"
+    type: "ip"
+    url: "https://example.com/weekly-blocklist.txt"
+    description: "Weekly curated blocklist - updated Sundays at 2 AM"
+    recurring: "weekly"
+    day: "sunday"
+    hour: "02"
+
+  - folder: "Austin"
+    name: "monthly-audit-list"
+    type: "ip"
+    url: "https://example.com/monthly-audit.txt"
+    description: "Monthly security audit IPs - updated on the 1st at midnight"
+    recurring: "monthly"
+    day: "1"
+    hour: "00"
+
+  # Custom IP List with Authentication
+  - folder: "Houston"
+    name: "partner-blocklist"
+    type: "ip"
+    url: "https://partner.example.com/secure/blocklist.txt"
+    description: "Partner-provided blocklist with authentication"
+    recurring: "hourly"
+    username: "api_user"
+    password: "secure_password"
+    certificate_profile: "Partner-TLS-Profile"
+
+  # Domain Lists
+  - folder: "Dallas"
+    name: "malicious-domains"
+    type: "domain"
+    url: "https://example.com/malicious-domains.txt"
+    description: "Known malicious domains"
+    recurring: "daily"
+    hour: "04"
+    expand_domain: true  # Also block subdomains
+    exception_list:
+      - "safe.example.com"
+      - "trusted.partner.com"
+
+  - folder: "Dallas"
+    name: "phishing-domains"
+    type: "domain"
+    url: "https://example.com/phishing-domains.txt"
+    description: "Known phishing domains"
+    recurring: "hourly"
+    expand_domain: false  # Only block exact matches
+
+  # URL Lists
+  - folder: "SanAntonio"
+    name: "malicious-urls"
+    type: "url"
+    url: "https://example.com/malicious-urls.txt"
+    description: "Known malicious URLs"
+    recurring: "hourly"
+    exception_list:
+      - "https://example.com/safe-path/*"
+      - "*.trusted-domain.com/*"
+
+  - folder: "SanAntonio"
+    name: "adult-content-urls"
+    type: "url"
+    url: "https://example.com/adult-content.txt"
+    description: "Adult content URLs for filtering"
+    recurring: "daily"
+    hour: "06"
+
+  # IMSI Lists (for mobile network security)
+  - folder: "Mobile-Security"
+    name: "suspicious-imsi"
+    type: "imsi"
+    url: "https://example.com/suspicious-imsi.txt"
+    description: "Suspicious IMSI identifiers"
+    recurring: "daily"
+    hour: "01"
+
+  # IMEI Lists (for device security)
+  - folder: "Mobile-Security"
+    name: "stolen-devices"
+    type: "imei"
+    url: "https://example.com/stolen-imei.txt"
+    description: "Stolen device IMEI numbers"
+    recurring: "hourly"
+
+# Notes:
+# 1. Predefined lists (predefined_ip, predefined_url) don't require recurring configuration
+# 2. Custom lists (ip, domain, url, imsi, imei) require recurring configuration
+# 3. Recurring options: five_minute, hourly, daily, weekly, monthly
+# 4. Hour format: 00-23 (24-hour format)
+# 5. Day format for weekly: sunday, monday, tuesday, wednesday, thursday, friday, saturday
+# 6. Day format for monthly: 1-31 (day of month)
+# 7. Authentication is optional but recommended for secure sources
+# 8. Certificate profiles must exist in SCM before referencing them
+# 9. Exception lists allow you to exclude specific entries from the EDL
+# 10. expand_domain (domain type only) includes all subdomains when true
+
+# Usage:
+# scm-cli load objects external-dynamic-list --file external-dynamic-lists.yml
+# scm-cli load objects external-dynamic-list --file external-dynamic-lists.yml --dry-run

@@ -1,0 +1,105 @@
+http_server_profiles:
+- name: simple-test
+  folder: Texas
+  servers:
+  - name: test
+    address: 192.168.1.100
+    protocol: HTTP
+    port: 8080
+    http_method: POST
+- name: test-http-profile
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-11369
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-16995
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-31795
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-54633
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-67558
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-72184
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-75629
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-78348
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-83479
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-89470
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
+- name: test-http-profile-89639
+  folder: Texas
+  servers:
+  - name: primary-server
+    address: 10.0.0.1
+    protocol: HTTP
+    port: 8080
+    http_method: GET
