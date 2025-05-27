@@ -7,7 +7,7 @@ that all required fields are present and correctly formatted.
 
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, Field, field_validator, model_validator, ValidationInfo
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 # ========================================================================================================================================================================================
 # TYPE DEFINITIONS
@@ -377,64 +377,6 @@ class ExternalDynamicList(BaseModel):
         return model_data
 
 
-class Tag(BaseModel):
-    """Model for tag configurations with folder path."""
-    
-    folder: str = Field(..., description="Folder path for the tag")
-    name: str = Field(
-        ..., 
-        max_length=127,
-        pattern=r"^[a-zA-Z0-9_ \.-\[\]\-\&\(\)]+$",
-        description="Name of the tag"
-    )
-    color: str | None = Field(
-        None,
-        description="Color associated with the tag (e.g., 'Red', 'Blue', 'Forest Green')"
-    )
-    comments: str | None = Field(
-        None,
-        max_length=1023,
-        description="Comments for the tag"
-    )
-    
-    @field_validator("color")
-    @classmethod
-    def validate_color(cls, v: str | None) -> str | None:
-        """Validate color against allowed values."""
-        if v is None:
-            return v
-            
-        # List of valid colors from the SDK
-        valid_colors = [
-            "Azure Blue", "Black", "Blue", "Blue Gray", "Blue Violet", "Brown",
-            "Burnt Sienna", "Cerulean Blue", "Chestnut", "Cobalt Blue", "Copper",
-            "Cyan", "Forest Green", "Gold", "Gray", "Green", "Lavender",
-            "Light Gray", "Light Green", "Lime", "Magenta", "Mahogany", "Maroon",
-            "Medium Blue", "Medium Rose", "Medium Violet", "Midnight Blue", "Olive",
-            "Orange", "Orchid", "Peach", "Purple", "Red", "Red Violet", "Red-Orange",
-            "Salmon", "Thistle", "Turquoise Blue", "Violet Blue", "Yellow", "Yellow-Orange"
-        ]
-        
-        if v not in valid_colors:
-            raise ValueError(f"Invalid color. Must be one of: {', '.join(valid_colors)}")
-        return v
-    
-    def to_sdk_model(self) -> dict[str, Any]:
-        """Convert CLI model to SDK model format."""
-        model_data = {
-            "name": self.name,
-            "folder": self.folder,
-        }
-        
-        if self.color:
-            model_data["color"] = self.color
-            
-        if self.comments:
-            model_data["comments"] = self.comments
-            
-        return model_data
-
-
 class HIPObject(BaseModel):
     """Model for HIP object configurations with folder path."""
 
@@ -525,9 +467,17 @@ class HIPObject(BaseModel):
             model_data["description"] = self.description
 
         # Build host info criteria
-        if any([self.host_info_domain, self.host_info_os, self.host_info_client_version,
-                self.host_info_host_name, self.host_info_host_id, self.host_info_managed is not None,
-                self.host_info_serial_number]):
+        if any(
+            [
+                self.host_info_domain,
+                self.host_info_os,
+                self.host_info_client_version,
+                self.host_info_host_name,
+                self.host_info_host_id,
+                self.host_info_managed is not None,
+                self.host_info_serial_number,
+            ]
+        ):
             criteria = {}
 
             # String comparisons
@@ -593,7 +543,7 @@ class HIPObject(BaseModel):
         # Build patch management
         if self.patch_management_enabled is not None:
             patch_criteria = {"is_installed": self.patch_management_enabled}
-            
+
             if self.patch_management_missing_patches:
                 missing_patches = {"check": self.patch_management_missing_patches}
                 if self.patch_management_severity is not None:
@@ -605,41 +555,46 @@ class HIPObject(BaseModel):
             patch_mgmt = {"criteria": patch_criteria}
             if self.patch_management_vendors:
                 patch_mgmt["vendor"] = self.patch_management_vendors
-            
+
             model_data["patch_management"] = patch_mgmt
 
         # Build disk encryption
         if self.disk_encryption_enabled is not None:
             disk_criteria = {"is_installed": self.disk_encryption_enabled}
-            
+
             if self.disk_encryption_locations:
                 disk_criteria["encrypted_locations"] = self.disk_encryption_locations
 
             disk_enc = {"criteria": disk_criteria}
             if self.disk_encryption_vendors:
                 disk_enc["vendor"] = self.disk_encryption_vendors
-            
+
             model_data["disk_encryption"] = disk_enc
 
         # Build mobile device
-        if any([self.mobile_device_jailbroken is not None, self.mobile_device_disk_encrypted is not None,
-                self.mobile_device_passcode_set is not None, self.mobile_device_last_checkin_time,
-                self.mobile_device_has_malware is not None, self.mobile_device_has_unmanaged_app is not None,
-                self.mobile_device_applications]):
+        if any(
+            [
+                self.mobile_device_jailbroken is not None,
+                self.mobile_device_disk_encrypted is not None,
+                self.mobile_device_passcode_set is not None,
+                self.mobile_device_last_checkin_time,
+                self.mobile_device_has_malware is not None,
+                self.mobile_device_has_unmanaged_app is not None,
+                self.mobile_device_applications,
+            ]
+        ):
             mobile_criteria = {}
-            
+
             if self.mobile_device_jailbroken is not None:
                 mobile_criteria["jailbroken"] = self.mobile_device_jailbroken
             if self.mobile_device_disk_encrypted is not None:
                 mobile_criteria["disk_encrypted"] = self.mobile_device_disk_encrypted
             if self.mobile_device_passcode_set is not None:
                 mobile_criteria["passcode_set"] = self.mobile_device_passcode_set
-                
+
             if self.mobile_device_last_checkin_time and self.mobile_device_last_checkin_value:
-                mobile_criteria["last_checkin_time"] = {
-                    self.mobile_device_last_checkin_time: self.mobile_device_last_checkin_value
-                }
-                
+                mobile_criteria["last_checkin_time"] = {self.mobile_device_last_checkin_time: self.mobile_device_last_checkin_value}
+
             if self.mobile_device_has_malware is not None or self.mobile_device_has_unmanaged_app is not None or self.mobile_device_applications:
                 applications = {}
                 if self.mobile_device_has_malware is not None:
@@ -649,7 +604,7 @@ class HIPObject(BaseModel):
                 if self.mobile_device_applications:
                     applications["includes"] = self.mobile_device_applications
                 mobile_criteria["applications"] = applications
-                
+
             model_data["mobile_device"] = {"criteria": mobile_criteria}
 
         # Build certificate
@@ -704,14 +659,14 @@ class HTTPServerProfile(BaseModel):
     )
     description: str | None = Field(None, description="Description of the HTTP server profile")
     tag_registration: bool = Field(False, description="Register tags on match")
-    
+
     # Server configurations - at least one required
     servers: list[dict[str, Any]] = Field(
         ...,
         min_length=1,
         description="List of HTTP server configurations",
     )
-    
+
     # Format configurations for different log types
     format_config: dict[str, dict[str, Any]] | None = Field(
         None,
@@ -731,11 +686,11 @@ class HTTPServerProfile(BaseModel):
                 raise ValueError(f"Server {idx}: 'protocol' is required")
             if "port" not in server:
                 raise ValueError(f"Server {idx}: 'port' is required")
-            
+
             # Validate protocol
             if server["protocol"] not in ["HTTP", "HTTPS"]:
                 raise ValueError(f"Server {idx}: protocol must be 'HTTP' or 'HTTPS'")
-            
+
             # Validate port
             try:
                 port = int(server["port"])
@@ -743,16 +698,16 @@ class HTTPServerProfile(BaseModel):
                     raise ValueError(f"Server {idx}: port must be between 1 and 65535")
             except (TypeError, ValueError):
                 raise ValueError(f"Server {idx}: port must be a valid integer")
-            
+
             # HTTPS-specific validations
             if server["protocol"] == "HTTPS":
                 if "tls_version" in server and server["tls_version"] not in ["1.0", "1.1", "1.2", "1.3"]:
                     raise ValueError(f"Server {idx}: tls_version must be one of: 1.0, 1.1, 1.2, 1.3")
-            
+
             # Validate HTTP method if present
             if "http_method" in server and server["http_method"] not in ["GET", "POST", "PUT", "DELETE"]:
                 raise ValueError(f"Server {idx}: http_method must be one of: GET, POST, PUT, DELETE")
-        
+
         return self
 
     def to_sdk_model(self) -> dict[str, Any]:
@@ -765,10 +720,10 @@ class HTTPServerProfile(BaseModel):
 
         if self.description:
             model_data["description"] = self.description
-            
+
         if self.tag_registration:
             model_data["tag_registration"] = self.tag_registration
-            
+
         if self.format_config:
             model_data["format"] = self.format_config
 
@@ -787,7 +742,7 @@ class LogForwardingProfile(BaseModel):
     )
     description: str | None = Field(None, max_length=255, description="Description of the log forwarding profile")
     enhanced_application_logging: bool = Field(False, description="Enable enhanced application logging")
-    
+
     # Match list configurations - at least one can be defined
     match_list: list[dict[str, Any]] | None = Field(
         None,
@@ -804,25 +759,17 @@ class LogForwardingProfile(BaseModel):
                     raise ValueError(f"Match list {idx}: 'name' is required")
                 if "log_type" not in match:
                     raise ValueError(f"Match list {idx}: 'log_type' is required")
-                
+
                 # Validate log type
-                valid_log_types = [
-                    "traffic", "threat", "wildfire", "url", "data",
-                    "tunnel", "auth", "decryption", "dns-security"
-                ]
+                valid_log_types = ["traffic", "threat", "wildfire", "url", "data", "tunnel", "auth", "decryption", "dns-security"]
                 if match["log_type"] not in valid_log_types:
-                    raise ValueError(
-                        f"Match list {idx}: log_type must be one of: {', '.join(valid_log_types)}"
-                    )
-                
+                    raise ValueError(f"Match list {idx}: log_type must be one of: {', '.join(valid_log_types)}")
+
                 # At least one action is required
                 actions = ["send_http", "send_syslog", "send_to_panorama", "quarantine"]
                 if not any(match.get(action) for action in actions):
-                    raise ValueError(
-                        f"Match list {idx}: At least one action must be specified "
-                        "(send_http, send_syslog, send_to_panorama, or quarantine)"
-                    )
-        
+                    raise ValueError(f"Match list {idx}: At least one action must be specified (send_http, send_syslog, send_to_panorama, or quarantine)")
+
         return self
 
     def to_sdk_model(self) -> dict[str, Any]:
@@ -834,10 +781,10 @@ class LogForwardingProfile(BaseModel):
 
         if self.description:
             model_data["description"] = self.description
-            
+
         if self.enhanced_application_logging:
             model_data["enhanced_application_logging"] = self.enhanced_application_logging
-            
+
         if self.match_list:
             model_data["match_list"] = self.match_list
 
@@ -865,23 +812,23 @@ class Service(BaseModel):
         # Check protocol structure
         if not self.protocol:
             raise ValueError("Protocol configuration is required")
-        
+
         # Must have exactly one protocol type
         protocol_types = ["tcp", "udp"]
         specified = [p for p in protocol_types if p in self.protocol]
-        
+
         if len(specified) != 1:
             raise ValueError("Exactly one protocol type (tcp or udp) must be specified")
-        
+
         protocol_type = specified[0]
         protocol_config = self.protocol[protocol_type]
-        
+
         # Validate port configuration
         if "port" not in protocol_config:
             raise ValueError(f"Port configuration is required for {protocol_type.upper()}")
-        
+
         port = protocol_config["port"]
-        
+
         # Port can be a string with ranges/lists or an integer
         if isinstance(port, str):
             # Validate port string format
@@ -923,7 +870,7 @@ class Service(BaseModel):
                 raise ValueError("Port number must be between 1 and 65535")
         else:
             raise ValueError("Port must be a string or integer")
-        
+
         # Validate override settings if present
         if "override" in protocol_config:
             override = protocol_config["override"]
@@ -939,13 +886,13 @@ class Service(BaseModel):
                 timewait = override["timewait_timeout"]
                 if not isinstance(timewait, int) or timewait < 0:
                     raise ValueError("Override timewait_timeout must be a non-negative integer")
-        
+
         # Validate tags
         if self.tag:
             for tag_value in self.tag:
                 if not tag_value or len(tag_value) > 127:
                     raise ValueError("Each tag must be between 1 and 127 characters")
-        
+
         return self
 
     def to_sdk_model(self) -> dict[str, Any]:
@@ -958,7 +905,7 @@ class Service(BaseModel):
 
         if self.description:
             model_data["description"] = self.description
-            
+
         if self.tag:
             model_data["tag"] = self.tag
 
@@ -990,13 +937,13 @@ class ServiceGroup(BaseModel):
         # Validate member list has unique values
         if self.members and len(self.members) != len(set(self.members)):
             raise ValueError("Service group members must be unique")
-        
+
         # Validate tags
         if self.tag:
             for tag_value in self.tag:
                 if not tag_value or len(tag_value) > 127:
                     raise ValueError("Each tag must be between 1 and 127 characters")
-        
+
         return self
 
     def to_sdk_model(self) -> dict[str, Any]:
@@ -1044,9 +991,7 @@ class SyslogServerProfile(BaseModel):
     @model_validator(mode="after")
     def check_container_set(self) -> "SyslogServerProfile":
         """Ensure exactly one container field is set."""
-        containers_set = sum(
-            1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None
-        )
+        containers_set = sum(1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None)
 
         if containers_set != 1:
             raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
@@ -1088,10 +1033,7 @@ class SyslogServerProfile(BaseModel):
                 raise ValueError("Format must be one of: BSD, IETF")
 
             # Validate facility
-            valid_facilities = [
-                "LOG_USER", "LOG_LOCAL0", "LOG_LOCAL1", "LOG_LOCAL2", 
-                "LOG_LOCAL3", "LOG_LOCAL4", "LOG_LOCAL5", "LOG_LOCAL6", "LOG_LOCAL7"
-            ]
+            valid_facilities = ["LOG_USER", "LOG_LOCAL0", "LOG_LOCAL1", "LOG_LOCAL2", "LOG_LOCAL3", "LOG_LOCAL4", "LOG_LOCAL5", "LOG_LOCAL6", "LOG_LOCAL7"]
             if server["facility"] not in valid_facilities:
                 raise ValueError(f"Facility must be one of: {', '.join(valid_facilities)}")
 
@@ -1152,9 +1094,7 @@ class Tag(BaseModel):
     @model_validator(mode="after")
     def check_container_set(self) -> "Tag":
         """Ensure exactly one container field is set."""
-        containers_set = sum(
-            1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None
-        )
+        containers_set = sum(1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None)
 
         if containers_set != 1:
             raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
@@ -1166,20 +1106,55 @@ class Tag(BaseModel):
         """Validate color is from allowed set."""
         if v is None:
             return v
-            
+
         # Valid colors from the SDK
         valid_colors = [
-            "Azure Blue", "Black", "Blue", "Blue Gray", "Blue Violet", "Brown", "Burnt Sienna",
-            "Cerulean Blue", "Chestnut", "Cobalt Blue", "Copper", "Cyan", "Forest Green", "Gold",
-            "Gray", "Green", "Lavender", "Light Gray", "Light Green", "Lime", "Magenta", "Mahogany",
-            "Maroon", "Medium Blue", "Medium Rose", "Medium Violet", "Midnight Blue", "Olive",
-            "Orange", "Orchid", "Peach", "Purple", "Red", "Red Violet", "Red-Orange", "Salmon",
-            "Thistle", "Turquoise Blue", "Violet Blue", "Yellow", "Yellow-Orange"
+            "Azure Blue",
+            "Black",
+            "Blue",
+            "Blue Gray",
+            "Blue Violet",
+            "Brown",
+            "Burnt Sienna",
+            "Cerulean Blue",
+            "Chestnut",
+            "Cobalt Blue",
+            "Copper",
+            "Cyan",
+            "Forest Green",
+            "Gold",
+            "Gray",
+            "Green",
+            "Lavender",
+            "Light Gray",
+            "Light Green",
+            "Lime",
+            "Magenta",
+            "Mahogany",
+            "Maroon",
+            "Medium Blue",
+            "Medium Rose",
+            "Medium Violet",
+            "Midnight Blue",
+            "Olive",
+            "Orange",
+            "Orchid",
+            "Peach",
+            "Purple",
+            "Red",
+            "Red Violet",
+            "Red-Orange",
+            "Salmon",
+            "Thistle",
+            "Turquoise Blue",
+            "Violet Blue",
+            "Yellow",
+            "Yellow-Orange",
         ]
-        
+
         if v not in valid_colors:
             raise ValueError(f"Color must be one of: {', '.join(valid_colors)}")
-            
+
         return v
 
     def to_sdk_model(self) -> dict[str, Any]:

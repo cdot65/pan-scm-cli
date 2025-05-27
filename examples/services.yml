@@ -4,120 +4,120 @@
 
 services:
   # Basic HTTP and HTTPS services
-  - name: "web-browsing"
-    folder: "Texas"
-    description: "Standard web browsing ports"
+  - name: web-browsing
+    folder: Texas
+    description: Standard web browsing ports
     protocol:
       tcp:
-        port: "80,443"
+        port: 80,443
     tag:
-      - "web"
-      - "standard"
+      - Web-Service
+      - Production
 
   # Custom SSH port with timeout override
-  - name: "ssh-custom"
-    folder: "Texas"
-    description: "Custom SSH service on non-standard port"
+  - name: ssh-custom
+    folder: Texas
+    description: Custom SSH service on non-standard port
     protocol:
       tcp:
-        port: "2222"
+        port: 2222
         override:
           timeout: 7200  # 2 hours
           halfclose_timeout: 120
           timewait_timeout: 15
     tag:
-      - "management"
-      - "secure"
+      - "Infrastructure"
+      - "Critical"
 
   # DNS service
-  - name: "dns"
-    folder: "Texas"
-    description: "Domain Name System service"
+  - name: dns
+    folder: Texas
+    description: Domain Name System service
     protocol:
       udp:
-        port: "53"
+        port: 53
     tag:
-      - "infrastructure"
-      - "critical"
+      - "Infrastructure"
+      - "Critical"
 
   # Database services with port ranges
-  - name: "mysql-cluster"
-    folder: "Texas"
-    description: "MySQL cluster communication ports"
+  - name: mysql-cluster
+    folder: Texas
+    description: MySQL cluster communication ports
     protocol:
       tcp:
-        port: "3306-3310"
+        port: 3306-3310
     tag:
-      - "database"
-      - "backend"
+      - Database
+      - Production
 
   # Email services with multiple ports
-  - name: "email-services"
-    folder: "Texas"
-    description: "Common email protocols"
+  - name: email-services
+    folder: Texas
+    description: Common email protocols
     protocol:
       tcp:
-        port: "25,110,143,465,587,993,995"
+        port: 25,110,143,465,587,993,995
     tag:
-      - "email"
-      - "communication"
+      - Application
+      - Production
 
   # FTP service with extended timeout
-  - name: "ftp-data-transfer"
-    folder: "Texas"
-    description: "FTP data transfer with extended timeout"
+  - name: ftp-data-transfer
+    folder: Texas
+    description: FTP data transfer with extended timeout
     protocol:
       tcp:
-        port: "20-21"
+        port: 20-21
         override:
           timeout: 3600  # 1 hour for large file transfers
     tag:
-      - "file-transfer"
-      - "legacy"
+      - Legacy
+      - Application
 
   # Custom application port
-  - name: "custom-app-api"
-    folder: "Texas"
-    description: "Custom application API service"
+  - name: custom-app-api
+    folder: Texas
+    description: Custom application API service
     protocol:
       tcp:
-        port: "8443"
+        port: 8443
     tag:
-      - "api"
-      - "custom"
-      - "production"
+      - Application
+      - Production
+      - Critical
 
   # Game server UDP ports
-  - name: "game-server"
-    folder: "Texas"
-    description: "Online game server ports"
+  - name: game-server
+    folder: Texas
+    description: Online game server ports
     protocol:
       udp:
-        port: "27015-27030"
+        port: 27015-27030
     tag:
-      - "gaming"
-      - "entertainment"
+      - Application
+      - Low-Priority
 
   # VoIP service
-  - name: "sip-voip"
-    folder: "Texas"
-    description: "SIP VoIP service"
+  - name: sip-voip
+    folder: Texas
+    description: SIP VoIP service
     protocol:
       udp:
-        port: "5060,5061"
+        port: 5060,5061
     tag:
-      - "voip"
-      - "communication"
+      - Application
+      - Critical
 
   # Load balancer health check
-  - name: "health-check"
-    folder: "Texas"
-    description: "Load balancer health check service"
+  - name: health-check
+    folder: Texas
+    description: Load balancer health check service
     protocol:
       tcp:
-        port: "8080"
+        port: 8080
         override:
           timeout: 10  # Short timeout for health checks
     tag:
-      - "monitoring"
-      - "infrastructure"
+      - Monitor
+      - Infrastructure
