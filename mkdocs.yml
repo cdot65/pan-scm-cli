@@ -110,6 +110,19 @@ nav:
       - Objects:
           - Address: cli/objects/address.md
           - Address Group: cli/objects/address-group.md
+          - Application: cli/objects/application.md
+          - Application Group: cli/objects/application-group.md
+          - Application Filter: cli/objects/application-filter.md
+          - Dynamic User Group: cli/objects/dynamic-user-group.md
+          - External Dynamic List: cli/objects/external-dynamic-list.md
+          - HIP Object: cli/objects/hip-object.md
+          - HIP Profile: cli/objects/hip-profile.md
+          - HTTP Server Profile: cli/objects/http-server-profile.md
+          - Log Forwarding Profile: cli/objects/log-forwarding-profile.md
+          - Service: cli/objects/service.md
+          - Service Group: cli/objects/service-group.md
+          - Syslog Server Profile: cli/objects/syslog-server-profile.md
+          - Tag: cli/objects/tag.md
       - Network:
           - Security Zone: cli/network/security-zone.md
       - Security:

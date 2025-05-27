@@ -1,0 +1,165 @@
+# hip-objects.yml
+# Example HIP (Host Information Profile) object configurations
+# Used with: scm-cli load objects hip-object --file hip-objects.yml
+
+hip_objects:
+  # Windows workstation compliance policy
+  - folder: Austin
+    name: windows-workstation-compliance
+    description: Windows workstation security compliance policy
+    # Host information criteria
+    host_info_os: Microsoft
+    host_info_os_value: All
+    host_info_managed: true
+    # Disk encryption requirement
+    disk_encryption_enabled: true
+    disk_encryption_vendors:
+      - name: BitLocker
+        product: []
+    # Patch management requirement
+    patch_management_enabled: true
+    patch_management_missing_patches: has-none
+    patch_management_severity: 50  # Critical patches only
+    patch_management_vendors:
+      - name: Microsoft
+        product:
+          - Windows
+
+  # Mobile device security policy
+  - folder: Austin
+    name: mobile-device-secure
+    description: Mobile device security requirements
+    mobile_device_jailbroken: false
+    mobile_device_disk_encrypted: true
+    mobile_device_passcode_set: true
+    mobile_device_last_checkin_time: days
+    mobile_device_last_checkin_value: 7
+    mobile_device_has_malware: false
+    mobile_device_has_unmanaged_app: false
+
+  # Corporate network only policy
+  - folder: Austin
+    name: corporate-wifi-only
+    description: Restrict to corporate WiFi networks
+    network_info_type: is
+    network_info_value: wifi
+    host_info_domain: contains
+    host_info_domain_value: corp.example.com
+
+  # Development workstation policy
+  - folder: Development
+    name: dev-workstation-policy
+    description: Development team workstation requirements
+    # OS requirements - Windows or Mac
+    host_info_os: Microsoft
+    host_info_os_value: All
+    # Must be managed
+    host_info_managed: true
+    # Must have disk encryption
+    disk_encryption_enabled: true
+    # Patch management
+    patch_management_enabled: true
+    patch_management_missing_patches: has-any
+    patch_management_severity: 30  # High and critical patches
+
+  # Certificate-based authentication
+  - folder: Austin
+    name: certificate-auth-required
+    description: Require valid corporate certificate
+    certificate_profile: Corporate-CA-Profile
+    certificate_attributes:
+      - name: issuer
+        value: "CN=Corporate CA, O=Example Corp"
+      - name: valid
+        value: "true"
+
+  # Linux server compliance
+  - folder: Servers
+    name: linux-server-compliance
+    description: Linux server security requirements
+    host_info_os: Linux
+    host_info_os_value: All
+    host_info_managed: true
+    # Patch management for Linux
+    patch_management_enabled: true
+    patch_management_missing_patches: has-none
+    patch_management_severity: 40
+    patch_management_vendors:
+      - name: Linux
+        product:
+          - Ubuntu
+          - CentOS
+          - RedHat
+
+  # Advanced host info example
+  - folder: Austin
+    name: executive-laptop-policy
+    description: Executive laptop enhanced security
+    # Host identification
+    host_info_host_name: contains
+    host_info_host_name_value: EXEC-
+    host_info_serial_number: is_not
+    host_info_serial_number_value: UNKNOWN
+    # Must be on ethernet (not WiFi)
+    network_info_type: is_not
+    network_info_value: wifi
+    # Full disk encryption with specific vendors
+    disk_encryption_enabled: true
+    disk_encryption_locations:
+      - name: "C:"
+        encryption_state:
+          is: encrypted
+      - name: "D:"
+        encryption_state:
+          is: encrypted
+    disk_encryption_vendors:
+      - name: BitLocker
+        product: []
+      - name: McAfee
+        product:
+          - "Endpoint Encryption"
+
+  # Mobile app control policy
+  - folder: Mobile
+    name: mobile-app-control
+    description: Control specific mobile applications
+    mobile_device_jailbroken: false
+    mobile_device_applications:
+      - name: "Corporate VPN"
+        package: "com.example.corp.vpn"
+      - name: "MDM Agent"
+        package: "com.example.mdm"
+        hash: "a1b2c3d4e5f6"
+
+  # Minimum viable policy
+  - folder: Austin
+    name: basic-compliance
+    description: Basic compliance check
+    host_info_managed: true
+
+  # Complex multi-criteria policy
+  - folder: Austin
+    name: high-security-profile
+    description: High security requirements for sensitive systems
+    # Host requirements
+    host_info_domain: is
+    host_info_domain_value: secure.corp.example.com
+    host_info_os: Microsoft
+    host_info_os_value: "Windows 10"
+    host_info_managed: true
+    host_info_client_version: contains
+    host_info_client_version_value: "10.0"
+    # Network restrictions
+    network_info_type: is_not
+    network_info_value: unknown
+    # Security requirements
+    disk_encryption_enabled: true
+    disk_encryption_locations:
+      - name: "C:"
+        encryption_state:
+          is: encrypted
+    patch_management_enabled: true
+    patch_management_missing_patches: has-none
+    patch_management_severity: 1  # All patches
+    # Certificate required
+    certificate_profile: High-Security-Cert

@@ -1,0 +1,54 @@
+hip_profiles:
+- name: basic-network-access
+  folder: Texas
+  match: '''domain-member'' or ''certificate-valid'''
+  description: Minimum requirements for network access
+- name: byod-device-policy
+  folder: Texas
+  match: '''mobile-device'' and ''disk-encryption'' and ''passcode-set'''
+  description: Bring Your Own Device policy
+- name: contractor-device-policy
+  folder: Texas
+  match: '''certificate-valid'' and ''antivirus'''
+  description: Policy for contractor devices
+- name: corporate-endpoint-compliance
+  folder: Texas
+  match: '''domain-member'' and ''patch-management'''
+  description: Standard compliance policy for corporate endpoints
+- name: developer-workstation
+  folder: Texas
+  match: '''domain-member'' and ''antivirus'' and ''host-info'''
+  description: Policy for development workstations
+- name: emergency-access
+  folder: Texas
+  match: '''certificate-valid'' or ''emergency-override'''
+  description: Emergency access with minimal requirements
+- name: guest-access-policy
+  folder: Texas
+  match: not 'domain-member'
+  description: Limited access for guest devices
+- name: high-security-compliance
+  folder: Texas
+  match: '''domain-member'' and ''patch-management'' and ''disk-encryption'' and ''antivirus''
+    and ''certificate-valid'' and ''firewall-enabled'''
+  description: Maximum security requirements
+- name: iot-device-profile
+  folder: Texas
+  match: '''certificate-valid'' and not ''patch-management'''
+  description: Profile for IoT devices
+- name: mobile-device-compliance
+  folder: Texas
+  match: '''mobile-device'' and ''disk-encryption'''
+  description: Compliance policy for mobile devices
+- name: privileged-user-policy
+  folder: Texas
+  match: '''domain-member'' and ''patch-management'' and ''disk-encryption'' and ''antivirus'''
+  description: Enhanced security requirements for privileged access
+- name: remote-access-compliance
+  folder: Texas
+  match: '''domain-member'' and ''patch-management'' and ''disk-encryption'' and ''certificate-valid'''
+  description: Compliance requirements for remote access
+- name: test-profile
+  folder: Texas
+  match: '''domain-member'' and ''patch-management'''
+  description: Test HIP profile

@@ -47,7 +47,7 @@ The CLI follows a consistent pattern: `scm-cli <action> <object-type> <object> [
 
 Commands are organized by resource type:
 
-- `commands/objects.py`: Address and address group management
+- `commands/objects.py`: Address, address group, application, application group, application filter, dynamic user group, external dynamic list, HIP object, HIP profile, HTTP server profile, log forwarding profile, service, service group, syslog server profile, and tag management
 - `commands/network.py`: Security zone management
 - `commands/security.py`: Security rule management
 - `commands/deployment.py`: Bandwidth allocation management
@@ -126,3 +126,28 @@ Always refer to the appropriate style guide when writing or modifying code to en
 - Bulk operations use YAML files - see `examples/` for formats
 - All commands support `--mock` flag for testing
 - Documentation uses MkDocs Material with custom Termynal integration for CLI examples
+- SDK service names use singular form (e.g., `application_filter` not `application_filters`, `external_dynamic_list` not `external_dynamic_lists`, `hip_object` not `hip_objects`, `hip_profile` not `hip_profiles`, `http_server_profile` not `http_server_profiles`, `log_forwarding_profile` not `log_forwarding_profiles`, `service` not `services`, `service_group` not `service_groups`, `syslog_server_profile` not `syslog_server_profiles`, `tag` not `tags`)
+- Boolean fields in API requests should be omitted when false to avoid validation errors
+- Dynamic user group filters use tag-based expressions with specific syntax requirements
+- External dynamic lists support various types (predefined_ip, predefined_url, ip, domain, url, imsi, imei) with different configuration requirements
+- Predefined EDLs use short names (e.g., "panw-bulletproof-ip-list") not full URLs for the url field
+- HIP objects use a flattened field structure in validators for easier CLI usage, which is then converted to nested SDK format
+- HIP object criteria types include host info, network info, patch management, disk encryption, mobile device, and certificate validation
+- HIP profiles reference HIP objects through match criteria with boolean operators (is/is-not)
+- HTTP server profiles require the `http_method` field for all server configurations (discovered through API testing)
+- HTTP server profile `server` field is returned as singular from API but we use plural `servers` in YAML for consistency
+- Log forwarding profiles require the 'filter' field in match list entries despite SDK documentation showing it as optional
+- Log forwarding profile match lists support various log types (traffic, threat, wildfire, url, data, tunnel, auth, decryption, dns-security)
+- Services define network protocols (TCP/UDP) with port configurations and optional timeout overrides
+- Service tags must reference existing tag objects in SCM (validation error occurs if tag doesn't exist)
+- Service port configurations support single ports, port ranges (e.g., 80-443), and comma-separated lists (e.g., 80,443,8080)
+- Service groups organize services and other service groups for policy management
+- Service group members must be unique and reference existing service or service group objects
+- Service groups support nested references (a service group can contain other service groups)
+- Syslog server profiles use fetch() method instead of get() in SDK client for retrieval
+- Syslog server profiles support UDP and TCP transport (SSL not supported by SDK)
+- Syslog server format options include BSD and IETF
+- Syslog facilities range from LOG_USER to LOG_LOCAL7
+- Tags support 42 predefined colors (Red, Green, Blue, Yellow, Copper, Orange, Purple, Gray, Light Green, Cyan, Light Gray, Blue Gray, Lime, Black, Gold, Brown, Olive, Maroon, Red-Orange, Yellow-Orange, Forest Green, Turquoise Blue, Azure Blue, Cerulean Blue, Midnight Blue, Medium Blue, Cobalt Blue, Violet Blue, Blue Violet, Medium Violet, Medium Rose, Lavender, Orchid, Thistle, Peach, Salmon, Magenta, Red Violet, Mahogany, Burnt Sienna, Chestnut)
+- Tag color validation is case-insensitive in validator but API requires exact case
+- Tags can have comments for additional metadata
