@@ -7,7 +7,7 @@ that all required fields are present and correctly formatted.
 
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ValidationInfo
 
 # ========================================================================================================================================================================================
 # TYPE DEFINITIONS
@@ -377,6 +377,64 @@ class ExternalDynamicList(BaseModel):
         return model_data
 
 
+class Tag(BaseModel):
+    """Model for tag configurations with folder path."""
+    
+    folder: str = Field(..., description="Folder path for the tag")
+    name: str = Field(
+        ..., 
+        max_length=127,
+        pattern=r"^[a-zA-Z0-9_ \.-\[\]\-\&\(\)]+$",
+        description="Name of the tag"
+    )
+    color: str | None = Field(
+        None,
+        description="Color associated with the tag (e.g., 'Red', 'Blue', 'Forest Green')"
+    )
+    comments: str | None = Field(
+        None,
+        max_length=1023,
+        description="Comments for the tag"
+    )
+    
+    @field_validator("color")
+    @classmethod
+    def validate_color(cls, v: str | None) -> str | None:
+        """Validate color against allowed values."""
+        if v is None:
+            return v
+            
+        # List of valid colors from the SDK
+        valid_colors = [
+            "Azure Blue", "Black", "Blue", "Blue Gray", "Blue Violet", "Brown",
+            "Burnt Sienna", "Cerulean Blue", "Chestnut", "Cobalt Blue", "Copper",
+            "Cyan", "Forest Green", "Gold", "Gray", "Green", "Lavender",
+            "Light Gray", "Light Green", "Lime", "Magenta", "Mahogany", "Maroon",
+            "Medium Blue", "Medium Rose", "Medium Violet", "Midnight Blue", "Olive",
+            "Orange", "Orchid", "Peach", "Purple", "Red", "Red Violet", "Red-Orange",
+            "Salmon", "Thistle", "Turquoise Blue", "Violet Blue", "Yellow", "Yellow-Orange"
+        ]
+        
+        if v not in valid_colors:
+            raise ValueError(f"Invalid color. Must be one of: {', '.join(valid_colors)}")
+        return v
+    
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+            "folder": self.folder,
+        }
+        
+        if self.color:
+            model_data["color"] = self.color
+            
+        if self.comments:
+            model_data["comments"] = self.comments
+            
+        return model_data
+
+
 class HIPObject(BaseModel):
     """Model for HIP object configurations with folder path."""
 
@@ -713,6 +771,436 @@ class HTTPServerProfile(BaseModel):
             
         if self.format_config:
             model_data["format"] = self.format_config
+
+        return model_data
+
+
+class LogForwardingProfile(BaseModel):
+    """Model for log forwarding profile configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the log forwarding profile")
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=63,
+        description="Name of the log forwarding profile",
+    )
+    description: str | None = Field(None, max_length=255, description="Description of the log forwarding profile")
+    enhanced_application_logging: bool = Field(False, description="Enable enhanced application logging")
+    
+    # Match list configurations - at least one can be defined
+    match_list: list[dict[str, Any]] | None = Field(
+        None,
+        description="List of match profile configurations",
+    )
+
+    @model_validator(mode="after")
+    def validate_match_list(self) -> "LogForwardingProfile":
+        """Validate match list configurations."""
+        if self.match_list:
+            for idx, match in enumerate(self.match_list):
+                # Required fields
+                if "name" not in match:
+                    raise ValueError(f"Match list {idx}: 'name' is required")
+                if "log_type" not in match:
+                    raise ValueError(f"Match list {idx}: 'log_type' is required")
+                
+                # Validate log type
+                valid_log_types = [
+                    "traffic", "threat", "wildfire", "url", "data",
+                    "tunnel", "auth", "decryption", "dns-security"
+                ]
+                if match["log_type"] not in valid_log_types:
+                    raise ValueError(
+                        f"Match list {idx}: log_type must be one of: {', '.join(valid_log_types)}"
+                    )
+                
+                # At least one action is required
+                actions = ["send_http", "send_syslog", "send_to_panorama", "quarantine"]
+                if not any(match.get(action) for action in actions):
+                    raise ValueError(
+                        f"Match list {idx}: At least one action must be specified "
+                        "(send_http, send_syslog, send_to_panorama, or quarantine)"
+                    )
+        
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "folder": self.folder,
+            "name": self.name,
+        }
+
+        if self.description:
+            model_data["description"] = self.description
+            
+        if self.enhanced_application_logging:
+            model_data["enhanced_application_logging"] = self.enhanced_application_logging
+            
+        if self.match_list:
+            model_data["match_list"] = self.match_list
+
+        return model_data
+
+
+class Service(BaseModel):
+    """Model for service configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the service")
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=63,
+        pattern=r"^[a-zA-Z0-9_\-. ]+$",
+        description="Name of the service",
+    )
+    description: str | None = Field(None, max_length=1023, description="Description of the service")
+    tag: list[str] | None = Field(None, description="Tags for filtering and grouping")
+    protocol: dict[str, Any] = Field(..., description="Protocol configuration (TCP or UDP)")
+
+    @model_validator(mode="after")
+    def validate_service(self) -> "Service":
+        """Validate service configuration."""
+        # Check protocol structure
+        if not self.protocol:
+            raise ValueError("Protocol configuration is required")
+        
+        # Must have exactly one protocol type
+        protocol_types = ["tcp", "udp"]
+        specified = [p for p in protocol_types if p in self.protocol]
+        
+        if len(specified) != 1:
+            raise ValueError("Exactly one protocol type (tcp or udp) must be specified")
+        
+        protocol_type = specified[0]
+        protocol_config = self.protocol[protocol_type]
+        
+        # Validate port configuration
+        if "port" not in protocol_config:
+            raise ValueError(f"Port configuration is required for {protocol_type.upper()}")
+        
+        port = protocol_config["port"]
+        
+        # Port can be a string with ranges/lists or an integer
+        if isinstance(port, str):
+            # Validate port string format
+            if "-" in port:
+                # Port range
+                parts = port.split("-")
+                if len(parts) != 2:
+                    raise ValueError("Invalid port range format. Use 'start-end'")
+                try:
+                    start, end = int(parts[0]), int(parts[1])
+                    if not (1 <= start <= 65535 and 1 <= end <= 65535):
+                        raise ValueError("Port numbers must be between 1 and 65535")
+                    if start > end:
+                        raise ValueError("Invalid port range: start must be <= end")
+                except ValueError as e:
+                    if "invalid literal" in str(e):
+                        raise ValueError("Port range must contain valid integers")
+                    raise
+            elif "," in port:
+                # Comma-separated ports
+                ports = [p.strip() for p in port.split(",")]
+                for p in ports:
+                    try:
+                        port_num = int(p)
+                        if not (1 <= port_num <= 65535):
+                            raise ValueError(f"Port {port_num} must be between 1 and 65535")
+                    except ValueError:
+                        raise ValueError(f"Invalid port number: {p}")
+            else:
+                # Single port
+                try:
+                    port_num = int(port)
+                    if not (1 <= port_num <= 65535):
+                        raise ValueError("Port number must be between 1 and 65535")
+                except ValueError:
+                    raise ValueError(f"Invalid port number: {port}")
+        elif isinstance(port, int):
+            if not (1 <= port <= 65535):
+                raise ValueError("Port number must be between 1 and 65535")
+        else:
+            raise ValueError("Port must be a string or integer")
+        
+        # Validate override settings if present
+        if "override" in protocol_config:
+            override = protocol_config["override"]
+            if "timeout" in override:
+                timeout = override["timeout"]
+                if not isinstance(timeout, int) or timeout < 0:
+                    raise ValueError("Override timeout must be a non-negative integer")
+            if "halfclose_timeout" in override:
+                halfclose = override["halfclose_timeout"]
+                if not isinstance(halfclose, int) or halfclose < 0:
+                    raise ValueError("Override halfclose_timeout must be a non-negative integer")
+            if "timewait_timeout" in override:
+                timewait = override["timewait_timeout"]
+                if not isinstance(timewait, int) or timewait < 0:
+                    raise ValueError("Override timewait_timeout must be a non-negative integer")
+        
+        # Validate tags
+        if self.tag:
+            for tag_value in self.tag:
+                if not tag_value or len(tag_value) > 127:
+                    raise ValueError("Each tag must be between 1 and 127 characters")
+        
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "folder": self.folder,
+            "name": self.name,
+            "protocol": self.protocol,
+        }
+
+        if self.description:
+            model_data["description"] = self.description
+            
+        if self.tag:
+            model_data["tag"] = self.tag
+
+        return model_data
+
+
+class ServiceGroup(BaseModel):
+    """Model for service group configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the service group")
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=63,
+        pattern=r"^[a-zA-Z0-9_ \.-]+$",
+        description="Name of the service group",
+    )
+    members: list[str] = Field(
+        ...,
+        min_length=1,
+        max_length=1024,
+        description="List of service or service group names",
+    )
+    tag: list[str] | None = Field(None, description="Tags for filtering and grouping")
+
+    @model_validator(mode="after")
+    def validate_service_group(self) -> "ServiceGroup":
+        """Validate service group configuration."""
+        # Validate member list has unique values
+        if self.members and len(self.members) != len(set(self.members)):
+            raise ValueError("Service group members must be unique")
+        
+        # Validate tags
+        if self.tag:
+            for tag_value in self.tag:
+                if not tag_value or len(tag_value) > 127:
+                    raise ValueError("Each tag must be between 1 and 127 characters")
+        
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert to SDK model format."""
+        model_data = {
+            "folder": self.folder,
+            "name": self.name,
+            "members": self.members,
+        }
+
+        if self.tag:
+            model_data["tag"] = self.tag
+
+        return model_data
+
+
+class SyslogServerProfile(BaseModel):
+    """Model for syslog server profile configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the syslog server profile")
+    name: str = Field(..., description="Name of the syslog server profile")
+    description: str | None = Field(None, description="Description of the profile")
+    server: list[dict[str, Any]] = Field(..., description="List of syslog servers")
+    format: dict[str, Any] | None = Field(None, description="Log format settings")
+    tag: list[str] | None = Field(None, description="List of tags")
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+
+    @field_validator("folder", "snippet", "device")
+    def validate_container(cls, v: str | None, info: ValidationInfo) -> str | None:
+        """Validate that exactly one container field is set."""
+        if v is not None:
+            # Check other container fields
+            values = info.data
+            containers = ["folder", "snippet", "device"]
+            field_name = info.field_name
+            other_containers = [c for c in containers if c != field_name]
+
+            for container in other_containers:
+                if values.get(container) is not None:
+                    raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return v
+
+    @model_validator(mode="after")
+    def check_container_set(self) -> "SyslogServerProfile":
+        """Ensure exactly one container field is set."""
+        containers_set = sum(
+            1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None
+        )
+
+        if containers_set != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return self
+
+    @field_validator("server")
+    def validate_servers(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Validate server configurations."""
+        if not v:
+            raise ValueError("At least one server must be specified")
+
+        for server in v:
+            # Validate required fields
+            if "name" not in server:
+                raise ValueError("Server name is required")
+            if "server" not in server:
+                raise ValueError("Server address is required")
+            if "transport" not in server:
+                raise ValueError("Server transport is required")
+            if "port" not in server:
+                raise ValueError("Server port is required")
+            if "format" not in server:
+                raise ValueError("Server format is required")
+            if "facility" not in server:
+                raise ValueError("Server facility is required")
+
+            # Validate transport
+            if server["transport"] not in ["UDP", "TCP", "SSL"]:
+                raise ValueError("Transport must be one of: UDP, TCP, SSL")
+
+            # Validate port
+            port = server["port"]
+            if not isinstance(port, int) or port < 1 or port > 65535:
+                raise ValueError("Port must be between 1 and 65535")
+
+            # Validate format
+            if server["format"] not in ["BSD", "IETF"]:
+                raise ValueError("Format must be one of: BSD, IETF")
+
+            # Validate facility
+            valid_facilities = [
+                "LOG_USER", "LOG_LOCAL0", "LOG_LOCAL1", "LOG_LOCAL2", 
+                "LOG_LOCAL3", "LOG_LOCAL4", "LOG_LOCAL5", "LOG_LOCAL6", "LOG_LOCAL7"
+            ]
+            if server["facility"] not in valid_facilities:
+                raise ValueError(f"Facility must be one of: {', '.join(valid_facilities)}")
+
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+            "server": self.server,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.format:
+            model_data["format"] = self.format
+        if self.tag:
+            model_data["tag"] = self.tag
+
+        return model_data
+
+
+class Tag(BaseModel):
+    """Model for tag configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the tag")
+    name: str = Field(..., description="Name of the tag", pattern=r"^[a-zA-Z0-9_ \.-\[\]\-\&\(\)]+$", max_length=127)
+    color: str | None = Field(None, description="Color associated with tag")
+    comments: str | None = Field(None, description="Comments for the tag", max_length=1023)
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+
+    @field_validator("folder", "snippet", "device")
+    def validate_container(cls, v: str | None, info: ValidationInfo) -> str | None:
+        """Validate that exactly one container field is set."""
+        if v is not None:
+            # Check other container fields
+            values = info.data
+            containers = ["folder", "snippet", "device"]
+            field_name = info.field_name
+            other_containers = [c for c in containers if c != field_name]
+
+            for container in other_containers:
+                if values.get(container) is not None:
+                    raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return v
+
+    @model_validator(mode="after")
+    def check_container_set(self) -> "Tag":
+        """Ensure exactly one container field is set."""
+        containers_set = sum(
+            1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None
+        )
+
+        if containers_set != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return self
+
+    @field_validator("color")
+    def validate_color(cls, v: str | None) -> str | None:
+        """Validate color is from allowed set."""
+        if v is None:
+            return v
+            
+        # Valid colors from the SDK
+        valid_colors = [
+            "Azure Blue", "Black", "Blue", "Blue Gray", "Blue Violet", "Brown", "Burnt Sienna",
+            "Cerulean Blue", "Chestnut", "Cobalt Blue", "Copper", "Cyan", "Forest Green", "Gold",
+            "Gray", "Green", "Lavender", "Light Gray", "Light Green", "Lime", "Magenta", "Mahogany",
+            "Maroon", "Medium Blue", "Medium Rose", "Medium Violet", "Midnight Blue", "Olive",
+            "Orange", "Orchid", "Peach", "Purple", "Red", "Red Violet", "Red-Orange", "Salmon",
+            "Thistle", "Turquoise Blue", "Violet Blue", "Yellow", "Yellow-Orange"
+        ]
+        
+        if v not in valid_colors:
+            raise ValueError(f"Color must be one of: {', '.join(valid_colors)}")
+            
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.color:
+            model_data["color"] = self.color
+        if self.comments:
+            model_data["comments"] = self.comments
 
         return model_data
 

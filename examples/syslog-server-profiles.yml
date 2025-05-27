@@ -1,0 +1,190 @@
+# Example syslog server profiles for Palo Alto Networks Strata Cloud Manager
+# This file demonstrates various configurations for syslog server profiles
+# Each profile can have one or more servers with different transport protocols and formats
+
+syslog_server_profiles:
+  # Basic UDP syslog profile
+  - name: basic-syslog-profile
+    folder: Texas
+    description: Basic syslog configuration for general logging
+    server:
+      - name: primary-syslog
+        server: 192.168.1.100
+        transport: UDP
+        port: 514
+        format: BSD
+        facility: LOG_USER
+    tag:
+      - logging
+      - basic
+
+  # Multi-server profile with different transports
+  - name: multi-server-profile
+    folder: Texas
+    description: Multiple syslog servers for redundancy
+    server:
+      - name: primary-server
+        server: 192.168.1.100
+        transport: UDP
+        port: 514
+        format: BSD
+        facility: LOG_USER
+      - name: secondary-server
+        server: 192.168.1.101
+        transport: TCP
+        port: 514
+        format: IETF
+        facility: LOG_LOCAL0
+      - name: backup-server
+        server: 192.168.1.102
+        transport: UDP
+        port: 514
+        format: BSD
+        facility: LOG_LOCAL1
+    tag:
+      - redundant
+      - critical
+
+  # Secure TCP syslog profile
+  - name: secure-syslog-profile
+    folder: Texas
+    description: Secure syslog using TCP transport
+    server:
+      - name: secure-syslog-server
+        server: syslog.security.example.com
+        transport: TCP
+        port: 6514
+        format: IETF
+        facility: LOG_LOCAL2
+    tag:
+      - secure
+      - encrypted
+      - compliance
+
+  # Network infrastructure logging
+  - name: network-infrastructure-syslog
+    folder: Texas
+    description: Syslog profile for network infrastructure devices
+    server:
+      - name: network-syslog
+        server: 10.0.0.50
+        transport: UDP
+        port: 514
+        format: BSD
+        facility: LOG_LOCAL3
+    tag:
+      - network
+      - infrastructure
+
+  # Security events syslog profile
+  - name: security-events-syslog
+    folder: Texas
+    description: Dedicated syslog for security events and alerts
+    server:
+      - name: siem-collector
+        server: siem.security.example.com
+        transport: TCP
+        port: 1514
+        format: IETF
+        facility: LOG_LOCAL4
+    tag:
+      - security
+      - siem
+      - alerts
+
+  # Application logging profile
+  - name: application-logging-profile
+    folder: Texas
+    description: Syslog profile for application-specific logs
+    server:
+      - name: app-log-server
+        server: applog.internal.example.com
+        transport: TCP
+        port: 514
+        format: BSD
+        facility: LOG_LOCAL5
+    tag:
+      - application
+      - development
+
+  # Compliance logging profile
+  - name: compliance-logging-profile
+    folder: Texas
+    description: Regulatory compliance logging with secure transport
+    server:
+      - name: compliance-server-primary
+        server: compliance1.example.com
+        transport: TCP
+        port: 6514
+        format: IETF
+        facility: LOG_LOCAL6
+      - name: compliance-server-backup
+        server: compliance2.example.com
+        transport: TCP
+        port: 6514
+        format: IETF
+        facility: LOG_LOCAL6
+    tag:
+      - compliance
+      - regulatory
+      - audit
+
+  # Debug logging profile
+  - name: debug-syslog-profile
+    folder: Texas
+    description: Verbose debug logging for troubleshooting
+    server:
+      - name: debug-log-server
+        server: 172.16.10.200
+        transport: UDP
+        port: 5514
+        format: BSD
+        facility: LOG_LOCAL7
+    tag:
+      - debug
+      - troubleshooting
+      - temporary
+
+  # Cloud logging profile
+  - name: cloud-logging-profile
+    folder: Texas
+    description: Cloud-based syslog aggregation service
+    server:
+      - name: cloud-syslog-endpoint
+        server: logs.cloudprovider.example.com
+        transport: TCP
+        port: 6514
+        format: IETF
+        facility: LOG_USER
+    tag:
+      - cloud
+      - saas
+      - aggregation
+
+  # High-performance logging profile
+  - name: high-performance-syslog
+    folder: Texas
+    description: Optimized for high-volume log generation
+    server:
+      - name: performance-syslog-1
+        server: 10.10.10.100
+        transport: UDP
+        port: 514
+        format: BSD
+        facility: LOG_LOCAL0
+      - name: performance-syslog-2
+        server: 10.10.10.101
+        transport: UDP
+        port: 514
+        format: BSD
+        facility: LOG_LOCAL0
+      - name: performance-syslog-3
+        server: 10.10.10.102
+        transport: UDP
+        port: 514
+        format: BSD
+        facility: LOG_LOCAL0
+    tag:
+      - high-volume
+      - performance
+      - load-balanced

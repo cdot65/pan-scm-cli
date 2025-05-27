@@ -170,6 +170,51 @@ The project has successfully implemented:
 - [x] Create comprehensive example YAML file with 10 profile configurations
 - [x] Add tests and documentation
 
+### Log Forwarding Profiles (Completed ✅)
+- [x] Implement `show objects log-forwarding-profile` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_log_forwarding_profiles()` and `get_log_forwarding_profile()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for match list configurations with multiple log types
+- [x] Discover and fix required field issue (filter field in match list)
+- [x] Create comprehensive example YAML file with 10 profile configurations
+- [x] Add tests and documentation
+
+### Services (Completed ✅)
+- [x] Implement `show objects service` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_services()` and `get_service()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for TCP/UDP protocols with port configurations
+- [x] Add support for timeout override settings
+- [x] Create comprehensive example YAML file with 10 service configurations
+- [x] Add tests and documentation
+
+### Service Groups (Completed ✅)
+- [x] Implement `show objects service-group` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_service_groups()` and `get_service_group()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for organizing services and service groups
+- [x] Add tag support for categorization
+- [x] Create comprehensive example YAML file with 10 service group configurations
+- [x] Add tests and documentation
+
+### Syslog Server Profiles (Completed ✅)
+- [x] Implement `show objects syslog-server-profile` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_syslog_server_profiles()` and `get_syslog_server_profile()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for multiple syslog servers with transport configurations
+- [x] Support UDP and TCP transports (SSL not supported by SDK)
+- [x] Create comprehensive example YAML file with 10 profile configurations
+- [x] Add tests and documentation
+
+### Tags (Completed ✅)
+- [x] Implement `show objects tag` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_tags()` and `get_tag()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add color validation with all supported Palo Alto colors
+- [x] Support comments and tag categorization
+- [x] Create comprehensive example YAML file with various tag configurations
+- [x] Add tests and documentation
+
 ## Phase 1.5: Backup Command Implementation (Completed ✅)
 
 ### All Resource Types (Completed ✅)
@@ -183,6 +228,11 @@ The project has successfully implemented:
 - [x] Implement `backup objects hip-object` command
 - [x] Implement `backup objects hip-profile` command
 - [x] Implement `backup objects http-server-profile` command
+- [x] Implement `backup objects log-forwarding-profile` command
+- [x] Implement `backup objects service` command
+- [x] Implement `backup objects service-group` command
+- [x] Implement `backup objects syslog-server-profile` command
+- [x] Implement `backup objects tag` command
 - [x] Implement `backup network security-zone` command
 - [x] Implement `backup security rule` command
 - [x] Implement `backup deployment bandwidth` command

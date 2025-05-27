@@ -1,0 +1,10 @@
+log_forwarding_profiles:
+- name: test-log-profile
+  folder: Texas
+  description: Test log forwarding profile
+  enhanced_application_logging: true
+  match_list:
+  - name: test-traffic
+    log_type: traffic
+    filter: All Logs
+    send_to_panorama: true

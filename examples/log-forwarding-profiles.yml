@@ -1,0 +1,187 @@
+# Example log forwarding profile configurations
+# This file demonstrates various log forwarding profile setups for different use cases
+
+log_forwarding_profiles:
+  # Basic traffic logging to Panorama
+  - name: basic-traffic-forwarding
+    folder: Texas
+    description: Basic traffic log forwarding to Panorama
+    enhanced_application_logging: false
+    match_list:
+      - name: all-traffic
+        log_type: traffic
+        send_to_panorama: true
+
+  # Threat logs with filtering
+  - name: threat-log-forwarding
+    folder: Texas
+    description: Forward high-severity threats to SIEM
+    enhanced_application_logging: true
+    match_list:
+      - name: high-severity-threats
+        log_type: threat
+        action_desc: Forward critical and high severity threats
+        filter: "severity eq critical or severity eq high"
+        send_to_panorama: true
+        send_syslog:
+          - syslog-server-1
+        send_http:
+          - splunk-hec-profile
+
+  # Comprehensive security logging
+  - name: security-logging-profile
+    folder: Texas
+    description: Comprehensive security event logging
+    enhanced_application_logging: true
+    match_list:
+      - name: traffic-logs
+        log_type: traffic
+        send_to_panorama: true
+        send_syslog:
+          - central-syslog
+      - name: threat-logs
+        log_type: threat
+        send_to_panorama: true
+        send_syslog:
+          - central-syslog
+        send_http:
+          - siem-http-profile
+      - name: wildfire-logs
+        log_type: wildfire
+        send_to_panorama: true
+        send_http:
+          - siem-http-profile
+      - name: url-filtering
+        log_type: url
+        filter: "category eq malware or category eq phishing"
+        send_to_panorama: true
+        quarantine: true
+
+  # Data loss prevention logging
+  - name: dlp-log-forwarding
+    folder: Texas
+    description: Log forwarding for data loss prevention
+    enhanced_application_logging: true
+    match_list:
+      - name: data-filtering
+        log_type: data
+        action_desc: Forward DLP violations
+        filter: "dlp_verdict eq block or dlp_verdict eq alert"
+        send_to_panorama: true
+        send_syslog:
+          - dlp-syslog-server
+        send_http:
+          - dlp-compliance-server
+
+  # VPN and tunnel monitoring
+  - name: vpn-tunnel-logging
+    folder: Texas
+    description: VPN and tunnel activity logging
+    enhanced_application_logging: false
+    match_list:
+      - name: tunnel-events
+        log_type: tunnel
+        action_desc: Monitor tunnel establishment and teardown
+        send_to_panorama: true
+        send_syslog:
+          - network-monitoring-syslog
+
+  # Authentication and access logging
+  - name: auth-access-logging
+    folder: Texas
+    description: User authentication and access logging
+    enhanced_application_logging: true
+    match_list:
+      - name: auth-events
+        log_type: auth
+        action_desc: Track authentication attempts
+        filter: "authresult eq failure"
+        send_to_panorama: true
+        send_syslog:
+          - security-syslog
+        send_http:
+          - siem-http-profile
+      - name: successful-auth
+        log_type: auth
+        action_desc: Log successful authentications
+        filter: "authresult eq success"
+        send_to_panorama: true
+
+  # Decryption policy logging
+  - name: decryption-logging
+    folder: Texas
+    description: SSL/TLS decryption policy logging
+    enhanced_application_logging: false
+    match_list:
+      - name: decryption-events
+        log_type: decryption
+        action_desc: Log decryption policy matches
+        send_to_panorama: true
+        send_syslog:
+          - compliance-syslog
+
+  # DNS security logging
+  - name: dns-security-logging
+    folder: Texas
+    description: DNS security and threat logging
+    enhanced_application_logging: true
+    match_list:
+      - name: dns-threats
+        log_type: dns-security
+        action_desc: Log DNS-based threats
+        filter: "threat_verdict eq malicious"
+        send_to_panorama: true
+        send_syslog:
+          - dns-security-syslog
+        send_http:
+          - threat-intel-http
+        quarantine: true
+
+  # Multi-destination logging
+  - name: multi-destination-logging
+    folder: Texas
+    description: Send logs to multiple destinations
+    enhanced_application_logging: true
+    match_list:
+      - name: critical-events
+        log_type: threat
+        action_desc: Critical security events to multiple destinations
+        filter: "severity eq critical"
+        send_to_panorama: true
+        send_syslog:
+          - primary-syslog
+          - backup-syslog
+          - compliance-syslog
+        send_http:
+          - splunk-hec-profile
+          - elastic-http-profile
+          - qradar-http-profile
+
+  # Compliance-focused logging
+  - name: compliance-logging
+    folder: Texas
+    description: Regulatory compliance logging profile
+    enhanced_application_logging: true
+    match_list:
+      - name: pci-traffic
+        log_type: traffic
+        action_desc: PCI compliance traffic logging
+        filter: "zone eq pci-zone"
+        send_to_panorama: true
+        send_syslog:
+          - pci-compliance-syslog
+      - name: pci-threats
+        log_type: threat
+        action_desc: PCI compliance threat logging
+        filter: "zone eq pci-zone"
+        send_to_panorama: true
+        send_syslog:
+          - pci-compliance-syslog
+        send_http:
+          - pci-compliance-http
+      - name: auth-compliance
+        log_type: auth
+        action_desc: Authentication for compliance
+        send_to_panorama: true
+        send_syslog:
+          - compliance-auth-syslog

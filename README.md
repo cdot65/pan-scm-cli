@@ -54,6 +54,10 @@ A powerful command-line interface for managing Palo Alto Networks Strata Cloud M
   - HIP objects (Host Information Profiles for endpoint compliance)
   - HIP profiles (HIP object combinations for policy enforcement)
   - HTTP server profiles (Log forwarding and integration configurations)
+  - Services (Network service definitions with protocol and port configurations)
+  - Service groups (Logical grouping of services for policy management)
+  - Syslog server profiles (External syslog server configurations for log forwarding)
+  - Tags (Organizational labels with color categorization)
   - Security zones (layer3, layer2, virtual-wire, tap modes)
   - Security rules with full policy configuration
   - Bandwidth allocation profiles
@@ -399,6 +403,85 @@ scm-cli set objects http-server-profile --folder Shared --name splunk-hec \
 scm-cli show objects http-server-profile --folder Shared --list
 ```
 
+#### Managing Services
+
+```bash
+# Create a basic TCP service
+scm-cli set objects service --folder Shared --name custom-web \
+  --protocol tcp --port "8080,8443" --description "Custom web service"
+
+# Create a UDP service
+scm-cli set objects service --folder Shared --name custom-dns \
+  --protocol udp --port 5353 --description "Custom DNS service"
+
+# Create a TCP service with timeout overrides
+scm-cli set objects service --folder Shared --name database-service \
+  --protocol tcp --port "3306-3310" --timeout 7200 --halfclose-timeout 120 \
+  --description "Database cluster ports with extended timeout"
+
+# List all services
+scm-cli show objects service --folder Shared --list
+
+# Show specific service details
+scm-cli show objects service --folder Shared --name custom-web
+```
+
+#### Managing Service Groups
+
+```bash
+# Create a service group
+scm-cli set objects service-group --folder Shared --name web-services \
+  --members "http,https,web-browsing,ssl"
+
+# Create a service group with tags
+scm-cli set objects service-group --folder Shared --name database-services \
+  --members "mysql,mssql,oracle,postgresql" --tag "database,backend"
+
+# List all service groups
+scm-cli show objects service-group --folder Shared --list
+
+# Show specific service group details
+scm-cli show objects service-group --folder Shared --name web-services
+```
+
+#### Managing Syslog Server Profiles
+
+```bash
+# Create a syslog server profile with TCP
+scm-cli set objects syslog-server-profile --folder Shared --name central-syslog \
+  --servers '[{"name": "syslog-primary", "server": "10.0.1.50", "port": 514, "transport": "TCP", "format": "BSD", "facility": "LOG_USER"}]' \
+  --description "Central syslog collection"
+
+# Create a syslog profile with UDP and custom format
+scm-cli set objects syslog-server-profile --folder Shared --name compliance-syslog \
+  --servers '[{"name": "compliance-server", "server": "syslog.compliance.local", "port": 6514, "transport": "UDP", "format": "IETF", "facility": "LOG_LOCAL7"}]'
+
+# List all syslog server profiles
+scm-cli show objects syslog-server-profile --folder Shared --list
+
+# Show specific syslog profile details
+scm-cli show objects syslog-server-profile --folder Shared --name central-syslog
+```
+
+#### Managing Tags
+
+```bash
+# Create a tag with color
+scm-cli set objects tag --folder Shared --name production \
+  --color "Red" --comments "Production environment resources"
+
+# Create multiple tags for categorization
+scm-cli set objects tag --folder Shared --name database --color "Blue"
+scm-cli set objects tag --folder Shared --name frontend --color "Green"
+scm-cli set objects tag --folder Shared --name critical --color "Orange"
+
+# List all tags
+scm-cli show objects tag --folder Shared --list
+
+# Show specific tag details
+scm-cli show objects tag --folder Shared --name production
+```
+
 #### Bulk Operations
 
 Create a YAML file with multiple objects:
@@ -451,6 +534,10 @@ See the `examples/` directory for more bulk operation templates, including:
 - HIP object configurations for endpoint compliance (`hip-objects.yml`)
 - HIP profile configurations for policy enforcement (`hip-profiles.yml`)
 - HTTP server profile configurations for log forwarding (`http-server-profiles.yml`)
+- Service configurations with protocol and port definitions (`services.yml`)
+- Service group configurations for logical service organization (`service-groups.yml`)
+- Syslog server profile configurations for external logging (`syslog-server-profiles.yml`)
+- Tag configurations for resource categorization (`tags.yml`)
 
 #### Backup and Restore Operations
 
@@ -508,6 +595,22 @@ scm-cli backup objects hip-profile --folder Texas
 # Backup HTTP server profiles
 scm-cli backup objects http-server-profile --folder Texas
 # Creates: http-server-profile-texas.yaml
+
+# Backup services
+scm-cli backup objects service --folder Texas
+# Creates: service-texas.yaml
+
+# Backup service groups
+scm-cli backup objects service-group --folder Texas
+# Creates: service-group-texas.yaml
+
+# Backup syslog server profiles
+scm-cli backup objects syslog-server-profile --folder Texas
+# Creates: syslog-server-profile-texas.yaml
+
+# Backup tags
+scm-cli backup objects tag --folder Texas
+# Creates: tag-texas.yaml
 ```
 
 Restore configurations from backup files:

@@ -1179,3 +1179,439 @@ All commands have been tested and verified:
 - ✅ SDK service name correct (http_server_profile)
 - ✅ Example YAML file created with 10 different profile configurations
 - ✅ Required field discovery: http_method is mandatory for all servers
+
+## 24. Log Forwarding Profile Support
+
+### 24.1 Problem Statement
+
+Log forwarding profiles are critical for security operations, enabling organizations to send logs to multiple destinations for compliance, monitoring, and analysis. They provide granular control over which logs are forwarded and where they are sent.
+
+### 24.2 Solution: Full Log Forwarding Profile Management
+
+Implemented comprehensive support for log forwarding profiles with all CRUD operations and complex match list configurations.
+
+#### 24.2.1 Log Forwarding Profile Features
+- **Create/Update**: Support for complex match list configurations
+  - Multiple match rules per profile with different log types
+  - Actions: send to Panorama, syslog servers, HTTP servers, or quarantine
+  - Filter expressions for granular log selection
+  - Enhanced application logging support
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific profiles with match list details
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove profiles by name and folder
+- **Backup**: Export profiles to YAML with proper formatting
+
+#### 24.2.2 Match List Configuration
+- **Log Types**: traffic, threat, wildfire, url, data, tunnel, auth, decryption, dns-security
+- **Actions**: send_to_panorama, send_syslog, send_http, quarantine
+- **Filter**: Required field for match list entries (API requirement discovered during testing)
+
+### 24.3 Technical Implementation Details
+
+#### 24.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_log_forwarding_profile()`: Smart upsert with automatic filter field addition
+- `delete_log_forwarding_profile()`: Remove by name and folder
+- `get_log_forwarding_profile()`: Fetch specific profile with match list
+- `list_log_forwarding_profiles()`: List with exact_match support
+
+#### 24.3.2 Validator Model
+Created `LogForwardingProfile` model in `validators.py` with:
+- Match list validation with required actions
+- Log type validation against allowed values
+- Proper `to_sdk_model()` method
+- Support for enhanced application logging
+
+#### 24.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_log_forwarding_profile()`: Export to YAML format
+- `delete_log_forwarding_profile()`: Remove by name and folder
+- `load_log_forwarding_profile()`: Import with validation
+- `set_log_forwarding_profile()`: Create/update with JSON match list
+- `show_log_forwarding_profile()`: Display with formatted match rules
+
+### 24.4 Usage Examples
+
+```bash
+# Create a log forwarding profile for all traffic logs
+scm-cli set objects log-forwarding-profile \
+  --folder Texas \
+  --name all-traffic-logs \
+  --match-list '[{"name": "traffic", "log_type": "traffic", "send_to_panorama": true}]' \
+  --description "Forward all traffic logs to Panorama"
+
+# Create a profile with multiple destinations
+scm-cli set objects log-forwarding-profile \
+  --folder Texas \
+  --name security-logs \
+  --match-list '[{"name": "threats", "log_type": "threat", "send_to_panorama": true, "send_syslog": ["syslog-server-1"], "filter": "severity eq high"}]' \
+  --enhanced-application-logging
+
+# List all profiles
+scm-cli show objects log-forwarding-profile --folder Texas --list
+
+# Backup profiles
+scm-cli backup objects log-forwarding-profile --folder Texas
+```
+
+### 24.5 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates profiles with match list configurations
+- ✅ Show command displays match rules with actions
+- ✅ Load command imports from YAML files
+- ✅ Delete command removes profiles cleanly
+- ✅ Backup command exports to YAML format
+- ✅ SDK service name correct (log_forwarding_profile)
+- ✅ Example YAML file created with 10 different profile configurations
+- ✅ Required field discovery: filter field is mandatory for match list entries
+
+## 25. Service Object Support
+
+### 25.1 Problem Statement
+
+Services are fundamental building blocks for security policies, defining network protocols and ports. They enable administrators to create reusable service definitions that can be referenced in security rules, simplifying policy management and ensuring consistency.
+
+### 25.2 Solution: Full Service Management
+
+Implemented comprehensive support for services with all CRUD operations and protocol-specific configurations.
+
+#### 25.2.1 Service Features
+- **Create/Update**: Support for TCP and UDP protocols
+  - Single ports, port ranges (e.g., 80-443), and comma-separated lists
+  - Timeout overrides for TCP connections (timeout, halfclose, timewait)
+  - Tag support for organization (must reference existing tag objects)
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific services with protocol details
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove services by name and folder
+- **Backup**: Export services to YAML with proper formatting
+
+#### 25.2.2 Protocol Configuration
+- **TCP**: Supports all port formats plus timeout overrides
+- **UDP**: Supports all port formats
+- **Port Formats**: Single (80), range (80-443), list (80,443,8080)
+
+### 25.3 Technical Implementation Details
+
+#### 25.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_service()`: Smart upsert with protocol configuration
+- `delete_service()`: Remove by name and folder
+- `get_service()`: Fetch specific service with protocol details
+- `list_services()`: List with exact_match support
+
+#### 25.3.2 Validator Model
+Created `Service` model in `validators.py` with:
+- Protocol validation (exactly one of tcp/udp)
+- Port format validation (single, range, list)
+- Override settings validation for TCP
+- Tag validation (1-127 characters)
+- Proper `to_sdk_model()` method
+
+#### 25.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_service()`: Export to YAML format
+- `delete_service()`: Remove by name and folder
+- `load_service()`: Import with validation
+- `set_service()`: Create/update with protocol and port options
+- `show_service()`: Display with formatted protocol details
+
+### 25.4 Usage Examples
+
+```bash
+# Create a basic TCP service
+scm-cli set objects service \
+  --folder Texas \
+  --name custom-web \
+  --protocol tcp \
+  --port "8080,8443" \
+  --description "Custom web service"
+
+# Create a TCP service with timeout overrides
+scm-cli set objects service \
+  --folder Texas \
+  --name database-service \
+  --protocol tcp \
+  --port "3306-3310" \
+  --timeout 7200 \
+  --halfclose-timeout 120 \
+  --description "Database cluster with extended timeout"
+
+# Create a UDP service
+scm-cli set objects service \
+  --folder Texas \
+  --name custom-dns \
+  --protocol udp \
+  --port 5353 \
+  --description "Custom DNS service"
+
+# List all services
+scm-cli show objects service --folder Texas --list
+
+# Backup services
+scm-cli backup objects service --folder Texas
+```
+
+### 25.5 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates services with protocol configurations
+- ✅ Show command displays protocol details and overrides
+- ✅ Load command imports from YAML files
+- ✅ Delete command removes services cleanly
+- ✅ Backup command exports to YAML format
+- ✅ SDK service name correct (service)
+- ✅ Example YAML file created with 10 different service configurations
+- ✅ Tag validation: tags must reference existing tag objects in SCM
+- ✅ Port format validation works for all supported formats
+
+## 26. Service Group Support
+
+### 26.1 Problem Statement
+
+Service groups are essential for organizing related services into logical units for use in security policies. They simplify policy management by allowing administrators to reference a single group instead of multiple individual services, and support nested groups for hierarchical organization.
+
+### 26.2 Solution: Full Service Group Management
+
+Implemented comprehensive support for service groups with all CRUD operations and nested group support.
+
+#### 26.2.1 Service Group Features
+- **Create/Update**: Support for organizing services and service groups
+  - Members can be services or other service groups (nested groups)
+  - Member list must have unique values
+  - Tag support for categorization (must reference existing tag objects)
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific service groups with member details
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove service groups by name and folder
+- **Backup**: Export service groups to YAML with proper formatting
+
+#### 26.2.2 Member Configuration
+- **Members**: List of service or service group names (minimum 1, maximum 1024)
+- **Validation**: Members must be unique within the group
+- **Nesting**: Service groups can contain other service groups
+
+### 26.3 Technical Implementation Details
+
+#### 26.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_service_group()`: Smart upsert with member management
+- `delete_service_group()`: Remove by name and folder
+- `get_service_group()`: Fetch specific service group with members
+- `list_service_groups()`: List with exact_match support
+
+#### 26.3.2 Validator Model
+Created `ServiceGroup` model in `validators.py` with:
+- Member uniqueness validation
+- Tag validation (1-127 characters)
+- Name pattern validation
+- Proper `to_sdk_model()` method
+
+#### 26.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_service_group()`: Export to YAML format
+- `delete_service_group()`: Remove by name and folder
+- `load_service_group()`: Import with validation
+- `set_service_group()`: Create/update with member list
+- `show_service_group()`: Display with member details
+
+### 26.4 Usage Examples
+
+```bash
+# Create a service group
+scm-cli set objects service-group \
+  --folder Texas \
+  --name web-services \
+  --members "http,https,web-browsing,ssl"
+
+# Create a nested service group
+scm-cli set objects service-group \
+  --folder Texas \
+  --name all-critical-services \
+  --members "database-services,infrastructure-mgmt,monitoring-services,dns,ntp" \
+  --tag "critical,production"
+
+# List all service groups
+scm-cli show objects service-group --folder Texas --list
+
+# Backup service groups
+scm-cli backup objects service-group --folder Texas
+```
+
+### 26.5 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates service groups with member lists
+- ✅ Show command displays members and tags properly
+- ✅ Load command imports from YAML files with validation
+- ✅ Delete command removes service groups cleanly
+- ✅ Backup command exports to YAML format
+- ✅ SDK service name correct (service_group)
+- ✅ Example YAML file created with 10 different group configurations
+- ✅ Nested service groups work correctly
+- ✅ Member uniqueness validation functions properly
+
+## 27. Syslog Server Profile Support
+
+### 27.1 Problem Statement
+
+Syslog server profiles are essential for centralized log collection and security monitoring. They enable organizations to send logs to external syslog servers for compliance, analysis, and long-term retention. The CLI needed comprehensive syslog server profile management to complete its logging configuration capabilities.
+
+### 27.2 Solution: Full Syslog Server Profile Management
+
+Implemented comprehensive support for syslog server profiles with all CRUD operations and multi-server configurations.
+
+#### 27.2.1 Syslog Server Profile Features
+- **Create/Update**: Support for multiple syslog server configurations
+  - Server name, address, transport protocol, and port
+  - Log format (BSD/IETF) and facility settings
+  - Tag support for categorization
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific profiles with server details
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove profiles by name and container
+- **Backup**: Export profiles to YAML with proper formatting
+
+#### 27.2.2 Server Configuration
+- **Transport Protocols**: UDP and TCP (SSL not supported by SDK)
+- **Formats**: BSD and IETF syslog formats
+- **Facilities**: LOG_USER, LOG_LOCAL0-7
+- **Multiple Servers**: Support for primary, secondary, and backup servers
+
+### 27.3 Technical Implementation Details
+
+#### 27.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_syslog_server_profile()`: Smart upsert with server configuration handling
+- `delete_syslog_server_profile()`: Remove by name and container
+- `get_syslog_server_profile()`: Fetch specific profile with server details
+- `list_syslog_server_profiles()`: List with exact_match support
+
+#### 27.3.2 Validator Model
+Created `SyslogServerProfile` model in `validators.py` with:
+- Server list validation with required fields
+- Transport protocol validation (UDP/TCP)
+- Format and facility validation
+- Container field validation (folder/snippet/device)
+- Proper `to_sdk_model()` method
+
+#### 27.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_syslog_server_profile()`: Export to YAML format
+- `delete_syslog_server_profile()`: Remove by name and container
+- `load_syslog_server_profile()`: Import with validation
+- `set_syslog_server_profile()`: Create/update with server configuration
+- `show_syslog_server_profile()`: Display with formatted server details
+
+### 27.4 Usage Examples
+
+```bash
+# Create a basic syslog server profile
+scm-cli set objects syslog-server-profile test-syslog \
+  --server-name test-server \
+  --server-address 192.168.1.100 \
+  --transport UDP \
+  --port 514 \
+  --format BSD \
+  --facility LOG_USER \
+  --description "Test syslog profile"
+
+# List all profiles
+scm-cli show objects syslog-server-profile --list
+
+# Backup profiles
+scm-cli backup objects syslog-server-profile --file /tmp/syslog-backup.yml
+```
+
+### 27.5 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates profiles with server configurations
+- ✅ Show command displays server details properly
+- ✅ Load command imports from YAML files
+- ✅ Delete command removes profiles cleanly
+- ✅ Backup command exports to YAML format
+- ✅ SDK service name correct (syslog_server_profile)
+- ✅ Example YAML file created with 10 different profile configurations
+- ✅ SSL transport limitation discovered (SDK only supports UDP/TCP)
+
+## 28. Tag Support
+
+### 28.1 Problem Statement
+
+Tags are fundamental for organizing and categorizing configuration objects across SCM. They enable administrators to apply consistent labeling, facilitate policy management, and improve visibility across large deployments. The CLI needed comprehensive tag management to support this critical organizational feature.
+
+### 28.2 Solution: Full Tag Management
+
+Implemented comprehensive support for tags with all CRUD operations and color categorization.
+
+#### 28.2.1 Tag Features
+- **Create/Update**: Support for tag creation with colors and comments
+  - 42 predefined colors from Palo Alto Networks palette
+  - Comments for detailed descriptions
+  - Container support (folder/snippet/device)
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific tags with color and comments
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove tags by name and container
+- **Backup**: Export tags to YAML with proper formatting
+
+#### 28.2.2 Color Support
+The following colors are supported:
+Azure Blue, Black, Blue, Blue Gray, Blue Violet, Brown, Burnt Sienna, Cerulean Blue, Chestnut, Cobalt Blue, Copper, Cyan, Forest Green, Gold, Gray, Green, Lavender, Light Gray, Light Green, Lime, Magenta, Mahogany, Maroon, Medium Blue, Medium Rose, Medium Violet, Midnight Blue, Olive, Orange, Orchid, Peach, Purple, Red, Red Violet, Red-Orange, Salmon, Thistle, Turquoise Blue, Violet Blue, Yellow, Yellow-Orange
+
+### 28.3 Technical Implementation Details
+
+#### 28.3.1 SDK Client Methods
+Added the following methods to `sdk_client.py`:
+- `create_tag()`: Smart upsert with color validation
+- `delete_tag()`: Remove by name and container
+- `get_tag()`: Fetch specific tag with details
+- `list_tags()`: List with exact_match support
+
+#### 28.3.2 Validator Model
+Created `Tag` model in `validators.py` with:
+- Name pattern validation
+- Color validation against allowed list
+- Comments field with length constraints
+- Container field validation
+- Proper `to_sdk_model()` method
+
+#### 28.3.3 CLI Commands
+Implemented in `objects.py`:
+- `backup_tag()`: Export to YAML format
+- `delete_tag()`: Remove by name and container
+- `load_tag()`: Import with validation
+- `set_tag()`: Create/update with color and comments
+- `show_tag()`: Display with color and comment details
+
+### 28.4 Usage Examples
+
+```bash
+# Create a tag with color
+scm-cli set objects tag test-tag --color Blue --comments "Test tag for CLI"
+
+# Create environment tags
+scm-cli set objects tag Production --color Red --comments "Production environment"
+scm-cli set objects tag Development --color Green --comments "Development environment"
+
+# List all tags
+scm-cli show objects tag --list
+
+# Backup tags
+scm-cli backup objects tag --file /tmp/tags-backup.yml
+```
+
+### 28.5 Testing Results
+
+All commands have been tested and verified:
+- ✅ Set command creates tags with colors and comments
+- ✅ Show command displays tag details properly
+- ✅ Load command imports from YAML files
+- ✅ Delete command removes tags cleanly
+- ✅ Backup command exports to YAML format
+- ✅ SDK service name correct (tag)
+- ✅ Example YAML file created with comprehensive tag configurations
+- ✅ Color validation works for all 42 supported colors
