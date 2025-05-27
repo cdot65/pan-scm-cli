@@ -12,7 +12,7 @@ import yaml
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import Address, AddressGroup, Application, ApplicationFilter, ApplicationGroup, DynamicUserGroup, ExternalDynamicList, HIPObject, HIPProfile, HTTPServerProfile
+from ..utils.validators import Address, AddressGroup, Application, ApplicationFilter, ApplicationGroup, DynamicUserGroup, ExternalDynamicList, HIPObject, HIPProfile, HTTPServerProfile, LogForwardingProfile, Service, ServiceGroup, SyslogServerProfile, Tag
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -3410,4 +3410,1576 @@ def show_http_server_profile(
 
     except Exception as e:
         typer.echo(f"Error showing HTTP server profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------- Log Forwarding Profile Commands ---------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+@backup_app.command("log-forwarding-profile")
+def backup_log_forwarding_profile(
+    folder: str = typer.Option(..., "--folder", help="Folder path for log forwarding profiles"),
+    output_file: str = typer.Option(None, "--output", help="Output file name (defaults to log-forwarding-profile-{folder}.yaml)"),
+    exclude_default: bool = typer.Option(False, "--exclude-default", help="Exclude default profiles from backup"),
+) -> None:
+    """Backup log forwarding profiles to a YAML file."""
+    try:
+        # List all log forwarding profiles in the folder (exact match)
+        log_forwarding_profiles = scm_client.list_log_forwarding_profiles(folder=folder, exact_match=True)
+        
+        if not log_forwarding_profiles:
+            typer.echo(f"No log forwarding profiles found in folder '{folder}'")
+            return
+            
+        # Convert profiles to backup format
+        profiles_data = []
+        for profile in log_forwarding_profiles:
+            # Remove system fields
+            profile_data = {
+                "name": profile["name"],
+                "folder": profile["folder"],
+            }
+            
+            # Add optional fields if present
+            if profile.get("description"):
+                profile_data["description"] = profile["description"]
+                
+            if profile.get("enhanced_application_logging"):
+                profile_data["enhanced_application_logging"] = profile["enhanced_application_logging"]
+                
+            if profile.get("match_list"):
+                profile_data["match_list"] = profile["match_list"]
+                
+            profiles_data.append(profile_data)
+            
+        # Prepare YAML data
+        yaml_data = {"log_forwarding_profiles": profiles_data}
+        
+        # Generate output filename if not provided
+        if not output_file:
+            output_file = f"log-forwarding-profile-{folder.lower().replace('/', '-').replace(' ', '-')}.yaml"
+            
+        # Write to file
+        with open(output_file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+            
+        typer.echo(f"Successfully backed up {len(profiles_data)} log forwarding profiles to {output_file}")
+        
+    except Exception as e:
+        typer.echo(f"Error backing up log forwarding profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("log-forwarding-profile")
+def delete_log_forwarding_profile(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
+    name: str = typer.Option(..., "--name", help="Name of the log forwarding profile to delete"),
+) -> None:
+    """Delete a log forwarding profile."""
+    try:
+        # Delete the log forwarding profile
+        success = scm_client.delete_log_forwarding_profile(folder=folder, name=name)
+        
+        if success:
+            typer.echo(f"Successfully deleted log forwarding profile '{name}' from folder '{folder}'")
+        else:
+            typer.echo(f"Failed to delete log forwarding profile '{name}' from folder '{folder}'", err=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error deleting log forwarding profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("log-forwarding-profile")
+def load_log_forwarding_profile(
+    file: str = typer.Option(..., "--file", help="YAML file containing log forwarding profile configurations"),
+    folder: str = typer.Option(None, "--folder", help="Override folder path from YAML file"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate loading without making changes"),
+) -> None:
+    """Load log forwarding profiles from a YAML file."""
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "log_forwarding_profiles")
+        
+        # Create a display for dry-run mode
+        if dry_run:
+            typer.echo("Dry-run mode: The following log forwarding profiles would be created/updated:")
+            typer.echo("-" * 80)
+            
+        # Process each log forwarding profile
+        for profile_data in config["log_forwarding_profiles"]:
+            try:
+                # Override folder if specified
+                if folder:
+                    profile_data["folder"] = folder
+                    
+                # Validate using Pydantic model
+                profile = LogForwardingProfile(**profile_data)
+                
+                if dry_run:
+                    # Display what would be done
+                    typer.echo(f"Log Forwarding Profile: {profile_data['name']}")
+                    typer.echo(f"  Folder: {profile_data['folder']}")
+                    if profile_data.get('description'):
+                        typer.echo(f"  Description: {profile_data['description']}")
+                    if profile_data.get('enhanced_application_logging'):
+                        typer.echo(f"  Enhanced Application Logging: {profile_data['enhanced_application_logging']}")
+                    if profile_data.get('match_list'):
+                        typer.echo(f"  Match List: {len(profile_data['match_list'])} entries")
+                        for idx, match in enumerate(profile_data['match_list']):
+                            typer.echo(f"    Match {idx + 1}: {match.get('name', 'unnamed')} - {match.get('log_type', 'N/A')}")
+                    typer.echo("")
+                else:
+                    # Create the log forwarding profile
+                    result = scm_client.create_log_forwarding_profile(
+                        folder=profile_data["folder"],
+                        name=profile_data["name"],
+                        description=profile_data.get("description"),
+                        enhanced_application_logging=profile_data.get("enhanced_application_logging", False),
+                        match_list=profile_data.get("match_list"),
+                    )
+                    
+                    if result:
+                        typer.echo(f"✓ Successfully created/updated log forwarding profile: {profile_data['name']}")
+                    else:
+                        typer.echo(f"✗ Failed to create/update log forwarding profile: {profile_data['name']}", err=True)
+                        
+            except Exception as e:
+                typer.echo(f"✗ Error processing log forwarding profile '{profile.name}': {str(e)}", err=True)
+                if not dry_run:
+                    raise
+                    
+        if dry_run:
+            typer.echo("-" * 80)
+            typer.echo(f"Total log forwarding profiles to be created/updated: {len(config['log_forwarding_profiles'])}")
+        else:
+            typer.echo(f"\nSuccessfully processed {len(config['log_forwarding_profiles'])} log forwarding profiles")
+            
+    except FileNotFoundError:
+        typer.echo(f"Error: File '{file}' not found", err=True)
+        raise typer.Exit(code=1)
+    except yaml.YAMLError as e:
+        typer.echo(f"Error parsing YAML file: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except ValueError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error loading log forwarding profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("log-forwarding-profile")
+def set_log_forwarding_profile(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
+    name: str = typer.Option(..., "--name", help="Name of the log forwarding profile"),
+    match_list: str = typer.Option(None, "--match-list", help="Match list configuration as JSON string"),
+    description: str = typer.Option(None, "--description", help="Description of the log forwarding profile"),
+    enhanced_application_logging: bool = typer.Option(False, "--enhanced-application-logging", help="Enable enhanced application logging"),
+) -> None:
+    """Create or update a log forwarding profile."""
+    import json
+    
+    try:
+        # Parse match list if provided
+        match_list_data = None
+        if match_list:
+            try:
+                match_list_data = json.loads(match_list)
+                if not isinstance(match_list_data, list):
+                    typer.echo("Error: match_list must be a JSON array", err=True)
+                    raise typer.Exit(code=1)
+            except json.JSONDecodeError as e:
+                typer.echo(f"Error parsing match list JSON: {str(e)}", err=True)
+                raise typer.Exit(code=1)
+        
+        # Validate using Pydantic model
+        profile_data = {
+            "folder": folder,
+            "name": name,
+        }
+        
+        if description:
+            profile_data["description"] = description
+        if enhanced_application_logging:
+            profile_data["enhanced_application_logging"] = enhanced_application_logging
+        if match_list_data:
+            profile_data["match_list"] = match_list_data
+            
+        profile = LogForwardingProfile(**profile_data)
+        
+        # Create the log forwarding profile using SDK
+        result = scm_client.create_log_forwarding_profile(
+            folder=profile.folder,
+            name=profile.name,
+            description=profile.description,
+            enhanced_application_logging=profile.enhanced_application_logging,
+            match_list=profile.match_list,
+        )
+        
+        if result:
+            typer.echo(f"Successfully created/updated log forwarding profile '{name}' in folder '{folder}'")
+            if result.get('id'):
+                typer.echo(f"Profile ID: {result['id']}")
+        else:
+            typer.echo(f"Failed to create/update log forwarding profile '{name}'", err=True)
+            raise typer.Exit(code=1)
+            
+    except ValueError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error creating/updating log forwarding profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("log-forwarding-profile")
+def show_log_forwarding_profile(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
+    name: str = typer.Option(None, "--name", help="Name of specific log forwarding profile to show"),
+    list: bool = typer.Option(False, "--list", help="List all log forwarding profiles in the folder"),
+) -> dict[str, Any] | None:
+    """Show log forwarding profile details or list all log forwarding profiles in a folder."""
+    try:
+        if list:
+            # List all log forwarding profiles in the folder
+            log_forwarding_profiles = scm_client.list_log_forwarding_profiles(folder=folder)
+            if not log_forwarding_profiles:
+                typer.echo(f"No log forwarding profiles found in folder '{folder}'")
+                return None
+
+            typer.echo(f"Log forwarding profiles in folder '{folder}':")
+            typer.echo("-" * 80)
+
+            # Display in table format
+            for profile in log_forwarding_profiles:
+                typer.echo(f"Name: {profile['name']}")
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+                typer.echo(f"  Enhanced Application Logging: {profile.get('enhanced_application_logging', False)}")
+                match_list = profile.get('match_list', [])
+                typer.echo(f"  Match Rules: {len(match_list)}")
+                for idx, match in enumerate(match_list):
+                    typer.echo(f"    Rule {idx + 1}: {match.get('name', 'unnamed')} ({match.get('log_type', 'N/A')})")
+                    actions = []
+                    if match.get('send_to_panorama'):
+                        actions.append("Panorama")
+                    if match.get('send_syslog'):
+                        actions.append(f"Syslog: {', '.join(match['send_syslog'])}")
+                    if match.get('send_http'):
+                        actions.append(f"HTTP: {', '.join(match['send_http'])}")
+                    if match.get('quarantine'):
+                        actions.append("Quarantine")
+                    if actions:
+                        typer.echo(f"      Actions: {', '.join(actions)}")
+                typer.echo("")
+
+            typer.echo(f"Total: {len(log_forwarding_profiles)} log forwarding profiles")
+            return None
+
+        elif name:
+            # Show specific log forwarding profile
+            log_forwarding_profile = scm_client.get_log_forwarding_profile(folder=folder, name=name)
+
+            typer.echo(f"Log Forwarding Profile: {log_forwarding_profile['name']}")
+            typer.echo("-" * 80)
+            typer.echo(f"Folder: {log_forwarding_profile['folder']}")
+            
+            if log_forwarding_profile.get("description"):
+                typer.echo(f"Description: {log_forwarding_profile['description']}")
+                
+            typer.echo(f"Enhanced Application Logging: {log_forwarding_profile.get('enhanced_application_logging', False)}")
+            
+            # Display match list
+            match_list = log_forwarding_profile.get('match_list', [])
+            typer.echo(f"\nMatch Rules ({len(match_list)}):")
+            for idx, match in enumerate(match_list):
+                typer.echo(f"  Rule {idx + 1}: {match.get('name', 'unnamed')}")
+                typer.echo(f"    Log Type: {match.get('log_type', 'N/A')}")
+                if match.get('action_desc'):
+                    typer.echo(f"    Description: {match['action_desc']}")
+                if match.get('filter'):
+                    typer.echo(f"    Filter: {match['filter']}")
+                    
+                # Display actions
+                typer.echo("    Actions:")
+                if match.get('send_to_panorama'):
+                    typer.echo("      - Send to Panorama")
+                if match.get('send_syslog'):
+                    typer.echo(f"      - Send to Syslog: {', '.join(match['send_syslog'])}")
+                if match.get('send_http'):
+                    typer.echo(f"      - Send to HTTP: {', '.join(match['send_http'])}")
+                if match.get('quarantine'):
+                    typer.echo("      - Quarantine")
+
+            # Display ID if present
+            if log_forwarding_profile.get("id"):
+                typer.echo(f"\nID: {log_forwarding_profile['id']}")
+
+            return log_forwarding_profile
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing log forwarding profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------- Service Commands -----------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+@backup_app.command("service")
+def backup_service(
+    folder: str = typer.Option(..., "--folder", help="Folder path for services"),
+    output_file: str = typer.Option(None, "--output", help="Output file name (defaults to service-{folder}.yaml)"),
+) -> None:
+    """Backup services to a YAML file."""
+    try:
+        # List all services in the folder (exact match)
+        services = scm_client.list_services(folder=folder, exact_match=True)
+        
+        if not services:
+            typer.echo(f"No services found in folder '{folder}'")
+            return
+            
+        # Convert services to backup format
+        services_data = []
+        for service in services:
+            # Remove system fields
+            service_data = {
+                "name": service["name"],
+                "folder": service["folder"],
+                "protocol": service["protocol"],
+            }
+            
+            # Add optional fields if present
+            if service.get("description"):
+                service_data["description"] = service["description"]
+                
+            if service.get("tag"):
+                service_data["tag"] = service["tag"]
+                
+            services_data.append(service_data)
+            
+        # Prepare YAML data
+        yaml_data = {"services": services_data}
+        
+        # Generate output filename if not provided
+        if not output_file:
+            output_file = f"service-{folder.lower().replace('/', '-').replace(' ', '-')}.yaml"
+            
+        # Write to file
+        with open(output_file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+            
+        typer.echo(f"Successfully backed up {len(services_data)} services to {output_file}")
+        
+    except Exception as e:
+        typer.echo(f"Error backing up services: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("service")
+def delete_service(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service"),
+    name: str = typer.Option(..., "--name", help="Name of the service to delete"),
+) -> None:
+    """Delete a service."""
+    try:
+        # Delete the service
+        success = scm_client.delete_service(folder=folder, name=name)
+        
+        if success:
+            typer.echo(f"Successfully deleted service '{name}' from folder '{folder}'")
+        else:
+            typer.echo(f"Failed to delete service '{name}' from folder '{folder}'", err=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error deleting service: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("service")
+def load_service(
+    file: str = typer.Option(..., "--file", help="YAML file containing service configurations"),
+    folder: str = typer.Option(None, "--folder", help="Override folder path from YAML file"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate loading without making changes"),
+) -> None:
+    """Load services from a YAML file."""
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "services")
+        
+        # Create a display for dry-run mode
+        if dry_run:
+            typer.echo("Dry-run mode: The following services would be created/updated:")
+            typer.echo("-" * 80)
+            
+        # Process each service
+        for service_data in config["services"]:
+            try:
+                # Override folder if specified
+                if folder:
+                    service_data["folder"] = folder
+                    
+                # Validate using Pydantic model
+                service = Service(**service_data)
+                
+                if dry_run:
+                    # Display what would be done
+                    typer.echo(f"Service: {service_data['name']}")
+                    typer.echo(f"  Folder: {service_data['folder']}")
+                    if service_data.get('description'):
+                        typer.echo(f"  Description: {service_data['description']}")
+                    
+                    # Display protocol info
+                    protocol = service_data.get('protocol', {})
+                    if 'tcp' in protocol:
+                        typer.echo(f"  Protocol: TCP")
+                        typer.echo(f"    Port: {protocol['tcp']['port']}")
+                        if 'override' in protocol['tcp']:
+                            typer.echo(f"    Override settings: {protocol['tcp']['override']}")
+                    elif 'udp' in protocol:
+                        typer.echo(f"  Protocol: UDP")
+                        typer.echo(f"    Port: {protocol['udp']['port']}")
+                        if 'override' in protocol['udp']:
+                            typer.echo(f"    Override settings: {protocol['udp']['override']}")
+                            
+                    if service_data.get('tag'):
+                        typer.echo(f"  Tags: {', '.join(service_data['tag'])}")
+                    typer.echo("")
+                else:
+                    # Create the service
+                    result = scm_client.create_service(
+                        folder=service_data["folder"],
+                        name=service_data["name"],
+                        protocol=service_data["protocol"],
+                        description=service_data.get("description"),
+                        tag=service_data.get("tag"),
+                    )
+                    
+                    if result:
+                        typer.echo(f"✓ Successfully created/updated service: {service_data['name']}")
+                    else:
+                        typer.echo(f"✗ Failed to create/update service: {service_data['name']}", err=True)
+                        
+            except Exception as e:
+                typer.echo(f"✗ Error processing service '{service_data.get('name', 'unknown')}': {str(e)}", err=True)
+                if not dry_run:
+                    raise
+                    
+        if dry_run:
+            typer.echo("-" * 80)
+            typer.echo(f"Total services to be created/updated: {len(config['services'])}")
+        else:
+            typer.echo(f"\nSuccessfully processed {len(config['services'])} services")
+            
+    except FileNotFoundError:
+        typer.echo(f"Error: File '{file}' not found", err=True)
+        raise typer.Exit(code=1)
+    except yaml.YAMLError as e:
+        typer.echo(f"Error parsing YAML file: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except ValueError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error loading services: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("service")
+def set_service(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service"),
+    name: str = typer.Option(..., "--name", help="Name of the service"),
+    protocol: str = typer.Option(..., "--protocol", help="Protocol type (tcp or udp)"),
+    port: str = typer.Option(..., "--port", help="Port number, range (e.g., 80-443), or comma-separated list (e.g., 80,443,8080)"),
+    description: str = typer.Option(None, "--description", help="Description of the service"),
+    tag: str = typer.Option(None, "--tag", help="Comma-separated list of tags"),
+    timeout: int = typer.Option(None, "--timeout", help="Timeout override in seconds (TCP only)"),
+    halfclose_timeout: int = typer.Option(None, "--halfclose-timeout", help="Half-close timeout override in seconds (TCP only)"),
+    timewait_timeout: int = typer.Option(None, "--timewait-timeout", help="Time-wait timeout override in seconds (TCP only)"),
+) -> None:
+    """Create or update a service."""
+    try:
+        # Build protocol configuration
+        protocol_config = {
+            protocol.lower(): {
+                "port": port
+            }
+        }
+        
+        # Add override settings if provided (TCP only)
+        if protocol.lower() == "tcp" and any([timeout, halfclose_timeout, timewait_timeout]):
+            override = {}
+            if timeout is not None:
+                override["timeout"] = timeout
+            if halfclose_timeout is not None:
+                override["halfclose_timeout"] = halfclose_timeout
+            if timewait_timeout is not None:
+                override["timewait_timeout"] = timewait_timeout
+            protocol_config["tcp"]["override"] = override
+        
+        # Parse tags if provided
+        tag_list = None
+        if tag:
+            tag_list = [t.strip() for t in tag.split(",") if t.strip()]
+        
+        # Validate using Pydantic model
+        service_data = {
+            "folder": folder,
+            "name": name,
+            "protocol": protocol_config,
+        }
+        
+        if description:
+            service_data["description"] = description
+        if tag_list:
+            service_data["tag"] = tag_list
+            
+        service = Service(**service_data)
+        
+        # Create the service using SDK
+        result = scm_client.create_service(
+            folder=service.folder,
+            name=service.name,
+            protocol=service.protocol,
+            description=service.description,
+            tag=service.tag,
+        )
+        
+        if result:
+            typer.echo(f"Successfully created/updated service '{name}' in folder '{folder}'")
+            if result.get('id'):
+                typer.echo(f"Service ID: {result['id']}")
+        else:
+            typer.echo(f"Failed to create/update service '{name}'", err=True)
+            raise typer.Exit(code=1)
+            
+    except ValueError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error creating/updating service: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("service")
+def show_service(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service"),
+    name: str = typer.Option(None, "--name", help="Name of specific service to show"),
+    list: bool = typer.Option(False, "--list", help="List all services in the folder"),
+) -> dict[str, Any] | None:
+    """Show service details or list all services in a folder."""
+    try:
+        if list:
+            # List all services in the folder
+            services = scm_client.list_services(folder=folder)
+            if not services:
+                typer.echo(f"No services found in folder '{folder}'")
+                return None
+
+            typer.echo(f"Services in folder '{folder}':")
+            typer.echo("-" * 80)
+
+            # Display in table format
+            for service in services:
+                typer.echo(f"Name: {service['name']}")
+                if service.get("description"):
+                    typer.echo(f"  Description: {service['description']}")
+                
+                # Display protocol info
+                protocol = service.get('protocol', {})
+                if 'tcp' in protocol:
+                    typer.echo(f"  Protocol: TCP")
+                    typer.echo(f"    Port: {protocol['tcp']['port']}")
+                    if 'override' in protocol['tcp']:
+                        override = protocol['tcp']['override']
+                        override_parts = []
+                        if 'timeout' in override:
+                            override_parts.append(f"timeout={override['timeout']}s")
+                        if 'halfclose_timeout' in override:
+                            override_parts.append(f"halfclose={override['halfclose_timeout']}s")
+                        if 'timewait_timeout' in override:
+                            override_parts.append(f"timewait={override['timewait_timeout']}s")
+                        if override_parts:
+                            typer.echo(f"    Overrides: {', '.join(override_parts)}")
+                elif 'udp' in protocol:
+                    typer.echo(f"  Protocol: UDP")
+                    typer.echo(f"    Port: {protocol['udp']['port']}")
+                    if 'override' in protocol['udp']:
+                        override = protocol['udp']['override']
+                        if 'timeout' in override:
+                            typer.echo(f"    Override: timeout={override['timeout']}s")
+                
+                if service.get('tag'):
+                    typer.echo(f"  Tags: {', '.join(service['tag'])}")
+                typer.echo("")
+
+            typer.echo(f"Total: {len(services)} services")
+            return None
+
+        elif name:
+            # Show specific service
+            service = scm_client.get_service(folder=folder, name=name)
+
+            typer.echo(f"Service: {service['name']}")
+            typer.echo("-" * 80)
+            typer.echo(f"Folder: {service['folder']}")
+            
+            if service.get("description"):
+                typer.echo(f"Description: {service['description']}")
+            
+            # Display protocol details
+            protocol = service.get('protocol', {})
+            if 'tcp' in protocol:
+                typer.echo(f"\nProtocol: TCP")
+                typer.echo(f"  Port: {protocol['tcp']['port']}")
+                if 'override' in protocol['tcp']:
+                    typer.echo("  Override Settings:")
+                    override = protocol['tcp']['override']
+                    if 'timeout' in override:
+                        typer.echo(f"    Timeout: {override['timeout']} seconds")
+                    if 'halfclose_timeout' in override:
+                        typer.echo(f"    Half-close Timeout: {override['halfclose_timeout']} seconds")
+                    if 'timewait_timeout' in override:
+                        typer.echo(f"    Time-wait Timeout: {override['timewait_timeout']} seconds")
+            elif 'udp' in protocol:
+                typer.echo(f"\nProtocol: UDP")
+                typer.echo(f"  Port: {protocol['udp']['port']}")
+                if 'override' in protocol['udp']:
+                    override = protocol['udp']['override']
+                    if 'timeout' in override:
+                        typer.echo(f"  Timeout Override: {override['timeout']} seconds")
+            
+            if service.get('tag'):
+                typer.echo(f"\nTags: {', '.join(service['tag'])}")
+
+            # Display ID if present
+            if service.get("id"):
+                typer.echo(f"\nID: {service['id']}")
+
+            return service
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing service: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------- Service Group Commands -----------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+@backup_app.command("service-group")
+def backup_service_group(
+    folder: str = typer.Option(..., "--folder", help="Folder path for service groups"),
+    output_file: str = typer.Option(None, "--output", help="Output file name (defaults to service-group-{folder}.yaml)"),
+) -> None:
+    """Backup service groups to a YAML file."""
+    try:
+        # List all service groups in the folder (exact match)
+        service_groups = scm_client.list_service_groups(folder=folder, exact_match=True)
+        
+        if not service_groups:
+            typer.echo(f"No service groups found in folder '{folder}'")
+            return
+            
+        # Convert service groups to backup format
+        groups_data = []
+        for group in service_groups:
+            # Remove system fields
+            group_data = {
+                "name": group["name"],
+                "folder": group["folder"],
+                "members": group["members"],
+            }
+            
+            # Add optional fields if present
+            if group.get("tag"):
+                group_data["tag"] = group["tag"]
+                
+            groups_data.append(group_data)
+            
+        # Prepare YAML data
+        yaml_data = {"service_groups": groups_data}
+        
+        # Generate output filename if not provided
+        if not output_file:
+            output_file = f"service-group-{folder.lower().replace('/', '-').replace(' ', '-')}.yaml"
+            
+        # Write to file
+        with open(output_file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+            
+        typer.echo(f"Successfully backed up {len(groups_data)} service groups to {output_file}")
+        
+    except Exception as e:
+        typer.echo(f"Error backing up service groups: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("service-group")
+def delete_service_group(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
+    name: str = typer.Option(..., "--name", help="Name of the service group to delete"),
+) -> None:
+    """Delete a service group."""
+    try:
+        # Delete the service group
+        success = scm_client.delete_service_group(folder=folder, name=name)
+        
+        if success:
+            typer.echo(f"Successfully deleted service group '{name}' from folder '{folder}'")
+        else:
+            typer.echo(f"Failed to delete service group '{name}' from folder '{folder}'", err=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error deleting service group: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("service-group")
+def load_service_group(
+    file: str = typer.Option(..., "--file", help="YAML file containing service group configurations"),
+    folder: str = typer.Option(None, "--folder", help="Override folder path from YAML file"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate loading without making changes"),
+) -> None:
+    """Load service groups from a YAML file."""
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "service_groups")
+        
+        # Create a display for dry-run mode
+        if dry_run:
+            typer.echo("Dry-run mode: The following service groups would be created/updated:")
+            typer.echo("-" * 80)
+            
+        # Process each service group
+        for group_data in config["service_groups"]:
+            try:
+                # Override folder if specified
+                if folder:
+                    group_data["folder"] = folder
+                    
+                # Validate using Pydantic model
+                service_group = ServiceGroup(**group_data)
+                
+                if dry_run:
+                    # Display what would be done
+                    typer.echo(f"Service Group: {group_data['name']}")
+                    typer.echo(f"  Folder: {group_data['folder']}")
+                    typer.echo(f"  Members ({len(group_data['members'])}): {', '.join(group_data['members'])}")
+                    if group_data.get('tag'):
+                        typer.echo(f"  Tags: {', '.join(group_data['tag'])}")
+                    typer.echo("")
+                else:
+                    # Create the service group
+                    result = scm_client.create_service_group(
+                        folder=group_data["folder"],
+                        name=group_data["name"],
+                        members=group_data["members"],
+                        tag=group_data.get("tag"),
+                    )
+                    
+                    if result:
+                        typer.echo(f"✓ Successfully created/updated service group: {group_data['name']}")
+                    else:
+                        typer.echo(f"✗ Failed to create/update service group: {group_data['name']}", err=True)
+                        
+            except Exception as e:
+                typer.echo(f"✗ Error processing service group '{group_data.get('name', 'unknown')}': {str(e)}", err=True)
+                if not dry_run:
+                    raise
+                    
+        if dry_run:
+            typer.echo("-" * 80)
+            typer.echo(f"Total service groups to be created/updated: {len(config['service_groups'])}")
+        else:
+            typer.echo(f"\nSuccessfully processed {len(config['service_groups'])} service groups")
+            
+    except FileNotFoundError:
+        typer.echo(f"Error: File '{file}' not found", err=True)
+        raise typer.Exit(code=1)
+    except yaml.YAMLError as e:
+        typer.echo(f"Error parsing YAML file: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except ValueError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error loading service groups: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("service-group")
+def set_service_group(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
+    name: str = typer.Option(..., "--name", help="Name of the service group"),
+    members: str = typer.Option(..., "--members", help="Comma-separated list of service or service group names"),
+    tag: str = typer.Option(None, "--tag", help="Comma-separated list of tags"),
+) -> None:
+    """Create or update a service group."""
+    try:
+        # Parse members
+        member_list = [m.strip() for m in members.split(",") if m.strip()]
+        if not member_list:
+            typer.echo("Error: At least one member must be provided", err=True)
+            raise typer.Exit(code=1)
+        
+        # Parse tags if provided
+        tag_list = None
+        if tag:
+            tag_list = [t.strip() for t in tag.split(",") if t.strip()]
+        
+        # Validate using Pydantic model
+        service_group_data = {
+            "folder": folder,
+            "name": name,
+            "members": member_list,
+        }
+        
+        if tag_list:
+            service_group_data["tag"] = tag_list
+            
+        service_group = ServiceGroup(**service_group_data)
+        
+        # Create the service group using SDK
+        result = scm_client.create_service_group(
+            folder=service_group.folder,
+            name=service_group.name,
+            members=service_group.members,
+            tag=service_group.tag,
+        )
+        
+        if result:
+            typer.echo(f"Successfully created/updated service group '{name}' in folder '{folder}'")
+            if result.get('id'):
+                typer.echo(f"Service Group ID: {result['id']}")
+        else:
+            typer.echo(f"Failed to create/update service group '{name}'", err=True)
+            raise typer.Exit(code=1)
+            
+    except ValueError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error creating/updating service group: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("service-group")
+def show_service_group(
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
+    name: str = typer.Option(None, "--name", help="Name of specific service group to show"),
+    list: bool = typer.Option(False, "--list", help="List all service groups in the folder"),
+) -> dict[str, Any] | None:
+    """Show service group details or list all service groups in a folder."""
+    try:
+        if list:
+            # List all service groups in the folder
+            service_groups = scm_client.list_service_groups(folder=folder)
+            if not service_groups:
+                typer.echo(f"No service groups found in folder '{folder}'")
+                return None
+
+            typer.echo(f"Service groups in folder '{folder}':")
+            typer.echo("-" * 80)
+
+            # Display in table format
+            for group in service_groups:
+                typer.echo(f"Name: {group['name']}")
+                typer.echo(f"  Members ({len(group.get('members', []))}): {', '.join(group.get('members', []))}")
+                if group.get('tag'):
+                    typer.echo(f"  Tags: {', '.join(group['tag'])}")
+                typer.echo("")
+
+            typer.echo(f"Total: {len(service_groups)} service groups")
+            return None
+
+        elif name:
+            # Show specific service group
+            service_group = scm_client.get_service_group(folder=folder, name=name)
+
+            typer.echo(f"Service Group: {service_group['name']}")
+            typer.echo("-" * 80)
+            typer.echo(f"Folder: {service_group['folder']}")
+            
+            # Display members
+            members = service_group.get('members', [])
+            typer.echo(f"\nMembers ({len(members)}):")
+            for member in members:
+                typer.echo(f"  - {member}")
+            
+            if service_group.get('tag'):
+                typer.echo(f"\nTags: {', '.join(service_group['tag'])}")
+
+            # Display ID if present
+            if service_group.get("id"):
+                typer.echo(f"\nID: {service_group['id']}")
+
+            return service_group
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing service group: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# Syslog server profile commands
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("syslog-server-profile", help="Export syslog server profiles to a YAML file.")
+def backup_syslog_server_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Output YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Export syslog server profiles to a YAML file."""
+    try:
+        # Use the imported scm_client
+
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # List all syslog server profiles
+        typer.echo(f"Retrieving syslog server profiles...")
+        profiles = scm_client.list_syslog_server_profiles(
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        if not profiles:
+            typer.echo("No syslog server profiles found", err=True)
+            raise typer.Exit(code=1)
+
+        # Prepare data for export
+        export_data = {"syslog_server_profiles": profiles}
+
+        # Write to file
+        Path(file).parent.mkdir(parents=True, exist_ok=True)
+        with open(file, "w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"✅ Exported {len(profiles)} syslog server profiles to {file}")
+
+    except Exception as e:
+        typer.echo(f"❌ Error exporting syslog server profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("syslog-server-profile", help="Delete a syslog server profile.")
+def delete_syslog_server_profile(
+    name: str = typer.Argument(..., help="Name of the syslog server profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a syslog server profile."""
+    try:
+        # Use the imported scm_client
+
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Retrieve the profile first to confirm it exists
+        profile = scm_client.get_syslog_server_profile(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        if not profile:
+            typer.echo(f"Syslog server profile '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+
+        # Confirm deletion
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete syslog server profile '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+
+        # Delete the profile
+        scm_client.delete_syslog_server_profile(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        typer.echo(f"✅ Deleted syslog server profile '{name}'")
+
+    except Exception as e:
+        typer.echo(f"❌ Error deleting syslog server profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("syslog-server-profile", help="Load syslog server profiles from a YAML file.")
+def load_syslog_server_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+) -> None:
+    """Load syslog server profiles from a YAML file."""
+    try:
+        # Validate file exists
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data
+        with open(file, "r") as f:
+            data = yaml.safe_load(f)
+
+        if not data or "syslog_server_profiles" not in data:
+            typer.echo("No syslog server profiles found in file", err=True)
+            raise typer.Exit(code=1)
+
+        profiles = data["syslog_server_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+
+        # Use the imported scm_client
+
+        # Process each profile
+        created_count = 0
+        updated_count = 0
+        for profile_data in profiles:
+            try:
+                # Validate with Pydantic model
+                validated_profile = SyslogServerProfile(**profile_data)
+
+                # Override container if specified
+                if folder:
+                    validated_profile.folder = folder
+                    validated_profile.snippet = None
+                    validated_profile.device = None
+                elif snippet:
+                    validated_profile.snippet = snippet
+                    validated_profile.folder = None
+                    validated_profile.device = None
+                elif device:
+                    validated_profile.device = device
+                    validated_profile.folder = None
+                    validated_profile.snippet = None
+
+                # Convert to SDK format
+                sdk_data = validated_profile.to_sdk_model()
+
+                # Create/update the profile
+                result = scm_client.create_syslog_server_profile(sdk_data)
+
+                # For now, assume created (we can't easily tell if updated)
+                created_count += 1
+
+                typer.echo(f"✅ Processed syslog server profile '{validated_profile.name}'")
+
+            except Exception as e:
+                typer.echo(f"❌ Error processing profile: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\n✅ Summary: Created {created_count}, Updated {updated_count}")
+
+    except Exception as e:
+        typer.echo(f"❌ Error loading syslog server profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("syslog-server-profile", help="Create or update a syslog server profile.")
+def set_syslog_server_profile(
+    name: str = typer.Argument(..., help="Name of the syslog server profile"),
+    server_name: str = typer.Option(..., "--server-name", help="Name of the syslog server"),
+    server_address: str = typer.Option(..., "--server-address", help="IP address or hostname of syslog server"),
+    transport: str = typer.Option(..., "--transport", help="Transport protocol (UDP, TCP, SSL)"),
+    port: int = typer.Option(..., "--port", help="Port number (1-65535)"),
+    format: str = typer.Option(..., "--format", help="Log format (BSD, IETF)"),
+    facility: str = typer.Option(..., "--facility", help="Syslog facility (LOG_USER, LOG_LOCAL0-7)"),
+    description: str = typer.Option(None, "--description", help="Description of the profile"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    tag: list[str] = typer.Option(None, "--tag", help="Tags to apply"),
+) -> None:
+    """Create or update a syslog server profile."""
+    try:
+        # Use the imported scm_client
+
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Build syslog server profile data
+        profile_data = {
+            "name": name,
+            "server": [
+                {
+                    "name": server_name,
+                    "server": server_address,
+                    "transport": transport,
+                    "port": port,
+                    "format": format,
+                    "facility": facility,
+                }
+            ],
+        }
+
+        # Add container
+        if folder:
+            profile_data["folder"] = folder
+        elif snippet:
+            profile_data["snippet"] = snippet
+        elif device:
+            profile_data["device"] = device
+
+        # Add optional fields
+        if description:
+            profile_data["description"] = description
+        if tag:
+            profile_data["tag"] = tag
+
+        # Validate with Pydantic model
+        validated_profile = SyslogServerProfile(**profile_data)
+
+        # Convert to SDK format
+        sdk_data = validated_profile.to_sdk_model()
+
+        # Create/update the profile
+        result = scm_client.create_syslog_server_profile(sdk_data)
+
+        typer.echo(f"✅ Successfully configured syslog server profile '{name}'")
+
+    except Exception as e:
+        typer.echo(f"❌ Error creating/updating syslog server profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("syslog-server-profile", help="Show syslog server profile details.")
+def show_syslog_server_profile(
+    name: str = typer.Option(None, "--name", help="Name of specific syslog server profile to show"),
+    list_profiles: bool = typer.Option(False, "--list", help="List all syslog server profiles"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show syslog server profile details."""
+    try:
+        # Use the imported scm_client
+
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        if list_profiles:
+            # List all syslog server profiles
+            profiles = scm_client.list_syslog_server_profiles(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not profiles:
+                typer.echo("No syslog server profiles found")
+                return
+
+            # Display in table format
+            typer.echo("\nSyslog Server Profiles:")
+            typer.echo("-" * 100)
+            
+            for profile in profiles:
+                location = profile.get('folder') or profile.get('snippet') or profile.get('device', 'N/A')
+                servers = profile.get('server', [])
+                server_count = len(servers)
+                
+                typer.echo(f"\nName: {profile['name']}")
+                typer.echo(f"Location: {location}")
+                if profile.get('description'):
+                    typer.echo(f"Description: {profile['description']}")
+                typer.echo(f"Servers: {server_count}")
+                
+                # Show server details
+                for server in servers:
+                    typer.echo(f"  - {server['name']}: {server['server']}:{server['port']} ({server['transport']}) - {server['format']}/{server['facility']}")
+                
+                if profile.get('tag'):
+                    typer.echo(f"Tags: {', '.join(profile['tag'])}")
+
+            typer.echo(f"\nTotal: {len(profiles)} syslog server profiles")
+
+        elif name:
+            # Show specific syslog server profile
+            profile = scm_client.get_syslog_server_profile(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not profile:
+                typer.echo(f"Syslog server profile '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+
+            # Display detailed information
+            typer.echo(f"\nSyslog Server Profile: {profile['name']}")
+            typer.echo("=" * 50)
+            
+            location = profile.get('folder') or profile.get('snippet') or profile.get('device', 'N/A')
+            typer.echo(f"Location: {location}")
+            
+            if profile.get('description'):
+                typer.echo(f"Description: {profile['description']}")
+
+            # Display servers
+            servers = profile.get('server', [])
+            typer.echo(f"\nServers ({len(servers)}):")
+            for server in servers:
+                typer.echo(f"\n  Server: {server['name']}")
+                typer.echo(f"    Address: {server['server']}")
+                typer.echo(f"    Transport: {server['transport']}")
+                typer.echo(f"    Port: {server['port']}")
+                typer.echo(f"    Format: {server['format']}")
+                typer.echo(f"    Facility: {server['facility']}")
+            
+            # Display format settings if present
+            if profile.get('format'):
+                typer.echo(f"\nFormat Settings:")
+                for key, value in profile['format'].items():
+                    typer.echo(f"  {key}: {value}")
+            
+            if profile.get('tag'):
+                typer.echo(f"\nTags: {', '.join(profile['tag'])}")
+
+            # Display ID if present
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+
+            return profile
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing syslog server profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# Tag commands
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("tag", help="Export tags to a YAML file.")
+def backup_tag(
+    file: str = typer.Option(..., "--file", "-f", help="Output YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Export tags to a YAML file."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # List all tags
+        typer.echo(f"Retrieving tags...")
+        tags = scm_client.list_tags(
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        if not tags:
+            typer.echo("No tags found", err=True)
+            raise typer.Exit(code=1)
+
+        # Prepare data for export
+        export_data = {"tags": tags}
+
+        # Write to file
+        Path(file).parent.mkdir(parents=True, exist_ok=True)
+        with open(file, "w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"✅ Exported {len(tags)} tags to {file}")
+
+    except Exception as e:
+        typer.echo(f"❌ Error exporting tags: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("tag", help="Delete a tag.")
+def delete_tag(
+    name: str = typer.Argument(..., help="Name of the tag to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a tag."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Retrieve the tag first to confirm it exists
+        tag = scm_client.get_tag(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        if not tag:
+            typer.echo(f"Tag '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+
+        # Confirm deletion
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete tag '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+
+        # Delete the tag
+        scm_client.delete_tag(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        typer.echo(f"✅ Deleted tag '{name}'")
+
+    except Exception as e:
+        typer.echo(f"❌ Error deleting tag: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("tag", help="Load tags from a YAML file.")
+def load_tag(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+) -> None:
+    """Load tags from a YAML file."""
+    try:
+        # Validate file exists
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data
+        with open(file, "r") as f:
+            data = yaml.safe_load(f)
+
+        if not data or "tags" not in data:
+            typer.echo("No tags found in file", err=True)
+            raise typer.Exit(code=1)
+
+        tags = data["tags"]
+        if not isinstance(tags, list):
+            tags = [tags]
+
+        # Process each tag
+        created_count = 0
+        for tag_data in tags:
+            try:
+                # Validate with Pydantic model
+                validated_tag = Tag(**tag_data)
+
+                # Override container if specified
+                if folder:
+                    validated_tag.folder = folder
+                    validated_tag.snippet = None
+                    validated_tag.device = None
+                elif snippet:
+                    validated_tag.snippet = snippet
+                    validated_tag.folder = None
+                    validated_tag.device = None
+                elif device:
+                    validated_tag.device = device
+                    validated_tag.folder = None
+                    validated_tag.snippet = None
+
+                # Convert to SDK format
+                sdk_data = validated_tag.to_sdk_model()
+
+                # Create/update the tag
+                result = scm_client.create_tag(sdk_data)
+
+                created_count += 1
+
+                typer.echo(f"✅ Processed tag '{validated_tag.name}'")
+
+            except Exception as e:
+                typer.echo(f"❌ Error processing tag: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\n✅ Summary: Processed {created_count} tags")
+
+    except Exception as e:
+        typer.echo(f"❌ Error loading tags: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("tag", help="Create or update a tag.")
+def set_tag(
+    name: str = typer.Argument(..., help="Name of the tag"),
+    color: str = typer.Option(None, "--color", help="Color for the tag (e.g., Red, Blue, Green)"),
+    comments: str = typer.Option(None, "--comments", help="Comments for the tag"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Create or update a tag."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Build tag data
+        tag_data = {
+            "name": name,
+        }
+
+        # Add container
+        if folder:
+            tag_data["folder"] = folder
+        elif snippet:
+            tag_data["snippet"] = snippet
+        elif device:
+            tag_data["device"] = device
+
+        # Add optional fields
+        if color:
+            tag_data["color"] = color
+        if comments:
+            tag_data["comments"] = comments
+
+        # Validate with Pydantic model
+        validated_tag = Tag(**tag_data)
+
+        # Convert to SDK format
+        sdk_data = validated_tag.to_sdk_model()
+
+        # Create/update the tag
+        result = scm_client.create_tag(sdk_data)
+
+        typer.echo(f"✅ Successfully configured tag '{name}'")
+
+    except Exception as e:
+        typer.echo(f"❌ Error creating/updating tag: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("tag", help="Show tag details.")
+def show_tag(
+    name: str = typer.Option(None, "--name", help="Name of specific tag to show"),
+    list_tags: bool = typer.Option(False, "--list", help="List all tags"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show tag details."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        if list_tags:
+            # List all tags
+            tags = scm_client.list_tags(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not tags:
+                typer.echo("No tags found")
+                return
+
+            # Display in table format
+            typer.echo("\nTags:")
+            typer.echo("-" * 80)
+            
+            for tag in tags:
+                location = tag.get('folder') or tag.get('snippet') or tag.get('device', 'N/A')
+                color = tag.get('color', 'No color')
+                
+                typer.echo(f"\nName: {tag['name']}")
+                typer.echo(f"Location: {location}")
+                typer.echo(f"Color: {color}")
+                if tag.get('comments'):
+                    typer.echo(f"Comments: {tag['comments']}")
+
+            typer.echo(f"\nTotal: {len(tags)} tags")
+
+        elif name:
+            # Show specific tag
+            tag = scm_client.get_tag(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not tag:
+                typer.echo(f"Tag '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+
+            # Display detailed information
+            typer.echo(f"\nTag: {tag['name']}")
+            typer.echo("=" * 40)
+            
+            location = tag.get('folder') or tag.get('snippet') or tag.get('device', 'N/A')
+            typer.echo(f"Location: {location}")
+            
+            if tag.get('color'):
+                typer.echo(f"Color: {tag['color']}")
+            
+            if tag.get('comments'):
+                typer.echo(f"Comments: {tag['comments']}")
+
+            # Display ID if present
+            if tag.get("id"):
+                typer.echo(f"\nID: {tag['id']}")
+
+            return tag
+
+        else:
+            # Neither --list nor --name was provided
+            typer.echo("Error: Either --list or --name must be specified", err=True)
+            raise typer.Exit(code=1)
+
+    except Exception as e:
+        typer.echo(f"Error showing tag: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

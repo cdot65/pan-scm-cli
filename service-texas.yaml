@@ -1,0 +1,22 @@
+services:
+- name: example123
+  folder: Texas
+  protocol:
+    tcp:
+      port: '443'
+  description: just a test
+- name: test-web-service
+  folder: Texas
+  protocol:
+    tcp:
+      port: 80,443
+  description: Test web service
+- name: test-ssh-custom
+  folder: Texas
+  protocol:
+    tcp:
+      port: '2222'
+      override:
+        timeout: 7200
+        halfclose_timeout: 120
+  description: Custom SSH port
