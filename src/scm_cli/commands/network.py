@@ -4,6 +4,7 @@ This module implements set, delete, and load commands for network-related
 configurations such as zones and interfaces.
 """
 
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -39,6 +40,72 @@ TAGS_OPTION = typer.Option(None, "--tags", help="List of tags")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
 
+# Backup command options
+BACKUP_FOLDER_OPTION = typer.Option(
+    None,
+    "--folder",
+    help="Folder path for backup",
+)
+BACKUP_SNIPPET_OPTION = typer.Option(
+    None,
+    "--snippet",
+    help="Snippet path for backup",
+)
+BACKUP_DEVICE_OPTION = typer.Option(
+    None,
+    "--device",
+    help="Device path for backup",
+)
+BACKUP_FILE_OPTION = typer.Option(
+    None,
+    "--file",
+    help="Output filename for backup (defaults to {object-type}-{location}.yaml)",
+)
+
+# ========================================================================================================================================================================================
+# HELPER FUNCTIONS
+# ========================================================================================================================================================================================
+
+
+def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
+    """Validate that exactly one location parameter is provided.
+    
+    Returns:
+        tuple: (location_type, location_value)
+    """
+    location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
+    
+    if location_count == 0:
+        typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
+        raise typer.Exit(code=1)
+    elif location_count > 1:
+        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        raise typer.Exit(code=1)
+    
+    if folder:
+        return "folder", folder
+    elif snippet:
+        return "snippet", snippet
+    else:
+        return "device", device
+
+
+def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
+    """Generate default backup filename.
+    
+    Args:
+        object_type: Type of object (e.g., "security-zone")
+        location_type: Type of location (folder, snippet, device)
+        location_value: Value of the location
+        
+    Returns:
+        str: Default filename
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_location = location_value.lower().replace(" ", "-").replace("/", "-")
+    return f"{object_type}_{location_type}_{safe_location}_{timestamp}.yaml"
+
+
 # ========================================================================================================================================================================================
 # SECURITY ZONE COMMANDS
 # ========================================================================================================================================================================================
@@ -46,23 +113,46 @@ DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution witho
 
 @backup_app.command("security-zone")
 def backup_security_zone(
-    folder: str = FOLDER_OPTION,
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
 ):
-    """Backup all security zones from a folder to a YAML file.
+    """Backup all security zones from a container to a YAML file.
 
-    The backup file will be named 'security-zone-{folder}.yaml' in the current directory.
-
-    Example:
-    -------
-    scm-cli backup network security-zone --folder Austin
+    Examples:
+    --------
+        # Backup from folder
+        scm-cli backup network security-zone --folder Austin
+        
+        # Backup from snippet  
+        scm-cli backup network security-zone --snippet DNS-Best-Practice
+        
+        # Backup from device
+        scm-cli backup network security-zone --device austin-01
+        
+        # Backup to custom filename
+        scm-cli backup network security-zone --folder Austin --file my-zones.yaml
 
     """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+    
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("security-zones", location_type, location_value)
+    
     try:
-        # List all security zones in the folder with exact_match=True
-        zones = scm_client.list_security_zones(folder=folder, exact_match=True)
+        # List all security zones with exact_match=True
+        zones = scm_client.list_security_zones(
+            folder=folder,
+            snippet=snippet,
+            device=device,
+            exact_match=True
+        )
 
         if not zones:
-            typer.echo(f"No security zones found in folder '{folder}'")
+            typer.echo(f"No security zones found in {location_type} '{location_value}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -78,16 +168,16 @@ def backup_security_zone(
         # Create the YAML structure
         yaml_data = {"security_zones": backup_data}
 
-        # Generate filename
-        filename = f"security-zone-{folder.lower()}.yaml"
-
         # Write to YAML file
-        with open(filename, "w") as f:
+        with open(file, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} security zones to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} security zones to {file}")
+        return file
 
+    except NotImplementedError as e:
+        typer.echo(f"Error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         typer.echo(f"Error backing up security zones: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
