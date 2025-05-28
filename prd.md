@@ -44,8 +44,8 @@ Enable `pan-scm-cli` to fully support authentication via:
 
 ### 1.6 Stakeholders
 
-- **Product Owner**: Calvin Remsburg (dev@cdot.io)
-- **Developers**: Open-source contributors (https://github.com/cdot65/pan-scm-cli)
+- **Product Owner**: Calvin Remsburg (mailto:dev@cdot.io)
+- **Developers**: Open-source contributors (mailto:dev@cdot.io)
 - **Users**: Network engineering community
 
 ## 2. Goals and Objectives
@@ -122,7 +122,7 @@ Enable `pan-scm-cli` to fully support authentication via:
 
 ### 4.2 Project Structure Updates
 
-```
+```bash
 pan-scm-cli/
 ├── src/
 │   └── scm_cli/
@@ -217,7 +217,7 @@ def test_auth(mock: bool = typer.Option(False, "--mock")):
 
 ## 5. User Stories
 
-### 5.1 As a Network Engineer, I Want To:
+### 5.1 As a Network Engineer, I Want To
 
 - Authenticate using `~/.scm-cli/config.yaml` when environment variables aren’t set, so I can avoid repetitive shell configuration.
 - Verify my authentication setup with `scm-cli test-auth`, so I can troubleshoot issues easily.
