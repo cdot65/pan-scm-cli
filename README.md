@@ -61,8 +61,14 @@ A powerful command-line interface for managing Palo Alto Networks Strata Cloud M
   - Security zones (layer3, layer2, virtual-wire, tap modes)
   - Security rules with full policy configuration
   - Bandwidth allocation profiles
-- **Bulk Operations**: Load and manage objects in bulk using YAML files for efficient configuration management.
+- **Bulk Operations**: Load and manage objects in bulk using YAML files for efficient configuration management:
+  - Container override support for all load commands (folder/snippet/device)
+  - Migrate objects between locations during import
+  - Dry run mode to preview changes before applying
 - **Backup and Restore**: Export existing configurations to YAML files and restore them later:
+  - Support for all container types (folder, snippet, device)
+  - Automatic filename generation with timestamps
+  - Exact match filtering to backup only direct objects
 - **Mock Mode**: Test commands without making actual API calls, perfect for validation and development.
 - **Flexible Authentication**: Multiple authentication methods with automatic fallback:
   - Environment variables (production-ready)
@@ -492,6 +498,7 @@ addresses:
   - name: web-server-1
     description: "Web server 1"
     ip_netmask: 192.168.1.100/32
+    folder: Development
     tags:
       - web
       - production
@@ -499,6 +506,7 @@ addresses:
   - name: web-server-2
     description: "Web server 2"
     ip_netmask: 192.168.1.101/32
+    folder: Development
     tags:
       - web
       - production
@@ -506,6 +514,7 @@ addresses:
   - name: db-server
     description: "Database server"
     fqdn: db.example.com
+    folder: Production
     tags:
       - database
       - production
@@ -514,11 +523,30 @@ addresses:
 Load the objects:
 
 ```bash
-scm-cli load objects address --folder Shared --file addresses.yml
+# Load objects with their original locations from the file
+scm-cli load objects address --file addresses.yml
+
+# Override all objects to load into a specific folder
+scm-cli load objects address --file addresses.yml --folder Shared
+
+# Override to a snippet location
+scm-cli load objects address --file addresses.yml --snippet DNS-Best-Practice
+
+# Override to a device location
+scm-cli load objects address --file addresses.yml --device fw-austin-01
 
 # Verify in mock mode first
-scm-cli load objects address --folder Shared --file addresses.yml --mock
+scm-cli load objects address --file addresses.yml --folder Shared --mock
+
+# Dry run to preview changes
+scm-cli load objects address --file addresses.yml --dry-run
 ```
+
+All load commands support container overrides, allowing you to:
+
+- Migrate objects between folders/snippets/devices
+- Test configurations in different locations
+- Standardize object locations during bulk imports
 
 See the `examples/` directory for more bulk operation templates, including:
 
@@ -548,7 +576,7 @@ Export existing configurations to YAML files. All backup commands support multip
 scm-cli backup objects address --folder Austin
 # Creates: address_folder_austin_20240115_143022.yaml
 
-scm-cli backup objects tag --snippet DNS-Best-Practice  
+scm-cli backup objects tag --snippet DNS-Best-Practice
 # Creates: tag_snippet_dns-best-practice_20240115_143022.yaml
 
 scm-cli backup objects service --device austin-01

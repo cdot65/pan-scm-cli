@@ -13,6 +13,7 @@
 ### 1.3 Description
 
 This PRD covers multiple enhancements to the `pan-scm-cli` project:
+
 1. **Authentication Enhancement**: Support for authentication via the `~/.scm-cli/config.yaml` file
 2. **Show Commands**: Implementation of show commands for all resource types
 3. **Smart Upsert Logic**: Intelligent create/update handling for all object types
@@ -21,6 +22,7 @@ This PRD covers multiple enhancements to the `pan-scm-cli` project:
 ### 1.4 Latest Enhancement: Backup Commands
 
 The CLI now supports backing up configurations to YAML files with the following features:
+
 - `backup` command for all configuration types (objects, network, security, deployment)
 - Uses `exact_match=True` to only backup objects from the specified folder
 - Generates YAML files with naming convention: `{configuration-item-type}-{location}.yaml`
@@ -311,6 +313,7 @@ scm-cli test-auth --mock
 ```
 
 ### 10.2 Test Scenarios
+
 - Env vars only: Set variables, unset config file, run `test-auth`.
 - Config file only: Unset variables, create `config.yaml`, run `test-auth`.
 - Both: Set variables and create `config.yaml` with different values, confirm env vars win.
@@ -320,6 +323,7 @@ scm-cli test-auth --mock
 ### 11.1 Problem Statement
 
 Previously, attempting to create an address that already exists would result in an error, requiring users to:
+
 1. Check if the address exists
 2. Delete it if it does
 3. Create the new address
@@ -331,6 +335,7 @@ This was cumbersome and error-prone, especially in automation scenarios.
 The `create_address` method in `sdk_client.py` now implements smart upsert logic:
 
 #### 11.2.1 Basic Upsert Flow
+
 ```python
 # Try to fetch existing address
 existing_address = client.address.fetch(name=name, folder=folder)
@@ -346,6 +351,7 @@ else:
 #### 11.2.2 Address Type Change Handling
 
 When changing address types (e.g., IP to FQDN), the method:
+
 1. Detects the type change
 2. Deletes the existing address
 3. Creates a new address with the new type
@@ -355,16 +361,19 @@ This avoids SDK validation errors that occur when trying to change address types
 ### 11.3 Technical Implementation Details
 
 #### 11.3.1 Type Detection
+
 - Uses `hasattr()` and value checks to determine current address type
 - Maps user input to determine desired address type
 - Compares types to decide on update vs. recreate strategy
 
 #### 11.3.2 Field Management
+
 - Only updates fields that are actually changing
 - Avoids setting fields to `None` which causes SDK validation errors
 - Preserves existing values when not explicitly changed
 
 #### 11.3.3 Error Handling
+
 - Gracefully handles `NotFoundError` when address doesn't exist
 - Logs all operations clearly for debugging
 - Maintains consistent error messages via `_handle_api_exception`
@@ -379,6 +388,7 @@ This avoids SDK validation errors that occur when trying to change address types
 ### 11.5 Future Considerations
 
 This pattern should be extended to other object types:
+
 - Address Groups ✅ (Completed)
 - Security Zones (In Progress)
 - Security Rules
@@ -397,6 +407,7 @@ Similar to address objects, attempting to create an address group that already e
 The `create_address_group` method now implements smart upsert logic similar to address objects:
 
 #### 12.2.1 Basic Upsert Flow
+
 ```python
 # Try to fetch existing address group
 existing_group = client.address_group.fetch(name=name, folder=folder)
@@ -413,6 +424,7 @@ else:
 #### 12.2.2 Group Type Change Handling
 
 When changing group types (static ↔ dynamic), the method:
+
 1. Detects the type change
 2. Deletes the existing group
 3. Creates a new group with the new type
@@ -422,11 +434,13 @@ This is necessary because the SDK doesn't allow direct type changes.
 ### 12.3 Technical Implementation Details
 
 #### 12.3.1 Type Detection
+
 - Checks for presence of `static` or `dynamic` attributes
 - Compares current type with requested type
 - Decides on update vs. recreate strategy
 
 #### 12.3.2 Field Management
+
 - Updates only fields that are changing
 - Handles static member lists vs dynamic filter expressions
 - Preserves existing values when not explicitly changed
@@ -464,11 +478,12 @@ Security rules require both folder and rulebase parameters, making the upsert lo
 The `create_security_rule` method implements smart upsert with rulebase support:
 
 #### 14.2.1 Enhanced Fetch Logic
+
 ```python
 # Try to fetch existing rule with folder and rulebase
 existing_rule = client.security_rule.fetch(
-    name=name, 
-    folder=folder, 
+    name=name,
+    folder=folder,
     rulebase=rulebase
 )
 ```
@@ -476,6 +491,7 @@ existing_rule = client.security_rule.fetch(
 #### 14.2.2 Field Name Mapping
 
 The SDK uses different field names than our CLI interface:
+
 - `source_zones` → `from_`
 - `destination_zones` → `to_`
 - `source_addresses` → `source`
@@ -487,11 +503,13 @@ The SDK uses different field names than our CLI interface:
 ### 14.3 Technical Implementation Details
 
 #### 14.3.1 Rulebase Support
+
 - Added `rulebase` parameter with default value "pre"
 - Fetch operation includes rulebase for proper rule location
 - Create operation passes rulebase to SDK
 
 #### 14.3.2 Field Updates
+
 - All rule attributes can be updated in place
 - Service field defaults to ["any"]
 - Proper handling of enabled/disabled inversion
@@ -508,6 +526,7 @@ The SDK uses different field names than our CLI interface:
 ### 15.1 Problem Statement
 
 Users need a way to export their SCM configurations to YAML files for:
+
 - Version control and change tracking
 - Disaster recovery and backup purposes
 - Migration between environments
@@ -518,11 +537,13 @@ Users need a way to export their SCM configurations to YAML files for:
 New `backup` command added to the CLI with the following capabilities:
 
 #### 15.2.1 Command Structure
+
 ```bash
 scm-cli backup <object-type> <object> --folder <folder-name>
 ```
 
 #### 15.2.2 Supported Commands
+
 - `scm-cli backup objects address --folder Austin`
 - `scm-cli backup objects address-group --folder Austin`
 - `scm-cli backup network security-zone --folder Austin`
@@ -532,17 +553,20 @@ scm-cli backup <object-type> <object> --folder <folder-name>
 ### 15.3 Technical Implementation Details
 
 #### 15.3.1 SDK Client Updates
+
 - Added `exact_match: bool = False` parameter to all list methods
 - When `exact_match=True`, only objects defined exactly in the specified folder are returned
 - Updated methods: `list_addresses()`, `list_address_groups()`, `list_security_zones()`, `list_security_rules()`
 
 #### 15.3.2 Backup Implementation
+
 - Uses `exact_match=True` to avoid backing up inherited objects
 - Removes system fields like `id` that shouldn't be in backups
 - Converts SDK field names back to CLI field names for consistency
 - Excludes None/empty values using dictionary comprehension
 
 #### 15.3.3 File Naming Convention
+
 - `address-{folder}.yaml` for address objects
 - `address-group-{folder}.yaml` for address groups
 - `security-zone-{folder}.yaml` for security zones
@@ -555,7 +579,7 @@ The backup commands perform intelligent data transformation:
 
 1. **Address Groups**: Converts SDK format (static/dynamic keys) to CLI format (type field with members/filter)
 2. **Security Zones**: Extracts mode and interfaces from network configuration
-3. **Security Rules**: Maps SDK fields (from_, to_, etc.) back to CLI fields (source_zones, destination_zones, etc.)
+3. **Security Rules**: Maps SDK fields (from*, to*, etc.) back to CLI fields (source_zones, destination_zones, etc.)
 4. **Bandwidth Allocations**: Maps allocated_bandwidth to bandwidth
 
 ### 15.5 Benefits
@@ -571,12 +595,14 @@ The backup commands perform intelligent data transformation:
 ### 16.1 Section Separators
 
 All code files now use consistent 191-character separators:
+
 - Major sections: Double lines of equals signs (=)
 - Subsections: Single lines of dashes (-) with centered titles
 
 ### 16.2 Alphabetical Ordering
 
 The main.py file has been updated with alphabetical ordering:
+
 - Action app groups: backup, delete, load, set, show
 - Module registrations follow the same alphabetical pattern
 - Improves code organization and readability
@@ -592,6 +618,7 @@ The CLI needed to support custom application definitions and application group m
 Implemented comprehensive support for both applications and application groups with all CRUD operations.
 
 #### 17.2.1 Application Features
+
 - **Create/Update**: Support for all application attributes including:
   - Basic properties: name, category, subcategory, technology, risk level
   - Port definitions: TCP/UDP port specifications
@@ -602,6 +629,7 @@ Implemented comprehensive support for both applications and application groups w
 - **Backup**: Export applications to YAML with proper formatting
 
 #### 17.2.2 Application Group Features
+
 - **Create/Update**: Simple member list management
 - **Show**: Display group membership
 - **Load**: Bulk import groups from YAML
@@ -611,7 +639,9 @@ Implemented comprehensive support for both applications and application groups w
 ### 17.3 Technical Implementation Details
 
 #### 17.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_application()`: Smart upsert with full attribute support
 - `delete_application()`: Remove by name and folder
 - `get_application()`: Fetch specific application
@@ -622,14 +652,18 @@ Added the following methods to `sdk_client.py`:
 - `list_application_groups()`: List with exact_match support
 
 #### 17.3.2 Command Implementation
+
 In `objects.py`, added full command sets for both types:
+
 - Application commands: set, show, load, delete, backup
 - Application group commands: set, show, load, delete, backup
 - Proper option handling for all application attributes
 - Consistent error handling and user feedback
 
 #### 17.3.3 Validation Models
+
 Extended `validators.py` with:
+
 - `Application` model with all SDK fields
 - `ApplicationGroup` model with member validation
 - Proper `to_sdk_model()` methods for both
@@ -645,6 +679,7 @@ Extended `validators.py` with:
 ### 17.5 Testing Results
 
 All commands have been thoroughly tested with the Austin folder:
+
 - ✅ Set command creates applications with all attributes
 - ✅ Show command displays detailed application information
 - ✅ Load command imports from YAML files
@@ -664,6 +699,7 @@ Application filters are essential for dynamic application selection in security 
 Implemented comprehensive support for application filters with all CRUD operations and complex filtering capabilities.
 
 #### 18.2.1 Application Filter Features
+
 - **Create/Update**: Support for all filter criteria including:
   - List-based attributes: category, subcategory, technology, risk levels
   - Boolean security flags: Same 9 attributes as applications
@@ -674,6 +710,7 @@ Implemented comprehensive support for application filters with all CRUD operatio
 - **Backup**: Export filters to YAML with proper formatting
 
 #### 18.2.2 Key Implementation Fixes
+
 - **SDK Service Name**: Fixed usage of `application_filter` (singular) instead of `application_filters` (plural)
 - **Boolean Field Handling**: API rejects explicit `false` values; implementation now omits boolean fields when false
 - **List Attribute Support**: Proper handling of multiple values for category, subcategory, technology, and risk
@@ -681,14 +718,18 @@ Implemented comprehensive support for application filters with all CRUD operatio
 ### 18.3 Technical Implementation Details
 
 #### 18.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_application_filter()`: Smart upsert with conditional boolean field inclusion
 - `delete_application_filter()`: Remove by name and folder
 - `get_application_filter()`: Fetch specific filter with all criteria
 - `list_application_filters()`: List with exact_match support
 
 #### 18.3.2 Command Implementation
+
 In `objects.py`, added full command set:
+
 - `set`: Create/update with list and boolean options
 - `show`: Display with criteria formatting
 - `load`: Import from YAML with validation
@@ -696,7 +737,9 @@ In `objects.py`, added full command set:
 - `backup`: Export to YAML format
 
 #### 18.3.3 Validation Model
+
 Extended `validators.py` with:
+
 - `ApplicationFilter` model with list and boolean fields
 - Risk value validation (1-5 range)
 - Proper `to_sdk_model()` with conditional field inclusion
@@ -732,6 +775,7 @@ scm-cli backup objects application-filter --folder Texas
 ### 18.6 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates filters with all criteria types
 - ✅ Show command displays detailed filter information
 - ✅ Load command imports from YAML files correctly
@@ -751,6 +795,7 @@ Dynamic user groups are essential for automatically grouping users based on tag 
 Implemented comprehensive support for dynamic user groups with all CRUD operations and tag-based filter expressions.
 
 #### 19.2.1 Dynamic User Group Features
+
 - **Create/Update**: Support for tag-based filter expressions
   - Simple tag matching: "'Engineering' and 'Developer'"
   - Attribute-based filters: "tag.Department='IT' and tag.Role='Admin'"
@@ -762,6 +807,7 @@ Implemented comprehensive support for dynamic user groups with all CRUD operatio
 - **Backup**: Export groups to YAML with proper formatting
 
 #### 19.2.2 Filter Expression Syntax
+
 - Uses single quotes around tag values
 - Supports boolean operators: and, or
 - Allows attribute-based filtering with tag.attribute syntax
@@ -770,14 +816,18 @@ Implemented comprehensive support for dynamic user groups with all CRUD operatio
 ### 19.3 Technical Implementation Details
 
 #### 19.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_dynamic_user_group()`: Smart upsert with filter expression support
 - `delete_dynamic_user_group()`: Remove by name and folder
 - `get_dynamic_user_group()`: Fetch specific group with filter
 - `list_dynamic_user_groups()`: List with exact_match support
 
 #### 19.3.2 Command Implementation
+
 In `objects.py`, added full command set:
+
 - `set`: Create/update with filter expression
 - `show`: Display with filter formatting
 - `load`: Import from YAML with validation
@@ -785,7 +835,9 @@ In `objects.py`, added full command set:
 - `backup`: Export to YAML format with tag field mapping
 
 #### 19.3.3 Validation Model
+
 Extended `validators.py` with:
+
 - `DynamicUserGroup` model with filter field
 - Tag field mapping (tags → tag for SDK)
 - Proper `to_sdk_model()` method
@@ -818,6 +870,7 @@ scm-cli backup objects dynamic-user-group --folder Texas
 ### 19.6 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates groups with filter expressions
 - ✅ Show command displays filter expressions correctly
 - ✅ Load command imports from YAML files
@@ -836,6 +889,7 @@ External Dynamic Lists (EDLs) are crucial for integrating third-party threat int
 Implemented comprehensive support for all EDL types with complete CRUD operations, complex configurations, and multiple update schedules.
 
 #### 20.2.1 External Dynamic List Features
+
 - **Create/Update**: Support for all EDL types with specific configurations
   - Predefined lists (IP and URL) from Palo Alto Networks
   - Custom IP, Domain, URL, IMSI, and IMEI lists
@@ -849,6 +903,7 @@ Implemented comprehensive support for all EDL types with complete CRUD operation
 - **Backup**: Export EDLs to YAML with flattened structure
 
 #### 20.2.2 Supported EDL Types
+
 1. **Predefined IP** (`predefined_ip`): Palo Alto managed IP lists
 2. **Predefined URL** (`predefined_url`): Palo Alto managed URL lists
 3. **IP** (`ip`): Custom IP address lists
@@ -860,21 +915,27 @@ Implemented comprehensive support for all EDL types with complete CRUD operation
 ### 20.3 Technical Implementation Details
 
 #### 20.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_external_dynamic_list()`: Smart upsert with type-specific configuration
 - `delete_external_dynamic_list()`: Remove by name and folder
 - `get_external_dynamic_list()`: Fetch specific EDL with full configuration
 - `list_external_dynamic_lists()`: List with exact_match support
 
 #### 20.3.2 Validator Model
+
 Created `ExternalDynamicList` model in `validators.py` with:
+
 - Type validation ensuring proper EDL type selection
 - Recurring schedule validation (daily/weekly/monthly require hour)
 - Complex type configuration building
 - Flattened YAML structure for easier editing
 
 #### 20.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_external_dynamic_list()`: Export with flattened structure
 - `delete_external_dynamic_list()`: Remove by name and folder
 - `load_external_dynamic_list()`: Import with full validation
@@ -921,6 +982,7 @@ scm-cli backup objects external-dynamic-list --folder Texas
 ### 20.5 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates EDLs with all configuration types
 - ✅ Show command displays detailed configuration including recurring schedules
 - ✅ Load command imports from YAML files with proper validation
@@ -940,6 +1002,7 @@ Host Information Profiles (HIP) are essential for enforcing endpoint compliance 
 Implemented comprehensive support for HIP objects with all CRUD operations and multiple criteria types for endpoint validation.
 
 #### 21.2.1 HIP Object Features
+
 - **Create/Update**: Support for all HIP criteria types
   - Host information (domain, OS, client version, managed state, etc.)
   - Network information (WiFi, mobile, ethernet, unknown)
@@ -954,6 +1017,7 @@ Implemented comprehensive support for HIP objects with all CRUD operations and m
 - **Backup**: Export HIP objects to YAML with flattened structure
 
 #### 21.2.2 Supported Criteria Types
+
 1. **Host Information**: OS type, domain membership, managed state, client version
 2. **Network Information**: Connection type restrictions (WiFi, ethernet, mobile)
 3. **Patch Management**: Missing patches, severity thresholds, vendor-specific
@@ -964,21 +1028,27 @@ Implemented comprehensive support for HIP objects with all CRUD operations and m
 ### 21.3 Technical Implementation Details
 
 #### 21.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_hip_object()`: Smart upsert with all criteria types
 - `delete_hip_object()`: Remove by name and folder
 - `get_hip_object()`: Fetch specific HIP object with full criteria
 - `list_hip_objects()`: List with exact_match support
 
 #### 21.3.2 Validator Model
+
 Created `HIPObject` model in `validators.py` with:
+
 - Flattened field structure for easier CLI usage
 - Criteria pair validation (e.g., domain criteria requires domain value)
 - Complex nested structure building for SDK compatibility
 - Comprehensive `to_sdk_model()` method
 
 #### 21.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_hip_object()`: Export with flattened structure for easy editing
 - `delete_hip_object()`: Remove by name and folder
 - `load_hip_object()`: Import with full validation
@@ -1026,6 +1096,7 @@ scm-cli backup objects hip-object --folder Texas
 ### 21.5 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates HIP objects with all criteria types
 - ✅ Show command displays formatted criteria sections
 - ✅ Load command imports from YAML files with validation
@@ -1045,6 +1116,7 @@ HIP profiles combine multiple HIP objects to create comprehensive endpoint compl
 Implemented comprehensive support for HIP profiles with all CRUD operations and complex match criteria handling.
 
 #### 22.2.1 HIP Profile Features
+
 - **Create/Update**: Support for complex match criteria
   - Match multiple HIP objects with boolean operators
   - JSON-based match configuration for CLI
@@ -1055,6 +1127,7 @@ Implemented comprehensive support for HIP profiles with all CRUD operations and 
 - **Backup**: Export profiles to YAML with proper formatting
 
 #### 22.2.2 Match Criteria Format
+
 - CLI uses JSON format: `{"hip-object-1": {"is": true}, "hip-object-2": {"is-not": true}}`
 - YAML uses standard format for readability
 - SDK requires nested structure with match field
@@ -1062,20 +1135,26 @@ Implemented comprehensive support for HIP profiles with all CRUD operations and 
 ### 22.3 Technical Implementation Details
 
 #### 22.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_hip_profile()`: Smart upsert with match criteria handling
 - `delete_hip_profile()`: Remove by name and folder
 - `get_hip_profile()`: Fetch specific profile with match criteria
 - `list_hip_profiles()`: List with exact_match support
 
 #### 22.3.2 Validator Model
+
 Created `HIPProfile` model in `validators.py` with:
+
 - Match field for HIP object criteria
 - Proper `to_sdk_model()` method
 - Support for both CLI JSON and YAML formats
 
 #### 22.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_hip_profile()`: Export to YAML format
 - `delete_hip_profile()`: Remove by name and folder
 - `load_hip_profile()`: Import with validation
@@ -1085,6 +1164,7 @@ Implemented in `objects.py`:
 ### 22.4 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates profiles with complex match criteria
 - ✅ Show command displays match criteria properly
 - ✅ Load command imports from YAML files
@@ -1104,6 +1184,7 @@ HTTP server profiles are essential for log forwarding and SIEM integration in mo
 Implemented comprehensive support for HTTP server profiles with all CRUD operations and complex server configurations.
 
 #### 23.2.1 HTTP Server Profile Features
+
 - **Create/Update**: Support for complex server configurations
   - Multiple server configurations per profile
   - HTTP/HTTPS protocol support with port specification
@@ -1117,6 +1198,7 @@ Implemented comprehensive support for HTTP server profiles with all CRUD operati
 - **Backup**: Export profiles to YAML with proper field mapping
 
 #### 23.2.2 Server Configuration Requirements
+
 - **Required fields**: name, address, protocol, port, http_method
 - **Optional fields**: tls_version, certificate_profile, username, password
 - **Format config**: Custom headers and payload formats per log type
@@ -1124,21 +1206,27 @@ Implemented comprehensive support for HTTP server profiles with all CRUD operati
 ### 23.3 Technical Implementation Details
 
 #### 23.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_http_server_profile()`: Smart upsert with server configuration handling
 - `delete_http_server_profile()`: Remove by name and folder
 - `get_http_server_profile()`: Fetch specific profile with server details
 - `list_http_server_profiles()`: List with exact_match support
 
 #### 23.3.2 Validator Model
+
 Created `HTTPServerProfile` model in `validators.py` with:
+
 - Server list validation with required fields
 - Format configuration support
 - Proper `to_sdk_model()` method
 - Field mapping (servers → server for SDK)
 
 #### 23.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_http_server_profile()`: Export with field mapping (server → servers)
 - `delete_http_server_profile()`: Remove by name and folder
 - `load_http_server_profile()`: Import with validation
@@ -1171,6 +1259,7 @@ scm-cli backup objects http-server-profile --folder Texas
 ### 23.5 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates profiles with server configurations
 - ✅ Show command displays server details properly
 - ✅ Load command imports from YAML files
@@ -1191,6 +1280,7 @@ Log forwarding profiles are critical for security operations, enabling organizat
 Implemented comprehensive support for log forwarding profiles with all CRUD operations and complex match list configurations.
 
 #### 24.2.1 Log Forwarding Profile Features
+
 - **Create/Update**: Support for complex match list configurations
   - Multiple match rules per profile with different log types
   - Actions: send to Panorama, syslog servers, HTTP servers, or quarantine
@@ -1203,6 +1293,7 @@ Implemented comprehensive support for log forwarding profiles with all CRUD oper
 - **Backup**: Export profiles to YAML with proper formatting
 
 #### 24.2.2 Match List Configuration
+
 - **Log Types**: traffic, threat, wildfire, url, data, tunnel, auth, decryption, dns-security
 - **Actions**: send_to_panorama, send_syslog, send_http, quarantine
 - **Filter**: Required field for match list entries (API requirement discovered during testing)
@@ -1210,21 +1301,27 @@ Implemented comprehensive support for log forwarding profiles with all CRUD oper
 ### 24.3 Technical Implementation Details
 
 #### 24.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_log_forwarding_profile()`: Smart upsert with automatic filter field addition
 - `delete_log_forwarding_profile()`: Remove by name and folder
 - `get_log_forwarding_profile()`: Fetch specific profile with match list
 - `list_log_forwarding_profiles()`: List with exact_match support
 
 #### 24.3.2 Validator Model
+
 Created `LogForwardingProfile` model in `validators.py` with:
+
 - Match list validation with required actions
 - Log type validation against allowed values
 - Proper `to_sdk_model()` method
 - Support for enhanced application logging
 
 #### 24.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_log_forwarding_profile()`: Export to YAML format
 - `delete_log_forwarding_profile()`: Remove by name and folder
 - `load_log_forwarding_profile()`: Import with validation
@@ -1258,6 +1355,7 @@ scm-cli backup objects log-forwarding-profile --folder Texas
 ### 24.5 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates profiles with match list configurations
 - ✅ Show command displays match rules with actions
 - ✅ Load command imports from YAML files
@@ -1278,6 +1376,7 @@ Services are fundamental building blocks for security policies, defining network
 Implemented comprehensive support for services with all CRUD operations and protocol-specific configurations.
 
 #### 25.2.1 Service Features
+
 - **Create/Update**: Support for TCP and UDP protocols
   - Single ports, port ranges (e.g., 80-443), and comma-separated lists
   - Timeout overrides for TCP connections (timeout, halfclose, timewait)
@@ -1289,6 +1388,7 @@ Implemented comprehensive support for services with all CRUD operations and prot
 - **Backup**: Export services to YAML with proper formatting
 
 #### 25.2.2 Protocol Configuration
+
 - **TCP**: Supports all port formats plus timeout overrides
 - **UDP**: Supports all port formats
 - **Port Formats**: Single (80), range (80-443), list (80,443,8080)
@@ -1296,14 +1396,18 @@ Implemented comprehensive support for services with all CRUD operations and prot
 ### 25.3 Technical Implementation Details
 
 #### 25.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_service()`: Smart upsert with protocol configuration
 - `delete_service()`: Remove by name and folder
 - `get_service()`: Fetch specific service with protocol details
 - `list_services()`: List with exact_match support
 
 #### 25.3.2 Validator Model
+
 Created `Service` model in `validators.py` with:
+
 - Protocol validation (exactly one of tcp/udp)
 - Port format validation (single, range, list)
 - Override settings validation for TCP
@@ -1311,7 +1415,9 @@ Created `Service` model in `validators.py` with:
 - Proper `to_sdk_model()` method
 
 #### 25.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_service()`: Export to YAML format
 - `delete_service()`: Remove by name and folder
 - `load_service()`: Import with validation
@@ -1357,6 +1463,7 @@ scm-cli backup objects service --folder Texas
 ### 25.5 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates services with protocol configurations
 - ✅ Show command displays protocol details and overrides
 - ✅ Load command imports from YAML files
@@ -1378,6 +1485,7 @@ Service groups are essential for organizing related services into logical units 
 Implemented comprehensive support for service groups with all CRUD operations and nested group support.
 
 #### 26.2.1 Service Group Features
+
 - **Create/Update**: Support for organizing services and service groups
   - Members can be services or other service groups (nested groups)
   - Member list must have unique values
@@ -1389,6 +1497,7 @@ Implemented comprehensive support for service groups with all CRUD operations an
 - **Backup**: Export service groups to YAML with proper formatting
 
 #### 26.2.2 Member Configuration
+
 - **Members**: List of service or service group names (minimum 1, maximum 1024)
 - **Validation**: Members must be unique within the group
 - **Nesting**: Service groups can contain other service groups
@@ -1396,21 +1505,27 @@ Implemented comprehensive support for service groups with all CRUD operations an
 ### 26.3 Technical Implementation Details
 
 #### 26.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_service_group()`: Smart upsert with member management
 - `delete_service_group()`: Remove by name and folder
 - `get_service_group()`: Fetch specific service group with members
 - `list_service_groups()`: List with exact_match support
 
 #### 26.3.2 Validator Model
+
 Created `ServiceGroup` model in `validators.py` with:
+
 - Member uniqueness validation
 - Tag validation (1-127 characters)
 - Name pattern validation
 - Proper `to_sdk_model()` method
 
 #### 26.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_service_group()`: Export to YAML format
 - `delete_service_group()`: Remove by name and folder
 - `load_service_group()`: Import with validation
@@ -1443,6 +1558,7 @@ scm-cli backup objects service-group --folder Texas
 ### 26.5 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates service groups with member lists
 - ✅ Show command displays members and tags properly
 - ✅ Load command imports from YAML files with validation
@@ -1464,6 +1580,7 @@ Syslog server profiles are essential for centralized log collection and security
 Implemented comprehensive support for syslog server profiles with all CRUD operations and multi-server configurations.
 
 #### 27.2.1 Syslog Server Profile Features
+
 - **Create/Update**: Support for multiple syslog server configurations
   - Server name, address, transport protocol, and port
   - Log format (BSD/IETF) and facility settings
@@ -1475,6 +1592,7 @@ Implemented comprehensive support for syslog server profiles with all CRUD opera
 - **Backup**: Export profiles to YAML with proper formatting
 
 #### 27.2.2 Server Configuration
+
 - **Transport Protocols**: UDP and TCP (SSL not supported by SDK)
 - **Formats**: BSD and IETF syslog formats
 - **Facilities**: LOG_USER, LOG_LOCAL0-7
@@ -1483,14 +1601,18 @@ Implemented comprehensive support for syslog server profiles with all CRUD opera
 ### 27.3 Technical Implementation Details
 
 #### 27.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_syslog_server_profile()`: Smart upsert with server configuration handling
 - `delete_syslog_server_profile()`: Remove by name and container
 - `get_syslog_server_profile()`: Fetch specific profile with server details
 - `list_syslog_server_profiles()`: List with exact_match support
 
 #### 27.3.2 Validator Model
+
 Created `SyslogServerProfile` model in `validators.py` with:
+
 - Server list validation with required fields
 - Transport protocol validation (UDP/TCP)
 - Format and facility validation
@@ -1498,7 +1620,9 @@ Created `SyslogServerProfile` model in `validators.py` with:
 - Proper `to_sdk_model()` method
 
 #### 27.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_syslog_server_profile()`: Export to YAML format
 - `delete_syslog_server_profile()`: Remove by name and container
 - `load_syslog_server_profile()`: Import with validation
@@ -1528,6 +1652,7 @@ scm-cli backup objects syslog-server-profile --file /tmp/syslog-backup.yml
 ### 27.5 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates profiles with server configurations
 - ✅ Show command displays server details properly
 - ✅ Load command imports from YAML files
@@ -1548,6 +1673,7 @@ Tags are fundamental for organizing and categorizing configuration objects acros
 Implemented comprehensive support for tags with all CRUD operations and color categorization.
 
 #### 28.2.1 Tag Features
+
 - **Create/Update**: Support for tag creation with colors and comments
   - 42 predefined colors from Palo Alto Networks palette
   - Comments for detailed descriptions
@@ -1559,20 +1685,25 @@ Implemented comprehensive support for tags with all CRUD operations and color ca
 - **Backup**: Export tags to YAML with proper formatting
 
 #### 28.2.2 Color Support
+
 The following colors are supported:
 Azure Blue, Black, Blue, Blue Gray, Blue Violet, Brown, Burnt Sienna, Cerulean Blue, Chestnut, Cobalt Blue, Copper, Cyan, Forest Green, Gold, Gray, Green, Lavender, Light Gray, Light Green, Lime, Magenta, Mahogany, Maroon, Medium Blue, Medium Rose, Medium Violet, Midnight Blue, Olive, Orange, Orchid, Peach, Purple, Red, Red Violet, Red-Orange, Salmon, Thistle, Turquoise Blue, Violet Blue, Yellow, Yellow-Orange
 
 ### 28.3 Technical Implementation Details
 
 #### 28.3.1 SDK Client Methods
+
 Added the following methods to `sdk_client.py`:
+
 - `create_tag()`: Smart upsert with color validation
 - `delete_tag()`: Remove by name and container
 - `get_tag()`: Fetch specific tag with details
 - `list_tags()`: List with exact_match support
 
 #### 28.3.2 Validator Model
+
 Created `Tag` model in `validators.py` with:
+
 - Name pattern validation
 - Color validation against allowed list
 - Comments field with length constraints
@@ -1580,7 +1711,9 @@ Created `Tag` model in `validators.py` with:
 - Proper `to_sdk_model()` method
 
 #### 28.3.3 CLI Commands
+
 Implemented in `objects.py`:
+
 - `backup_tag()`: Export to YAML format
 - `delete_tag()`: Remove by name and container
 - `load_tag()`: Import with validation
@@ -1607,6 +1740,7 @@ scm-cli backup objects tag --file /tmp/tags-backup.yml
 ### 28.5 Testing Results
 
 All commands have been tested and verified:
+
 - ✅ Set command creates tags with colors and comments
 - ✅ Show command displays tag details properly
 - ✅ Load command imports from YAML files
@@ -1625,21 +1759,25 @@ A comprehensive command styling guide has been created to ensure consistency acr
 ### 29.2 Key Styling Principles
 
 #### 29.2.1 Module Structure
+
 - Comprehensive module docstrings with command lists and examples
 - Organized imports (standard library, third-party, local)
 - Consistent 191-character section separators
 
 #### 29.2.2 Command Organization
+
 - Separate Typer apps for each action type (set, delete, load, show, backup)
 - Consistent command order per object type
 - Common options defined as constants for reusability
 
 #### 29.2.3 Implementation Patterns
+
 - Standardized patterns for each command type (backup, delete, load, set, show)
 - Consistent error handling with user-friendly messages
 - Proper type hints using Python 3.10+ syntax
 
 #### 29.2.4 Output Formatting
+
 - Consistent success message formats
 - Structured list and detail output formats
 - Clear error messages with exit codes
@@ -1662,12 +1800,14 @@ The initial backup command implementation only supported folder-based backups. W
 All backup commands have been updated to support a consistent set of parameters:
 
 #### 30.2.1 Standard Parameters
+
 - **--folder**: Backup from a specific folder location
 - **--snippet**: Backup from a snippet (code template) location
 - **--device**: Backup from a device-specific location
 - **--file**: Custom output filename (optional, defaults to generated name)
 
 #### 30.2.2 Parameter Validation
+
 - Exactly one location parameter (folder, snippet, or device) must be specified
 - Clear error messages guide users when parameters are missing or conflicting
 - Validation logic is centralized in helper functions for consistency
@@ -1675,16 +1815,19 @@ All backup commands have been updated to support a consistent set of parameters:
 ### 30.3 Technical Implementation Details
 
 #### 30.3.1 Helper Functions
+
 ```python
 def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided."""
-    
+
 def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
     """Generate default backup filename with timestamp."""
 ```
 
 #### 30.3.2 SDK Client Updates
+
 All list methods in `sdk_client.py` now accept optional folder, snippet, and device parameters:
+
 ```python
 def list_addresses(
     self,
@@ -1696,7 +1839,9 @@ def list_addresses(
 ```
 
 #### 30.3.3 Kwargs Pattern
+
 Backup commands use the kwargs pattern for cleaner API calls:
+
 ```python
 kwargs = {location_type: location_value}
 items = scm_client.list_items(**kwargs, exact_match=True)
@@ -1724,4 +1869,137 @@ scm-cli backup objects address-group --folder Texas --file my-groups.yaml
 # Automatic filename generation
 # Creates: address_folder_austin_20240115_143022.yaml
 scm-cli backup objects address --folder Austin
+```
+
+## 31. Load Command Standardization
+
+### 31.1 Problem Statement
+
+Load commands across different object types had significant inconsistencies that made the CLI difficult to use and maintain:
+
+- Different parameter types (Path vs str)
+- Inconsistent container override support
+- Varying file validation methods
+- Different error handling approaches
+- Inconsistent output formats
+
+### 31.2 Solution: Standardized Load Command Pattern
+
+All load commands have been standardized to follow a consistent pattern with these key features:
+
+#### 31.2.1 Standard Parameters
+
+```python
+@load_app.command("object-type", help="Load {object_type}s from a YAML file.")
+def load_object_type(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+```
+
+#### 31.2.2 Container Override Support
+
+All load commands now support overriding the container location for all objects in a file:
+
+- `--folder`: Override folder location for all objects
+- `--snippet`: Override snippet location for all objects
+- `--device`: Override device location for all objects
+
+#### 31.2.3 Standardized Implementation Pattern
+
+1. Help text in decorator
+2. Container parameter validation
+3. File existence check using `file.exists()`
+4. Direct YAML loading with `yaml.safe_load()`
+5. Container override logic in loops
+6. Count-based output format
+7. Error handling with continue
+8. Return list of results
+
+### 31.3 Technical Implementation Details
+
+#### 31.3.1 Container Override Options
+
+```python
+LOAD_FOLDER_OPTION = typer.Option(None, "--folder", help="Override folder location for all objects")
+LOAD_SNIPPET_OPTION = typer.Option(None, "--snippet", help="Override snippet location for all objects")
+LOAD_DEVICE_OPTION = typer.Option(None, "--device", help="Override device location for all objects")
+```
+
+#### 31.3.2 Container Override Logic
+
+```python
+# Apply container overrides if specified
+if folder:
+    obj_data["folder"] = folder
+    obj_data.pop("snippet", None)
+    obj_data.pop("device", None)
+elif snippet:
+    obj_data["snippet"] = snippet
+    obj_data.pop("folder", None)
+    obj_data.pop("device", None)
+elif device:
+    obj_data["device"] = device
+    obj_data.pop("folder", None)
+    obj_data.pop("snippet", None)
+```
+
+#### 31.3.3 Standardized Output Format
+
+```python
+# Display summary with counts
+typer.echo(f"Successfully processed {len(results)} {object_type}(s)")
+if created_count > 0:
+    typer.echo(f"  - Created: {created_count}")
+if updated_count > 0:
+    typer.echo(f"  - Updated: {updated_count}")
+```
+
+### 31.4 Benefits
+
+1. **Consistency**: All load commands work the same way across object types
+2. **Flexibility**: Container overrides enable bulk migrations between locations
+3. **User Experience**: Consistent parameters and output formats
+4. **Error Resilience**: Continue processing on individual failures
+5. **Dry Run Support**: Preview changes before applying them
+
+### 31.5 Commands Updated
+
+All 14 load commands have been standardized:
+
+- ✅ address-group
+- ✅ application
+- ✅ application-group
+- ✅ application-filter
+- ✅ dynamic-user-group
+- ✅ external-dynamic-list
+- ✅ hip-object
+- ✅ hip-profile
+- ✅ http-server-profile
+- ✅ log-forwarding-profile
+- ✅ service
+- ✅ service-group
+- ✅ syslog-server-profile
+- ✅ tag
+
+### 31.6 Usage Examples
+
+```bash
+# Load with original locations from file
+scm-cli load objects address --file addresses.yml
+
+# Override all objects to a specific folder
+scm-cli load objects address --file addresses.yml --folder Production
+
+# Override to snippet location
+scm-cli load objects service --file services.yml --snippet DNS-Best-Practice
+
+# Dry run to preview changes
+scm-cli load objects tag --file tags.yml --dry-run
+
+# Container override with dry run
+scm-cli load objects application --file apps.yml --folder Texas --dry-run
 ```
