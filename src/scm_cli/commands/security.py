@@ -74,19 +74,19 @@ BACKUP_FILE_OPTION = typer.Option(
 
 def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
-    
+
     Returns:
         tuple: (location_type, location_value)
     """
     location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
-    
+
     if location_count == 0:
         typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
         raise typer.Exit(code=1)
     elif location_count > 1:
         typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
         raise typer.Exit(code=1)
-    
+
     if folder:
         return "folder", folder
     elif snippet:
@@ -97,13 +97,13 @@ def validate_location_params(folder: str = None, snippet: str = None, device: st
 
 def get_default_backup_filename(object_type: str, location_type: str, location_value: str, rulebase: str = None) -> str:
     """Generate default backup filename.
-    
+
     Args:
         object_type: Type of object (e.g., "security-rules")
         location_type: Type of location (folder, snippet, device)
         location_value: Value of the location
         rulebase: Optional rulebase for security rules
-        
+
     Returns:
         str: Default filename
     """
@@ -133,33 +133,27 @@ def backup_security_rule(
     --------
         # Backup from folder
         scm-cli backup security rule --folder Austin --rulebase pre
-        
-        # Backup from snippet  
+
+        # Backup from snippet
         scm-cli backup security rule --snippet DNS-Best-Practice --rulebase post
-        
+
         # Backup from device
         scm-cli backup security rule --device austin-01 --rulebase default
-        
+
         # Backup to custom filename
         scm-cli backup security rule --folder Austin --file my-rules.yaml
 
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
-    
+
     # Set default filename if not provided
     if not file:
         file = get_default_backup_filename("security-rules", location_type, location_value, rulebase)
-    
+
     try:
         # List all security rules with exact_match=True
-        rules = scm_client.list_security_rules(
-            folder=folder,
-            snippet=snippet,
-            device=device,
-            rulebase=rulebase,
-            exact_match=True
-        )
+        rules = scm_client.list_security_rules(folder=folder, snippet=snippet, device=device, rulebase=rulebase, exact_match=True)
 
         if not rules:
             typer.echo(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")

@@ -69,19 +69,19 @@ BACKUP_FILE_OPTION = typer.Option(
 
 def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
-    
+
     Returns:
         tuple: (location_type, location_value)
     """
     location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
-    
+
     if location_count == 0:
         typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
         raise typer.Exit(code=1)
     elif location_count > 1:
         typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
         raise typer.Exit(code=1)
-    
+
     if folder:
         return "folder", folder
     elif snippet:
@@ -92,12 +92,12 @@ def validate_location_params(folder: str = None, snippet: str = None, device: st
 
 def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
     """Generate default backup filename.
-    
+
     Args:
         object_type: Type of object (e.g., "security-zone")
         location_type: Type of location (folder, snippet, device)
         location_value: Value of the location
-        
+
     Returns:
         str: Default filename
     """
@@ -124,32 +124,27 @@ def backup_security_zone(
     --------
         # Backup from folder
         scm-cli backup network security-zone --folder Austin
-        
-        # Backup from snippet  
+
+        # Backup from snippet
         scm-cli backup network security-zone --snippet DNS-Best-Practice
-        
+
         # Backup from device
         scm-cli backup network security-zone --device austin-01
-        
+
         # Backup to custom filename
         scm-cli backup network security-zone --folder Austin --file my-zones.yaml
 
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
-    
+
     # Set default filename if not provided
     if not file:
         file = get_default_backup_filename("security-zones", location_type, location_value)
-    
+
     try:
         # List all security zones with exact_match=True
-        zones = scm_client.list_security_zones(
-            folder=folder,
-            snippet=snippet,
-            device=device,
-            exact_match=True
-        )
+        zones = scm_client.list_security_zones(folder=folder, snippet=snippet, device=device, exact_match=True)
 
         if not zones:
             typer.echo(f"No security zones found in {location_type} '{location_value}'")
