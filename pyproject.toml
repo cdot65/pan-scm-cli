@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "pan-scm-cli"
-version = "0.2.2"
-description = "Network Engineer-friendly CLI for Palo Alto Networks Security Content Management"
+version = "0.3.0"
+description = "CICD and Network Engineer-friendly CLI tool for Palo Alto Networks Strata Cloud Manager"
 authors = ["Calvin Remsburg <dev@cdot.io>"]
 readme = "README.md"
 packages = [{ include = "scm_cli", from = "src" }]
@@ -39,7 +39,7 @@ mypy = "^1.10.0"
 types-PyYAML = "^6.0.12.20240311"
 
 [tool.poetry.scripts]
-scm-cli = "scm_cli:main"
+scm = "scm_cli:main"
 
 [build-system]
 requires = ["poetry-core"]
