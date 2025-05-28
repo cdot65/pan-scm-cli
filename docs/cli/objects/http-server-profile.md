@@ -1,10 +1,10 @@
-# HTTP Server Profile Management
+# HTTP Server Profile Objects
 
-This section covers the commands for managing HTTP server profiles in Strata Cloud Manager.
+HTTP server profile objects define HTTP/HTTPS servers for log forwarding and integration in Strata Cloud Manager. The `scm` CLI provides commands to create, update, delete, show, backup, and load HTTP server profile objects.
 
 ## Overview
 
-HTTP server profiles define HTTP/HTTPS servers for log forwarding and integration. The `http-server-profile` commands allow you to:
+HTTP server profiles allow you to:
 
 - Configure multiple HTTP/HTTPS servers
 - Set authentication credentials
@@ -13,136 +13,112 @@ HTTP server profiles define HTTP/HTTPS servers for log forwarding and integratio
 - Enable tag registration on match
 - Customize log format settings
 
-## Commands
+## Set HTTP Server Profile
 
-### Creating/Updating HTTP Server Profiles
+Create or update an HTTP server profile object.
 
-Basic HTTP server profile:
+### Syntax
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects http-server-profile --folder Texas --name syslog-http \
-  --servers '[{"name": "primary", "address": "10.0.1.50", "protocol": "HTTP", "port": 8080, "http_method": "POST"}]' \
-  --description "HTTP syslog forwarder"
-<span style="color: green;">✓</span> HTTP server profile 'syslog-http' created successfully
+scm set objects http-server-profile [OPTIONS]
 ```
 
-</div>
+### Options
 
-HTTPS with authentication:
+| Option               | Description                                | Required |
+| -------------------- | ------------------------------------------ | -------- |
+| `--folder TEXT`      | Folder for the HTTP server profile object  | Yes\*    |
+| `--snippet TEXT`     | Snippet for the HTTP server profile object | Yes\*    |
+| `--device TEXT`      | Device for the HTTP server profile object  | Yes\*    |
+| `--name TEXT`        | Name of the HTTP server profile            | Yes      |
+| `--servers JSON`     | JSON array of server configurations        | Yes      |
+| `--description TEXT` | Description of the profile                 | No       |
+| `--tag-registration` | Enable tag registration on match           | No       |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Examples
+
+#### Create Basic HTTP Server Profile
+
 ```bash
-$ scm-cli set objects http-server-profile --folder Texas --name splunk-hec \
-  --servers '[{"name": "splunk", "address": "splunk.company.com", "protocol": "HTTPS", "port": 8088, "http_method": "POST", "username": "hec_user", "password": "hec_token", "tls_version": "1.2"}]' \
-  --description "Splunk HTTP Event Collector"
-<span style="color: green;">✓</span> HTTP server profile 'splunk-hec' created successfully
+$ scm set objects http-server-profile \
+    --folder Texas \
+    --name syslog-http \
+    --servers '[{"name": "primary", "address": "10.0.1.50", "protocol": "HTTP", "port": 8080, "http_method": "POST"}]' \
+    --description "HTTP syslog forwarder"
+---> 100%
+Created HTTP server profile: syslog-http in folder Texas
 ```
 
-</div>
+#### Create HTTPS Profile with Authentication
 
-Multiple servers for redundancy:
-
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects http-server-profile --folder Texas --name siem-collectors \
-  --servers '[{"name": "primary", "address": "siem1.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}, {"name": "secondary", "address": "siem2.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' \
-  --tag-registration \
-  --description "SIEM collector endpoints"
-<span style="color: green;">✓</span> HTTP server profile 'siem-collectors' created successfully
+$ scm set objects http-server-profile \
+    --folder Texas \
+    --name splunk-hec \
+    --servers '[{"name": "splunk", "address": "splunk.company.com", "protocol": "HTTPS", "port": 8088, "http_method": "POST", "username": "hec_user", "password": "hec_token", "tls_version": "1.2"}]' \
+    --description "Splunk HTTP Event Collector"
+---> 100%
+Created HTTP server profile: splunk-hec in folder Texas
 ```
 
-</div>
+## Delete HTTP Server Profile
 
-### Listing HTTP Server Profiles
+Delete an HTTP server profile object from SCM.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli show objects http-server-profile --folder Texas --list
-HTTP server profiles in folder 'Texas':
-- syslog-http
-- splunk-hec
-- siem-collectors
-- elastic-endpoint
+scm delete objects http-server-profile [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Showing HTTP Server Profile Details
+| Option           | Description                                       | Required |
+| ---------------- | ------------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder containing the HTTP server profile object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the HTTP server profile object | Yes\*    |
+| `--device TEXT`  | Device containing the HTTP server profile object  | Yes\*    |
+| `--name TEXT`    | Name of the HTTP server profile object to delete  | Yes      |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Example
+
 ```bash
-$ scm-cli show objects http-server-profile --folder Texas --name splunk-hec
-HTTP Server Profile: splunk-hec
-  Servers:
-    - Name: splunk
-      Address: splunk.company.com
-      Protocol: HTTPS
-      Port: 8088
-      HTTP Method: POST
-      TLS Version: 1.2
-  Description: Splunk HTTP Event Collector
-  Tag Registration: False
-  Folder: Texas
+$ scm delete objects http-server-profile --folder Texas --name syslog-http
+---> 100%
+Deleted HTTP server profile: syslog-http from folder Texas
 ```
 
-</div>
+## Load HTTP Server Profiles
 
-### Deleting HTTP Server Profiles
+Load multiple HTTP server profile objects from a YAML file.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli delete objects http-server-profile --folder Texas --name syslog-http
-<span style="color: green;">✓</span> HTTP server profile 'syslog-http' deleted successfully
+scm load objects http-server-profile [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Bulk Operations
+| Option           | Description                                                  | Required |
+| ---------------- | ------------------------------------------------------------ | -------- |
+| `--file TEXT`    | Path to YAML file containing HTTP server profile definitions | Yes      |
+| `--folder TEXT`  | Override folder location for all objects                     | No       |
+| `--snippet TEXT` | Override snippet location for all objects                    | No       |
+| `--device TEXT`  | Override device location for all objects                     | No       |
+| `--dry-run`      | Preview changes without applying them                        | No       |
 
-Load multiple HTTP server profiles from a YAML file:
-
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli load objects http-server-profile --folder Texas --file http-profiles.yml
-<span style="color: green;">✓</span> Loaded 6 HTTP server profiles successfully
-```
-
-</div>
-
-Backup existing HTTP server profiles:
-
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli backup objects http-server-profile --folder Texas
-<span style="color: green;">✓</span> Backed up 6 HTTP server profiles to http-server-profile-texas.yaml
-```
-
-</div>
-
-## YAML Configuration Format
-
-HTTP server profiles can be defined in YAML for bulk operations:
+### YAML File Format
 
 ```yaml
+---
 http_server_profiles:
   - name: splunk-hec
+    folder: Texas # Container location (folder, snippet, or device)
     description: "Splunk HTTP Event Collector"
     servers:
       - name: splunk-primary
@@ -153,8 +129,9 @@ http_server_profiles:
         username: hec_user
         password: secure_token
         tls_version: "1.2"
-    
+
   - name: elastic-logs
+    folder: Texas
     description: "Elasticsearch log ingestion"
     servers:
       - name: elastic-node1
@@ -173,8 +150,9 @@ http_server_profiles:
         username: elastic
         password: changeme
         tls_version: "1.3"
-    
+
   - name: syslog-http
+    folder: Texas
     description: "HTTP syslog receiver"
     servers:
       - name: syslog-receiver
@@ -182,22 +160,145 @@ http_server_profiles:
         protocol: HTTP
         port: 514
         http_method: POST
-    
-  - name: webhook-endpoint
-    description: "Webhook notification service"
-    servers:
-      - name: webhook
-        address: hooks.company.com
-        protocol: HTTPS
-        port: 443
-        http_method: POST
-        certificate_profile: webhook-cert
-    tag_registration: true
-    
-  - name: siem-integration
-    description: "SIEM platform integration"
-    servers:
-      - name: siem-primary
+```
+
+### Examples
+
+#### Load with Original Locations
+
+```bash
+$ scm load objects http-server-profile --file http-profiles.yml
+---> 100%
+✓ Loaded HTTP server profile: splunk-hec
+✓ Loaded HTTP server profile: elastic-logs
+✓ Loaded HTTP server profile: syslog-http
+
+Successfully loaded 3 out of 3 HTTP server profiles from 'http-profiles.yml'
+```
+
+#### Load with Folder Override
+
+```bash
+$ scm load objects http-server-profile --file http-profiles.yml --folder Austin
+---> 100%
+✓ Loaded HTTP server profile: splunk-hec
+✓ Loaded HTTP server profile: elastic-logs
+✓ Loaded HTTP server profile: syslog-http
+
+Successfully loaded 3 out of 3 HTTP server profiles from 'http-profiles.yml'
+```
+
+!!! note
+When using container override options (--folder, --snippet, --device), all HTTP server profiles will be loaded into the specified container, ignoring the container specified in the YAML file.
+
+## Show HTTP Server Profile
+
+Display HTTP server profile objects.
+
+### Syntax
+
+```bash
+scm show objects http-server-profile [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                       | Required |
+| ---------------- | ------------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder containing the HTTP server profile object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the HTTP server profile object | Yes\*    |
+| `--device TEXT`  | Device containing the HTTP server profile object  | Yes\*    |
+| `--name TEXT`    | Name of the HTTP server profile object to show    | No\*\*   |
+| `--list`         | List all HTTP server profiles in the container    | No\*\*   |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+\*\* You must specify either --name or --list.
+
+### Examples
+
+#### Show Specific HTTP Server Profile
+
+```bash
+$ scm show objects http-server-profile --folder Texas --name splunk-hec
+---> 100%
+HTTP Server Profile: splunk-hec
+Location: Folder 'Texas'
+Servers:
+  - Name: splunk
+    Address: splunk.company.com
+    Protocol: HTTPS
+    Port: 8088
+    HTTP Method: POST
+    TLS Version: 1.2
+Description: Splunk HTTP Event Collector
+Tag Registration: False
+ID: 123e4567-e89b-12d3-a456-426614174000
+```
+
+#### List All HTTP Server Profiles
+
+```bash
+$ scm show objects http-server-profile --folder Texas --list
+---> 100%
+HTTP Server Profiles in folder 'Texas':
+------------------------------------------------------------
+Name: syslog-http
+  Location: Folder 'Texas'
+  Server: primary (10.0.1.50:8080 HTTP)
+  Description: HTTP syslog forwarder
+------------------------------------------------------------
+Name: splunk-hec
+  Location: Folder 'Texas'
+  Server: splunk (splunk.company.com:8088 HTTPS)
+  Description: Splunk HTTP Event Collector
+------------------------------------------------------------
+Name: siem-collectors
+  Location: Folder 'Texas'
+  Servers: primary (siem1.company.com:443 HTTPS), secondary (siem2.company.com:443 HTTPS)
+  Tag Registration: Yes
+  Description: SIEM collector endpoints
+------------------------------------------------------------
+```
+
+## Backup HTTP Server Profiles
+
+Backup all HTTP server profile objects from a specified location to a YAML file.
+
+### Syntax
+
+```bash
+scm backup objects http-server-profile [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                  | Required |
+| ---------------- | -------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder to backup HTTP server profiles from   | No\*     |
+| `--snippet TEXT` | Snippet to backup HTTP server profiles from  | No\*     |
+| `--device TEXT`  | Device to backup HTTP server profiles from   | No\*     |
+| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+
+### Examples
+
+#### Backup from Folder
+
+```bash
+$ scm backup objects http-server-profile --folder Texas
+---> 100%
+Successfully backed up 6 HTTP server profiles to http-server-profile_folder_texas_20240115_120530.yaml
+```
+
+#### Backup with Custom Filename
+
+```bash
+$ scm backup objects http-server-profile --folder Texas --file texas-http-profiles.yaml
+---> 100%
+Successfully backed up 6 HTTP server profiles to texas-http-profiles.yaml
+```
+
         address: siem.company.com
         protocol: HTTPS
         port: 8443
@@ -210,7 +311,8 @@ http_server_profiles:
         payload: custom
       threat:
         payload: custom
-```
+
+````
 
 ## Configuration Options
 
@@ -223,9 +325,105 @@ http_server_profiles:
 
 - `--description`: Detailed description
 - `--tag-registration`: Enable tag registration on match
-- `--format-config`: Custom format settings for log types
 
-### Server Configuration Fields
+## Best Practices
+
+1. **Use HTTPS**: Always use HTTPS for production environments
+
+2. **Authentication**: Implement proper authentication
+
+   - Basic auth for simple setups
+   - Certificate auth for high security
+
+3. **Port Selection**: Use standard ports when possible
+
+   - HTTP: 80, 8080
+   - HTTPS: 443, 8443
+
+4. **Redundancy**: Configure multiple servers for high availability
+
+5. **TLS Versions**: Use TLS 1.2 or higher for security
+
+6. **Use YAML for Bulk Operations**: For complex deployments, use YAML files
+
+7. **Organize by Container**: Keep profiles organized in appropriate folders, snippets, or devices
+
+## Additional Examples
+
+### Multiple Servers for Redundancy
+
+```bash
+$ scm set objects http-server-profile \
+    --folder Texas \
+    --name siem-collectors \
+    --servers '[{"name": "primary", "address": "siem1.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}, {"name": "secondary", "address": "siem2.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' \
+    --tag-registration \
+    --description "SIEM collector endpoints"
+---> 100%
+Created HTTP server profile: siem-collectors in folder Texas
+````
+
+### Splunk Integration
+
+```bash
+$ scm set objects http-server-profile \
+    --folder Shared \
+    --name splunk-integration \
+    --servers '[{
+      "name": "splunk-hec",
+      "address": "splunk-hec.company.com",
+      "protocol": "HTTPS",
+      "port": 8088,
+      "http_method": "POST",
+      "username": "x-splunk-token",
+      "password": "your-hec-token-here",
+      "tls_version": "1.2"
+    }]' \
+    --tag-registration \
+    --description "Splunk HTTP Event Collector"
+---> 100%
+Created HTTP server profile: splunk-integration in folder Shared
+```
+
+### Certificate-Based Authentication
+
+```bash
+$ scm set objects http-server-profile \
+    --folder Shared \
+    --name cert-auth \
+    --servers '[{
+      "name": "mtls-server",
+      "address": "secure-logs.company.com",
+      "protocol": "HTTPS",
+      "port": 8443,
+      "http_method": "POST",
+      "certificate_profile": "client-cert-profile",
+      "tls_version": "1.3"
+    }]' \
+    --description "Mutual TLS authentication"
+---> 100%
+Created HTTP server profile: cert-auth in folder Shared
+```
+
+## Integration with Log Forwarding
+
+HTTP server profiles are referenced in log forwarding profiles:
+
+```bash
+$ scm set objects log-forwarding-profile \
+    --folder Shared \
+    --name forward-to-http \
+    --match-list '[{
+      "name": "all-logs",
+      "log_type": "traffic",
+      "filter": "All Logs",
+      "http_profiles": ["splunk-hec", "siem-integration"]
+    }]'
+---> 100%
+Created log forwarding profile: forward-to-http in folder Shared
+```
+
+## Server Configuration Fields
 
 Each server in the servers array requires:
 
@@ -242,167 +440,9 @@ Optional server fields:
 - `certificate_profile`: Certificate profile for mutual TLS
 - `tls_version`: TLS version for HTTPS (1.0, 1.1, 1.2, 1.3)
 
-### Context Parameters
-
-Exactly one context parameter must be specified:
-
-- `--folder`: Folder name (e.g., "Texas", "Shared")
-- `--snippet`: Snippet name for Panorama
-- `--device`: Device name for NGFW
-
-## Examples
-
-### Basic HTTP Server
-
-```bash
-scm-cli set objects http-server-profile --folder Shared --name simple-http \
-  --servers '[{"name": "server1", "address": "192.168.1.100", "protocol": "HTTP", "port": 8080, "http_method": "POST"}]' \
-  --description "Basic HTTP logging"
-```
-
-### Secure HTTPS with Authentication
-
-```bash
-scm-cli set objects http-server-profile --folder Shared --name secure-logging \
-  --servers '[{
-    "name": "secure-server",
-    "address": "logs.company.com",
-    "protocol": "HTTPS",
-    "port": 443,
-    "http_method": "POST",
-    "username": "log_user",
-    "password": "secure_pass",
-    "tls_version": "1.3"
-  }]' \
-  --description "Secure HTTPS logging with auth"
-```
-
-### Multiple Servers for High Availability
-
-```bash
-scm-cli set objects http-server-profile --folder Shared --name ha-logging \
-  --servers '[
-    {"name": "primary", "address": "log1.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"},
-    {"name": "secondary", "address": "log2.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"},
-    {"name": "tertiary", "address": "log3.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}
-  ]' \
-  --description "High availability logging cluster"
-```
-
-### Splunk Integration
-
-```bash
-scm-cli set objects http-server-profile --folder Shared --name splunk-integration \
-  --servers '[{
-    "name": "splunk-hec",
-    "address": "splunk-hec.company.com",
-    "protocol": "HTTPS",
-    "port": 8088,
-    "http_method": "POST",
-    "username": "x-splunk-token",
-    "password": "your-hec-token-here",
-    "tls_version": "1.2"
-  }]' \
-  --tag-registration \
-  --description "Splunk HTTP Event Collector"
-```
-
-### Certificate-Based Authentication
-
-```bash
-scm-cli set objects http-server-profile --folder Shared --name cert-auth \
-  --servers '[{
-    "name": "mtls-server",
-    "address": "secure-logs.company.com",
-    "protocol": "HTTPS",
-    "port": 8443,
-    "http_method": "POST",
-    "certificate_profile": "client-cert-profile",
-    "tls_version": "1.3"
-  }]' \
-  --description "Mutual TLS authentication"
-```
-
-## Integration with Log Forwarding
-
-HTTP server profiles are referenced in log forwarding profiles:
-
-```bash
-# Create log forwarding profile using HTTP servers
-scm-cli set objects log-forwarding-profile --folder Shared --name forward-to-http \
-  --match-list '[{
-    "name": "all-logs",
-    "log_type": "traffic",
-    "filter": "All Logs",
-    "http_profiles": ["splunk-hec", "siem-integration"]
-  }]'
-```
-
-## Server Selection and Load Balancing
-
-When multiple servers are configured:
-
-1. **Primary/Secondary**: Servers are used in order of configuration
-2. **Failover**: If primary fails, secondary is used
-3. **Health Checks**: Automatic health monitoring
-4. **Recovery**: Automatic return to primary when available
-
-## Best Practices
-
-1. **Use HTTPS**: Always use HTTPS for production environments
-   ```bash
-   "protocol": "HTTPS", "tls_version": "1.2"
-   ```
-
-2. **Authentication**: Implement proper authentication
-   - Basic auth for simple setups
-   - Certificate auth for high security
-
-3. **Port Selection**: Use standard ports when possible
-   - HTTP: 80, 8080
-   - HTTPS: 443, 8443
-
-4. **Redundancy**: Configure multiple servers for high availability
-
-5. **TLS Versions**: Use TLS 1.2 or higher for security
-
-## Common Integrations
-
-### SIEM Platforms
-- Splunk HTTP Event Collector
-- Elasticsearch
-- IBM QRadar
-- ArcSight
-
-### Log Management
-- ELK Stack
-- Graylog
-- Sumo Logic
-- Datadog
-
-### Custom Applications
-- Webhook endpoints
-- Custom REST APIs
-- Internal logging systems
-
-## Troubleshooting
-
-### Connection Issues
-
-1. **Network Connectivity**: Verify firewall can reach HTTP servers
-2. **Port Access**: Ensure ports are open and accessible
-3. **DNS Resolution**: Verify hostnames resolve correctly
-4. **TLS Compatibility**: Check TLS version compatibility
-
-### Authentication Failures
-
-1. **Credentials**: Verify username/password
-2. **Certificate**: Check certificate validity and trust
-3. **Token Format**: Ensure proper token formatting for services like Splunk
-
 ## Notes
 
-- Profile names must be unique within a folder
+- Profile names must be unique within a container
 - At least one server must be configured
 - HTTP method is required for all servers
 - HTTPS is recommended for production use
@@ -410,3 +450,4 @@ When multiple servers are configured:
 - Certificate profiles must exist before referencing
 - Profiles are used by log forwarding profiles
 - Maximum number of servers per profile may be limited by platform
+- When multiple servers are configured, they are used in order with automatic failover

@@ -4,6 +4,7 @@ This module implements set, delete, and load commands for security-related
 configurations such as security rules, profiles, etc.
 """
 
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -44,6 +45,75 @@ FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
 RULEBASE_OPTION = typer.Option("pre", "--rulebase", help="Rulebase to use (pre, post, or default)")
 
+# Backup command options
+BACKUP_FOLDER_OPTION = typer.Option(
+    None,
+    "--folder",
+    help="Folder path for backup",
+)
+BACKUP_SNIPPET_OPTION = typer.Option(
+    None,
+    "--snippet",
+    help="Snippet path for backup",
+)
+BACKUP_DEVICE_OPTION = typer.Option(
+    None,
+    "--device",
+    help="Device path for backup",
+)
+BACKUP_FILE_OPTION = typer.Option(
+    None,
+    "--file",
+    help="Output filename for backup (defaults to {object-type}-{location}.yaml)",
+)
+
+# ========================================================================================================================================================================================
+# HELPER FUNCTIONS
+# ========================================================================================================================================================================================
+
+
+def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
+    """Validate that exactly one location parameter is provided.
+
+    Returns:
+        tuple: (location_type, location_value)
+    """
+    location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
+
+    if location_count == 0:
+        typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
+        raise typer.Exit(code=1)
+    elif location_count > 1:
+        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        raise typer.Exit(code=1)
+
+    if folder:
+        return "folder", folder
+    elif snippet:
+        return "snippet", snippet
+    else:
+        return "device", device
+
+
+def get_default_backup_filename(object_type: str, location_type: str, location_value: str, rulebase: str = None) -> str:
+    """Generate default backup filename.
+
+    Args:
+        object_type: Type of object (e.g., "security-rules")
+        location_type: Type of location (folder, snippet, device)
+        location_value: Value of the location
+        rulebase: Optional rulebase for security rules
+
+    Returns:
+        str: Default filename
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_location = location_value.lower().replace(" ", "-").replace("/", "-")
+    if rulebase:
+        return f"{object_type}_{location_type}_{safe_location}_{rulebase}_{timestamp}.yaml"
+    return f"{object_type}_{location_type}_{safe_location}_{timestamp}.yaml"
+
+
 # ========================================================================================================================================================================================
 # SECURITY RULE COMMANDS
 # ========================================================================================================================================================================================
@@ -51,24 +121,42 @@ RULEBASE_OPTION = typer.Option("pre", "--rulebase", help="Rulebase to use (pre, 
 
 @backup_app.command("rule")
 def backup_security_rule(
-    folder: str = FOLDER_OPTION,
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
     rulebase: str = RULEBASE_OPTION,
 ):
-    """Backup all security rules from a folder and rulebase to a YAML file.
+    """Backup all security rules from a container and rulebase to a YAML file.
 
-    The backup file will be named 'rule-{folder}-{rulebase}.yaml' in the current directory.
+    Examples:
+    --------
+        # Backup from folder
+        scm-cli backup security rule --folder Austin --rulebase pre
 
-    Example:
-    -------
-    scm-cli backup security rule --folder Austin --rulebase pre
+        # Backup from snippet
+        scm-cli backup security rule --snippet DNS-Best-Practice --rulebase post
+
+        # Backup from device
+        scm-cli backup security rule --device austin-01 --rulebase default
+
+        # Backup to custom filename
+        scm-cli backup security rule --folder Austin --file my-rules.yaml
 
     """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("security-rules", location_type, location_value, rulebase)
+
     try:
-        # List all security rules in the folder and rulebase with exact_match=True
-        rules = scm_client.list_security_rules(folder=folder, rulebase=rulebase, exact_match=True)
+        # List all security rules with exact_match=True
+        rules = scm_client.list_security_rules(folder=folder, snippet=snippet, device=device, rulebase=rulebase, exact_match=True)
 
         if not rules:
-            typer.echo(f"No security rules found in folder '{folder}' rulebase '{rulebase}'")
+            typer.echo(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -104,16 +192,16 @@ def backup_security_rule(
         # Create the YAML structure
         yaml_data = {"security_rules": backup_data}
 
-        # Generate filename
-        filename = f"rule-{folder.lower()}-{rulebase}.yaml"
-
         # Write to YAML file
-        with open(filename, "w") as f:
+        with open(file, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} security rules to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} security rules to {file}")
+        return file
 
+    except NotImplementedError as e:
+        typer.echo(f"Error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         typer.echo(f"Error backing up security rules: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

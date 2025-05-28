@@ -4,127 +4,98 @@
 
 service_groups:
   # Web services group
-  - name: "web-services"
-    folder: "Texas"
+  - name: web-services
+    folder: Texas
     members:
-      - "service-http"
-      - "service-https"
-      - "web-browsing"
-      - "ssl"
-      - "custom-web"
+      - web-browsing
+      - custom-app-api
     tag:
-      - "web"
-      - "standard"
+      - Web-Service
+      - Production
 
   # Database services group
-  - name: "database-services"
-    folder: "Texas"
+  - name: database-services
+    folder: Texas
     members:
-      - "mysql-cluster"
-      - "ms-sql-db"
-      - "oracle-db"
-      - "postgresql"
-      - "mongodb"
+      - mysql-cluster
 
-  # Email services group
-  - name: "email-services"
-    folder: "Texas"
+  # Email and communication services
+  - name: communication-services
+    folder: Texas
     members:
-      - "smtp"
-      - "pop3"
-      - "imap"
-      - "email-services"
+      - email-services
+      - sip-voip
     tag:
-      - "email"
-      - "communication"
+      - Application
+      - Critical
 
   # Infrastructure management services
-  - name: "infrastructure-mgmt"
-    folder: "Texas"
+  - name: infrastructure-mgmt
+    folder: Texas
     members:
-      - "ssh"
-      - "ssh-custom"
-      - "telnet"
-      - "snmp"
-      - "snmp-trap"
-      - "syslog"
-      - "ntp"
+      - ssh-custom
+      - dns
+      - health-check
     tag:
-      - "infrastructure"
-      - "management"
+      - Infrastructure
+      - Critical
 
   # File transfer services
-  - name: "file-transfer-services"
-    folder: "Texas"
+  - name: file-transfer-services
+    folder: Texas
     members:
-      - "ftp"
-      - "ftp-data-transfer"
-      - "tftp"
-      - "sftp"
-      - "scp"
+      - ftp-data-transfer
     tag:
-      - "file-transfer"
-
-  # VoIP and communication services
-  - name: "voip-services"
-    folder: "Texas"
-    members:
-      - "sip"
-      - "sip-voip"
-      - "h323"
-      - "rtp"
-      - "rtcp"
-    tag:
-      - "voip"
-      - "real-time"
-      - "communication"
-
-  # Development and API services
-  - name: "dev-api-services"
-    folder: "Texas"
-    members:
-      - "custom-app-api"
-      - "rest-api"
-      - "graphql"
-      - "grpc"
-    tag:
-      - "api"
-      - "development"
+      - Legacy
 
   # Gaming services
-  - name: "gaming-services"
-    folder: "Texas"
+  - name: gaming-services
+    folder: Texas
     members:
-      - "game-server"
-      - "steam"
-      - "xbox-live"
-      - "playstation-network"
+      - game-server
     tag:
-      - "gaming"
-      - "entertainment"
+      - Application
+      - Low-Priority
 
-  # Monitoring and health check services
-  - name: "monitoring-services"
-    folder: "Texas"
+  # Monitoring services
+  - name: monitoring-services
+    folder: Texas
     members:
-      - "health-check"
-      - "ping"
-      - "traceroute"
-      - "prometheus"
-      - "grafana"
+      - health-check
     tag:
-      - "monitoring"
-      - "observability"
+      - Monitor
+      - Infrastructure
 
-  # Nested service groups example
-  - name: "all-critical-services"
-    folder: "Texas"
+  # Critical services group (nested example)
+  - name: critical-services
+    folder: Texas
     members:
-      - "database-services"      # Reference to another service group
-      - "infrastructure-mgmt"    # Reference to another service group
-      - "monitoring-services"    # Reference to another service group
-      - "dns"                    # Direct service reference
-      - "ntp"                    # Direct service reference
+      - database-services      # Reference to another service group
+      - infrastructure-mgmt    # Reference to another service group
+      - dns                    # Direct service reference
     tag:
-      - "critical"
-      - "production"
+      - Critical
+      - Production
+
+  # All services group
+  - name: all-services
+    folder: Texas
+    members:
+      - web-services           # Nested group
+      - database-services      # Nested group
+      - communication-services # Nested group
+      - infrastructure-mgmt    # Nested group
+      - file-transfer-services # Nested group
+      - gaming-services        # Nested group
+
+  # Production services only
+  - name: production-services
+    folder: Texas
+    members:
+      - web-browsing
+      - mysql-cluster
+      - email-services
+      - dns
+      - custom-app-api
+    tag:
+      - Production

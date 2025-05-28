@@ -18,54 +18,36 @@ Service groups provide a way to logically group multiple services together for u
 
 Basic service group:
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects service-group --folder Texas --name web-services \
+$ scm set objects service-group --folder Texas --name web-services \
   --members "http,https,ssl,web-browsing" \
   --description "Standard web services"
 <span style="color: green;">✓</span> Service group 'web-services' created successfully
 ```
 
-</div>
-
 Service group with custom services:
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects service-group --folder Texas --name database-services \
+$ scm set objects service-group --folder Texas --name database-services \
   --members "mysql,ms-sql,oracle,postgresql,custom-db" \
   --tag "database,backend" \
   --description "Database service ports"
 <span style="color: green;">✓</span> Service group 'database-services' created successfully
 ```
 
-</div>
-
 Nested service group:
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects service-group --folder Texas --name all-services \
+$ scm set objects service-group --folder Texas --name all-services \
   --members "web-services,database-services,mail-services" \
   --description "All allowed services (nested groups)"
 <span style="color: green;">✓</span> Service group 'all-services' created successfully
 ```
 
-</div>
-
 ### Listing Service Groups
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli show objects service-group --folder Texas --list
+$ scm show objects service-group --folder Texas --list
 Service groups in folder 'Texas':
 - web-services
 - database-services
@@ -73,15 +55,10 @@ Service groups in folder 'Texas':
 - all-services
 ```
 
-</div>
-
 ### Showing Service Group Details
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli show objects service-group --folder Texas --name web-services
+$ scm show objects service-group --folder Texas --name web-services
 Service Group: web-services
   Members: http, https, ssl, web-browsing
   Description: Standard web services
@@ -89,45 +66,98 @@ Service Group: web-services
   Folder: Texas
 ```
 
-</div>
-
 ### Deleting Service Groups
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli delete objects service-group --folder Texas --name web-services
+$ scm delete objects service-group --folder Texas --name web-services
 <span style="color: green;">✓</span> Service group 'web-services' deleted successfully
 ```
 
-</div>
+### Load Service Groups
 
-### Bulk Operations
+Load multiple service groups from a YAML file.
 
-Load multiple service groups from a YAML file:
+#### Syntax
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli load objects service-group --folder Texas --file service-groups.yml
-<span style="color: green;">✓</span> Loaded 8 service groups successfully
+scm load objects service-group [OPTIONS]
 ```
 
-</div>
+#### Options
 
-Backup existing service groups:
+| Option           | Description                                            | Required |
+| ---------------- | ------------------------------------------------------ | -------- |
+| `--file TEXT`    | Path to YAML file containing service group definitions | Yes      |
+| `--folder TEXT`  | Override folder location for all objects               | No       |
+| `--snippet TEXT` | Override snippet location for all objects              | No       |
+| `--device TEXT`  | Override device location for all objects               | No       |
+| `--dry-run`      | Preview changes without applying them                  | No       |
 
-<div class="termy">
+#### Examples
 
-<!-- termynal -->
+Load from file with original locations:
+
 ```bash
-$ scm-cli backup objects service-group --folder Texas
-<span style="color: green;">✓</span> Backed up 8 service groups to service-group-texas.yaml
+$ scm load objects service-group --file service-groups.yml
+<span style="color: green;">✓</span> Loaded service group: web-services
+<span style="color: green;">✓</span> Loaded service group: database-services
+<span style="color: green;">✓</span> Loaded service group: mail-services
+<span style="color: green;">✓</span> Loaded service group: all-services
+
+Successfully loaded 4 out of 4 service groups from 'service-groups.yml'
 ```
 
-</div>
+Load with folder override:
+
+```bash
+$ scm load objects service-group --file service-groups.yml --folder Austin
+<span style="color: green;">✓</span> Loaded service group: web-services
+<span style="color: green;">✓</span> Loaded service group: database-services
+<span style="color: green;">✓</span> Loaded service group: mail-services
+<span style="color: green;">✓</span> Loaded service group: all-services
+
+Successfully loaded 4 out of 4 service groups from 'service-groups.yml'
+```
+
+!!! note
+When using container override options (--folder, --snippet, --device), all service groups will be loaded into the specified container, ignoring the container specified in the YAML file.
+
+### Backup Service Groups
+
+Backup all service group objects from a specified location to a YAML file.
+
+#### Syntax
+
+```bash
+scm backup objects service-group [OPTIONS]
+```
+
+#### Options
+
+| Option           | Description                                  | Required |
+| ---------------- | -------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder to backup service groups from         | No\*     |
+| `--snippet TEXT` | Snippet to backup service groups from        | No\*     |
+| `--device TEXT`  | Device to backup service groups from         | No\*     |
+| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+
+#### Examples
+
+Backup from folder:
+
+```bash
+$ scm backup objects service-group --folder Texas
+<span style="color: green;">✓</span> Successfully backed up 8 service groups to service-group_folder_texas_20240115_120530.yaml
+```
+
+Backup with custom filename:
+
+```bash
+$ scm backup objects service-group --folder Texas --file texas-service-groups.yaml
+<span style="color: green;">✓</span> Successfully backed up 8 service groups to texas-service-groups.yaml
+```
 
 ## YAML Configuration Format
 
@@ -136,14 +166,16 @@ Service groups can be defined in YAML for bulk operations:
 ```yaml
 service_groups:
   - name: web-services
+    folder: Texas # Container location (folder, snippet, or device)
     description: "Standard web services"
     members:
       - http
       - https
       - ssl
       - web-browsing
-    
+
   - name: database-services
+    folder: Texas
     description: "Database service ports"
     members:
       - mysql
@@ -154,8 +186,9 @@ service_groups:
     tag:
       - database
       - backend
-    
+
   - name: mail-services
+    folder: Texas
     description: "Email services"
     members:
       - smtp
@@ -166,8 +199,9 @@ service_groups:
       - imaps
     tag:
       - email
-    
+
   - name: file-transfer
+    folder: Texas
     description: "File transfer services"
     members:
       - ftp
@@ -175,8 +209,9 @@ service_groups:
       - sftp
       - tftp
       - custom-file-transfer
-    
+
   - name: all-services
+    folder: Texas
     description: "All allowed services (nested groups)"
     members:
       - web-services
@@ -210,14 +245,14 @@ Exactly one context parameter must be specified:
 ### Create a Basic Service Group
 
 ```bash
-scm-cli set objects service-group --folder Shared --name web-apps \
+scm set objects service-group --folder Shared --name web-apps \
   --members "http,https,ssl"
 ```
 
 ### Create a Comprehensive Service Group
 
 ```bash
-scm-cli set objects service-group --folder Shared --name enterprise-apps \
+scm set objects service-group --folder Shared --name enterprise-apps \
   --members "ldap,ldaps,kerberos,radius,tacacs,custom-auth" \
   --tag "authentication,enterprise" \
   --description "Enterprise authentication services"
@@ -226,7 +261,7 @@ scm-cli set objects service-group --folder Shared --name enterprise-apps \
 ### Create a Nested Service Group
 
 ```bash
-scm-cli set objects service-group --folder Shared --name dmz-services \
+scm set objects service-group --folder Shared --name dmz-services \
   --members "web-services,mail-services,dns,ntp" \
   --tag "dmz,public" \
   --description "Services allowed in DMZ"
@@ -250,12 +285,12 @@ Service groups are commonly used in security rules:
 
 ```bash
 # Allow web services
-scm-cli set security rule --folder Shared --name "Allow-Web-Traffic" \
+scm set security rule --folder Shared --name "Allow-Web-Traffic" \
   --source-zones "Trust" --destination-zones "DMZ" \
   --services "@web-services" --action allow
 
 # Block database access from untrusted zones
-scm-cli set security rule --folder Shared --name "Protect-Databases" \
+scm set security rule --folder Shared --name "Protect-Databases" \
   --source-zones "Untrust" --destination-zones "Database" \
   --services "@database-services" --action deny
 ```
@@ -268,14 +303,14 @@ Service groups can contain other service groups, allowing for hierarchical organ
 
 ```bash
 # Create base groups
-scm-cli set objects service-group --folder Shared --name tcp-services \
+scm set objects service-group --folder Shared --name tcp-services \
   --members "http,https,ssh,telnet"
 
-scm-cli set objects service-group --folder Shared --name udp-services \
+scm set objects service-group --folder Shared --name udp-services \
   --members "dns,ntp,snmp,syslog"
 
 # Create parent group
-scm-cli set objects service-group --folder Shared --name all-protocols \
+scm set objects service-group --folder Shared --name all-protocols \
   --members "tcp-services,udp-services"
 ```
 
@@ -285,7 +320,7 @@ While service group membership is static, you can use tags and scripts to manage
 
 ```bash
 # Tag services
-scm-cli set objects service --folder Shared --name custom-app1 \
+scm set objects service --folder Shared --name custom-app1 \
   --protocol tcp --port 9001 --tag "dynamic-group"
 
 # Use external tools to update groups based on tags

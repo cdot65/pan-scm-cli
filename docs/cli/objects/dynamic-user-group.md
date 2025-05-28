@@ -1,10 +1,10 @@
-# Dynamic User Group Management
+# Dynamic User Group Objects
 
-This section covers the commands for managing dynamic user group objects in Strata Cloud Manager.
+Dynamic user group objects automatically include users based on tag-based filter expressions in Strata Cloud Manager. The `scm` CLI provides commands to create, update, delete, show, backup, and load dynamic user group objects.
 
 ## Overview
 
-Dynamic user groups automatically include users based on tag-based filter expressions. The `dynamic-user-group` commands allow you to:
+Dynamic user groups allow you to:
 
 - Create user groups with dynamic membership
 - Define tag-based filter expressions
@@ -12,198 +12,303 @@ Dynamic user groups automatically include users based on tag-based filter expres
 - Integrate with User-ID for dynamic policy enforcement
 - Apply tags and descriptions for organization
 
-## Commands
+## Set Dynamic User Group
 
-### Creating/Updating Dynamic User Groups
+Create or update a dynamic user group object.
 
-Basic dynamic user group:
+### Syntax
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects dynamic-user-group --folder Texas --name it-admins \
-  --filter "'IT' and 'Admin'" \
-  --description "IT department administrators"
-<span style="color: green;">✓</span> Dynamic user group 'it-admins' created successfully
+scm set objects dynamic-user-group [OPTIONS]
 ```
 
-</div>
+### Options
 
-Complex filter expression:
+| Option               | Description                                       | Required |
+| -------------------- | ------------------------------------------------- | -------- |
+| `--folder TEXT`      | Folder for the dynamic user group object          | Yes\*    |
+| `--snippet TEXT`     | Snippet for the dynamic user group object         | Yes\*    |
+| `--device TEXT`      | Device for the dynamic user group object          | Yes\*    |
+| `--name TEXT`        | Name of the dynamic user group                    | Yes      |
+| `--filter TEXT`      | Tag-based filter expression (max 2047 characters) | Yes      |
+| `--description TEXT` | Description (max 1023 characters)                 | No       |
+| `--tag LIST`         | Tags for categorization                           | No       |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Examples
+
+#### Create Basic Dynamic User Group
+
 ```bash
-$ scm-cli set objects dynamic-user-group --folder Texas --name remote-employees \
-  --filter "'Remote' and ('Engineering' or 'Sales' or 'Support')" \
-  --description "Remote workers in technical departments"
-<span style="color: green;">✓</span> Dynamic user group 'remote-employees' created successfully
+$ scm set objects dynamic-user-group \
+    --folder Texas \
+    --name it-admins \
+    --filter "'IT' and 'Admin'" \
+    --description "IT department administrators"
+---> 100%
+Created dynamic user group: it-admins in folder Texas
 ```
 
-</div>
+#### Create with Complex Filter Expression
 
-With tags:
-
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects dynamic-user-group --folder Texas --name privileged-users \
-  --filter "'Executive' or 'Admin' or 'Finance-Manager'" \
-  --tag "high-privilege,monitor" \
-  --description "Users with elevated privileges"
-<span style="color: green;">✓</span> Dynamic user group 'privileged-users' created successfully
+$ scm set objects dynamic-user-group \
+    --folder Texas \
+    --name remote-employees \
+    --filter "'Remote' and ('Engineering' or 'Sales' or 'Support')" \
+    --description "Remote workers in technical departments"
+---> 100%
+Created dynamic user group: remote-employees in folder Texas
 ```
 
-</div>
+## Delete Dynamic User Group
 
-### Listing Dynamic User Groups
+Delete a dynamic user group object from SCM.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli show objects dynamic-user-group --folder Texas --list
-Dynamic user groups in folder 'Texas':
-- it-admins
-- remote-employees
-- privileged-users
-- contractors
+scm delete objects dynamic-user-group [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Showing Dynamic User Group Details
+| Option           | Description                                      | Required |
+| ---------------- | ------------------------------------------------ | -------- |
+| `--folder TEXT`  | Folder containing the dynamic user group object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the dynamic user group object | Yes\*    |
+| `--device TEXT`  | Device containing the dynamic user group object  | Yes\*    |
+| `--name TEXT`    | Name of the dynamic user group object to delete  | Yes      |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Example
+
 ```bash
-$ scm-cli show objects dynamic-user-group --folder Texas --name it-admins
-Dynamic User Group: it-admins
-  Filter: 'IT' and 'Admin'
-  Description: IT department administrators
-  Tags: None
-  Folder: Texas
+$ scm delete objects dynamic-user-group --folder Texas --name it-admins
+---> 100%
+Deleted dynamic user group: it-admins from folder Texas
 ```
 
-</div>
+## Load Dynamic User Groups
 
-### Deleting Dynamic User Groups
+Load multiple dynamic user group objects from a YAML file.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli delete objects dynamic-user-group --folder Texas --name it-admins
-<span style="color: green;">✓</span> Dynamic user group 'it-admins' deleted successfully
+scm load objects dynamic-user-group [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Bulk Operations
+| Option           | Description                                                 | Required |
+| ---------------- | ----------------------------------------------------------- | -------- |
+| `--file TEXT`    | Path to YAML file containing dynamic user group definitions | Yes      |
+| `--folder TEXT`  | Override folder location for all objects                    | No       |
+| `--snippet TEXT` | Override snippet location for all objects                   | No       |
+| `--device TEXT`  | Override device location for all objects                    | No       |
+| `--dry-run`      | Preview changes without applying them                       | No       |
 
-Load multiple dynamic user groups from a YAML file:
-
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli load objects dynamic-user-group --folder Texas --file user-groups.yml
-<span style="color: green;">✓</span> Loaded 10 dynamic user groups successfully
-```
-
-</div>
-
-Backup existing dynamic user groups:
-
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli backup objects dynamic-user-group --folder Texas
-<span style="color: green;">✓</span> Backed up 10 dynamic user groups to dynamic-user-group-texas.yaml
-```
-
-</div>
-
-## YAML Configuration Format
-
-Dynamic user groups can be defined in YAML for bulk operations:
+### YAML File Format
 
 ```yaml
+---
 dynamic_user_groups:
   - name: it-admins
+    folder: Texas # Container location (folder, snippet, or device)
     filter: "'IT' and 'Admin'"
     description: "IT department administrators"
-    
+
   - name: remote-employees
+    folder: Texas
     filter: "'Remote' and ('Engineering' or 'Sales' or 'Support')"
     description: "Remote workers in technical departments"
-    
+
   - name: privileged-users
+    folder: Texas
     filter: "'Executive' or 'Admin' or 'Finance-Manager'"
     description: "Users with elevated privileges"
     tags:
       - high-privilege
       - monitor
-    
+
   - name: contractors
+    folder: Texas
     filter: "'Contractor' and not 'Permanent'"
     description: "External contractors"
     tags:
       - external
       - temporary
-    
+
   - name: vpn-users
+    folder: Texas
     filter: "'VPN-Access' and not 'Disabled'"
     description: "Users with VPN access"
-    
-  - name: developers
-    filter: "'Engineering' and ('Developer' or 'DevOps')"
-    description: "Software development team"
-    
-  - name: finance-team
-    filter: "'Finance' and not 'Intern'"
-    description: "Finance department employees"
-    tags:
-      - sensitive-access
-    
-  - name: interns
-    filter: "'Intern' and 'Active'"
-    description: "Active interns across all departments"
-    tags:
-      - limited-access
-      - temporary
 ```
 
-## Configuration Options
+### Examples
 
-### Required Parameters
+#### Load with Original Locations
 
-- `--name`: Name of the dynamic user group
-- `--filter`: Tag-based filter expression (max 2047 characters)
+```bash
+$ scm load objects dynamic-user-group --file user-groups.yml
+---> 100%
+✓ Loaded dynamic user group: it-admins
+✓ Loaded dynamic user group: remote-employees
+✓ Loaded dynamic user group: privileged-users
+✓ Loaded dynamic user group: contractors
+✓ Loaded dynamic user group: vpn-users
 
-### Optional Parameters
+Successfully loaded 5 out of 5 dynamic user groups from 'user-groups.yml'
+```
 
-- `--description`: Detailed description (max 1023 characters)
-- `--tag`: Tags for categorization (comma-separated)
+#### Load with Folder Override
 
-### Context Parameters
+```bash
+$ scm load objects dynamic-user-group --file user-groups.yml --folder Austin
+---> 100%
+✓ Loaded dynamic user group: it-admins
+✓ Loaded dynamic user group: remote-employees
+✓ Loaded dynamic user group: privileged-users
+✓ Loaded dynamic user group: contractors
+✓ Loaded dynamic user group: vpn-users
 
-Exactly one context parameter must be specified:
+Successfully loaded 5 out of 5 dynamic user groups from 'user-groups.yml'
+```
 
-- `--folder`: Folder name (e.g., "Texas", "Shared")
-- `--snippet`: Snippet name for Panorama
-- `--device`: Device name for NGFW
+!!! note
+When using container override options (--folder, --snippet, --device), all dynamic user groups will be loaded into the specified container, ignoring the container specified in the YAML file.
+
+## Show Dynamic User Group
+
+Display dynamic user group objects.
+
+### Syntax
+
+```bash
+scm show objects dynamic-user-group [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                      | Required |
+| ---------------- | ------------------------------------------------ | -------- |
+| `--folder TEXT`  | Folder containing the dynamic user group object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the dynamic user group object | Yes\*    |
+| `--device TEXT`  | Device containing the dynamic user group object  | Yes\*    |
+| `--name TEXT`    | Name of the dynamic user group object to show    | No\*\*   |
+| `--list`         | List all dynamic user groups in the container    | No\*\*   |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+\*\* You must specify either --name or --list.
+
+### Examples
+
+#### Show Specific Dynamic User Group
+
+```bash
+$ scm show objects dynamic-user-group --folder Texas --name it-admins
+---> 100%
+Dynamic User Group: it-admins
+Location: Folder 'Texas'
+Filter: 'IT' and 'Admin'
+Description: IT department administrators
+Tags: None
+ID: 123e4567-e89b-12d3-a456-426614174000
+```
+
+#### List All Dynamic User Groups
+
+```bash
+$ scm show objects dynamic-user-group --folder Texas --list
+---> 100%
+Dynamic User Groups in folder 'Texas':
+------------------------------------------------------------
+Name: it-admins
+  Location: Folder 'Texas'
+  Filter: 'IT' and 'Admin'
+  Description: IT department administrators
+------------------------------------------------------------
+Name: remote-employees
+  Location: Folder 'Texas'
+  Filter: 'Remote' and ('Engineering' or 'Sales' or 'Support')
+  Description: Remote workers in technical departments
+------------------------------------------------------------
+Name: privileged-users
+  Location: Folder 'Texas'
+  Filter: 'Executive' or 'Admin' or 'Finance-Manager'
+  Tags: high-privilege, monitor
+  Description: Users with elevated privileges
+------------------------------------------------------------
+```
+
+## Backup Dynamic User Groups
+
+Backup all dynamic user group objects from a specified location to a YAML file.
+
+### Syntax
+
+```bash
+scm backup objects dynamic-user-group [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                  | Required |
+| ---------------- | -------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder to backup dynamic user groups from    | No\*     |
+| `--snippet TEXT` | Snippet to backup dynamic user groups from   | No\*     |
+| `--device TEXT`  | Device to backup dynamic user groups from    | No\*     |
+| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+
+### Examples
+
+#### Backup from Folder
+
+```bash
+$ scm backup objects dynamic-user-group --folder Texas
+---> 100%
+Successfully backed up 10 dynamic user groups to dynamic-user-group_folder_texas_20240115_120530.yaml
+```
+
+#### Backup with Custom Filename
+
+```bash
+$ scm backup objects dynamic-user-group --folder Texas --file texas-user-groups.yaml
+---> 100%
+Successfully backed up 10 dynamic user groups to texas-user-groups.yaml
+```
+
+## Best Practices
+
+1. **Tag Strategy**: Establish a consistent tagging strategy for users
+
+   - Department tags: Engineering, Sales, Finance
+   - Role tags: Admin, Manager, Developer
+   - Status tags: Active, Contractor, Remote
+
+2. **Filter Simplicity**: Keep filter expressions as simple as possible while meeting requirements
+
+3. **Naming Convention**: Use descriptive names that indicate group membership criteria
+
+4. **Documentation**: Always include descriptions explaining the group's purpose
+
+5. **Testing**: Test filter expressions with sample users before deployment
+
+6. **Use YAML for Bulk Operations**: For complex deployments, use YAML files
+
+7. **Organize by Container**: Keep groups organized in appropriate folders, snippets, or devices
 
 ## Filter Expression Syntax
 
 ### Basic Syntax
 
 Filter expressions use tag names enclosed in single quotes:
+
 - Single tag: `'TagName'`
 - Multiple tags with AND: `'Tag1' and 'Tag2'`
 - Multiple tags with OR: `'Tag1' or 'Tag2'`
@@ -217,6 +322,7 @@ Filter expressions use tag names enclosed in single quotes:
 ### Parentheses for Grouping
 
 Use parentheses to control evaluation order:
+
 ```
 'Department' and ('Role1' or 'Role2' or 'Role3')
 ```
@@ -239,46 +345,44 @@ Examples of complex filter expressions:
 "('Sales' or 'Marketing') and ('Manager' or 'Director')"
 ```
 
-## Examples
+## Additional Examples
 
 ### Create Department-Based Groups
 
 ```bash
-# Engineering team
-scm-cli set objects dynamic-user-group --folder Shared --name engineering \
-  --filter "'Engineering' and 'Active'" \
-  --description "Active engineering team members"
-
-# Management across departments
-scm-cli set objects dynamic-user-group --folder Shared --name management \
-  --filter "'Manager' or 'Director' or 'VP' or 'Executive'" \
-  --description "Management personnel"
+$ scm set objects dynamic-user-group \
+    --folder Shared \
+    --name engineering \
+    --filter "'Engineering' and 'Active'" \
+    --description "Active engineering team members"
+---> 100%
+Created dynamic user group: engineering in folder Shared
 ```
 
 ### Create Access-Based Groups
 
 ```bash
-# VPN and remote access users
-scm-cli set objects dynamic-user-group --folder Shared --name remote-access \
-  --filter "'VPN-Access' or 'Remote-Desktop'" \
-  --tag "remote,monitor"
-
-# Privileged access users
-scm-cli set objects dynamic-user-group --folder Shared --name privileged \
-  --filter "'Admin' or 'Root' or 'Sudo'" \
-  --tag "high-risk,audit"
+$ scm set objects dynamic-user-group \
+    --folder Shared \
+    --name remote-access \
+    --filter "'VPN-Access' or 'Remote-Desktop'" \
+    --tag "remote,monitor" \
+    --description "VPN and remote access users"
+---> 100%
+Created dynamic user group: remote-access in folder Shared
 ```
 
-### Create Exclusion Groups
+### Create Groups with Complex Filters
 
 ```bash
-# Employees excluding contractors
-scm-cli set objects dynamic-user-group --folder Shared --name employees-only \
-  --filter "'Employee' and not 'Contractor'"
-
-# Active users excluding disabled accounts
-scm-cli set objects dynamic-user-group --folder Shared --name active-users \
-  --filter "'Active' and not ('Disabled' or 'Suspended')"
+$ scm set objects dynamic-user-group \
+    --folder Texas \
+    --name privileged-users \
+    --filter "'Executive' or 'Admin' or 'Finance-Manager'" \
+    --tag "high-privilege,monitor" \
+    --description "Users with elevated privileges"
+---> 100%
+Created dynamic user group: privileged-users in folder Texas
 ```
 
 ## Integration with Security Policies
@@ -286,31 +390,16 @@ scm-cli set objects dynamic-user-group --folder Shared --name active-users \
 Dynamic user groups are used in security rules for user-based access control:
 
 ```bash
-# Allow IT admins to access servers
-scm-cli set security rule --folder Shared --name "IT-Admin-Access" \
-  --source-users "@it-admins" --destination-zones "Servers" \
-  --applications "ssh,rdp" --action allow
-
-# Restrict contractor access
-scm-cli set security rule --folder Shared --name "Contractor-Restrictions" \
-  --source-users "@contractors" --destination-zones "Internal" \
-  --action deny
+$ scm set security rule \
+    --folder Shared \
+    --name "IT-Admin-Access" \
+    --source-users "@it-admins" \
+    --destination-zones "Servers" \
+    --applications "ssh,rdp" \
+    --action allow
+---> 100%
+Created security rule: IT-Admin-Access in folder Shared
 ```
-
-## Best Practices
-
-1. **Tag Strategy**: Establish a consistent tagging strategy for users
-   - Department tags: Engineering, Sales, Finance
-   - Role tags: Admin, Manager, Developer
-   - Status tags: Active, Contractor, Remote
-
-2. **Filter Simplicity**: Keep filter expressions as simple as possible while meeting requirements
-
-3. **Naming Convention**: Use descriptive names that indicate group membership criteria
-
-4. **Documentation**: Always include descriptions explaining the group's purpose
-
-5. **Testing**: Test filter expressions with sample users before deployment
 
 ## User-ID Integration
 
@@ -333,6 +422,7 @@ Dynamic user groups require User-ID to function properly:
 ### Filter Validation
 
 Test filter logic:
+
 ```bash
 # Simple test
 "'TestTag'"
@@ -344,7 +434,7 @@ Test filter logic:
 
 ## Notes
 
-- Group names must be unique within a folder
+- Group names must be unique within a container
 - Filter expressions are case-sensitive
 - Maximum filter length is 2047 characters
 - Tags must exist in the User-ID system

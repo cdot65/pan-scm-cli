@@ -1,10 +1,10 @@
-# Log Forwarding Profile Management
+# Log Forwarding Profile Objects
 
-This section covers the commands for managing log forwarding profiles in Strata Cloud Manager.
+Log forwarding profile objects define how logs are forwarded to external systems in Strata Cloud Manager. The `scm` CLI provides commands to create, update, delete, show, backup, and load log forwarding profile objects.
 
 ## Overview
 
-Log forwarding profiles define how logs are forwarded to external systems. The `log-forwarding-profile` commands allow you to:
+Log forwarding profiles allow you to:
 
 - Configure log forwarding for different log types
 - Set filters to control which logs are forwarded
@@ -12,139 +12,113 @@ Log forwarding profiles define how logs are forwarded to external systems. The `
 - Enable enhanced application logging
 - Configure quarantine actions for matched logs
 
-## Commands
+## Set Log Forwarding Profile
 
-### Creating/Updating Log Forwarding Profiles
+Create or update a log forwarding profile object.
 
-Basic traffic log forwarding:
+### Syntax
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects log-forwarding-profile --folder Texas --name traffic-logs \
-  --match-list '[{"name": "all-traffic", "log_type": "traffic", "filter": "All Logs", "syslog_profiles": ["central-syslog"]}]' \
-  --description "Forward all traffic logs"
-<span style="color: green;">✓</span> Log forwarding profile 'traffic-logs' created successfully
+scm set objects log-forwarding-profile [OPTIONS]
 ```
 
-</div>
+### Options
 
-Threat log forwarding with HTTP:
+| Option                           | Description                                   | Required |
+| -------------------------------- | --------------------------------------------- | -------- |
+| `--folder TEXT`                  | Folder for the log forwarding profile object  | Yes\*    |
+| `--snippet TEXT`                 | Snippet for the log forwarding profile object | Yes\*    |
+| `--device TEXT`                  | Device for the log forwarding profile object  | Yes\*    |
+| `--name TEXT`                    | Name of the log forwarding profile            | Yes      |
+| `--match-list JSON`              | JSON array of match list configurations       | Yes      |
+| `--description TEXT`             | Description of the profile                    | No       |
+| `--enhanced-application-logging` | Enable enhanced application logging           | No       |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Examples
+
+#### Create Basic Traffic Log Forwarding
+
 ```bash
-$ scm-cli set objects log-forwarding-profile --folder Texas --name threat-logs \
-  --match-list '[{"name": "threats", "log_type": "threat", "filter": "All Logs", "http_profiles": ["splunk-hec"], "syslog_profiles": ["security-syslog"]}]' \
-  --enhanced-application-logging \
-  --description "Forward threat logs to SIEM"
-<span style="color: green;">✓</span> Log forwarding profile 'threat-logs' created successfully
+$ scm set objects log-forwarding-profile \
+    --folder Texas \
+    --name traffic-logs \
+    --match-list '[{"name": "all-traffic", "log_type": "traffic", "filter": "All Logs", "syslog_profiles": ["central-syslog"]}]' \
+    --description "Forward all traffic logs"
+---> 100%
+Created log forwarding profile: traffic-logs in folder Texas
 ```
 
-</div>
+#### Create Threat Log Forwarding with HTTP
 
-Multiple log types:
-
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects log-forwarding-profile --folder Texas --name comprehensive-logging \
-  --match-list '[
-    {"name": "traffic", "log_type": "traffic", "filter": "All Logs", "syslog_profiles": ["central-syslog"]},
-    {"name": "threats", "log_type": "threat", "filter": "All Logs", "http_profiles": ["splunk-hec"]},
-    {"name": "urls", "log_type": "url", "filter": "All Logs", "syslog_profiles": ["web-proxy-logs"]}
-  ]' \
-  --description "Comprehensive log forwarding"
-<span style="color: green;">✓</span> Log forwarding profile 'comprehensive-logging' created successfully
+$ scm set objects log-forwarding-profile \
+    --folder Texas \
+    --name threat-logs \
+    --match-list '[{"name": "threats", "log_type": "threat", "filter": "All Logs", "http_profiles": ["splunk-hec"], "syslog_profiles": ["security-syslog"]}]' \
+    --enhanced-application-logging \
+    --description "Forward threat logs to SIEM"
+---> 100%
+Created log forwarding profile: threat-logs in folder Texas
 ```
 
-</div>
+## Delete Log Forwarding Profile
 
-### Listing Log Forwarding Profiles
+Delete a log forwarding profile object from SCM.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli show objects log-forwarding-profile --folder Texas --list
-Log forwarding profiles in folder 'Texas':
-- traffic-logs
-- threat-logs
-- comprehensive-logging
-- security-monitoring
+scm delete objects log-forwarding-profile [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Showing Log Forwarding Profile Details
+| Option           | Description                                          | Required |
+| ---------------- | ---------------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder containing the log forwarding profile object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the log forwarding profile object | Yes\*    |
+| `--device TEXT`  | Device containing the log forwarding profile object  | Yes\*    |
+| `--name TEXT`    | Name of the log forwarding profile object to delete  | Yes      |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Example
+
 ```bash
-$ scm-cli show objects log-forwarding-profile --folder Texas --name threat-logs
-Log Forwarding Profile: threat-logs
-  Match List:
-    - Name: threats
-      Log Type: threat
-      Filter: All Logs
-      HTTP Profiles: splunk-hec
-      Syslog Profiles: security-syslog
-  Enhanced Application Logging: True
-  Description: Forward threat logs to SIEM
-  Folder: Texas
+$ scm delete objects log-forwarding-profile --folder Texas --name traffic-logs
+---> 100%
+Deleted log forwarding profile: traffic-logs from folder Texas
 ```
 
-</div>
+## Load Log Forwarding Profiles
 
-### Deleting Log Forwarding Profiles
+Load multiple log forwarding profile objects from a YAML file.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli delete objects log-forwarding-profile --folder Texas --name traffic-logs
-<span style="color: green;">✓</span> Log forwarding profile 'traffic-logs' deleted successfully
+scm load objects log-forwarding-profile [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Bulk Operations
+| Option           | Description                                                     | Required |
+| ---------------- | --------------------------------------------------------------- | -------- |
+| `--file TEXT`    | Path to YAML file containing log forwarding profile definitions | Yes      |
+| `--folder TEXT`  | Override folder location for all objects                        | No       |
+| `--snippet TEXT` | Override snippet location for all objects                       | No       |
+| `--device TEXT`  | Override device location for all objects                        | No       |
+| `--dry-run`      | Preview changes without applying them                           | No       |
 
-Load multiple log forwarding profiles from a YAML file:
-
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli load objects log-forwarding-profile --folder Texas --file log-profiles.yml
-<span style="color: green;">✓</span> Loaded 10 log forwarding profiles successfully
-```
-
-</div>
-
-Backup existing log forwarding profiles:
-
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli backup objects log-forwarding-profile --folder Texas
-<span style="color: green;">✓</span> Backed up 10 log forwarding profiles to log-forwarding-profile-texas.yaml
-```
-
-</div>
-
-## YAML Configuration Format
-
-Log forwarding profiles can be defined in YAML for bulk operations:
+### YAML File Format
 
 ```yaml
+---
 log_forwarding_profiles:
   - name: basic-forwarding
+    folder: Texas # Container location (folder, snippet, or device)
     description: "Basic log forwarding"
     match_list:
       - name: all-logs
@@ -152,8 +126,9 @@ log_forwarding_profiles:
         filter: "All Logs"
         syslog_profiles:
           - central-syslog
-    
+
   - name: security-monitoring
+    folder: Texas
     description: "Security event monitoring"
     enhanced_application_logging: true
     match_list:
@@ -169,8 +144,9 @@ log_forwarding_profiles:
         filter: "All Logs"
         http_profiles:
           - splunk-hec
-    
+
   - name: compliance-logging
+    folder: Texas
     description: "Compliance and audit logging"
     match_list:
       - name: traffic-audit
@@ -183,41 +159,142 @@ log_forwarding_profiles:
         filter: "All Logs"
         syslog_profiles:
           - compliance-syslog
-      - name: data-filtering
-        log_type: data
-        filter: "All Logs"
-        syslog_profiles:
-          - dlp-syslog
-    
-  - name: performance-monitoring
-    description: "Performance and traffic analysis"
-    match_list:
-      - name: traffic-analysis
-        log_type: traffic
-        filter: "( bytes geq 1000000 )"
-        http_profiles:
-          - elastic-logs
-      - name: tunnel-monitoring
-        log_type: tunnel
-        filter: "All Logs"
-        syslog_profiles:
-          - network-syslog
-    
-  - name: threat-intelligence
-    description: "Threat intelligence integration"
-    enhanced_application_logging: true
-    match_list:
-      - name: malware
-        log_type: threat
-        filter: "( subtype eq virus ) or ( subtype eq spyware )"
-        http_profiles:
-          - threat-intel-api
-        quarantine: true
-      - name: dns-threats
-        log_type: dns-security
-        filter: "All Logs"
-        http_profiles:
-          - threat-intel-api
+```
+
+### Examples
+
+#### Load with Original Locations
+
+```bash
+$ scm load objects log-forwarding-profile --file log-profiles.yml
+---> 100%
+✓ Loaded log forwarding profile: basic-forwarding
+✓ Loaded log forwarding profile: security-monitoring
+✓ Loaded log forwarding profile: compliance-logging
+
+Successfully loaded 3 out of 3 log forwarding profiles from 'log-profiles.yml'
+```
+
+#### Load with Folder Override
+
+```bash
+$ scm load objects log-forwarding-profile --file log-profiles.yml --folder Austin
+---> 100%
+✓ Loaded log forwarding profile: basic-forwarding
+✓ Loaded log forwarding profile: security-monitoring
+✓ Loaded log forwarding profile: compliance-logging
+
+Successfully loaded 3 out of 3 log forwarding profiles from 'log-profiles.yml'
+```
+
+!!! note
+When using container override options (--folder, --snippet, --device), all log forwarding profiles will be loaded into the specified container, ignoring the container specified in the YAML file.
+
+## Show Log Forwarding Profile
+
+Display log forwarding profile objects.
+
+### Syntax
+
+```bash
+scm show objects log-forwarding-profile [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                          | Required |
+| ---------------- | ---------------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder containing the log forwarding profile object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the log forwarding profile object | Yes\*    |
+| `--device TEXT`  | Device containing the log forwarding profile object  | Yes\*    |
+| `--name TEXT`    | Name of the log forwarding profile object to show    | No\*\*   |
+| `--list`         | List all log forwarding profiles in the container    | No\*\*   |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+\*\* You must specify either --name or --list.
+
+### Examples
+
+#### Show Specific Log Forwarding Profile
+
+```bash
+$ scm show objects log-forwarding-profile --folder Texas --name threat-logs
+---> 100%
+Log Forwarding Profile: threat-logs
+Location: Folder 'Texas'
+Match List:
+  - Name: threats
+    Log Type: threat
+    Filter: All Logs
+    HTTP Profiles: splunk-hec
+    Syslog Profiles: security-syslog
+Enhanced Application Logging: True
+Description: Forward threat logs to SIEM
+ID: 123e4567-e89b-12d3-a456-426614174000
+```
+
+#### List All Log Forwarding Profiles
+
+```bash
+$ scm show objects log-forwarding-profile --folder Texas --list
+---> 100%
+Log Forwarding Profiles in folder 'Texas':
+------------------------------------------------------------
+Name: traffic-logs
+  Location: Folder 'Texas'
+  Match List: all-traffic (traffic)
+  Description: Forward all traffic logs
+------------------------------------------------------------
+Name: threat-logs
+  Location: Folder 'Texas'
+  Match List: threats (threat)
+  Enhanced Application Logging: Yes
+  Description: Forward threat logs to SIEM
+------------------------------------------------------------
+Name: comprehensive-logging
+  Location: Folder 'Texas'
+  Match List: traffic (traffic), threats (threat), urls (url)
+  Description: Comprehensive log forwarding
+------------------------------------------------------------
+```
+
+## Backup Log Forwarding Profiles
+
+Backup all log forwarding profile objects from a specified location to a YAML file.
+
+### Syntax
+
+```bash
+scm backup objects log-forwarding-profile [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                    | Required |
+| ---------------- | ---------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder to backup log forwarding profiles from  | No\*     |
+| `--snippet TEXT` | Snippet to backup log forwarding profiles from | No\*     |
+| `--device TEXT`  | Device to backup log forwarding profiles from  | No\*     |
+| `--file TEXT`    | Output filename (defaults to auto-generated)   | No       |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+
+### Examples
+
+#### Backup from Folder
+
+```bash
+$ scm backup objects log-forwarding-profile --folder Texas
+---> 100%
+Successfully backed up 10 log forwarding profiles to log-forwarding-profile_folder_texas_20240115_120530.yaml
+```
+
+#### Backup with Custom Filename
+
+```bash
+$ scm backup objects log-forwarding-profile --folder Texas --file texas-log-profiles.yaml
+---> 100%
+Successfully backed up 10 log forwarding profiles to texas-log-profiles.yaml
 ```
 
 ## Configuration Options
@@ -257,17 +334,17 @@ Exactly one context parameter must be specified:
 
 ## Supported Log Types
 
-| Log Type | Description |
-|----------|-------------|
-| traffic | Network traffic logs |
-| threat | Threat prevention logs |
-| wildfire | WildFire malware analysis logs |
-| url | URL filtering logs |
-| data | Data filtering logs |
-| tunnel | Tunnel inspection logs |
-| auth | Authentication logs |
-| decryption | SSL/TLS decryption logs |
-| dns-security | DNS security logs |
+| Log Type     | Description                    |
+| ------------ | ------------------------------ |
+| traffic      | Network traffic logs           |
+| threat       | Threat prevention logs         |
+| wildfire     | WildFire malware analysis logs |
+| url          | URL filtering logs             |
+| data         | Data filtering logs            |
+| tunnel       | Tunnel inspection logs         |
+| auth         | Authentication logs            |
+| decryption   | SSL/TLS decryption logs        |
+| dns-security | DNS security logs              |
 
 ## Filter Expressions
 
@@ -279,6 +356,7 @@ Exactly one context parameter must be specified:
 ### Common Filter Attributes
 
 **Traffic Logs:**
+
 - `zone.src`: Source zone
 - `zone.dst`: Destination zone
 - `addr.src`: Source address
@@ -287,6 +365,7 @@ Exactly one context parameter must be specified:
 - `bytes`: Session bytes
 
 **Threat Logs:**
+
 - `subtype`: Threat subtype (virus, spyware, vulnerability)
 - `severity`: Threat severity
 - `action`: Action taken
@@ -325,7 +404,7 @@ Exactly one context parameter must be specified:
 
 ```bash
 # Forward all traffic logs
-scm-cli set objects log-forwarding-profile --folder Shared --name all-traffic \
+scm set objects log-forwarding-profile --folder Shared --name all-traffic \
   --match-list '[{"name": "traffic", "log_type": "traffic", "filter": "All Logs", "syslog_profiles": ["central-syslog"]}]'
 ```
 
@@ -333,7 +412,7 @@ scm-cli set objects log-forwarding-profile --folder Shared --name all-traffic \
 
 ```bash
 # Forward threats and malware
-scm-cli set objects log-forwarding-profile --folder Shared --name security \
+scm set objects log-forwarding-profile --folder Shared --name security \
   --match-list '[
     {"name": "threats", "log_type": "threat", "filter": "All Logs", "http_profiles": ["siem"]},
     {"name": "malware", "log_type": "wildfire", "filter": "All Logs", "http_profiles": ["siem"]}
@@ -345,7 +424,7 @@ scm-cli set objects log-forwarding-profile --folder Shared --name security \
 
 ```bash
 # Forward specific traffic
-scm-cli set objects log-forwarding-profile --folder Shared --name filtered \
+scm set objects log-forwarding-profile --folder Shared --name filtered \
   --match-list '[{
     "name": "internet-traffic",
     "log_type": "traffic",
@@ -358,7 +437,7 @@ scm-cli set objects log-forwarding-profile --folder Shared --name filtered \
 
 ```bash
 # Forward to multiple destinations
-scm-cli set objects log-forwarding-profile --folder Shared --name multi-dest \
+scm set objects log-forwarding-profile --folder Shared --name multi-dest \
   --match-list '[{
     "name": "all-threats",
     "log_type": "threat",
@@ -375,7 +454,8 @@ scm-cli set objects log-forwarding-profile --folder Shared --name multi-dest \
 
 2. **Filter Efficiency**: Use specific filters to reduce log volume
 
-3. **Destination Planning**: 
+3. **Destination Planning**:
+
    - Use syslog for traditional log management
    - Use HTTP for modern SIEM integration
    - Send to Panorama for centralized management
@@ -390,7 +470,7 @@ Log forwarding profiles are applied to security rules:
 
 ```bash
 # Apply log forwarding to security rule
-scm-cli set security rule --folder Shared --name "Internet-Access" \
+scm set security rule --folder Shared --name "Internet-Access" \
   --log-forwarding-profile "comprehensive-logging" \
   --log-start --log-end
 ```

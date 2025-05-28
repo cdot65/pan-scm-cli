@@ -43,7 +43,7 @@ make docs-build         # Build docs with strict checks
 
 ### Command Structure
 
-The CLI follows a consistent pattern: `scm-cli <action> <object-type> <object> [options]`
+The CLI follows a consistent pattern: `scm <action> <object-type> <object> [options]`
 
 Commands are organized by resource type:
 
@@ -62,7 +62,7 @@ Commands are organized by resource type:
 ### Authentication Flow
 
 1. Check environment variables: `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`
-2. Fall back to home config: `~/.scm-cli/config.yaml`
+2. Fall back to home config: `~/.scm/config.yaml`
 3. Fall back to local config: `.secrets.yaml` (development only)
 4. If no credentials found, automatically use mock mode
 

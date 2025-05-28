@@ -17,17 +17,20 @@ these tools, you might want to check out some tutorials on [GitHub's Help pages]
    GitHub account.
 
 2. **Clone Your Fork**: Clone your fork to your local machine.
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/pan-scm-cli.git
    cd pan-scm-cli
    ```
 
 3. **Set Up Poetry Environment**: We use [Poetry](https://python-poetry.org/) for dependency management. If you don't have it installed, follow the instructions on the Poetry website.
+
    ```bash
    poetry install
    ```
 
 4. **Create a Branch**: Create a branch for your changes.
+
    ```bash
    git checkout -b your-feature-branch
    ```
@@ -41,6 +44,7 @@ We follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) standards for Pytho
 ### Pull Request Process
 
 1. **Update Your Fork**: Before making changes, sync your fork with the upstream repository.
+
    ```bash
    git remote add upstream https://github.com/cdot65/pan-scm-cli.git
    git fetch upstream
@@ -51,11 +55,13 @@ We follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) standards for Pytho
 2. **Make Your Changes**: Create your feature branch and make your changes. Ensure that your code passes all tests and linting checks.
 
 3. **Commit Your Changes**: Commit your changes with a clear and descriptive commit message.
+
    ```bash
    git commit -m "Add feature: your feature description"
    ```
 
 4. **Push to Your Fork**: Push your changes to your fork on GitHub.
+
    ```bash
    git push origin your-feature-branch
    ```

@@ -7,13 +7,13 @@ This guide provides a quick introduction to using the Strata Cloud Manager CLI.
 Install the CLI using pip:
 
 ```bash
-pip install pan-scm-cli
+pip install pan-scm
 ```
 
 Or with poetry:
 
 ```bash
-poetry add pan-scm-cli
+poetry add pan-scm
 ```
 
 ## Authentication
@@ -82,28 +82,28 @@ Here are some examples to help you get started with common CLI operations:
 
 ```bash
 # List all address objects in the Shared folder
-scm-cli set objects address --list --folder Shared
+scm set objects address --list --folder Shared
 ```
 
 ### Creating an Address Object
 
 ```bash
 # Create a new address object
-scm-cli set objects address --folder Shared --name example-server --ip-netmask 192.168.1.100/32 --description "Example server"
+scm set objects address --folder Shared --name example-server --ip-netmask 192.168.1.100/32 --description "Example server"
 ```
 
 ### Updating an Address Object
 
 ```bash
 # Update an existing address object
-scm-cli set objects address --folder Shared --name example-server --ip-netmask 192.168.1.200/32 --description "Updated example server"
+scm set objects address --folder Shared --name example-server --ip-netmask 192.168.1.200/32 --description "Updated example server"
 ```
 
 ### Deleting an Address Object
 
 ```bash
 # Delete an address object
-scm-cli delete objects address --folder Shared --name example-server
+scm delete objects address --folder Shared --name example-server
 ```
 
 ### Bulk Operations with YAML
@@ -130,7 +130,7 @@ addresses:
 Then load these address objects:
 
 ```bash
-scm-cli load objects address --folder Shared --file addresses.yaml
+scm load objects address --folder Shared --file addresses.yaml
 ```
 
 ## Getting Help
@@ -139,10 +139,10 @@ The CLI includes comprehensive help information:
 
 ```bash
 # Show general help
-scm-cli --help
+scm --help
 
 # Show help for a specific command
-scm-cli set objects address --help
+scm set objects address --help
 ```
 
 ## Next Steps

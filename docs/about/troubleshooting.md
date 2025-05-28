@@ -23,7 +23,7 @@ If you encounter issues while using `pan-scm-cli`, this guide provides solutions
 
 **Solutions:**
 
-- **Check Command Syntax**: Verify that you're using the correct command syntax (`scm-cli <action> <resource-type> <resource>`).
+- **Check Command Syntax**: Verify that you're using the correct command syntax (`scm <action> <resource-type> <resource>`).
 - **Required Parameters**: Ensure that all required parameters for the command are provided.
 - **Validate Input**: Check that parameter values meet the required formats and constraints.
 - **Review Output**: Examine command output for specific error messages that may indicate the issue.
@@ -56,20 +56,20 @@ For more detailed troubleshooting, you can enable debug logging:
 
 ```bash
 export SCM_CLI_LOG_LEVEL=DEBUG
-scm-cli <command>
+scm <command>
 ```
 
 This will produce verbose output showing each API call, request payloads, and response details.
 
 ## Common Error Messages
 
-| Error Message | Likely Cause | Solution |
-|---------------|--------------|----------|
-| "Authentication failed" | Invalid credentials | Check your client ID, secret, and TSG ID |
-| "Resource not found" | Attempting to access a non-existent resource | Verify the resource name or create it first |
-| "Validation error" | Input data doesn't meet requirements | Check the error details for specific field issues |
-| "Permission denied" | Insufficient permissions | Request necessary permissions for your API credentials |
-| "Connection error" | Network or API endpoint issues | Check your network connection and SCM service status |
+| Error Message           | Likely Cause                                 | Solution                                               |
+| ----------------------- | -------------------------------------------- | ------------------------------------------------------ |
+| "Authentication failed" | Invalid credentials                          | Check your client ID, secret, and TSG ID               |
+| "Resource not found"    | Attempting to access a non-existent resource | Verify the resource name or create it first            |
+| "Validation error"      | Input data doesn't meet requirements         | Check the error details for specific field issues      |
+| "Permission denied"     | Insufficient permissions                     | Request necessary permissions for your API credentials |
+| "Connection error"      | Network or API endpoint issues               | Check your network connection and SCM service status   |
 
 ## Getting Help
 
