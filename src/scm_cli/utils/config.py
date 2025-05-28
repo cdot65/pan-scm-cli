@@ -97,9 +97,9 @@ def get_auth_config() -> dict[str, str]:
 
     # First try environment variables (PREFIX_client_id)
     auth = {
-        "client_id": settings.get("client_id"),
-        "client_secret": settings.get("client_secret"),
-        "tsg_id": settings.get("tsg_id"),
+        "client_id": str(settings.get("client_id")),
+        "client_secret": str(settings.get("client_secret")),
+        "tsg_id": str(settings.get("tsg_id")),
     }
 
     # For backward compatibility, also check the scm_ prefixed settings
