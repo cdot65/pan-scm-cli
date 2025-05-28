@@ -119,25 +119,100 @@ For each object type, implement commands in this specific order:
 ### 2. Backup Command Pattern
 
 ```python
+# Backup command options
+BACKUP_FOLDER_OPTION = typer.Option(
+    None,
+    "--folder",
+    help="Folder path for backup",
+)
+BACKUP_SNIPPET_OPTION = typer.Option(
+    None,
+    "--snippet",
+    help="Snippet path for backup",
+)
+BACKUP_DEVICE_OPTION = typer.Option(
+    None,
+    "--device",
+    help="Device path for backup",
+)
+BACKUP_FILE_OPTION = typer.Option(
+    None,
+    "--file",
+    help="Output filename for backup (defaults to {object-type}-{location}.yaml)",
+)
+
+# Helper functions
+def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
+    """Validate that exactly one location parameter is provided.
+    
+    Returns:
+        tuple: (location_type, location_value)
+    """
+    location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
+    
+    if location_count == 0:
+        typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
+        raise typer.Exit(code=1)
+    elif location_count > 1:
+        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        raise typer.Exit(code=1)
+    
+    if folder:
+        return "folder", folder
+    elif snippet:
+        return "snippet", snippet
+    else:
+        return "device", device
+
+def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
+    """Generate default backup filename.
+    
+    Args:
+        object_type: Type of object (e.g., "address")
+        location_type: Type of location (folder, snippet, device)
+        location_value: Value of the location
+        
+    Returns:
+        str: Default filename
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_location = location_value.lower().replace(" ", "-").replace("/", "-")
+    return f"{object_type}_{location_type}_{safe_location}_{timestamp}.yaml"
+
 @backup_app.command("object-type")
 def backup_object_type(
-    folder: str = FOLDER_OPTION,
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
 ):
-    """Backup all {object_type}s from a folder to a YAML file.
+    """Backup all {object_type}s from a specified location to a YAML file.
     
-    The backup file will be named '{object-type}-{folder}.yaml' in the current directory.
-    
-    Example:
-    -------
-    scm-cli backup objects {object-type} --folder Austin
+    Examples
+    --------
+        # Backup from a folder
+        scm-cli backup objects {object-type} --folder Austin
+        
+        # Backup from a snippet
+        scm-cli backup objects {object-type} --snippet DNS-Best-Practice
+        
+        # Backup from a device  
+        scm-cli backup objects {object-type} --device austin-01
+        
+        # Backup with custom filename
+        scm-cli backup objects {object-type} --folder Austin --file my-backup.yaml
     
     """
     try:
-        # List all objects with exact_match=True
-        objects = scm_client.list_objects(folder=folder, exact_match=True)
+        # Validate location parameters
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        
+        # List all objects with exact_match=True using kwargs pattern
+        kwargs = {location_type: location_value}
+        objects = scm_client.list_objects(**kwargs, exact_match=True)
         
         if not objects:
-            typer.echo(f"No {object_type}s found in folder '{folder}'")
+            typer.echo(f"No {object_type}s found in {location_type} '{location_value}'")
             return
         
         # Convert to dictionaries, excluding None values
@@ -151,8 +226,8 @@ def backup_object_type(
         # Create YAML structure
         yaml_data = {"{object_type}s": backup_data}
         
-        # Generate filename
-        filename = f"{object-type}-{folder.lower()}.yaml"
+        # Generate filename if not provided
+        filename = file or get_default_backup_filename("{object-type}", location_type, location_value)
         
         # Write to file
         with open(filename, "w") as f:
@@ -161,6 +236,9 @@ def backup_object_type(
         typer.echo(f"Successfully backed up {len(backup_data)} {object_type}s to {filename}")
         return filename
         
+    except NotImplementedError as e:
+        typer.echo(f"Error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         typer.echo(f"Error backing up {object_type}s: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
