@@ -26,7 +26,7 @@ settings = Dynaconf(
         HOME_CONFIG_PATH,
     ],
     load_dotenv=True,
-    environments=True,
+    environments=False,  # Disable environments to ensure home config is loaded properly
     merge_enabled=True,
 )
 
