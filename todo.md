@@ -1,7 +1,9 @@
 # To-Do List: `pan-scm-cli` CRUD Command Enhancements
 
 ## Current State
+
 The project has successfully implemented:
+
 - ✅ Authentication via environment variables and config file
 - ✅ Basic CRUD operations: set, delete, load
 - ✅ Show command for all resource types
@@ -13,6 +15,7 @@ The project has successfully implemented:
 - ✅ Alphabetical ordering in main.py
 
 ## Recent Improvements (Completed ✅)
+
 - [x] Enhanced `create_address` method to handle existing objects gracefully
   - Automatically detects if address exists and updates instead of failing
   - Handles address type changes by delete/recreate when necessary
@@ -75,38 +78,45 @@ The project has successfully implemented:
   - Created comprehensive example YAML file with 11 HIP policies
 
 ## Current Work (In Progress)
+
 - [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
 
 ## Phase 1: Show Command Implementation (Completed ✅)
 
 ### Address Objects (Completed ✅)
+
 - [x] Implement `show objects address` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_addresses()` and `get_address()`
 - [x] Add comprehensive tests for show address functionality
 - [x] Update README with show address examples
 
 ### Address Groups (Completed ✅)
+
 - [x] Implement `show objects address-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_address_groups()` and `get_address_group()`
 - [x] Add comprehensive tests for show address-group functionality
 - [x] Update README with show address-group examples
 
 ### Security Zones (Completed ✅)
+
 - [x] Implement `show network security-zone` command
 - [x] Add SDK client methods for listing and fetching zones
 - [x] Add tests and documentation
 
 ### Security Rules (Completed ✅)
+
 - [x] Implement `show security rule` command
 - [x] Add SDK client methods for listing and fetching rules
 - [x] Add tests and documentation
 
 ### Bandwidth Allocations (Completed ✅)
+
 - [x] Implement `show deployment bandwidth-allocation` command
 - [x] Add SDK client methods for listing and fetching allocations
 - [x] Add tests and documentation
 
 ### Applications (Completed ✅)
+
 - [x] Implement `show objects application` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_applications()` and `get_application()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -114,6 +124,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### Application Groups (Completed ✅)
+
 - [x] Implement `show objects application-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_application_groups()` and `get_application_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -121,6 +132,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### Application Filters (Completed ✅)
+
 - [x] Implement `show objects application-filter` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_application_filters()` and `get_application_filter()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -130,6 +142,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### Dynamic User Groups (Completed ✅)
+
 - [x] Implement `show objects dynamic-user-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_dynamic_user_groups()` and `get_dynamic_user_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -138,6 +151,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### External Dynamic Lists (Completed ✅)
+
 - [x] Implement `show objects external-dynamic-list` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_external_dynamic_lists()` and `get_external_dynamic_list()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -146,6 +160,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### HIP Objects (Completed ✅)
+
 - [x] Implement `show objects hip-object` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_hip_objects()` and `get_hip_object()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -154,6 +169,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### HIP Profiles (Completed ✅)
+
 - [x] Implement `show objects hip-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_hip_profiles()` and `get_hip_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -162,6 +178,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### HTTP Server Profiles (Completed ✅)
+
 - [x] Implement `show objects http-server-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_http_server_profiles()` and `get_http_server_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -171,6 +188,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### Log Forwarding Profiles (Completed ✅)
+
 - [x] Implement `show objects log-forwarding-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_log_forwarding_profiles()` and `get_log_forwarding_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -180,6 +198,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### Services (Completed ✅)
+
 - [x] Implement `show objects service` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_services()` and `get_service()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -189,6 +208,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### Service Groups (Completed ✅)
+
 - [x] Implement `show objects service-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_service_groups()` and `get_service_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -198,6 +218,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### Syslog Server Profiles (Completed ✅)
+
 - [x] Implement `show objects syslog-server-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_syslog_server_profiles()` and `get_syslog_server_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -207,6 +228,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ### Tags (Completed ✅)
+
 - [x] Implement `show objects tag` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_tags()` and `get_tag()`
 - [x] Implement all CRUD operations: set, load, delete, backup
@@ -216,6 +238,7 @@ The project has successfully implemented:
 - [x] Add tests and documentation
 
 ## Command Styling Guide (Completed ✅)
+
 - [x] Review styling patterns for address, address-group, and application objects
 - [x] Create command-styling.md guide in src/scm_cli/commands/ directory
 - [x] Document module structure conventions (docstrings, imports, separators)
@@ -229,8 +252,9 @@ The project has successfully implemented:
 ## Phase 1.5: Backup Command Implementation (Completed ✅)
 
 ### All Resource Types (Completed ✅)
+
 - [x] Implement `backup objects address` command
-- [x] Implement `backup objects address-group` command  
+- [x] Implement `backup objects address-group` command
 - [x] Implement `backup objects application` command
 - [x] Implement `backup objects application-group` command
 - [x] Implement `backup objects application-filter` command
@@ -256,24 +280,62 @@ The project has successfully implemented:
 - [x] Implement kwargs pattern for cleaner API calls in backup commands
 - [x] Add location validation and default filename generation helpers
 
+## Phase 1.6: Load Command Standardization (Completed ✅)
+
+### All Load Commands (Completed ✅)
+
+- [x] Standardize all load commands to use consistent pattern
+- [x] Add help text in decorator for all load commands
+- [x] Change file parameter from `str` to `Path` using FILE_OPTION
+- [x] Add container override options (folder/snippet/device) to all load commands
+- [x] Implement container parameter validation where needed
+- [x] Update file validation to use `file.exists()`
+- [x] Switch to direct YAML loading with `yaml.safe_load()`
+- [x] Add container override logic in processing loops
+- [x] Standardize output to count-based format
+- [x] Add error handling with continue for resilience
+- [x] Ensure all commands return results list
+- [x] Update command-styling.md with load command pattern
+
+### Commands Standardized (Completed ✅)
+
+- [x] `load objects address-group` - Standardized with all features
+- [x] `load objects application` - Standardized with all features
+- [x] `load objects application-group` - Standardized with all features
+- [x] `load objects application-filter` - Standardized with all features
+- [x] `load objects dynamic-user-group` - Standardized with all features
+- [x] `load objects external-dynamic-list` - Standardized with all features
+- [x] `load objects hip-object` - Standardized with all features
+- [x] `load objects hip-profile` - Standardized with all features
+- [x] `load objects http-server-profile` - Standardized with all features
+- [x] `load objects log-forwarding-profile` - Standardized with all features
+- [x] `load objects service` - Standardized with all features
+- [x] `load objects service-group` - Standardized with all features
+- [x] `load objects syslog-server-profile` - Standardized with all features
+- [x] `load objects tag` - Already had correct pattern
+
 ## Phase 2: Update Command Implementation
 
 ### Address Objects
+
 - [ ] Implement `update objects address` command
 - [ ] Add SDK client method: `update_address()`
 - [ ] Add tests and documentation
 
 ### Address Groups
+
 - [ ] Implement `update objects address-group` command
 - [ ] Add SDK client method: `update_address_group()`
 - [ ] Add tests and documentation
 
 ### Security Zones
+
 - [ ] Implement `update network security-zone` command
 - [ ] Add SDK client method: `update_zone()`
 - [ ] Add tests and documentation
 
 ### Security Rules
+
 - [ ] Implement `update security rule` command
 - [ ] Add SDK client method: `update_security_rule()`
 - [ ] Add tests and documentation
@@ -281,16 +343,19 @@ The project has successfully implemented:
 ## Phase 3: Advanced Features
 
 ### Filtering and Search
+
 - [ ] Add filter options to list commands (by tag, description, etc.)
 - [ ] Implement search functionality across object types
 - [ ] Add pagination support for large result sets
 
 ### Output Formats
+
 - [ ] Add JSON output format option
 - [ ] Add CSV export option
 - [ ] Add table format for better readability
 
 ### Batch Operations
+
 - [ ] Implement batch update capabilities
 - [ ] Add dry-run support for all modification commands
 - [ ] Implement rollback functionality
@@ -298,21 +363,25 @@ The project has successfully implemented:
 ## Phase 4: Documentation and Polish
 
 ### Documentation
+
 - [ ] Create comprehensive API documentation
 - [ ] Add more real-world examples
 - [ ] Create video tutorials
 
 ### Performance
+
 - [ ] Implement caching for frequently accessed objects
 - [ ] Add progress bars for long-running operations
 - [ ] Optimize bulk operations
 
 ### Testing
+
 - [ ] Achieve 100% test coverage
 - [ ] Add integration tests with mock SCM API
 - [ ] Add performance benchmarks
 
 ## Notes
+
 - All show commands should support both `--list` (all objects) and `--name` (specific object) flags
 - Maintain consistent command structure across all object types
 - Follow existing patterns for error handling and output formatting
