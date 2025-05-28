@@ -399,7 +399,7 @@ def backup_address_group(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ):
     """Backup all address groups from a specified location to a YAML file.
 
@@ -454,14 +454,15 @@ def backup_address_group(
         yaml_data = {"address_groups": backup_data}
 
         # Generate filename
-        filename = file or get_default_backup_filename("address-group", location_type, location_value)
+        if file is None:
+            file = Path(get_default_backup_filename("address-group", location_type, location_value))
 
         # Write to YAML file
-        with file.open() as f:
+        with file.open('w') as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} address groups to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} address groups to {file}")
+        return str(file)
 
     except Exception as e:
         typer.echo(f"Error backing up address groups: {str(e)}", err=True)
@@ -785,7 +786,7 @@ def backup_address(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ):
     """Backup all address objects from a specified location to a YAML file.
 
@@ -826,14 +827,15 @@ def backup_address(
         yaml_data = {"addresses": backup_data}
 
         # Generate filename
-        filename = file or get_default_backup_filename("address", location_type, location_value)
+        if file is None:
+            file = Path(get_default_backup_filename("address", location_type, location_value))
 
         # Write to YAML file
-        with file.open() as f:
+        with file.open('w') as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} addresses to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} addresses to {file}")
+        return str(file)
 
     except Exception as e:
         typer.echo(f"Error backing up addresses: {str(e)}", err=True)
@@ -1096,7 +1098,7 @@ def backup_application(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ):
     """Backup all applications from a specified location to a YAML file.
 
@@ -1134,14 +1136,15 @@ def backup_application(
         yaml_data = {"applications": backup_data}
 
         # Generate filename
-        filename = file or get_default_backup_filename("application", location_type, location_value)
+        if file is None:
+            file = Path(get_default_backup_filename("application", location_type, location_value))
 
         # Write to YAML file
-        with file.open() as f:
+        with file.open('w') as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} applications to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} applications to {file}")
+        return str(file)
 
     except Exception as e:
         typer.echo(f"Error backing up applications: {str(e)}", err=True)
@@ -1526,7 +1529,7 @@ def backup_application_group(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ):
     """Backup all application groups from a specified location to a YAML file.
 
@@ -1564,14 +1567,15 @@ def backup_application_group(
         yaml_data = {"application_groups": backup_data}
 
         # Generate filename
-        filename = file or get_default_backup_filename("application-group", location_type, location_value)
+        if file is None:
+            file = Path(get_default_backup_filename("application-group", location_type, location_value))
 
         # Write to YAML file
-        with file.open() as f:
+        with file.open('w') as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} application groups to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} application groups to {file}")
+        return str(file)
 
     except Exception as e:
         typer.echo(f"Error backing up application groups: {str(e)}", err=True)
@@ -1837,7 +1841,7 @@ def backup_application_filter(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ):
     """Backup all application filters from a specified location to a YAML file.
 
@@ -1875,14 +1879,15 @@ def backup_application_filter(
         yaml_data = {"application_filters": backup_data}
 
         # Generate filename
-        filename = file or get_default_backup_filename("application-filter", location_type, location_value)
+        if file is None:
+            file = Path(get_default_backup_filename("application-filter", location_type, location_value))
 
         # Write to YAML file
-        with file.open() as f:
+        with file.open('w') as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} application filters to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} application filters to {file}")
+        return str(file)
 
     except Exception as e:
         typer.echo(f"Error backing up application filters: {str(e)}", err=True)
@@ -2242,7 +2247,7 @@ def backup_dynamic_user_group(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ):
     """Backup all dynamic user groups from a specified location to a YAML file.
 
@@ -2285,14 +2290,15 @@ def backup_dynamic_user_group(
         yaml_data = {"dynamic_user_groups": backup_data}
 
         # Generate filename
-        filename = file or get_default_backup_filename("dynamic-user-group", location_type, location_value)
+        if file is None:
+            file = Path(get_default_backup_filename("dynamic-user-group", location_type, location_value))
 
         # Write to YAML file
-        with file.open() as f:
+        with file.open('w') as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} dynamic user groups to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} dynamic user groups to {file}")
+        return str(file)
 
     except Exception as e:
         typer.echo(f"Error backing up dynamic user groups: {str(e)}", err=True)
@@ -2566,7 +2572,7 @@ def backup_external_dynamic_list(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ):
     """Backup all external dynamic lists from a specified location to a YAML file.
 
@@ -2634,14 +2640,15 @@ def backup_external_dynamic_list(
         yaml_data = {"external_dynamic_lists": backup_data}
 
         # Generate filename
-        filename = file or get_default_backup_filename("external-dynamic-list", location_type, location_value)
+        if file is None:
+            file = Path(get_default_backup_filename("external-dynamic-list", location_type, location_value))
 
         # Write to YAML file
-        with file.open() as f:
+        with file.open('w') as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} external dynamic lists to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} external dynamic lists to {file}")
+        return str(file)
 
     except Exception as e:
         typer.echo(f"Error backing up external dynamic lists: {str(e)}", err=True)
@@ -2987,7 +2994,7 @@ def backup_hip_object(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ):
     """Backup all HIP objects from a specified location to a YAML file.
 
@@ -3155,14 +3162,15 @@ def backup_hip_object(
         yaml_data = {"hip_objects": backup_data}
 
         # Generate filename
-        filename = file or get_default_backup_filename("hip-object", location_type, location_value)
+        if file is None:
+            file = Path(get_default_backup_filename("hip-object", location_type, location_value))
 
         # Write to YAML file
-        with file.open() as f:
+        with file.open('w') as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} HIP objects to {filename}")
-        return filename
+        typer.echo(f"Successfully backed up {len(backup_data)} HIP objects to {file}")
+        return str(file)
 
     except Exception as e:
         typer.echo(f"Error backing up HIP objects: {str(e)}", err=True)
@@ -3672,7 +3680,7 @@ def backup_hip_profile(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ) -> None:
     """Backup HIP profiles from a specified location to a YAML file.
 
@@ -3722,7 +3730,7 @@ def backup_hip_profile(
         filename = file or get_default_backup_filename("hip-profile", location_type, location_value)
 
         # Write to YAML file
-        with file.open() as f:
+        with open(filename, 'w') as f:
             yaml.dump(backup_data, f, default_flow_style=False, sort_keys=False)
 
         typer.echo(f"Successfully backed up {len(hip_profiles)} HIP profiles to {filename}")
@@ -3962,7 +3970,7 @@ def backup_http_server_profile(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ) -> None:
     """Backup HTTP server profiles from a specified location to a YAML file.
 
@@ -4018,7 +4026,7 @@ def backup_http_server_profile(
         filename = file or get_default_backup_filename("http-server-profile", location_type, location_value)
 
         # Write to YAML file
-        with file.open() as f:
+        with open(filename, 'w') as f:
             yaml.dump(backup_data, f, default_flow_style=False, sort_keys=False)
 
         typer.echo(f"Successfully backed up {len(http_server_profiles)} HTTP server profiles to {filename}")
@@ -4323,7 +4331,7 @@ def backup_log_forwarding_profile(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ) -> None:
     """Backup log forwarding profiles from a specified location to a YAML file.
 
@@ -4696,7 +4704,7 @@ def backup_service(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ) -> None:
     """Backup services from a specified location to a YAML file.
 
@@ -5100,7 +5108,7 @@ def backup_service_group(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ) -> None:
     """Backup service groups from a specified location to a YAML file.
 
@@ -5415,7 +5423,7 @@ def backup_syslog_server_profile(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ) -> None:
     """Export syslog server profiles from a specified location to a YAML file.
 
@@ -5814,7 +5822,7 @@ def backup_tag(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
     device: str = BACKUP_DEVICE_OPTION,
-    file: str = BACKUP_FILE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
 ) -> None:
     """Export tags from a specified location to a YAML file.
 

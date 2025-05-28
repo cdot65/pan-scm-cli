@@ -15,9 +15,7 @@ from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundE
 
 from .config import get_credentials, settings
 
-# Configure logging
-logging_level = getattr(logging, settings.get("log_level", "INFO"))
-logging.basicConfig(level=logging_level)
+# Create logger (will be configured in __init__)
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +47,10 @@ class SCMClient:
 
     def __init__(self):
         """Initialize the SCM client with logger and credentials."""
+        # Configure logging based on settings
+        logging_level = getattr(logging, settings.get("log_level", "INFO"))
+        logging.basicConfig(level=logging_level, force=True)
+        
         self.logger = logger
         self.logger.info("Initializing SCM client")
         self.client = None
