@@ -1,7 +1,21 @@
 addresses:
-  - name: Cloudflare DNS
-    ip_netmask: 1.1.1.1
-    description: Primary user DNS server
-    tag:
-      - Services
-    folder: ngfw-shared
+- name: Cloudflare DNS
+  ip_netmask: 1.1.1.1
+  description: Primary user DNS server
+  folder: ngfw-shared
+- name: rfc1918-10-0-0-0-8
+  ip_netmask: 10.0.0.0/8
+  description: RFC 1918 Class A private network (10.0.0.0 - 10.255.255.255)
+  folder: ngfw-shared
+- name: rfc1918-172-16-0-0-12
+  ip_netmask: 172.16.0.0/12
+  description: RFC 1918 Class B private network (172.16.0.0 - 172.31.255.255)
+  folder: ngfw-shared
+- name: rfc1918-192-168-0-0-16
+  ip_netmask: 192.168.0.0/16
+  description: RFC 1918 Class C private network (192.168.0.0 - 192.168.255.255)
+  folder: ngfw-shared
+- name: rfc1918-192-168-0-0-24
+  ip_netmask: 192.168.0.0/24
+  description: RFC 1918 Class C private network (192.168.0.0 - 192.168.255.255)
+  folder: ngfw-shared

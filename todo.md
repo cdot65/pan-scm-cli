@@ -1,4 +1,4 @@
-# To-Do List: `pan-scm` CRUD Command Enhancements
+# To-Do List: `pan-scm-cli` CRUD Command Enhancements
 
 ## Current State
 

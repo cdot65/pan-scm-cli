@@ -1,6 +1,6 @@
 # CLI Reference
 
-The `pan-scm` command-line interface is organized into a logical structure that makes it easy to manage resources in Strata Cloud Manager.
+The `pan-scm-cli` command-line interface is organized into a logical structure that makes it easy to manage resources in Strata Cloud Manager.
 
 ## Command Structure
 
