@@ -10,21 +10,38 @@ Welcome to the `pan-scm-cli`! This guide will walk you through the initial setup
 
 Install the package via pip:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
+```bash
 $ pip install pan-scm-cli
 ---> 100%
 Successfully installed pan-scm-cli
 ```
 
-</div>
-
 ## Authentication Setup
 
 The SCM CLI uses dynaconf to manage authentication credentials. You have the following options for authentication:
+
+---
+
+### Credential Precedence: How SCM CLI Loads Credentials
+
+The SCM CLI loads authentication credentials in the following order (highest to lowest priority):
+
+1. **Environment Variables** (`SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`)
+2. **Local Config Files** in the current working directory (`settings.yaml`, `.secrets.yaml`)
+3. **User Config File** at `~/.scm-cli/config.yaml`
+
+> **Note:**
+>
+> - If a credential is set in multiple places, the one with the highest priority is used.
+> - Environment variables always override config file values.
+> - If a value is missing from higher-priority sources, the CLI will look for it in the next source.
+
+**Example:**
+
+- If you set `SCM_CLIENT_ID` as an environment variable, it will be used even if your `.secrets.yaml` or `~/.scm-cli/config.yaml` files have different values.
+- If `.secrets.yaml` is present in your current directory, it will override `~/.scm-cli/config.yaml` for any values it contains.
+
+---
 
 ### Option 1: Using Local .secrets.yaml (Recommended for Development)
 
@@ -39,11 +56,7 @@ The SCM CLI uses dynaconf to manage authentication credentials. You have the fol
 
 For local development, follow these steps:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
+```bash
 # Step 1: Copy the example configuration file
 $ cp example-config.yaml .secrets.yaml
 
@@ -54,7 +67,7 @@ $ nano .secrets.yaml
 $ chmod 600 .secrets.yaml
 ```
 
-</div>
+> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
 
 Your `.secrets.yaml` file should look like this:
 
@@ -73,17 +86,13 @@ Run the CLI from the same directory where `.secrets.yaml` is located. Dynaconf w
 
 For production use or scripting, set environment variables:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ export SCM_CLIENT_ID="your_client_id"
-$ export SCM_CLIENT_SECRET="your_client_secret"
-$ export SCM_TSG_ID="your_tsg_id"
+```bash
+export SCM_CLIENT_ID="your_client_id"
+export SCM_CLIENT_SECRET="your_client_secret"
+export SCM_TSG_ID="your_tsg_id"
 ```
 
-</div>
+> **Note**: Environment variables are not included in version control. Each developer should set their own environment variables.
 
 These environment variables will be automatically detected by dynaconf and used for authentication.
 
@@ -91,11 +100,12 @@ These environment variables will be automatically detected by dynaconf and used 
 
 All commands in `pan-scm-cli` follow this basic structure:
 
-```
-scm-cli <action> <resource-type> <resource> [options]
+```bash
+scm <action> <resource-type> <resource> [options]
 ```
 
 Where:
+
 - `<action>`: The operation to perform (set, delete, load)
 - `<resource-type>`: The category of resource (objects, deployment, network, security)
 - `<resource>`: The specific resource type (address, address-group, zone, etc.)
@@ -107,13 +117,9 @@ Where:
 
 You can get help for any command by using the `--help` flag:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli --help
-Usage: scm-cli [OPTIONS] COMMAND [ARGS]...
+```bash
+$ scm --help
+Usage: scm [OPTIONS] COMMAND [ARGS]...
 
   Command-line interface for Palo Alto Networks Strata Cloud Manager.
 
@@ -127,17 +133,11 @@ Commands:
   set     Set/configure resources in SCM
 ```
 
-</div>
-
 Command-specific help:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli set objects address --help
-Usage: scm-cli set objects address [OPTIONS]
+```bash
+$ scm set objects address --help
+Usage: scm set objects address [OPTIONS]
 
   Create or update an address object in SCM.
 
@@ -153,18 +153,12 @@ Options:
   --help                   Show this message and exit.
 ```
 
-</div>
-
-## Working with Address Objects
+### Working with Address Objects
 
 ### Creating an Address Object
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli set objects address \
+```bash
+$ scm set objects address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
@@ -174,16 +168,10 @@ $ scm-cli set objects address \
 Created address: webserver in folder Texas
 ```
 
-</div>
-
 ### Creating an Address with FQDN
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli set objects address \
+```bash
+$ scm set objects address \
     --folder Texas \
     --name company-website \
     --fqdn example.com \
@@ -192,16 +180,10 @@ $ scm-cli set objects address \
 Created address: company-website in folder Texas
 ```
 
-</div>
-
 ### Listing Address Objects
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli list objects address --folder Texas
+```bash
+$ scm list objects address --folder Texas
 ---> 100%
 +----------------+---------------+------------------+
 | Name           | Type          | Value            |
@@ -212,33 +194,21 @@ $ scm-cli list objects address --folder Texas
 +----------------+---------------+------------------+
 ```
 
-</div>
-
 ### Deleting an Address Object
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli delete objects address --folder Texas --name webserver
+```bash
+$ scm delete objects address --folder Texas --name webserver
 ---> 100%
 Deleted address: webserver from folder Texas
 ```
 
-</div>
-
-## Bulk Operations with YAML Files
+### Bulk Operations with YAML Files
 
 ### Loading Multiple Address Objects
 
 Create a YAML file with multiple address definitions:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
+```bash
 $ cat > addresses.yml << EOF
 ---
 folder: Texas
@@ -264,16 +234,10 @@ addresses:
 EOF
 ```
 
-</div>
-
 Then load the addresses from the file:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli load objects address --file addresses.yml
+```bash
+$ scm load objects address --file addresses.yml
 ---> 100%
 Loading addresses from addresses.yml
 Applied address: web-server-1 in folder Texas
@@ -282,20 +246,14 @@ Applied address: database-server in folder Texas
 Successfully applied 3 address objects
 ```
 
-</div>
-
-## Advanced Usage
+### Advanced Usage
 
 ### Using Dry Run Mode
 
 Test changes without applying them:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli set objects address \
+```bash
+$ scm set objects address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
@@ -304,27 +262,19 @@ $ scm-cli set objects address \
 [DRY RUN] Would create address: webserver in folder Texas
 ```
 
-</div>
-
 ### Using Mock Mode for Testing
 
 Run commands without connecting to the SCM API:
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
+```bash
 $ export SCM_MOCK_MODE=true
-$ scm-cli set objects address \
+$ scm set objects address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32
 ---> 100%
 [MOCK] Created address: webserver in folder Texas
 ```
-
-</div>
 
 ## Next Steps
 

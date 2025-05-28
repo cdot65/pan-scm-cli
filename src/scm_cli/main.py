@@ -15,7 +15,7 @@ from .commands import deployment, network, objects, security
 # ============================================================================================================================================================================================
 
 app = typer.Typer(
-    name="scm-cli",
+    name="scm",
     help="CLI for Palo Alto Networks Strata Cloud Manager",
     add_completion=True,
 )

@@ -15,9 +15,7 @@ from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundE
 
 from .config import get_credentials, settings
 
-# Configure logging
-logging_level = getattr(logging, settings.get("log_level", "INFO"))
-logging.basicConfig(level=logging_level)
+# Create logger (will be configured in __init__)
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +47,10 @@ class SCMClient:
 
     def __init__(self):
         """Initialize the SCM client with logger and credentials."""
+        # Configure logging based on settings
+        logging_level = getattr(logging, settings.get("log_level", "INFO"))
+        logging.basicConfig(level=logging_level, force=True)
+        
         self.logger = logger
         self.logger.info("Initializing SCM client")
         self.client = None
@@ -71,8 +73,9 @@ class SCMClient:
         except (ValueError, AuthenticationError) as e:
             self.logger.warning(f"Failed to initialize SDK client: {str(e)}")
             self.logger.warning("Using mock mode with dummy credentials")
+            # The following mock credentials are used only in mock mode for testing purposes and do not represent real secrets.
             self.client_id = "mock-client-id"
-            self.client_secret = "mock-client-secret"
+            self.client_secret = "mock-client"  # noqa: B105
             self.tsg_id = "mock-tsg-id"
             # In mock mode, methods will return mock data instead of making API calls
 
@@ -102,19 +105,19 @@ class SCMClient:
 
         raise exception
 
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
     # API METHODS - Quick Navigation:
     # - Deployment Configuration: Bandwidth Allocation
     # - Objects Configuration: Address Groups, Address Objects
     # - Network Configuration: Security Zones
     # - Security Configuration: Security Rules
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
 
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
     # DEPLOYMENT CONFIGURATION METHODS
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
 
-    # --------------------------------------------------------------------------------- Bandwidth Allocation ---------------------------------------------------------------------------------
+    # Bandwidth Allocation -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_bandwidth_allocation(
         self,
@@ -281,11 +284,11 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", "N/A", "bandwidth allocations", e)
 
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
     # OBJECTS CONFIGURATION METHODS
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
 
-    # ----------------------------------------------------------------------------------- Address Objects ------------------------------------------------------------------------------------
+    # Address Objects ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_address(
         self,
@@ -500,27 +503,32 @@ class SCMClient:
 
     def list_addresses(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List address objects in a folder.
+        """List address objects in a container.
 
         Args:
-            folder: Folder to list addresses from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of address objects
 
         """
-        self.logger.info(f"Listing addresses in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "ngfw-shared"
+        self.logger.info(f"Listing addresses in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "addr-mock1",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "mock-address-1",
                     "description": "Mock address 1",
                     "tags": ["mock"],
@@ -528,7 +536,7 @@ class SCMClient:
                 },
                 {
                     "id": "addr-mock2",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "mock-address-2",
                     "description": "Mock address 2",
                     "tags": ["mock"],
@@ -536,16 +544,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List addresses using the SDK
-            results = self.client.address.list(folder=folder, exact_match=exact_match)
+            results = self.client.address.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "addresses", e)
+            self._handle_api_exception("listing", container, "addresses", e)
 
-    # ------------------------------------------------------------------------------------ Address Groups ------------------------------------------------------------------------------------
+    # Address Groups -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_address_group(
         self,
@@ -735,27 +752,32 @@ class SCMClient:
 
     def list_address_groups(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List address groups in a folder.
+        """List address groups in a container.
 
         Args:
-            folder: Folder to list address groups from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of address group objects
 
         """
-        self.logger.info(f"Listing address groups in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "ngfw-shared"
+        self.logger.info(f"Listing address groups in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "ag-mock1",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "mock-group-1",
                     "description": "Mock address group 1",
                     "type": "static",
@@ -764,7 +786,7 @@ class SCMClient:
                 },
                 {
                     "id": "ag-mock2",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "mock-group-2",
                     "description": "Mock address group 2",
                     "type": "dynamic",
@@ -773,16 +795,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List address groups using the SDK
-            results = self.client.address_group.list(folder=folder, exact_match=exact_match)
+            results = self.client.address_group.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "address groups", e)
+            self._handle_api_exception("listing", container, "address groups", e)
 
-    # ------------------------------------------------------------------------------------- Applications -------------------------------------------------------------------------------------
+    # Applications -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_application(
         self,
@@ -1002,27 +1033,32 @@ class SCMClient:
 
     def list_applications(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List applications in a folder.
+        """List applications in a container.
 
         Args:
-            folder: Folder to list applications from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of application objects
 
         """
-        self.logger.info(f"Listing applications in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "ngfw-shared"
+        self.logger.info(f"Listing applications in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "app-mock1",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "mock-app-1",
                     "category": "business-systems",
                     "subcategory": "database",
@@ -1033,7 +1069,7 @@ class SCMClient:
                 },
                 {
                     "id": "app-mock2",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "mock-app-2",
                     "category": "collaboration",
                     "subcategory": "instant-messaging",
@@ -1044,16 +1080,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List applications using the SDK
-            results = self.client.application.list(folder=folder, exact_match=exact_match)
+            results = self.client.application.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "applications", e)
+            self._handle_api_exception("listing", container, "applications", e)
 
-    # --------------------------------------------------------------------------------- Application Groups -------------------------------------------------------------------------------
+    # Application Groups -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_application_group(
         self,
@@ -1191,48 +1236,62 @@ class SCMClient:
 
     def list_application_groups(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List application groups in a folder.
+        """List application groups in a container.
 
         Args:
-            folder: Folder to list application groups from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of application group objects
 
         """
-        self.logger.info(f"Listing application groups in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "ngfw-shared"
+        self.logger.info(f"Listing application groups in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "app-group-mock1",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "web-apps",
                     "members": ["ssl", "web-browsing"],
                 },
                 {
                     "id": "app-group-mock2",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "database-apps",
                     "members": ["ms-sql", "mysql", "oracle-database"],
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List application groups using the SDK
-            results = self.client.application_group.list(folder=folder, exact_match=exact_match)
+            results = self.client.application_group.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "application groups", e)
+            self._handle_api_exception("listing", container, "application groups", e)
 
-    # -------------------------------------------------------------------------------- Application Filters -------------------------------------------------------------------------------
+    # Application Filters ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_application_filter(
         self,
@@ -1453,27 +1512,32 @@ class SCMClient:
 
     def list_application_filters(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List application filters in a folder.
+        """List application filters in a container.
 
         Args:
-            folder: Folder to list application filters from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of application filter objects
 
         """
-        self.logger.info(f"Listing application filters in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "ngfw-shared"
+        self.logger.info(f"Listing application filters in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "app-filter-mock1",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "high-risk-apps",
                     "category": ["business-systems"],
                     "sub_category": ["database"],
@@ -1491,7 +1555,7 @@ class SCMClient:
                 },
                 {
                     "id": "app-filter-mock2",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "file-transfer-apps",
                     "category": ["collaboration"],
                     "sub_category": ["file-sharing"],
@@ -1509,16 +1573,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List application filters using the SDK
-            results = self.client.application_filter.list(folder=folder, exact_match=exact_match)
+            results = self.client.application_filter.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "application filters", e)
+            self._handle_api_exception("listing", container, "application filters", e)
 
-    # ---------------------------------------------------------------------------------- Dynamic User Groups --------------------------------------------------------------------------------
+    # Dynamic User Groups ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_dynamic_user_group(
         self,
@@ -1672,27 +1745,32 @@ class SCMClient:
 
     def list_dynamic_user_groups(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List dynamic user groups in a folder.
+        """List dynamic user groups in a container.
 
         Args:
-            folder: Folder to list dynamic user groups from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of dynamic user group objects
 
         """
-        self.logger.info(f"Listing dynamic user groups in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "ngfw-shared"
+        self.logger.info(f"Listing dynamic user groups in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "dug-mock1",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "it-admins",
                     "filter": "tag.Department='IT' and tag.Role='Admin'",
                     "description": "IT administrators group",
@@ -1700,7 +1778,7 @@ class SCMClient:
                 },
                 {
                     "id": "dug-mock2",
-                    "folder": folder,
+                    "folder": folder or "ngfw-shared",
                     "name": "remote-workers",
                     "filter": "tag.Location='Remote' and tag.Status='Active'",
                     "description": "Remote workers group",
@@ -1708,20 +1786,29 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List dynamic user groups using the SDK
-            results = self.client.dynamic_user_group.list(folder=folder, exact_match=exact_match)
+            results = self.client.dynamic_user_group.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "dynamic user groups", e)
+            self._handle_api_exception("listing", container, "dynamic user groups", e)
 
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
     # NETWORK CONFIGURATION METHODS
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
 
-    # ------------------------------------------------------------------------------------ External Dynamic Lists --------------------------------------------------------------------------------
+    # External Dynamic Lists ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_external_dynamic_list(
         self,
@@ -1851,27 +1938,32 @@ class SCMClient:
 
     def list_external_dynamic_lists(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List external dynamic lists in a folder.
+        """List external dynamic lists in a container.
 
         Args:
-            folder: Folder to list EDLs from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of EDL objects
 
         """
-        self.logger.info(f"Listing external dynamic lists in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing external dynamic lists in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "edl-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "paloalto-bulletproof-ip-list",
                     "type": {
                         "predefined_ip": {
@@ -1882,7 +1974,7 @@ class SCMClient:
                 },
                 {
                     "id": "edl-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "custom-blocklist",
                     "type": {
                         "ip": {
@@ -1895,7 +1987,7 @@ class SCMClient:
                 },
                 {
                     "id": "edl-mock3",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "malicious-domains",
                     "type": {
                         "domain": {
@@ -1908,16 +2000,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List EDLs using the SDK
-            results = self.client.external_dynamic_list.list(folder=folder, exact_match=exact_match)
+            results = self.client.external_dynamic_list.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "external dynamic lists", e)
+            self._handle_api_exception("listing", container, "external dynamic lists", e)
 
-    # ------------------------------------------------------------------------------------ HIP Objects ------------------------------------------------------------------------------------
+    # HIP Objects --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_hip_object(
         self,
@@ -2092,27 +2193,32 @@ class SCMClient:
 
     def list_hip_objects(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List HIP objects in a folder.
+        """List HIP objects in a container.
 
         Args:
-            folder: Folder to list HIP objects from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of HIP objects
 
         """
-        self.logger.info(f"Listing HIP objects in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing HIP objects in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "hip-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "windows-workstation",
                     "description": "Windows workstation compliance policy",
                     "host_info": {
@@ -2128,7 +2234,7 @@ class SCMClient:
                 },
                 {
                     "id": "hip-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "mobile-device-policy",
                     "description": "Mobile device compliance policy",
                     "mobile_device": {
@@ -2142,7 +2248,7 @@ class SCMClient:
                 },
                 {
                     "id": "hip-mock3",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "patch-compliance",
                     "description": "Patch management compliance",
                     "patch_management": {
@@ -2158,16 +2264,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List HIP objects using the SDK
-            results = self.client.hip_object.list(folder=folder, exact_match=exact_match)
+            results = self.client.hip_object.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "HIP objects", e)
+            self._handle_api_exception("listing", container, "HIP objects", e)
 
-    # ------------------------------------------------------------------------------------ HIP Profiles --------------------------------------------------------------------------------------
+    # HIP Profiles -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_hip_profile(
         self,
@@ -2288,48 +2403,66 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("fetching", name, "HIP profile", e)
 
-    def list_hip_profiles(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List HIP profiles in a folder.
+    def list_hip_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List HIP profiles in a container.
 
         Args:
-            folder: Folder to list HIP profiles from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of HIP profiles
 
         """
-        self.logger.info(f"Listing HIP profiles in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing HIP profiles in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "hip-profile-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "endpoint-compliance",
                     "match": "'endpoint-management' and 'patch-management'",
                     "description": "Endpoint compliance profile",
                 },
                 {
                     "id": "hip-profile-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "mobile-device-policy",
                     "match": "'mobile-device' and 'disk-encryption'",
                     "description": "Mobile device security policy",
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List HIP profiles using the SDK
-            results = self.client.hip_profile.list(folder=folder, exact_match=exact_match)
+            results = self.client.hip_profile.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "HIP profiles", e)
+            self._handle_api_exception("listing", container, "HIP profiles", e)
 
-    # ------------------------------------------------------------------------------------ HTTP Server Profiles -------------------------------------------------------------------------------
+    # HTTP Server Profiles -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_http_server_profile(
         self,
@@ -2394,10 +2527,10 @@ class SCMClient:
 
             if description:
                 profile_data["description"] = description
-                
+
             if tag_registration:
                 profile_data["tag_registration"] = tag_registration
-                
+
             if format_config:
                 profile_data["format"] = format_config
 
@@ -2473,25 +2606,34 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("fetching", name, "HTTP server profile", e)
 
-    def list_http_server_profiles(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List HTTP server profiles in a folder.
+    def list_http_server_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List HTTP server profiles in a container.
 
         Args:
-            folder: Folder to list HTTP server profiles from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of HTTP server profiles
 
         """
-        self.logger.info(f"Listing HTTP server profiles in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing HTTP server profiles in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "http-server-profile-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "syslog-http-profile",
                     "server": [
                         {
@@ -2507,7 +2649,7 @@ class SCMClient:
                 },
                 {
                     "id": "http-server-profile-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "siem-http-profile",
                     "server": [
                         {
@@ -2523,16 +2665,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List HTTP server profiles using the SDK
-            results = self.client.http_server_profile.list(folder=folder, exact_match=exact_match)
+            results = self.client.http_server_profile.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "HTTP server profiles", e)
+            self._handle_api_exception("listing", container, "HTTP server profiles", e)
 
-    # ------------------------------------------------------------------------------------ Log Forwarding Profiles -------------------------------------------------------------------------
+    # Log Forwarding Profiles --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_log_forwarding_profile(
         self,
@@ -2563,7 +2714,8 @@ class SCMClient:
                 "id": f"log-forwarding-profile-{name}",
                 "folder": folder,
                 "name": name,
-                "match_list": match_list or [
+                "match_list": match_list
+                or [
                     {
                         "name": "default-match",
                         "log_type": "traffic",
@@ -2599,10 +2751,10 @@ class SCMClient:
 
             if description:
                 profile_data["description"] = description
-                
+
             if enhanced_application_logging:
                 profile_data["enhanced_application_logging"] = enhanced_application_logging
-                
+
             if match_list:
                 # Ensure each match has a filter field (API seems to require it despite SDK showing optional)
                 for match in match_list:
@@ -2689,25 +2841,34 @@ class SCMClient:
             self.logger.error(f"Failed to get log forwarding profile '{name}': {str(e)}")
             return None
 
-    def list_log_forwarding_profiles(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List all log forwarding profiles in a folder.
+    def list_log_forwarding_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List all log forwarding profiles in a container.
 
         Args:
-            folder: Folder to list log forwarding profiles from
-            exact_match: If True, only return profiles directly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return profiles directly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of log forwarding profile objects
 
         """
-        self.logger.info(f"Listing log forwarding profiles in folder: {folder}")
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing log forwarding profiles in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "log-forwarding-profile-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "default-log-forwarding",
                     "match_list": [
                         {
@@ -2720,14 +2881,14 @@ class SCMClient:
                             "log_type": "threat",
                             "send_to_panorama": True,
                             "send_syslog": ["syslog-server-1"],
-                        }
+                        },
                     ],
                     "description": "Default log forwarding profile",
                     "enhanced_application_logging": False,
                 },
                 {
                     "id": "log-forwarding-profile-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "security-log-forwarding",
                     "match_list": [
                         {
@@ -2743,16 +2904,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List log forwarding profiles using the SDK
-            results = self.client.log_forwarding_profile.list(folder=folder, exact_match=exact_match)
+            results = self.client.log_forwarding_profile.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "log forwarding profiles", e)
+            self._handle_api_exception("listing", container, "log forwarding profiles", e)
 
-    # ------------------------------------------------------------------------------------ Services ---------------------------------------------------------------------------------------
+    # Services -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_service(
         self,
@@ -2815,7 +2985,7 @@ class SCMClient:
 
             if description:
                 service_data["description"] = description
-                
+
             if tag:
                 service_data["tag"] = tag
 
@@ -2879,7 +3049,7 @@ class SCMClient:
                             "timeout": 3600,
                             "halfclose_timeout": 120,
                             "timewait_timeout": 15,
-                        }
+                        },
                     }
                 },
                 "description": f"Mock service for {name}",
@@ -2893,25 +3063,34 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("fetching", name, "service", e)
 
-    def list_services(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List services in a folder.
+    def list_services(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List services in a container.
 
         Args:
-            folder: Folder to list services from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of services
 
         """
-        self.logger.info(f"Listing services in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing services in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "service-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "web-browsing",
                     "protocol": {
                         "tcp": {
@@ -2923,7 +3102,7 @@ class SCMClient:
                 },
                 {
                     "id": "service-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "dns",
                     "protocol": {
                         "udp": {
@@ -2935,14 +3114,14 @@ class SCMClient:
                 },
                 {
                     "id": "service-mock3",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "ssh-custom",
                     "protocol": {
                         "tcp": {
                             "port": "2222",
                             "override": {
                                 "timeout": 7200,
-                            }
+                            },
                         }
                     },
                     "description": "Custom SSH port",
@@ -2950,16 +3129,25 @@ class SCMClient:
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List services using the SDK
-            results = self.client.service.list(folder=folder, exact_match=exact_match)
+            results = self.client.service.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "services", e)
+            self._handle_api_exception("listing", container, "services", e)
 
-    # ------------------------------------------------------------------------------------ Service Groups ----------------------------------------------------------------------------------
+    # Service Groups -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_service_group(
         self,
@@ -3082,55 +3270,73 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("fetching", name, "service group", e)
 
-    def list_service_groups(self, folder: str, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List service groups in a folder.
+    def list_service_groups(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List service groups in a container.
 
         Args:
-            folder: Folder to list service groups from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
 
         Returns:
             list[dict[str, Any]]: List of service groups
 
         """
-        self.logger.info(f"Listing service groups in folder: {folder} (exact_match={exact_match})")
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing service groups in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "service-group-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "web-services",
                     "members": ["web-browsing", "ssl", "custom-web"],
                     "tag": ["web", "standard"],
                 },
                 {
                     "id": "service-group-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "database-services",
                     "members": ["mysql-cluster", "mssql", "oracle"],
                     "tag": ["database", "backend"],
                 },
                 {
                     "id": "service-group-mock3",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "infrastructure-services",
                     "members": ["dns", "ntp", "snmp", "syslog"],
                     "tag": ["infrastructure", "management"],
                 },
             ]
 
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
         try:
             # List service groups using the SDK
-            results = self.client.service_group.list(folder=folder, exact_match=exact_match)
+            results = self.client.service_group.list(exact_match=exact_match, **container_kwargs)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "service groups", e)
+            self._handle_api_exception("listing", container, "service groups", e)
 
-    # ------------------------------------------------------------------------------------ Syslog Server Profiles ------------------------------------------------------------------------------------
+    # Syslog Server Profiles ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_syslog_server_profile(
         self,
@@ -3143,6 +3349,7 @@ class SCMClient:
 
         Returns:
             Created/updated syslog server profile data
+
         """
         # Determine container (folder, snippet, or device)
         container_fields = ["folder", "snippet", "device"]
@@ -3164,17 +3371,13 @@ class SCMClient:
 
         # Check if syslog server profile already exists
         try:
-            existing = self.client.syslog_server_profile.fetch(
-                name=syslog_data["name"], **{container_field: container_value}
-            )
+            existing = self.client.syslog_server_profile.fetch(name=syslog_data["name"], **{container_field: container_value})
             # Update existing syslog server profile
             for key, value in syslog_data.items():
                 if key not in container_fields and value is not None:
                     setattr(existing, key, value)
             updated = existing.update()
-            self.logger.info(
-                f"Updated existing syslog server profile '{syslog_data['name']}' in {container_field} '{container_value}'"
-            )
+            self.logger.info(f"Updated existing syslog server profile '{syslog_data['name']}' in {container_field} '{container_value}'")
             return json.loads(updated.model_dump_json(exclude_unset=True))
         except Exception as e:
             # If profile doesn't exist, create new one
@@ -3182,13 +3385,14 @@ class SCMClient:
             # Create new syslog server profile
             try:
                 created = self.client.syslog_server_profile.create(syslog_data)
-                self.logger.info(
-                    f"Created new syslog server profile '{syslog_data['name']}' in {container_field} '{container_value}'"
-                )
+                self.logger.info(f"Created new syslog server profile '{syslog_data['name']}' in {container_field} '{container_value}'")
                 return json.loads(created.model_dump_json(exclude_unset=True))
             except Exception as create_error:
                 self._handle_api_exception(
-                    "creating", container_value, f"syslog server profile '{syslog_data['name']}'", create_error
+                    "creating",
+                    container_value,
+                    f"syslog server profile '{syslog_data['name']}'",
+                    create_error,
                 )
 
     def delete_syslog_server_profile(
@@ -3205,6 +3409,7 @@ class SCMClient:
             folder: Folder location
             snippet: Snippet location
             device: Device location
+
         """
         if not self.client:
             self.logger.info(f"[Mock Mode] Would delete syslog server profile: {name}")
@@ -3226,7 +3431,10 @@ class SCMClient:
             self.logger.info(f"Deleted syslog server profile: {name}")
         except Exception as e:
             self._handle_api_exception(
-                "deleting", folder or snippet or device, f"syslog server profile '{name}'", e
+                "deleting",
+                folder or snippet or device,
+                f"syslog server profile '{name}'",
+                e,
             )
 
     def get_syslog_server_profile(
@@ -3246,12 +3454,13 @@ class SCMClient:
 
         Returns:
             Syslog server profile data or None if not found
+
         """
         if not self.client:
             return {
                 "id": "syslog-mock",
                 "name": name,
-                "folder": folder or "Texas",
+                "folder": folder or "ngfw-shared",
                 "server": [
                     {
                         "name": "primary-syslog",
@@ -3283,7 +3492,10 @@ class SCMClient:
             return None
         except Exception as e:
             self._handle_api_exception(
-                "retrieving", folder or snippet or device, f"syslog server profile '{name}'", e
+                "retrieving",
+                folder or snippet or device,
+                f"syslog server profile '{name}'",
+                e,
             )
 
     def list_syslog_server_profiles(
@@ -3303,12 +3515,13 @@ class SCMClient:
 
         Returns:
             List of syslog server profiles
+
         """
         if not self.client:
             return [
                 {
                     "id": "syslog-mock1",
-                    "folder": folder or "Texas",
+                    "folder": folder or "ngfw-shared",
                     "name": "primary-syslog-profile",
                     "server": [
                         {
@@ -3323,7 +3536,7 @@ class SCMClient:
                 },
                 {
                     "id": "syslog-mock2",
-                    "folder": folder or "Texas",
+                    "folder": folder or "ngfw-shared",
                     "name": "backup-syslog-profile",
                     "server": [
                         {
@@ -3338,7 +3551,7 @@ class SCMClient:
                 },
                 {
                     "id": "syslog-mock3",
-                    "folder": folder or "Texas",
+                    "folder": folder or "ngfw-shared",
                     "name": "secure-syslog-profile",
                     "server": [
                         {
@@ -3371,7 +3584,7 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device, "syslog server profiles", e)
 
-    # ------------------------------------------------------------------------------------ Tags ------------------------------------------------------------------------------------
+    # Tags ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_tag(
         self,
@@ -3384,6 +3597,7 @@ class SCMClient:
 
         Returns:
             Created/updated tag data
+
         """
         # Determine container (folder, snippet, or device)
         container_fields = ["folder", "snippet", "device"]
@@ -3405,17 +3619,13 @@ class SCMClient:
 
         # Check if tag already exists
         try:
-            existing = self.client.tag.fetch(
-                name=tag_data["name"], **{container_field: container_value}
-            )
+            existing = self.client.tag.fetch(name=tag_data["name"], **{container_field: container_value})
             # Update existing tag
             for key, value in tag_data.items():
                 if key not in container_fields and value is not None:
                     setattr(existing, key, value)
             updated = existing.update()
-            self.logger.info(
-                f"Updated existing tag '{tag_data['name']}' in {container_field} '{container_value}'"
-            )
+            self.logger.info(f"Updated existing tag '{tag_data['name']}' in {container_field} '{container_value}'")
             return json.loads(updated.model_dump_json(exclude_unset=True))
         except Exception as e:
             # If tag doesn't exist, create new one
@@ -3423,13 +3633,14 @@ class SCMClient:
             # Create new tag
             try:
                 created = self.client.tag.create(tag_data)
-                self.logger.info(
-                    f"Created new tag '{tag_data['name']}' in {container_field} '{container_value}'"
-                )
+                self.logger.info(f"Created new tag '{tag_data['name']}' in {container_field} '{container_value}'")
                 return json.loads(created.model_dump_json(exclude_unset=True))
             except Exception as create_error:
                 self._handle_api_exception(
-                    "creating", container_value, f"tag '{tag_data['name']}'", create_error
+                    "creating",
+                    container_value,
+                    f"tag '{tag_data['name']}'",
+                    create_error,
                 )
 
     def delete_tag(
@@ -3446,6 +3657,7 @@ class SCMClient:
             folder: Folder location
             snippet: Snippet location
             device: Device location
+
         """
         if not self.client:
             self.logger.info(f"[Mock Mode] Would delete tag: {name}")
@@ -3468,9 +3680,7 @@ class SCMClient:
             self.client.tag.delete(str(tag.id))
             self.logger.info(f"Deleted tag: {name}")
         except Exception as e:
-            self._handle_api_exception(
-                "deleting", folder or snippet or device, f"tag '{name}'", e
-            )
+            self._handle_api_exception("deleting", folder or snippet or device, f"tag '{name}'", e)
 
     def get_tag(
         self,
@@ -3489,12 +3699,13 @@ class SCMClient:
 
         Returns:
             Tag data or None if not found
+
         """
         if not self.client:
             return {
                 "id": "tag-mock",
                 "name": name,
-                "folder": folder or "Texas",
+                "folder": folder or "ngfw-shared",
                 "color": "Blue",
                 "comments": "Mock tag for testing",
             }
@@ -3517,9 +3728,7 @@ class SCMClient:
             self.logger.warning(f"Tag '{name}' not found")
             return None
         except Exception as e:
-            self._handle_api_exception(
-                "retrieving", folder or snippet or device, f"tag '{name}'", e
-            )
+            self._handle_api_exception("retrieving", folder or snippet or device, f"tag '{name}'", e)
 
     def list_tags(
         self,
@@ -3538,26 +3747,27 @@ class SCMClient:
 
         Returns:
             List of tags
+
         """
         if not self.client:
             return [
                 {
                     "id": "tag-mock1",
-                    "folder": folder or "Texas",
+                    "folder": folder or "ngfw-shared",
                     "name": "Production",
                     "color": "Red",
                     "comments": "Production environment resources",
                 },
                 {
                     "id": "tag-mock2",
-                    "folder": folder or "Texas",
+                    "folder": folder or "ngfw-shared",
                     "name": "Development",
                     "color": "Green",
                     "comments": "Development environment resources",
                 },
                 {
                     "id": "tag-mock3",
-                    "folder": folder or "Texas",
+                    "folder": folder or "ngfw-shared",
                     "name": "Critical",
                     "color": "Orange",
                     "comments": "Critical infrastructure",
@@ -3582,9 +3792,9 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device, "tags", e)
 
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
 
-    # ------------------------------------------------------------------------------------ Security Zones ------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------ Security Zones ----------------------------------------------------------------------------------
 
     def create_zone(
         self,
@@ -3774,27 +3984,48 @@ class SCMClient:
 
     def list_security_zones(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List security zones in a folder.
+        """List security zones from SCM.
 
         Args:
-            folder: Folder to list security zones from
-            exact_match: If True, only return objects defined exactly in the specified folder
+            folder: The folder containing the zones
+            snippet: The snippet containing the zones
+            device: The device containing the zones
+            exact_match: If True, only return exact name matches
 
         Returns:
-            list[dict[str, Any]]: List of security zone objects
+            List of security zone dictionaries
+
+        Raises:
+            APIException: On API errors
 
         """
-        self.logger.info(f"Listing security zones in folder: {folder} (exact_match={exact_match})")
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+            container = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+            container = snippet
+        elif device:
+            container_kwargs["device"] = device
+            container = device
+        else:
+            container = "Unknown"
+
+        self.logger.info(f"Listing security zones in container: {container} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "zone-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "trust",
                     "network": {
                         "layer3": ["ethernet1/1", "ethernet1/2"],
@@ -3805,7 +4036,7 @@ class SCMClient:
                 },
                 {
                     "id": "zone-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "untrust",
                     "network": {
                         "layer3": ["ethernet1/3"],
@@ -3816,7 +4047,7 @@ class SCMClient:
                 },
                 {
                     "id": "zone-mock3",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "dmz",
                     "network": {
                         "layer3": ["ethernet1/4", "ethernet1/5"],
@@ -3828,19 +4059,23 @@ class SCMClient:
             ]
 
         try:
+            # Check if snippet or device is supported
+            if snippet or device:
+                raise NotImplementedError(f"Listing security zones by {'snippet' if snippet else 'device'} is not yet supported by the SDK")
+
             # List security zones using the SDK
-            results = self.client.security_zone.list(folder=folder, exact_match=exact_match)
+            results = self.client.security_zone.list(**container_kwargs, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "security zones", e)
+            self._handle_api_exception("listing", container, "security zones", e)
 
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
     # SECURITY CONFIGURATION METHODS
-    # ========================================================================================================================================================================================
+    # ======================================================================================================================================================================================
 
-    # ------------------------------------------------------------------------------------ Security Rules ------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------ Security Rules ----------------------------------------------------------------------------------
 
     def create_security_rule(
         self,
@@ -4041,29 +4276,50 @@ class SCMClient:
 
     def list_security_rules(
         self,
-        folder: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
         rulebase: str = "pre",
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List security rules in a folder and rulebase.
+        """List security rules from SCM.
 
         Args:
-            folder: Folder to list security rules from
+            folder: The folder containing the rules
+            snippet: The snippet containing the rules
+            device: The device containing the rules
             rulebase: Rulebase to use (pre, post, or default)
-            exact_match: If True, only return objects defined exactly in the specified folder
+            exact_match: If True, only return exact name matches
 
         Returns:
-            list[dict[str, Any]]: List of security rule objects
+            List of security rule dictionaries
+
+        Raises:
+            APIException: On API errors
 
         """
-        self.logger.info(f"Listing security rules in folder: {folder}, rulebase: {rulebase} (exact_match={exact_match})")
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+            container = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+            container = snippet
+        elif device:
+            container_kwargs["device"] = device
+            container = device
+        else:
+            container = "Unknown"
+
+        self.logger.info(f"Listing security rules in container: {container}, rulebase: {rulebase} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
             return [
                 {
                     "id": "sr-mock1",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "Allow Web Traffic",
                     "from_": ["trust"],
                     "to_": ["untrust"],
@@ -4079,7 +4335,7 @@ class SCMClient:
                 },
                 {
                     "id": "sr-mock2",
-                    "folder": folder,
+                    "folder": folder or "Texas",
                     "name": "Block Malicious IPs",
                     "from_": ["any"],
                     "to_": ["any"],
@@ -4097,13 +4353,17 @@ class SCMClient:
             ]
 
         try:
+            # Check if snippet or device is supported
+            if snippet or device:
+                raise NotImplementedError(f"Listing security rules by {'snippet' if snippet else 'device'} is not yet supported by the SDK")
+
             # List security rules using the SDK
-            results = self.client.security_rule.list(folder=folder, rulebase=rulebase, exact_match=exact_match)
+            results = self.client.security_rule.list(**container_kwargs, rulebase=rulebase, exact_match=exact_match)
 
             # Convert SDK response to list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", folder, "security rules", e)
+            self._handle_api_exception("listing", container, "security rules", e)
 
 
 # Create a singleton instance of the SCM client
