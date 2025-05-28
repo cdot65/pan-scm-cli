@@ -18,54 +18,36 @@ Service objects define network services by protocol and port combinations. The `
 
 Basic TCP service:
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects service --folder Texas --name custom-web \
+$ scm set objects service --folder Texas --name custom-web \
   --protocol tcp --port "8080,8443" \
   --description "Custom web service ports"
 <span style="color: green;">✓</span> Service 'custom-web' created successfully
 ```
 
-</div>
-
 UDP service with port range:
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects service --folder Texas --name custom-voip \
+$ scm set objects service --folder Texas --name custom-voip \
   --protocol udp --port "5060-5070" \
   --description "VoIP signaling ports"
 <span style="color: green;">✓</span> Service 'custom-voip' created successfully
 ```
 
-</div>
-
 TCP service with timeout overrides:
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects service --folder Texas --name database-service \
+$ scm set objects service --folder Texas --name database-service \
   --protocol tcp --port "3306" \
   --timeout 7200 --halfclose-timeout 120 --timewait-timeout 30 \
   --description "MySQL with extended timeouts"
 <span style="color: green;">✓</span> Service 'database-service' created successfully
 ```
 
-</div>
-
 ### Listing Services
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli show objects service --folder Texas --list
+$ scm show objects service --folder Texas --list
 Services in folder 'Texas':
 - custom-web
 - custom-voip
@@ -73,15 +55,10 @@ Services in folder 'Texas':
 - legacy-app
 ```
 
-</div>
-
 ### Showing Service Details
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli show objects service --folder Texas --name custom-web
+$ scm show objects service --folder Texas --name custom-web
 Service: custom-web
   Protocol: tcp
   Ports: 8080,8443
@@ -90,45 +67,98 @@ Service: custom-web
   Folder: Texas
 ```
 
-</div>
-
 ### Deleting Services
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli delete objects service --folder Texas --name custom-web
+$ scm delete objects service --folder Texas --name custom-web
 <span style="color: green;">✓</span> Service 'custom-web' deleted successfully
 ```
 
-</div>
+### Load Services
 
-### Bulk Operations
+Load multiple services from a YAML file.
 
-Load multiple services from a YAML file:
+#### Syntax
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli load objects service --folder Texas --file services.yml
-<span style="color: green;">✓</span> Loaded 15 services successfully
+scm load objects service [OPTIONS]
 ```
 
-</div>
+#### Options
 
-Backup existing services:
+| Option           | Description                                      | Required |
+| ---------------- | ------------------------------------------------ | -------- |
+| `--file TEXT`    | Path to YAML file containing service definitions | Yes      |
+| `--folder TEXT`  | Override folder location for all objects         | No       |
+| `--snippet TEXT` | Override snippet location for all objects        | No       |
+| `--device TEXT`  | Override device location for all objects         | No       |
+| `--dry-run`      | Preview changes without applying them            | No       |
 
-<div class="termy">
+#### Examples
 
-<!-- termynal -->
+Load from file with original locations:
+
 ```bash
-$ scm-cli backup objects service --folder Texas
-<span style="color: green;">✓</span> Backed up 15 services to service-texas.yaml
+$ scm load objects service --file services.yml
+<span style="color: green;">✓</span> Loaded service: custom-web
+<span style="color: green;">✓</span> Loaded service: database-cluster
+<span style="color: green;">✓</span> Loaded service: custom-dns
+<span style="color: green;">✓</span> Loaded service: legacy-app
+
+Successfully loaded 4 out of 4 services from 'services.yml'
 ```
 
-</div>
+Load with folder override:
+
+```bash
+$ scm load objects service --file services.yml --folder Austin
+<span style="color: green;">✓</span> Loaded service: custom-web
+<span style="color: green;">✓</span> Loaded service: database-cluster
+<span style="color: green;">✓</span> Loaded service: custom-dns
+<span style="color: green;">✓</span> Loaded service: legacy-app
+
+Successfully loaded 4 out of 4 services from 'services.yml'
+```
+
+!!! note
+When using container override options (--folder, --snippet, --device), all services will be loaded into the specified container, ignoring the container specified in the YAML file.
+
+### Backup Services
+
+Backup all service objects from a specified location to a YAML file.
+
+#### Syntax
+
+```bash
+scm backup objects service [OPTIONS]
+```
+
+#### Options
+
+| Option           | Description                                  | Required |
+| ---------------- | -------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder to backup services from               | No\*     |
+| `--snippet TEXT` | Snippet to backup services from              | No\*     |
+| `--device TEXT`  | Device to backup services from               | No\*     |
+| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+
+#### Examples
+
+Backup from folder:
+
+```bash
+$ scm backup objects service --folder Texas
+<span style="color: green;">✓</span> Successfully backed up 15 services to service_folder_texas_20240115_120530.yaml
+```
+
+Backup with custom filename:
+
+```bash
+$ scm backup objects service --folder Texas --file texas-services.yaml
+<span style="color: green;">✓</span> Successfully backed up 15 services to texas-services.yaml
+```
 
 ## YAML Configuration Format
 
@@ -137,11 +167,13 @@ Services can be defined in YAML for bulk operations:
 ```yaml
 services:
   - name: custom-web
+    folder: Texas # Container location (folder, snippet, or device)
     protocol: tcp
     port: "8080,8443"
     description: "Custom web service ports"
-    
+
   - name: database-cluster
+    folder: Texas
     protocol: tcp
     port: "3306-3310"
     description: "MySQL cluster ports"
@@ -149,16 +181,18 @@ services:
       timeout: 7200
       halfclose_timeout: 120
       timewait_timeout: 30
-    
+
   - name: custom-dns
+    folder: Texas
     protocol: udp
     port: "5353"
     description: "mDNS/Bonjour service"
     tag:
       - network
       - discovery
-    
+
   - name: legacy-app
+    folder: Texas
     protocol: tcp
     port: "9000,9001,9002"
     description: "Legacy application ports"
@@ -197,21 +231,25 @@ Exactly one context parameter must be specified:
 ## Port Specification Formats
 
 ### Single Port
+
 ```bash
 --port "8080"
 ```
 
 ### Port Range
+
 ```bash
 --port "8000-8100"
 ```
 
 ### Multiple Ports
+
 ```bash
 --port "80,443,8080,8443"
 ```
 
 ### Mixed Format
+
 ```bash
 --port "80,443,8000-8100"
 ```
@@ -221,14 +259,14 @@ Exactly one context parameter must be specified:
 ### Create a Basic TCP Service
 
 ```bash
-scm-cli set objects service --folder Shared --name web-app \
+scm set objects service --folder Shared --name web-app \
   --protocol tcp --port "8080"
 ```
 
 ### Create a UDP Service Range
 
 ```bash
-scm-cli set objects service --folder Shared --name voip-rtp \
+scm set objects service --folder Shared --name voip-rtp \
   --protocol udp --port "10000-20000" \
   --description "RTP media ports for VoIP"
 ```
@@ -236,7 +274,7 @@ scm-cli set objects service --folder Shared --name voip-rtp \
 ### Create a Service with Extended Timeouts
 
 ```bash
-scm-cli set objects service --folder Shared --name long-running-job \
+scm set objects service --folder Shared --name long-running-job \
   --protocol tcp --port "9999" \
   --timeout 14400 \
   --description "Service for long-running batch jobs (4 hour timeout)"
@@ -245,7 +283,7 @@ scm-cli set objects service --folder Shared --name long-running-job \
 ### Create a Tagged Service
 
 ```bash
-scm-cli set objects service --folder Shared --name critical-db \
+scm set objects service --folder Shared --name critical-db \
   --protocol tcp --port "5432" \
   --tag "critical,database,postgresql" \
   --description "PostgreSQL database service"
@@ -269,12 +307,12 @@ Services are used in security rules to control traffic:
 
 ```bash
 # Allow custom web service
-scm-cli set security rule --folder Shared --name "Allow-Custom-Web" \
+scm set security rule --folder Shared --name "Allow-Custom-Web" \
   --source-zones "Trust" --destination-zones "DMZ" \
   --services "custom-web" --action allow
 
 # Use service in NAT rule
-scm-cli set security nat --folder Shared --name "Web-NAT" \
+scm set security nat --folder Shared --name "Web-NAT" \
   --source-zones "Internet" --destination-zones "DMZ" \
   --services "custom-web" --translated-port 80
 ```

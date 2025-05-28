@@ -1,6 +1,6 @@
 # Bandwidth Allocation
 
-Bandwidth allocation allows you to control and optimize bandwidth usage across your network. The `pan-scm-cli` provides commands to create, update, delete, and load bandwidth allocation configurations.
+Bandwidth allocation allows you to control and optimize bandwidth usage across your network. The `scm` CLI provides commands to create, update, delete, and load bandwidth allocation configurations.
 
 ## Set Bandwidth Allocation
 
@@ -8,33 +8,30 @@ Create or update a bandwidth allocation.
 
 ### Syntax
 
-```
-scm-cli set deployment bandwidth [OPTIONS]
+```bash
+scm set deployment bandwidth [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder for the bandwidth allocation | Yes |
-| `--name TEXT` | Name of the bandwidth allocation | Yes |
-| `--description TEXT` | Description for the bandwidth allocation | No |
-| `--tags LIST` | List of tags to apply to the bandwidth allocation | No |
-| `--egress-guaranteed INTEGER` | Guaranteed egress bandwidth in Mbps | Yes |
-| `--egress-max INTEGER` | Maximum egress bandwidth in Mbps | Yes |
-| `--ingress-guaranteed INTEGER` | Guaranteed ingress bandwidth in Mbps | Yes |
-| `--ingress-max INTEGER` | Maximum ingress bandwidth in Mbps | Yes |
-| `--spn-name-list LIST` | List of SPN names to apply this allocation to | No |
+| Option                         | Description                                       | Required |
+| ------------------------------ | ------------------------------------------------- | -------- |
+| `--folder TEXT`                | Folder for the bandwidth allocation               | Yes      |
+| `--name TEXT`                  | Name of the bandwidth allocation                  | Yes      |
+| `--description TEXT`           | Description for the bandwidth allocation          | No       |
+| `--tags LIST`                  | List of tags to apply to the bandwidth allocation | No       |
+| `--egress-guaranteed INTEGER`  | Guaranteed egress bandwidth in Mbps               | Yes      |
+| `--egress-max INTEGER`         | Maximum egress bandwidth in Mbps                  | Yes      |
+| `--ingress-guaranteed INTEGER` | Guaranteed ingress bandwidth in Mbps              | Yes      |
+| `--ingress-max INTEGER`        | Maximum ingress bandwidth in Mbps                 | Yes      |
+| `--spn-name-list LIST`         | List of SPN names to apply this allocation to     | No       |
 
 ### Examples
 
 #### Create a Bandwidth Allocation
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set deployment bandwidth --folder Shared --name "Standard-Branch" \
+$ scm set deployment bandwidth --folder Shared --name "Standard-Branch" \
   --egress-guaranteed 50 --egress-max 100 \
   --ingress-guaranteed 75 --ingress-max 150 \
   --description "Standard bandwidth allocation for branch offices"
@@ -42,15 +39,10 @@ Creating bandwidth allocation 'Standard-Branch' in folder 'Shared'...
 Bandwidth allocation created successfully.
 ```
 
-</div>
-
 #### Create a Bandwidth Allocation with SPN Association
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set deployment bandwidth --folder Shared --name "HQ-Bandwidth" \
+$ scm set deployment bandwidth --folder Shared --name "HQ-Bandwidth" \
   --egress-guaranteed 500 --egress-max 1000 \
   --ingress-guaranteed 750 --ingress-max 1500 \
   --spn-name-list "HQ-SPN-1,HQ-SPN-2" \
@@ -59,37 +51,30 @@ Creating bandwidth allocation 'HQ-Bandwidth' in folder 'Shared'...
 Bandwidth allocation created successfully.
 ```
 
-</div>
-
 ## Delete Bandwidth Allocation
 
 Delete a bandwidth allocation.
 
 ### Syntax
 
-```
-scm-cli delete deployment bandwidth [OPTIONS]
+```bash
+scm delete deployment bandwidth [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder containing the bandwidth allocation | Yes |
-| `--name TEXT` | Name of the bandwidth allocation to delete | Yes |
+| Option          | Description                                | Required |
+| --------------- | ------------------------------------------ | -------- |
+| `--folder TEXT` | Folder containing the bandwidth allocation | Yes      |
+| `--name TEXT`   | Name of the bandwidth allocation to delete | Yes      |
 
 ### Example
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli delete deployment bandwidth --folder Shared --name "Standard-Branch"
+$ scm delete deployment bandwidth --folder Shared --name "Standard-Branch"
 Deleting bandwidth allocation 'Standard-Branch' from folder 'Shared'...
 Bandwidth allocation deleted successfully.
 ```
-
-</div>
 
 ## Load Bandwidth Allocations
 
@@ -97,16 +82,16 @@ Create or update multiple bandwidth allocations from a YAML file.
 
 ### Syntax
 
-```
-scm-cli load deployment bandwidth [OPTIONS]
+```bash
+scm load deployment bandwidth [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder for the bandwidth allocations | Yes |
-| `--file TEXT` | Path to YAML file containing bandwidth allocation definitions | Yes |
+| Option          | Description                                                   | Required |
+| --------------- | ------------------------------------------------------------- | -------- |
+| `--folder TEXT` | Folder for the bandwidth allocations                          | Yes      |
+| `--file TEXT`   | Path to YAML file containing bandwidth allocation definitions | Yes      |
 
 ### Example YAML File
 
@@ -148,16 +133,11 @@ bandwidth_allocations:
 
 ### Example Command
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli load deployment bandwidth --folder Shared --file bandwidth-allocations.yaml
+$ scm load deployment bandwidth --folder Shared --file bandwidth-allocations.yaml
 Loading bandwidth allocations from 'bandwidth-allocations.yaml' into folder 'Shared'...
 Created 3 bandwidth allocations successfully.
 ```
-
-</div>
 
 ## List Bandwidth Allocations
 
@@ -165,23 +145,20 @@ List all bandwidth allocations in a folder.
 
 ### Syntax
 
-```
-scm-cli set deployment bandwidth --list [OPTIONS]
+```bash
+scm set deployment bandwidth --list [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder to list bandwidth allocations from | Yes |
+| Option          | Description                               | Required |
+| --------------- | ----------------------------------------- | -------- |
+| `--folder TEXT` | Folder to list bandwidth allocations from | Yes      |
 
 ### Example
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set deployment bandwidth --list --folder Shared
+$ scm set deployment bandwidth --list --folder Shared
 Listing bandwidth allocations in folder 'Shared'...
 
 | Name | Egress (Guaranteed/Max) | Ingress (Guaranteed/Max) | SPNs | Description |
@@ -191,35 +168,28 @@ Listing bandwidth allocations in folder 'Shared'...
 | Retail-Store | 25/50 Mbps | 35/70 Mbps | - | Limited bandwidth for retail locations |
 ```
 
-</div>
-
 ## Assign Bandwidth Allocation
 
 Assign a bandwidth allocation to specific Service Provider Networks (SPNs).
 
 ### Syntax
 
-```
-scm-cli set deployment bandwidth --assign [OPTIONS]
+```bash
+scm set deployment bandwidth --assign [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder containing the bandwidth allocation | Yes |
-| `--name TEXT` | Name of the bandwidth allocation | Yes |
-| `--spn-name-list LIST` | List of SPN names to apply the allocation to | Yes |
+| Option                 | Description                                  | Required |
+| ---------------------- | -------------------------------------------- | -------- |
+| `--folder TEXT`        | Folder containing the bandwidth allocation   | Yes      |
+| `--name TEXT`          | Name of the bandwidth allocation             | Yes      |
+| `--spn-name-list LIST` | List of SPN names to apply the allocation to | Yes      |
 
 ### Example
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set deployment bandwidth --assign --folder Shared --name "Retail-Store" --spn-name-list "retail-spn-east,retail-spn-west"
+$ scm set deployment bandwidth --assign --folder Shared --name "Retail-Store" --spn-name-list "retail-spn-east,retail-spn-west"
 Assigning bandwidth allocation 'Retail-Store' to SPNs 'retail-spn-east,retail-spn-west'...
 Bandwidth allocation assigned successfully.
 ```
-
-</div>

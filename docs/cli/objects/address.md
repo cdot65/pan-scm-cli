@@ -1,20 +1,20 @@
 # Address Objects
 
-Address objects are used to identify network addresses in security policies, NAT rules, and other configurations. The `pan-scm-cli` provides commands to create, update, delete, and load address objects.
+Address objects are used to identify network addresses in security policies, NAT rules, and other configurations. The `scm` CLI provides commands to create, update, delete, and load address objects.
 
 ## Address Types
 
 The CLI supports four types of address objects:
 
-| Type | Format | Example |
-|------|--------|---------|
-| IP Netmask | IP address with CIDR notation | `192.168.1.0/24` |
-| IP Range | Range of IP addresses | `192.168.1.1-192.168.1.10` |
-| IP Wildcard | IP with wildcard mask | `10.20.1.0/0.0.248.255` |
-| FQDN | Fully qualified domain name | `example.com` |
+| Type        | Format                        | Example                    |
+| ----------- | ----------------------------- | -------------------------- |
+| IP Netmask  | IP address with CIDR notation | `192.168.1.0/24`           |
+| IP Range    | Range of IP addresses         | `192.168.1.1-192.168.1.10` |
+| IP Wildcard | IP with wildcard mask         | `10.20.1.0/0.0.248.255`    |
+| FQDN        | Fully qualified domain name   | `example.com`              |
 
 !!! note
-    You can only specify one address type per address object.
+You can only specify one address type per address object.
 
 ## Set Address
 
@@ -22,22 +22,22 @@ Create or update an address object.
 
 ### Syntax
 
-```
-scm-cli set objects address [OPTIONS]
+```bash
+scm set objects address [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder for the address object | Yes |
-| `--name TEXT` | Name of the address object | Yes |
-| `--description TEXT` | Description for the address | No |
-| `--tags LIST` | List of tags to apply to the address | No |
-| `--ip-netmask TEXT` | Address in CIDR notation | No* |
-| `--ip-range TEXT` | Address range | No* |
-| `--ip-wildcard TEXT` | Address with wildcard mask | No* |
-| `--fqdn TEXT` | Fully qualified domain name | No* |
+| Option               | Description                          | Required |
+| -------------------- | ------------------------------------ | -------- |
+| `--folder TEXT`      | Folder for the address object        | Yes      |
+| `--name TEXT`        | Name of the address object           | Yes      |
+| `--description TEXT` | Description for the address          | No       |
+| `--tags LIST`        | List of tags to apply to the address | No       |
+| `--ip-netmask TEXT`  | Address in CIDR notation             | No\*     |
+| `--ip-range TEXT`    | Address range                        | No\*     |
+| `--ip-wildcard TEXT` | Address with wildcard mask           | No\*     |
+| `--fqdn TEXT`        | Fully qualified domain name          | No\*     |
 
 \* You must specify exactly one of the address type options.
 
@@ -45,12 +45,8 @@ scm-cli set objects address [OPTIONS]
 
 #### Create an IP Netmask Address
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli set objects address \
+```bash
+$ scm set objects address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
@@ -60,16 +56,10 @@ $ scm-cli set objects address \
 Created address: webserver in folder Texas
 ```
 
-</div>
-
 #### Create an FQDN Address
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli set objects address \
+```bash
+$ scm set objects address \
     --folder Texas \
     --name company-website \
     --fqdn example.com \
@@ -78,16 +68,10 @@ $ scm-cli set objects address \
 Created address: company-website in folder Texas
 ```
 
-</div>
-
 #### Create an IP Range Address
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli set objects address \
+```bash
+$ scm set objects address \
     --folder Texas \
     --name dhcp-pool \
     --ip-range 192.168.1.100-192.168.1.200 \
@@ -96,38 +80,30 @@ $ scm-cli set objects address \
 Created address: dhcp-pool in folder Texas
 ```
 
-</div>
-
 ## Delete Address
 
 Delete an address object from SCM.
 
 ### Syntax
 
-```
-scm-cli delete objects address [OPTIONS]
+```bash
+scm delete objects address [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder containing the address object | Yes |
-| `--name TEXT` | Name of the address object to delete | Yes |
+| Option          | Description                          | Required |
+| --------------- | ------------------------------------ | -------- |
+| `--folder TEXT` | Folder containing the address object | Yes      |
+| `--name TEXT`   | Name of the address object to delete | Yes      |
 
 ### Example
 
-<div class="termy">
-
-<!-- termynal -->
-
-```console
-$ scm-cli delete objects address --folder Texas --name webserver
+```bash
+$ scm delete objects address --folder Texas --name webserver
 ---> 100%
 Deleted address: webserver from folder Texas
 ```
-
-</div>
 
 ## Load Addresses
 
@@ -135,24 +111,27 @@ Load multiple address objects from a YAML file.
 
 ### Syntax
 
-```
-scm-cli load objects address [OPTIONS]
+```bash
+scm load objects address [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--file TEXT` | Path to YAML file containing address definitions | Yes |
-| `--dry-run` | Preview changes without applying them | No |
+| Option           | Description                                      | Required |
+| ---------------- | ------------------------------------------------ | -------- |
+| `--file TEXT`    | Path to YAML file containing address definitions | Yes      |
+| `--folder TEXT`  | Override folder location for all objects         | No       |
+| `--snippet TEXT` | Override snippet location for all objects        | No       |
+| `--device TEXT`  | Override device location for all objects         | No       |
+| `--dry-run`      | Preview changes without applying them            | No       |
 
 ### YAML File Format
 
 ```yaml
 ---
-folder: Texas  # Target folder for all addresses
 addresses:
   - name: web-server-1
+    folder: Texas # Container location (folder, snippet, or device)
     description: "Web Server 1"
     ip_netmask: 192.168.1.10/32
     tags:
@@ -160,6 +139,7 @@ addresses:
       - production
 
   - name: web-server-2
+    folder: Texas
     description: "Web Server 2"
     ip_netmask: 192.168.1.11/32
     tags:
@@ -167,6 +147,7 @@ addresses:
       - production
 
   - name: database-server
+    folder: Texas
     description: "Database Server"
     ip_netmask: 192.168.2.10/32
     tags:
@@ -174,6 +155,7 @@ addresses:
       - production
 
   - name: company-website
+    folder: Texas
     description: "Company Website"
     fqdn: example.com
     tags:
@@ -181,100 +163,140 @@ addresses:
       - external
 ```
 
-### Example
+### Examples
 
-<div class="termy">
+#### Load with Original Locations
 
-<!-- termynal -->
-
-```console
-$ scm-cli load objects address --file addresses.yml
+```bash
+$ scm load objects address --file addresses.yml
 ---> 100%
-Loading addresses from addresses.yml
-Applied address: web-server-1 in folder Texas
-Applied address: web-server-2 in folder Texas
-Applied address: database-server in folder Texas
-Applied address: company-website in folder Texas
-Successfully applied 4 address objects
+✓ Loaded address: web-server-1
+✓ Loaded address: web-server-2
+✓ Loaded address: database-server
+✓ Loaded address: company-website
+
+Successfully loaded 4 out of 4 addresses from 'addresses.yml'
 ```
 
-</div>
+#### Load with Folder Override
 
-## Get Address
+```bash
+$ scm load objects address --file addresses.yml --folder Austin
+---> 100%
+✓ Loaded address: web-server-1
+✓ Loaded address: web-server-2
+✓ Loaded address: database-server
+✓ Loaded address: company-website
 
-Retrieve a specific address object.
+Successfully loaded 4 out of 4 addresses from 'addresses.yml'
+```
+
+!!! note
+When using container override options (--folder, --snippet, --device), all addresses will be loaded into the specified container, ignoring the container specified in the YAML file.
+
+## Show Address
+
+Display address objects.
 
 ### Syntax
 
-```
-scm-cli get objects address [OPTIONS]
+```bash
+scm show objects address [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder containing the address object | Yes |
-| `--name TEXT` | Name of the address object to retrieve | Yes |
-| `--output` | Output format (text, json, table) | No |
+| Option          | Description                          | Required |
+| --------------- | ------------------------------------ | -------- |
+| `--folder TEXT` | Folder containing the address object | Yes      |
+| `--name TEXT`   | Name of the address object to show   | No\*     |
+| `--list`        | List all addresses in the folder     | No\*     |
 
-### Example
+\* You must specify either --name or --list.
 
-<div class="termy">
+### Examples
 
-<!-- termynal -->
+#### Show Specific Address
 
-```console
-$ scm-cli get objects address --folder Texas --name webserver --output json
+```bash
+$ scm show objects address --folder Texas --name webserver
 ---> 100%
-{
-  "name": "webserver",
-  "folder": "Texas",
-  "ip_netmask": "192.168.1.100/32",
-  "description": "Web server",
-  "tags": ["server", "web"]
-}
+Address: webserver
+Location: Folder 'Texas'
+Description: Web server
+Type: IP/Netmask
+Value: 192.168.1.100/32
+Tags: server, web
+ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-</div>
+#### List All Addresses
 
-## List Addresses
+```bash
+$ scm show objects address --folder Texas --list
+---> 100%
+Addresses in folder 'Texas':
+------------------------------------------------------------
+Name: webserver
+  Location: Folder 'Texas'
+  Description: Web server
+  Type: IP/Netmask
+  Value: 192.168.1.100/32
+  Tags: server, web
+------------------------------------------------------------
+Name: company-website
+  Location: Folder 'Texas'
+  Description: Company website
+  Type: FQDN
+  Value: example.com
+  Tags: web, external
+------------------------------------------------------------
+Name: dhcp-pool
+  Location: Folder 'Texas'
+  Description: DHCP address pool
+  Type: IP Range
+  Value: 192.168.1.100-192.168.1.200
+------------------------------------------------------------
+```
 
-List all address objects in a folder.
+## Backup Addresses
+
+Backup all address objects from a specified location to a YAML file.
 
 ### Syntax
 
-```
-scm-cli list objects address [OPTIONS]
+```bash
+scm backup objects address [OPTIONS]
 ```
 
 ### Options
 
-| Option | Description | Required |
-|--------|-------------|----------|
-| `--folder TEXT` | Folder to list addresses from | Yes |
-| `--output` | Output format (text, json, table) | No |
+| Option           | Description                                  | Required |
+| ---------------- | -------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder to backup addresses from              | No\*     |
+| `--snippet TEXT` | Snippet to backup addresses from             | No\*     |
+| `--device TEXT`  | Device to backup addresses from              | No\*     |
+| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
 
-### Example
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<div class="termy">
+### Examples
 
-<!-- termynal -->
+#### Backup from Folder
 
-```console
-$ scm-cli list objects address --folder Texas
+```bash
+$ scm backup objects address --folder Texas
 ---> 100%
-+----------------+---------------+------------------+
-| Name           | Type          | Value            |
-+----------------+---------------+------------------+
-| webserver      | ip-netmask    | 192.168.1.100/32 |
-| company-website| fqdn          | example.com      |
-| dhcp-pool      | ip-range      | 192.168.1.100-200|
-| database       | ip-netmask    | 192.168.2.50/32  |
-+----------------+---------------+------------------+
+Successfully backed up 15 addresses to address_folder_texas_20240115_120530.yaml
 ```
 
-</div>
+#### Backup with Custom Filename
+
+```bash
+$ scm backup objects address --folder Texas --file texas-addresses.yaml
+---> 100%
+Successfully backed up 15 addresses to texas-addresses.yaml
+```
 
 ## Best Practices
 

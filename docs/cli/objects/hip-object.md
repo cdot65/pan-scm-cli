@@ -1,10 +1,10 @@
-# HIP Object Management
+# HIP Object
 
-This section covers the commands for managing Host Information Profile (HIP) objects in Strata Cloud Manager.
+Host Information Profile (HIP) objects define criteria for evaluating endpoint compliance and security posture in Strata Cloud Manager. The `scm` CLI provides commands to create, update, delete, show, backup, and load HIP objects.
 
 ## Overview
 
-HIP objects define criteria for evaluating endpoint compliance and security posture. The `hip-object` commands allow you to:
+HIP objects allow you to:
 
 - Define host information criteria (OS, domain, version)
 - Configure patch management requirements
@@ -13,139 +13,121 @@ HIP objects define criteria for evaluating endpoint compliance and security post
 - Establish certificate requirements
 - Create complex compliance checks
 
-## Commands
+## Set HIP Object
 
-### Creating/Updating HIP Objects
+Create or update a HIP object.
 
-Basic Windows patch compliance:
+### Syntax
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects hip-object --folder Texas --name windows-patches \
-  --description "Windows security patch compliance" \
-  --patch-management-vendor-name "Microsoft Corporation" \
-  --patch-management-product-name "Windows" \
-  --patch-management-criteria-is-installed yes \
-  --patch-management-missing-patches check-not-exist
-<span style="color: green;">✓</span> HIP object 'windows-patches' created successfully
+scm set objects hip-object [OPTIONS]
 ```
 
-</div>
+### Options
 
-Disk encryption check:
+| Option                   | Description                                | Required |
+| ------------------------ | ------------------------------------------ | -------- |
+| `--folder TEXT`          | Folder for the HIP object                  | Yes\*    |
+| `--snippet TEXT`         | Snippet for the HIP object                 | Yes\*    |
+| `--device TEXT`          | Device for the HIP object                  | Yes\*    |
+| `--name TEXT`            | Name of the HIP object (max 31 characters) | Yes      |
+| `--description TEXT`     | Description (max 255 characters)           | No       |
+| Host Information Options | See detailed list below                    | No       |
+| Patch Management Options | See detailed list below                    | No       |
+| Disk Encryption Options  | See detailed list below                    | No       |
+| Mobile Device Options    | See detailed list below                    | No       |
+| Certificate Options      | See detailed list below                    | No       |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Examples
+
+#### Create Basic Windows Patch Compliance
+
 ```bash
-$ scm-cli set objects hip-object --folder Texas --name disk-encryption \
-  --description "Disk encryption requirement" \
-  --disk-encryption-vendor-name "BitLocker" \
-  --disk-encryption-product-name "BitLocker Drive Encryption" \
-  --disk-encryption-criteria-is-installed is \
-  --disk-encryption-state is
-<span style="color: green;">✓</span> HIP object 'disk-encryption' created successfully
+$ scm set objects hip-object \
+    --folder Texas \
+    --name windows-patches \
+    --description "Windows security patch compliance" \
+    --patch-management-vendor-name "Microsoft Corporation" \
+    --patch-management-product-name "Windows" \
+    --patch-management-criteria-is-installed yes \
+    --patch-management-missing-patches check-not-exist
+---> 100%
+Created HIP object: windows-patches in folder Texas
 ```
 
-</div>
+#### Create Disk Encryption Check
 
-Domain and OS check:
-
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli set objects hip-object --folder Texas --name corp-domain \
-  --description "Corporate domain membership" \
-  --host-info-domain contains --host-info-domain-value "corp.company.com" \
-  --host-info-os "Microsoft" --host-info-os-value "All"
-<span style="color: green;">✓</span> HIP object 'corp-domain' created successfully
+$ scm set objects hip-object \
+    --folder Texas \
+    --name disk-encryption \
+    --description "Disk encryption requirement" \
+    --disk-encryption-vendor-name "BitLocker" \
+    --disk-encryption-product-name "BitLocker Drive Encryption" \
+    --disk-encryption-criteria-is-installed is \
+    --disk-encryption-state is
+---> 100%
+Created HIP object: disk-encryption in folder Texas
 ```
 
-</div>
+## Delete HIP Object
 
-### Listing HIP Objects
+Delete a HIP object from SCM.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli show objects hip-object --folder Texas --list
-HIP objects in folder 'Texas':
-- windows-patches
-- disk-encryption
-- corp-domain
-- antivirus-check
+scm delete objects hip-object [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Showing HIP Object Details
+| Option           | Description                       | Required |
+| ---------------- | --------------------------------- | -------- |
+| `--folder TEXT`  | Folder containing the HIP object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the HIP object | Yes\*    |
+| `--device TEXT`  | Device containing the HIP object  | Yes\*    |
+| `--name TEXT`    | Name of the HIP object to delete  | Yes      |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Example
+
 ```bash
-$ scm-cli show objects hip-object --folder Texas --name windows-patches
-HIP Object: windows-patches
-  Description: Windows security patch compliance
-  Patch Management:
-    Vendor: Microsoft Corporation
-    Product: Windows
-    Criteria: Is Installed
-    Missing Patches: check-not-exist
-  Folder: Texas
+$ scm delete objects hip-object --folder Texas --name windows-patches
+---> 100%
+Deleted HIP object: windows-patches from folder Texas
 ```
 
-</div>
+## Load HIP Objects
 
-### Deleting HIP Objects
+Load multiple HIP objects from a YAML file.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli delete objects hip-object --folder Texas --name windows-patches
-<span style="color: green;">✓</span> HIP object 'windows-patches' deleted successfully
+scm load objects hip-object [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Bulk Operations
+| Option           | Description                                         | Required |
+| ---------------- | --------------------------------------------------- | -------- |
+| `--file TEXT`    | Path to YAML file containing HIP object definitions | Yes      |
+| `--folder TEXT`  | Override folder location for all objects            | No       |
+| `--snippet TEXT` | Override snippet location for all objects           | No       |
+| `--device TEXT`  | Override device location for all objects            | No       |
+| `--dry-run`      | Preview changes without applying them               | No       |
 
-Load multiple HIP objects from a YAML file:
-
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli load objects hip-object --folder Texas --file hip-objects.yml
-<span style="color: green;">✓</span> Loaded 12 HIP objects successfully
-```
-
-</div>
-
-Backup existing HIP objects:
-
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli backup objects hip-object --folder Texas
-<span style="color: green;">✓</span> Backed up 12 HIP objects to hip-object-texas.yaml
-```
-
-</div>
-
-## YAML Configuration Format
-
-HIP objects can be defined in YAML for bulk operations:
+### YAML File Format
 
 ```yaml
+---
 hip_objects:
   - name: windows-security
+    folder: Texas # Container location (folder, snippet, or device)
     description: "Windows security compliance"
     host_info_os: "Microsoft"
     host_info_os_value: "All"
@@ -155,8 +137,9 @@ hip_objects:
       - name: "Microsoft Corporation"
         product:
           - "Windows"
-    
+
   - name: macos-security
+    folder: Texas
     description: "macOS security compliance"
     host_info_os: "Apple"
     host_info_os_value: "All"
@@ -166,65 +149,234 @@ hip_objects:
       - name: "Apple Inc."
         product:
           - "macOS"
-    
+
   - name: disk-encryption-windows
+    folder: Texas
     description: "Windows BitLocker requirement"
     disk_encryption_enabled: true
     disk_encryption_vendors:
       - name: "Microsoft"
         product:
           - "BitLocker Drive Encryption"
-    
-  - name: disk-encryption-mac
-    description: "macOS FileVault requirement"
-    disk_encryption_enabled: true
-    disk_encryption_vendors:
-      - name: "Apple"
-        product:
-          - "FileVault"
-    
+
   - name: corporate-domain
+    folder: Texas
     description: "Corporate domain membership"
     host_info_domain: "contains"
     host_info_domain_value: "corp.company.com"
     host_info_managed: true
-    
-  - name: antivirus-windows
-    description: "Windows antivirus check"
-    antimalware_enabled: true
-    antimalware_vendors:
-      - name: "Microsoft"
-        product:
-          - "Windows Defender"
-      - name: "CrowdStrike"
-        product:
-          - "Falcon"
-    
-  - name: mobile-compliance
-    description: "Mobile device compliance"
-    mobile_device_jailbroken: false
-    mobile_device_disk_encrypted: true
-    mobile_device_passcode_set: true
-    mobile_device_last_checkin_time: "days"
-    mobile_device_last_checkin_value: 7
-    
-  - name: certificate-check
-    description: "Client certificate validation"
-    certificate_profile: "Client-Cert-Profile"
-    certificate_attributes:
-      - name: "issuer"
-        value: "CN=Company CA"
 ```
 
-## Configuration Options
+### Examples
 
-### Required Parameters
+#### Load with Original Locations
 
-- `--name`: Name of the HIP object (max 31 characters)
+```bash
+$ scm load objects hip-object --file hip-objects.yml
+---> 100%
+✓ Loaded HIP object: windows-security
+✓ Loaded HIP object: macos-security
+✓ Loaded HIP object: disk-encryption-windows
+✓ Loaded HIP object: corporate-domain
 
-### Optional Parameters
+Successfully loaded 4 out of 4 HIP objects from 'hip-objects.yml'
+```
 
-- `--description`: Detailed description (max 255 characters)
+#### Load with Folder Override
+
+```bash
+$ scm load objects hip-object --file hip-objects.yml --folder Austin
+---> 100%
+✓ Loaded HIP object: windows-security
+✓ Loaded HIP object: macos-security
+✓ Loaded HIP object: disk-encryption-windows
+✓ Loaded HIP object: corporate-domain
+
+Successfully loaded 4 out of 4 HIP objects from 'hip-objects.yml'
+```
+
+!!! note
+When using container override options (--folder, --snippet, --device), all HIP objects will be loaded into the specified container, ignoring the container specified in the YAML file.
+
+## Show HIP Object
+
+Display HIP objects.
+
+### Syntax
+
+```bash
+scm show objects hip-object [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                           | Required |
+| ---------------- | ------------------------------------- | -------- |
+| `--folder TEXT`  | Folder containing the HIP object      | Yes\*    |
+| `--snippet TEXT` | Snippet containing the HIP object     | Yes\*    |
+| `--device TEXT`  | Device containing the HIP object      | Yes\*    |
+| `--name TEXT`    | Name of the HIP object to show        | No\*\*   |
+| `--list`         | List all HIP objects in the container | No\*\*   |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+\*\* You must specify either --name or --list.
+
+### Examples
+
+#### Show Specific HIP Object
+
+```bash
+$ scm show objects hip-object --folder Texas --name windows-patches
+---> 100%
+HIP Object: windows-patches
+Location: Folder 'Texas'
+Description: Windows security patch compliance
+Patch Management:
+  Vendor: Microsoft Corporation
+  Product: Windows
+  Criteria: Is Installed
+  Missing Patches: check-not-exist
+ID: 123e4567-e89b-12d3-a456-426614174000
+```
+
+#### List All HIP Objects
+
+```bash
+$ scm show objects hip-object --folder Texas --list
+---> 100%
+HIP Objects in folder 'Texas':
+------------------------------------------------------------
+Name: windows-patches
+  Location: Folder 'Texas'
+  Description: Windows security patch compliance
+  Patch Management: Microsoft Corporation - Windows
+------------------------------------------------------------
+Name: disk-encryption
+  Location: Folder 'Texas'
+  Description: Disk encryption requirement
+  Disk Encryption: BitLocker - BitLocker Drive Encryption
+------------------------------------------------------------
+Name: corp-domain
+  Location: Folder 'Texas'
+  Description: Corporate domain membership
+  Host Info: Domain contains corp.company.com, OS: Microsoft
+------------------------------------------------------------
+```
+
+## Backup HIP Objects
+
+Backup all HIP objects from a specified location to a YAML file.
+
+### Syntax
+
+```bash
+scm backup objects hip-object [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                  | Required |
+| ---------------- | -------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder to backup HIP objects from            | No\*     |
+| `--snippet TEXT` | Snippet to backup HIP objects from           | No\*     |
+| `--device TEXT`  | Device to backup HIP objects from            | No\*     |
+| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+
+### Examples
+
+#### Backup from Folder
+
+```bash
+$ scm backup objects hip-object --folder Texas
+---> 100%
+Successfully backed up 12 HIP objects to hip-object_folder_texas_20240115_120530.yaml
+```
+
+#### Backup with Custom Filename
+
+```bash
+$ scm backup objects hip-object --folder Texas --file texas-hip-objects.yaml
+---> 100%
+Successfully backed up 12 HIP objects to texas-hip-objects.yaml
+```
+
+## Best Practices
+
+1. **Modular Design**: Create focused HIP objects for specific checks
+
+   - One for patches
+   - One for encryption
+   - One for domain membership
+
+2. **OS-Specific Objects**: Create separate objects for different operating systems
+
+3. **Naming Convention**: Use descriptive names indicating the check purpose
+
+4. **Documentation**: Always include descriptions explaining the compliance requirement
+
+5. **Testing**: Test HIP objects with sample endpoints before deployment
+
+6. **Use YAML for Bulk Operations**: For complex deployments, use YAML files
+
+7. **Organize by Container**: Keep HIP objects organized in appropriate folders, snippets, or devices
+
+## Additional Examples
+
+### Windows Compliance Checks
+
+```bash
+$ scm set objects hip-object \
+    --folder Shared \
+    --name windows-full \
+    --description "Full Windows compliance check" \
+    --host-info-os "Microsoft" \
+    --host-info-os-value "All" \
+    --patch-management-enabled \
+    --patch-management-missing-patches "check-not-exist" \
+    --patch-management-vendor-name "Microsoft Corporation" \
+    --patch-management-product-name "Windows" \
+    --disk-encryption-enabled \
+    --disk-encryption-vendor-name "Microsoft" \
+    --disk-encryption-product-name "BitLocker Drive Encryption" \
+    --disk-encryption-criteria-is-installed is
+---> 100%
+Created HIP object: windows-full in folder Shared
+```
+
+### Domain and OS Check
+
+```bash
+$ scm set objects hip-object \
+    --folder Texas \
+    --name corp-domain \
+    --description "Corporate domain membership" \
+    --host-info-domain contains \
+    --host-info-domain-value "corp.company.com" \
+    --host-info-os "Microsoft" \
+    --host-info-os-value "All"
+---> 100%
+Created HIP object: corp-domain in folder Texas
+```
+
+### Mobile Device Compliance
+
+```bash
+$ scm set objects hip-object \
+    --folder Shared \
+    --name mobile-secure \
+    --description "Mobile device security" \
+    --mobile-device-jailbroken false \
+    --mobile-device-disk-encrypted true \
+    --mobile-device-passcode-set true \
+    --mobile-device-last-checkin-time days \
+    --mobile-device-last-checkin-value 1
+---> 100%
+Created HIP object: mobile-secure in folder Shared
+```
+
+## Option Details
 
 ### Host Information Criteria
 
@@ -250,7 +402,7 @@ hip_objects:
 ### Patch Management
 
 - `--patch-management-enabled`: Enable patch management checks
-- `--patch-management-missing-patches`: Missing patches check (has-any, has-none, has-all)
+- `--patch-management-missing-patches`: Missing patches check (has-any, has-none, has-all, check-not-exist)
 - `--patch-management-severity`: Severity level (0-100000)
 - `--patch-management-patches`: Specific patches (comma-separated)
 - `--patch-management-vendor-name`: Vendor name
@@ -278,136 +430,28 @@ hip_objects:
 
 - `--certificate-profile`: Certificate profile name
 
-### Context Parameters
-
-Exactly one context parameter must be specified:
-
-- `--folder`: Folder name (e.g., "Texas", "Shared")
-- `--snippet`: Snippet name for Panorama
-- `--device`: Device name for NGFW
-
-## Examples
-
-### Windows Compliance Checks
-
-```bash
-# Comprehensive Windows security
-scm-cli set objects hip-object --folder Shared --name windows-full \
-  --description "Full Windows compliance check" \
-  --host-info-os "Microsoft" --host-info-os-value "All" \
-  --patch-management-enabled \
-  --patch-management-missing-patches "check-not-exist" \
-  --patch-management-vendor-name "Microsoft Corporation" \
-  --patch-management-product-name "Windows" \
-  --disk-encryption-enabled \
-  --disk-encryption-vendor-name "Microsoft" \
-  --disk-encryption-product-name "BitLocker Drive Encryption" \
-  --disk-encryption-criteria-is-installed is
-```
-
-### macOS Compliance Checks
-
-```bash
-# macOS with FileVault
-scm-cli set objects hip-object --folder Shared --name macos-security \
-  --description "macOS security requirements" \
-  --host-info-os "Apple" --host-info-os-value "All" \
-  --disk-encryption-enabled \
-  --disk-encryption-vendor-name "Apple" \
-  --disk-encryption-product-name "FileVault" \
-  --disk-encryption-criteria-is-installed is
-```
-
-### Domain Membership
-
-```bash
-# Corporate domain check
-scm-cli set objects hip-object --folder Shared --name domain-member \
-  --description "Must be domain member" \
-  --host-info-domain contains --host-info-domain-value "corp.company.com" \
-  --host-info-managed true
-```
-
-### Mobile Device Compliance
-
-```bash
-# Secure mobile device
-scm-cli set objects hip-object --folder Shared --name mobile-secure \
-  --description "Mobile device security" \
-  --mobile-device-jailbroken false \
-  --mobile-device-disk-encrypted true \
-  --mobile-device-passcode-set true \
-  --mobile-device-last-checkin-time days \
-  --mobile-device-last-checkin-value 1
-```
-
-### Network-Based Checks
-
-```bash
-# WiFi network check
-scm-cli set objects hip-object --folder Shared --name wifi-only \
-  --description "WiFi connections only" \
-  --network-info-type is --network-info-value wifi
-
-# Not on mobile network
-scm-cli set objects hip-object --folder Shared --name no-mobile \
-  --description "Prohibit mobile networks" \
-  --network-info-type is_not --network-info-value mobile
-```
-
 ## Integration with HIP Profiles
 
 HIP objects are used in HIP profiles for policy enforcement:
 
 ```bash
-# Create HIP profile using HIP objects
-scm-cli set objects hip-profile --folder Shared --name secure-endpoints \
-  --match '{"windows-patches": {"is": true}, "disk-encryption": {"is": true}}'
+$ scm set objects hip-profile \
+    --folder Shared \
+    --name secure-endpoints \
+    --match '{"windows-patches": {"is": true}, "disk-encryption": {"is": true}}'
+---> 100%
+Created HIP profile: secure-endpoints in folder Shared
 ```
-
-## Best Practices
-
-1. **Modular Design**: Create focused HIP objects for specific checks
-   - One for patches
-   - One for encryption
-   - One for domain membership
-
-2. **OS-Specific Objects**: Create separate objects for different operating systems
-
-3. **Naming Convention**: Use descriptive names indicating the check purpose
-
-4. **Documentation**: Always include descriptions explaining the compliance requirement
-
-5. **Testing**: Test HIP objects with sample endpoints before deployment
-
-## Criteria Logic
-
-### String Matching Criteria
-
-For domain, host name, client version, etc.:
-- `is`: Exact match
-- `is_not`: Not equal to
-- `contains`: Substring match
-
-### Boolean Criteria
-
-For managed state, encryption, etc.:
-- `true`: Condition must be true
-- `false`: Condition must be false
-
-### Missing Patches Criteria
-
-- `check-not-exist`: No critical patches missing
-- `has-any`: Has at least one specified patch
-- `has-none`: Has none of the specified patches
-- `has-all`: Has all specified patches
 
 ## Notes
 
-- HIP object names must be unique within a folder
+- HIP object names must be unique within a container
 - Maximum name length is 31 characters
 - Criteria pairs must be complete (e.g., domain + domain_value)
 - HIP objects define individual checks
 - HIP profiles combine multiple HIP objects
 - Some criteria are platform-specific
 - GlobalProtect collects HIP data from endpoints
+- String matching criteria: is (exact match), is_not (not equal), contains (substring)
+- Boolean criteria: true (must be true), false (must be false)
+- Missing patches criteria: check-not-exist, has-any, has-none, has-all

@@ -12,7 +12,7 @@ Most simple parameters are provided as strings:
 
 ```bash
 # Name, description, and folder are string parameters
-scm-cli set objects address --name "web-server" --description "Web server in DMZ" --folder "Shared"
+scm set objects address --name "web-server" --description "Web server in DMZ" --folder "Shared"
 ```
 
 ### Boolean Parameters
@@ -21,7 +21,7 @@ Boolean parameters can be specified as `true` or `false`:
 
 ```bash
 # Disabled is a boolean parameter
-scm-cli set security rule --name "Allow-Web" --folder "Shared" --disabled false
+scm set security rule --name "Allow-Web" --folder "Shared" --disabled false
 ```
 
 ### List Parameters
@@ -30,7 +30,7 @@ Lists can be provided as comma-separated values:
 
 ```bash
 # Tags is a list parameter
-scm-cli set objects address --name "web-server" --folder "Shared" --tags "web,dmz,production"
+scm set objects address --name "web-server" --folder "Shared" --tags "web,dmz,production"
 ```
 
 ### Object Parameters
