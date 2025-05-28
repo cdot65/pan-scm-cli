@@ -34,9 +34,9 @@ This module provides commands for managing various objects in Strata Cloud Manag
 
 Example:
 -------
-scm-cli set objects address --folder Texas --name test --ip-netmask 192.168.1.1/32
-scm-cli set objects address-group --folder Texas --name test --type static --members ["abc", "xyz"]
-scm-cli load objects application --file config/applications.yml
+scm set objects address --folder Texas --name test --ip-netmask 192.168.1.1/32
+scm set objects address-group --folder Texas --name test --type static --members ["abc", "xyz"]
+scm load objects application --file config/applications.yml
 """
 ```
 
@@ -205,16 +205,16 @@ def backup_object_type(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects {object-type} --folder Austin
+        scm backup objects {object-type} --folder Austin
 
         # Backup from a snippet
-        scm-cli backup objects {object-type} --snippet DNS-Best-Practice
+        scm backup objects {object-type} --snippet DNS-Best-Practice
 
         # Backup from a device
-        scm-cli backup objects {object-type} --device austin-01
+        scm backup objects {object-type} --device austin-01
 
         # Backup with custom filename
-        scm-cli backup objects {object-type} --folder Austin --file my-backup.yaml
+        scm backup objects {object-type} --folder Austin --file my-backup.yaml
 
     """
     try:
@@ -270,7 +270,7 @@ def delete_object_type(
 
     Example:
     -------
-    scm-cli delete objects {object-type} --folder Texas --name example
+    scm delete objects {object-type} --folder Texas --name example
 
     """
     try:
@@ -316,16 +316,16 @@ def load_object_type(
     Examples
     --------
         # Load from file with original locations
-        scm-cli load objects {object-type} --file config/{object_type}s.yml
+        scm load objects {object-type} --file config/{object_type}s.yml
 
         # Load with folder override
-        scm-cli load objects {object-type} --file config/{object_type}s.yml --folder Texas
+        scm load objects {object-type} --file config/{object_type}s.yml --folder Texas
 
         # Load with snippet override
-        scm-cli load objects {object-type} --file config/{object_type}s.yml --snippet DNS-Best-Practice
+        scm load objects {object-type} --file config/{object_type}s.yml --snippet DNS-Best-Practice
 
         # Dry run to preview changes
-        scm-cli load objects {object-type} --file config/{object_type}s.yml --dry-run
+        scm load objects {object-type} --file config/{object_type}s.yml --dry-run
 
     """
     try:
@@ -430,7 +430,7 @@ def set_object_type(
 
     Example:
     -------
-        scm-cli set objects {object-type} \
+        scm set objects {object-type} \
         --folder Texas \
         --name example \
         --field value
@@ -472,10 +472,10 @@ def show_object_type(
     Examples
     --------
         # List all {object_type}s in a folder
-        scm-cli show objects {object-type} --folder Texas --list
+        scm show objects {object-type} --folder Texas --list
 
         # Show a specific {object_type} by name
-        scm-cli show objects {object-type} --folder Texas --name example
+        scm show objects {object-type} --folder Texas --name example
 
     """
     try:
@@ -562,15 +562,15 @@ typer.echo(f"Error {action} {object_type}: {str(e)}", err=True)
 
 Example:
 -------
-scm-cli command subcommand --option value
+scm command subcommand --option value
 
 Examples
 --------
     # Example 1 description
-    scm-cli command subcommand --option1 value1
+    scm command subcommand --option1 value1
 
     # Example 2 description
-    scm-cli command subcommand --option2 value2
+    scm command subcommand --option2 value2
 
 """
 ```
