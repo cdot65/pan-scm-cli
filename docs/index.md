@@ -11,35 +11,35 @@ hide:
     <a href="https://paloaltonetworks.com"><img src="images/logo.svg" alt="PaloAltoNetworks"></a>
 </p>
 <p align="center">
-    <em><code>pan-scm</code>: Command-line interface for managing Palo Alto Networks Strata Cloud Manager configurations</em>
+    <em><code>pan-scm-cli</code>: Command-line interface for managing Palo Alto Networks Strata Cloud Manager configurations</em>
 </p>
 <p align="center">
-<a href="https://github.com/cdot65/pan-scm/graphs/contributors" target="_blank">
-    <img src="https://img.shields.io/github/contributors/cdot65/pan-scm.svg?style=for-the-badge" alt="Contributors">
+<a href="https://github.com/cdot65/pan-scm-cli/graphs/contributors" target="_blank">
+    <img src="https://img.shields.io/github/contributors/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="Contributors">
 </a>
-<a href="https://github.com/cdot65/pan-scm/network/members" target="_blank">
-    <img src="https://img.shields.io/github/forks/cdot65/pan-scm.svg?style=for-the-badge" alt="Forks">
+<a href="https://github.com/cdot65/pan-scm-cli/network/members" target="_blank">
+    <img src="https://img.shields.io/github/forks/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="Forks">
 </a>
-<a href="https://github.com/cdot65/pan-scm/stargazers" target="_blank">
-    <img src="https://img.shields.io/github/stars/cdot65/pan-scm.svg?style=for-the-badge" alt="Stars">
+<a href="https://github.com/cdot65/pan-scm-cli/stargazers" target="_blank">
+    <img src="https://img.shields.io/github/stars/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="Stars">
 </a>
-<a href="https://github.com/cdot65/pan-scm/issues" target="_blank">
-    <img src="https://img.shields.io/github/issues/cdot65/pan-scm.svg?style=for-the-badge" alt="Issues">
+<a href="https://github.com/cdot65/pan-scm-cli/issues" target="_blank">
+    <img src="https://img.shields.io/github/issues/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="Issues">
 </a>
-<a href="https://github.com/cdot65/pan-scm/blob/main/LICENSE" target="_blank">
-    <img src="https://img.shields.io/github/license/cdot65/pan-scm.svg?style=for-the-badge" alt="License">
+<a href="https://github.com/cdot65/pan-scm-cli/blob/main/LICENSE" target="_blank">
+    <img src="https://img.shields.io/github/license/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="License">
 </a>
 </p>
 
 ---
 
-**Documentation**: <a href="https://cdot65.github.io/pan-scm/" target="_blank">https://cdot65.github.io/pan-scm/</a>
+**Documentation**: <a href="https://cdot65.github.io/pan-scm-cli/" target="_blank">https://cdot65.github.io/pan-scm-cli/</a>
 
-**Source Code**: <a href="https://github.com/cdot65/pan-scm" target="_blank">https://github.com/cdot65/pan-scm</a>
+**Source Code**: <a href="https://github.com/cdot65/pan-scm-cli" target="_blank">https://github.com/cdot65/pan-scm-cli</a>
 
 ---
 
-`pan-scm` is a command-line interface tool for managing Palo Alto Networks Strata Cloud Manager configurations.
+`pan-scm-cli` is a command-line interface tool for managing Palo Alto Networks Strata Cloud Manager configurations.
 
 ## Installation
 
@@ -48,9 +48,9 @@ hide:
 - Python 3.10 or higher
 
 ```bash
-$ pip install pan-scm
+$ pip install pan-scm-cli
 ---> 100%
-Successfully installed pan-scm
+Successfully installed pan-scm-cli
 ```
 
 ## Key Features
@@ -108,7 +108,7 @@ Successfully applied 3 address objects
 
 ## Command Structure
 
-Commands in pan-scm follow a consistent structure:
+Commands in pan-scm-cli follow a consistent structure:
 
 ```bash
 scm <action> <resource-type> <resource> [options]
@@ -123,7 +123,7 @@ Where:
 
 ## Getting Started
 
-To begin using pan-scm, check out the [Getting Started Guide](about/getting-started.md) which covers installation, configuration, and basic usage examples.
+To begin using pan-scm-cli, check out the [Getting Started Guide](about/getting-started.md) which covers installation, configuration, and basic usage examples.
 
 For detailed information about each command, refer to the [CLI Reference](cli/index.md) section.
 

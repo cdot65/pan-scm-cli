@@ -150,4 +150,4 @@ ADDRESSES=$(scm set objects address --list --folder Shared --output json | jq '.
 ## Next Steps
 
 - Explore the [CLI Reference](../cli/index.md) for detailed information on all available commands
-- Check the [GitHub repository](https://github.com/cdot65/pan-scm) for examples and updates
+- Check the [GitHub repository](https://github.com/cdot65/pan-scm-cli) for examples and updates
