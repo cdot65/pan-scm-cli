@@ -251,6 +251,10 @@ The project has successfully implemented:
 - [x] Add field mapping from SDK to CLI format
 - [x] Implement proper file naming conventions
 - [x] Exclude system fields and None values from backups
+- [x] Standardize backup command parameters (folder/snippet/device/file) across all commands
+- [x] Update all SDK client list methods to support folder/snippet/device parameters
+- [x] Implement kwargs pattern for cleaner API calls in backup commands
+- [x] Add location validation and default filename generation helpers
 
 ## Phase 2: Update Command Implementation
 

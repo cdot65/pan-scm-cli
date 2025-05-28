@@ -1650,3 +1650,78 @@ A comprehensive command styling guide has been created to ensure consistency acr
 2. **Maintainability**: Easy to add new object types following the guide
 3. **Readability**: Developers can quickly understand any command module
 4. **User Experience**: Consistent CLI behavior across all commands
+
+## 30. Backup Command Standardization
+
+### 30.1 Problem Statement
+
+The initial backup command implementation only supported folder-based backups. With the growing need to support multiple container types (folder, snippet, device) across SCM, the backup commands needed to be standardized to provide consistent parameter handling and flexibility.
+
+### 30.2 Solution: Standardized Backup Parameters
+
+All backup commands have been updated to support a consistent set of parameters:
+
+#### 30.2.1 Standard Parameters
+- **--folder**: Backup from a specific folder location
+- **--snippet**: Backup from a snippet (code template) location
+- **--device**: Backup from a device-specific location
+- **--file**: Custom output filename (optional, defaults to generated name)
+
+#### 30.2.2 Parameter Validation
+- Exactly one location parameter (folder, snippet, or device) must be specified
+- Clear error messages guide users when parameters are missing or conflicting
+- Validation logic is centralized in helper functions for consistency
+
+### 30.3 Technical Implementation Details
+
+#### 30.3.1 Helper Functions
+```python
+def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
+    """Validate that exactly one location parameter is provided."""
+    
+def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
+    """Generate default backup filename with timestamp."""
+```
+
+#### 30.3.2 SDK Client Updates
+All list methods in `sdk_client.py` now accept optional folder, snippet, and device parameters:
+```python
+def list_addresses(
+    self,
+    folder: str | None = None,
+    snippet: str | None = None,
+    device: str | None = None,
+    exact_match: bool = False,
+) -> list[dict[str, Any]]:
+```
+
+#### 30.3.3 Kwargs Pattern
+Backup commands use the kwargs pattern for cleaner API calls:
+```python
+kwargs = {location_type: location_value}
+items = scm_client.list_items(**kwargs, exact_match=True)
+```
+
+### 30.4 Benefits
+
+1. **Flexibility**: Support for all SCM container types (folder, snippet, device)
+2. **Consistency**: Same parameter pattern across all backup commands
+3. **User-Friendly**: Clear validation messages and sensible defaults
+4. **Future-Proof**: Easy to add new location types without changing command signatures
+5. **Clean API**: Kwargs pattern only passes necessary parameters
+
+### 30.5 Usage Examples
+
+```bash
+# Backup from different container types
+scm-cli backup objects address --folder Austin
+scm-cli backup objects tag --snippet DNS-Best-Practice
+scm-cli backup objects service --device austin-01
+
+# Custom output filename
+scm-cli backup objects address-group --folder Texas --file my-groups.yaml
+
+# Automatic filename generation
+# Creates: address_folder_austin_20240115_143022.yaml
+scm-cli backup objects address --folder Austin
+```

@@ -541,77 +541,53 @@ See the `examples/` directory for more bulk operation templates, including:
 
 #### Backup and Restore Operations
 
-Export existing configurations to YAML files:
+Export existing configurations to YAML files. All backup commands support multiple container types (folder, snippet, device) with automatic filename generation:
 
 ```bash
-# Backup address objects from a specific folder
+# Backup from different container types
 scm-cli backup objects address --folder Austin
-# Creates: address-austin.yaml
+# Creates: address_folder_austin_20240115_143022.yaml
 
-# Backup address groups
+scm-cli backup objects tag --snippet DNS-Best-Practice  
+# Creates: tag_snippet_dns-best-practice_20240115_143022.yaml
+
+scm-cli backup objects service --device austin-01
+# Creates: service_device_austin-01_20240115_143022.yaml
+
+# Custom output filename
+scm-cli backup objects address-group --folder Texas --file my-groups.yaml
+# Creates: my-groups.yaml
+
+# All object types support folder/snippet/device parameters
+scm-cli backup objects address --folder Austin
 scm-cli backup objects address-group --folder Texas
-# Creates: address-group-texas.yaml
+scm-cli backup objects application --folder Texas
+scm-cli backup objects application-group --folder Texas
+scm-cli backup objects application-filter --folder Texas
+scm-cli backup objects dynamic-user-group --folder Texas
+scm-cli backup objects external-dynamic-list --folder Texas
+scm-cli backup objects hip-object --folder Texas
+scm-cli backup objects hip-profile --folder Texas
+scm-cli backup objects http-server-profile --folder Texas
+scm-cli backup objects service --folder Texas
+scm-cli backup objects service-group --folder Texas
+scm-cli backup objects syslog-server-profile --folder Texas
+scm-cli backup objects tag --folder Texas
 
-# Backup security zones
+# Network and security backups also support all container types
 scm-cli backup network security-zone --folder ngfw-shared
-# Creates: security-zone-ngfw-shared.yaml
+scm-cli backup network security-zone --snippet DNS-Best-Practice
+scm-cli backup network security-zone --device austin-01
 
-# Backup security rules
 scm-cli backup security rule --folder Austin --rulebase pre
-# Creates: rule-austin-pre.yaml
+scm-cli backup security rule --snippet DNS-Best-Practice --rulebase post
 
-# Backup bandwidth allocations
+# Bandwidth allocations are global (no container parameter needed)
 scm-cli backup deployment bandwidth-allocation
 # Creates: bandwidth-allocations.yaml
-
-# Backup applications
-scm-cli backup objects application --folder Texas
-# Creates: application-texas.yaml
-
-# Backup application groups
-scm-cli backup objects application-group --folder Texas
-# Creates: application-group-texas.yaml
-
-# Backup application filters
-scm-cli backup objects application-filter --folder Texas
-# Creates: application-filter-texas.yaml
-
-# Backup dynamic user groups
-scm-cli backup objects dynamic-user-group --folder Texas
-# Creates: dynamic-user-group-texas.yaml
-
-# Backup external dynamic lists
-scm-cli backup objects external-dynamic-list --folder Texas
-# Creates: external-dynamic-list-texas.yaml
-
-# Backup HIP objects
-scm-cli backup objects hip-object --folder Texas
-# Creates: hip-object-texas.yaml
-
-# Backup HIP profiles
-scm-cli backup objects hip-profile --folder Texas
-# Creates: hip-profile-texas.yaml
-
-# Backup HTTP server profiles
-scm-cli backup objects http-server-profile --folder Texas
-# Creates: http-server-profile-texas.yaml
-
-# Backup services
-scm-cli backup objects service --folder Texas
-# Creates: service-texas.yaml
-
-# Backup service groups
-scm-cli backup objects service-group --folder Texas
-# Creates: service-group-texas.yaml
-
-# Backup syslog server profiles
-scm-cli backup objects syslog-server-profile --folder Texas
-# Creates: syslog-server-profile-texas.yaml
-
-# Backup tags
-scm-cli backup objects tag --folder Texas
-# Creates: tag-texas.yaml
 ```
+
+Note: Not all container types are supported by the SDK for all object types. When using snippet or device parameters, the CLI will show an appropriate error message if the SDK doesn't support that container type yet.
 
 Restore configurations from backup files:
 
