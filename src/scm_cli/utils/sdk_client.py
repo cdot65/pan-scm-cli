@@ -4058,9 +4058,7 @@ class SCMClient:
         try:
             # Check if snippet or device is supported
             if snippet or device:
-                raise NotImplementedError(
-                    f"Listing security zones by {'snippet' if snippet else 'device'} is not yet supported by the SDK"
-                )
+                raise NotImplementedError(f"Listing security zones by {'snippet' if snippet else 'device'} is not yet supported by the SDK")
 
             # List security zones using the SDK
             results = self.client.security_zone.list(**container_kwargs, exact_match=exact_match)
@@ -4353,9 +4351,7 @@ class SCMClient:
         try:
             # Check if snippet or device is supported
             if snippet or device:
-                raise NotImplementedError(
-                    f"Listing security rules by {'snippet' if snippet else 'device'} is not yet supported by the SDK"
-                )
+                raise NotImplementedError(f"Listing security rules by {'snippet' if snippet else 'device'} is not yet supported by the SDK")
 
             # List security rules using the SDK
             results = self.client.security_rule.list(**container_kwargs, rulebase=rulebase, exact_match=exact_match)

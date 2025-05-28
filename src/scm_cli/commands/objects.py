@@ -418,13 +418,9 @@ def backup_address_group(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK, but structure allows for future expansion
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for address-group backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all address groups in the location with exact_match=True
-        groups = scm_client.list_address_groups(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        groups = scm_client.list_address_groups(**kwargs, exact_match=True)
 
         if not groups:
             typer.echo(f"No address groups found in {location_type} '{location_value}'")
@@ -738,13 +734,9 @@ def backup_address(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for address backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all addresses in the location with exact_match=True
-        addresses = scm_client.list_addresses(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        addresses = scm_client.list_addresses(**kwargs, exact_match=True)
 
         if not addresses:
             typer.echo(f"No addresses found in {location_type} '{location_value}'")
@@ -1050,13 +1042,9 @@ def backup_application(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for application backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all applications in the location with exact_match=True
-        applications = scm_client.list_applications(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        applications = scm_client.list_applications(**kwargs, exact_match=True)
 
         if not applications:
             typer.echo(f"No applications found in {location_type} '{location_value}'")
@@ -1417,13 +1405,9 @@ def backup_application_group(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for application-group backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all application groups in the location with exact_match=True
-        groups = scm_client.list_application_groups(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        groups = scm_client.list_application_groups(**kwargs, exact_match=True)
 
         if not groups:
             typer.echo(f"No application groups found in {location_type} '{location_value}'")
@@ -1681,13 +1665,9 @@ def backup_application_filter(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for application-filter backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all application filters in the location with exact_match=True
-        filters = scm_client.list_application_filters(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        filters = scm_client.list_application_filters(**kwargs, exact_match=True)
 
         if not filters:
             typer.echo(f"No application filters found in {location_type} '{location_value}'")
@@ -2039,13 +2019,9 @@ def backup_dynamic_user_group(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for dynamic-user-group backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all dynamic user groups in the location with exact_match=True
-        groups = scm_client.list_dynamic_user_groups(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        groups = scm_client.list_dynamic_user_groups(**kwargs, exact_match=True)
 
         if not groups:
             typer.echo(f"No dynamic user groups found in {location_type} '{location_value}'")
@@ -2316,13 +2292,9 @@ def backup_external_dynamic_list(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for external-dynamic-list backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all external dynamic lists in the location with exact_match=True
-        edls = scm_client.list_external_dynamic_lists(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        edls = scm_client.list_external_dynamic_lists(**kwargs, exact_match=True)
 
         if not edls:
             typer.echo(f"No external dynamic lists found in {location_type} '{location_value}'")
@@ -2710,13 +2682,9 @@ def backup_hip_object(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for hip-object backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all HIP objects in the location with exact_match=True
-        hip_objects = scm_client.list_hip_objects(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        hip_objects = scm_client.list_hip_objects(**kwargs, exact_match=True)
 
         if not hip_objects:
             typer.echo(f"No HIP objects found in {location_type} '{location_value}'")
@@ -3341,14 +3309,10 @@ def backup_hip_profile(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for hip-profile backup", err=True)
-            raise typer.Exit(code=1)
-
         # Get all HIP profiles from the location
         typer.echo(f"Fetching HIP profiles from {location_type} '{location_value}'...")
-        hip_profiles = scm_client.list_hip_profiles(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        hip_profiles = scm_client.list_hip_profiles(**kwargs, exact_match=True)
 
         if not hip_profiles:
             typer.echo(f"No HIP profiles found in {location_type} '{location_value}'")
@@ -3605,14 +3569,10 @@ def backup_http_server_profile(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for http-server-profile backup", err=True)
-            raise typer.Exit(code=1)
-
         # Get all HTTP server profiles from the location
         typer.echo(f"Fetching HTTP server profiles from {location_type} '{location_value}'...")
-        http_server_profiles = scm_client.list_http_server_profiles(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        http_server_profiles = scm_client.list_http_server_profiles(**kwargs, exact_match=True)
 
         if not http_server_profiles:
             typer.echo(f"No HTTP server profiles found in {location_type} '{location_value}'")
@@ -3943,13 +3903,9 @@ def backup_log_forwarding_profile(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for log-forwarding-profile backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all log forwarding profiles in the location (exact match)
-        log_forwarding_profiles = scm_client.list_log_forwarding_profiles(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        log_forwarding_profiles = scm_client.list_log_forwarding_profiles(**kwargs, exact_match=True)
 
         if not log_forwarding_profiles:
             typer.echo(f"No log forwarding profiles found in {location_type} '{location_value}'")
@@ -4299,13 +4255,9 @@ def backup_service(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for service backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all services in the location (exact match)
-        services = scm_client.list_services(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        services = scm_client.list_services(**kwargs, exact_match=True)
 
         if not services:
             typer.echo(f"No services found in {location_type} '{location_value}'")
@@ -4688,13 +4640,9 @@ def backup_service_group(
         # Validate location parameters
         location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # Currently only folder is supported by SDK
-        if location_type != "folder":
-            typer.echo(f"Error: {location_type} is not yet supported for service-group backup", err=True)
-            raise typer.Exit(code=1)
-
         # List all service groups in the location (exact match)
-        service_groups = scm_client.list_service_groups(folder=location_value, exact_match=True)
+        kwargs = {location_type: location_value}
+        service_groups = scm_client.list_service_groups(**kwargs, exact_match=True)
 
         if not service_groups:
             typer.echo(f"No service groups found in {location_type} '{location_value}'")
