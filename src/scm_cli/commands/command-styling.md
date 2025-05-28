@@ -587,7 +587,7 @@ Examples
 
 ### 2. List Output Format
 
-```
+```bash
 {Object_type}s in folder '{folder}':
 ------------------------------------------------------------
 Name: {name}
@@ -600,7 +600,7 @@ Name: {name}
 
 ### 3. Detail Output Format
 
-```
+```bash
 {Object_type}: {name}
 Location: Folder '{folder}'
 Field1: {value1}
