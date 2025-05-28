@@ -1,14 +1,14 @@
 # Strata Cloud Manager CLI
 
-![Banner Image](https://raw.githubusercontent.com/cdot65/pan-scm/main/docs/images/logo.svg)
-[![Build Status](https://github.com/cdot65/pan-scm/actions/workflows/code-quality.yml/badge.svg)](https://github.com/cdot65/pan-scm/actions/workflows/code-quality.yml)
-[![PyPI version](https://badge.fury.io/py/pan-scm.svg)](https://badge.fury.io/py/pan-scm)
-[![Python versions](https://img.shields.io/pypi/pyversions/pan-scm.svg)](https://pypi.org/project/pan-scm/)
-[![License](https://img.shields.io/github/license/cdot65/pan-scm.svg)](https://github.com/cdot65/pan-scm/blob/main/LICENSE)
+![Banner Image](https://raw.githubusercontent.com/cdot65/pan-scm-cli/main/docs/images/logo.svg)
+[![Build Status](https://github.com/cdot65/pan-scm-cli/actions/workflows/code-quality.yml/badge.svg)](https://github.com/cdot65/pan-scm-cli/actions/workflows/code-quality.yml)
+[![PyPI version](https://badge.fury.io/py/pan-scm-cli.svg)](https://badge.fury.io/py/pan-scm-cli)
+[![Python versions](https://img.shields.io/pypi/pyversions/pan-scm-cli.svg)](https://pypi.org/project/pan-scm-cli/)
+[![License](https://img.shields.io/github/license/cdot65/pan-scm-cli.svg)](https://github.com/cdot65/pan-scm-cli/blob/main/LICENSE)
 
 A powerful command-line interface for managing Palo Alto Networks Strata Cloud Manager configurations. Built on the [pan-scm-sdk](https://github.com/cdot65/pan-scm-sdk), this tool provides network engineers with a consistent, user-friendly CLI experience for automating and managing SCM resources.
 
-> **NOTE**: Please refer to the [GitHub Pages documentation site](https://cdot65.github.io/pan-scm/) for all
+> **NOTE**: Please refer to the [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/) for all
 > examples
 
 ## Table of Contents
@@ -30,7 +30,20 @@ A powerful command-line interface for managing Palo Alto Networks Strata Cloud M
       - [Managing Security Zones](#managing-security-zones)
       - [Managing Security Rules](#managing-security-rules)
       - [Managing Bandwidth Allocations](#managing-bandwidth-allocations)
+      - [Managing Applications](#managing-applications)
+      - [Managing Application Groups](#managing-application-groups)
+      - [Managing Application Filters](#managing-application-filters)
+      - [Managing Dynamic User Groups](#managing-dynamic-user-groups)
+      - [Managing External Dynamic Lists](#managing-external-dynamic-lists)
+      - [Managing HIP Objects](#managing-hip-objects)
+      - [Managing HIP Profiles](#managing-hip-profiles)
+      - [Managing HTTP Server Profiles](#managing-http-server-profiles)
+      - [Managing Services](#managing-services)
+      - [Managing Service Groups](#managing-service-groups)
+      - [Managing Syslog Server Profiles](#managing-syslog-server-profiles)
+      - [Managing Tags](#managing-tags)
       - [Bulk Operations](#bulk-operations)
+      - [Backup and Restore Operations](#backup-and-restore-operations)
   - [Development](#development)
     - [Setup](#setup)
     - [Code Quality](#code-quality)
@@ -87,7 +100,7 @@ A powerful command-line interface for managing Palo Alto Networks Strata Cloud M
 Install the package via pip:
 
 ```bash
-pip install pan-scm
+pip install pan-scm-cli
 ```
 
 ## Usage
@@ -646,8 +659,8 @@ The backup feature uses the `exact_match=True` parameter to only export objects 
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/cdot65/pan-scm.git
-   cd pan-scm
+   git clone https://github.com/cdot65/pan-scm-cli.git
+   cd pan-scm-cli
    ```
 
 2. Install dependencies and pre-commit hooks:
@@ -728,9 +741,9 @@ This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICEN
 
 ## Support
 
-- **Documentation**: [GitHub Pages site](https://cdot65.github.io/pan-scm/)
-- **Issues**: [GitHub Issues](https://github.com/cdot65/pan-scm/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/cdot65/pan-scm/discussions)
+- **Documentation**: [GitHub Pages site](https://cdot65.github.io/pan-scm-cli/)
+- **Issues**: [GitHub Issues](https://github.com/cdot65/pan-scm-cli/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/cdot65/pan-scm-cli/discussions)
 - **Examples**: See the `examples/` directory for configuration templates
 
 ## Project Status
@@ -745,4 +758,4 @@ This project is actively maintained and uses:
 
 ---
 
-_Detailed documentation is available on our [GitHub Pages documentation site](https://cdot65.github.io/pan-scm/)._
+_Detailed documentation is available on our [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/)._

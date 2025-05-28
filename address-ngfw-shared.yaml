@@ -1,7 +1,0 @@
-addresses:
-  - name: Cloudflare DNS
-    ip_netmask: 1.1.1.1
-    description: Primary user DNS server
-    tag:
-      - Services
-    folder: ngfw-shared
