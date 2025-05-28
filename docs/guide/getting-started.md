@@ -7,13 +7,13 @@ This guide provides a quick introduction to using the Strata Cloud Manager CLI.
 Install the CLI using pip:
 
 ```bash
-pip install pan-scm
+pip install pan-scm-cli
 ```
 
 Or with poetry:
 
 ```bash
-poetry add pan-scm
+poetry add pan-scm-cli
 ```
 
 ## Authentication
@@ -34,11 +34,13 @@ The SCM CLI uses dynaconf to manage authentication credentials. You have the fol
 For local development, follow these steps:
 
 1. Copy the example configuration file to create a local secrets file:
+
    ```bash
    cp example-config.yaml .secrets.yaml
    ```
 
 2. Edit the `.secrets.yaml` file with your actual credentials:
+
    ```yaml
    default:
      scm_client_id: "your_client_id"
@@ -47,6 +49,7 @@ For local development, follow these steps:
    ```
 
 3. Secure the file with restrictive permissions:
+
    ```bash
    # On Linux/macOS
    chmod 600 .secrets.yaml
