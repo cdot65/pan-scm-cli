@@ -20,6 +20,29 @@ Successfully installed pan-scm-cli
 
 The SCM CLI uses dynaconf to manage authentication credentials. You have the following options for authentication:
 
+---
+
+### Credential Precedence: How SCM CLI Loads Credentials
+
+The SCM CLI loads authentication credentials in the following order (highest to lowest priority):
+
+1. **Environment Variables** (`SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`)
+2. **Local Config Files** in the current working directory (`settings.yaml`, `.secrets.yaml`)
+3. **User Config File** at `~/.scm-cli/config.yaml`
+
+> **Note:**
+>
+> - If a credential is set in multiple places, the one with the highest priority is used.
+> - Environment variables always override config file values.
+> - If a value is missing from higher-priority sources, the CLI will look for it in the next source.
+
+**Example:**
+
+- If you set `SCM_CLIENT_ID` as an environment variable, it will be used even if your `.secrets.yaml` or `~/.scm-cli/config.yaml` files have different values.
+- If `.secrets.yaml` is present in your current directory, it will override `~/.scm-cli/config.yaml` for any values it contains.
+
+---
+
 ### Option 1: Using Local .secrets.yaml (Recommended for Development)
 
 > **⚠️ SECURITY WARNING**
@@ -44,6 +67,8 @@ $ nano .secrets.yaml
 $ chmod 600 .secrets.yaml
 ```
 
+> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
+
 Your `.secrets.yaml` file should look like this:
 
 ```yaml
@@ -62,10 +87,12 @@ Run the CLI from the same directory where `.secrets.yaml` is located. Dynaconf w
 For production use or scripting, set environment variables:
 
 ```bash
-$ export SCM_CLIENT_ID="your_client_id"
-$ export SCM_CLIENT_SECRET="your_client_secret"
-$ export SCM_TSG_ID="your_tsg_id"
+export SCM_CLIENT_ID="your_client_id"
+export SCM_CLIENT_SECRET="your_client_secret"
+export SCM_TSG_ID="your_tsg_id"
 ```
+
+> **Note**: Environment variables are not included in version control. Each developer should set their own environment variables.
 
 These environment variables will be automatically detected by dynaconf and used for authentication.
 

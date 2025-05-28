@@ -297,29 +297,6 @@ $ scm backup objects log-forwarding-profile --folder Texas --file texas-log-prof
 Successfully backed up 10 log forwarding profiles to texas-log-profiles.yaml
 ```
 
-        log_type: tunnel
-        filter: "All Logs"
-        syslog_profiles:
-          - network-syslog
-
-- name: threat-intelligence
-  description: "Threat intelligence integration"
-  enhanced_application_logging: true
-  match_list:
-  - name: malware
-    log_type: threat
-    filter: "( subtype eq virus ) or ( subtype eq spyware )"
-    http_profiles:
-    - threat-intel-api
-      quarantine: true
-  - name: dns-threats
-    log_type: dns-security
-    filter: "All Logs"
-    http_profiles:
-    - threat-intel-api
-
-````
-
 ## Configuration Options
 
 ### Required Parameters
@@ -419,7 +396,7 @@ Exactly one context parameter must be specified:
 
 # Complex filter
 "( zone.src eq Trust ) and ( app eq ssl ) and ( bytes geq 1000000 )"
-````
+```
 
 ## Examples
 

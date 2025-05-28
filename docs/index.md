@@ -68,9 +68,9 @@ Successfully installed pan-scm
 Setting up your authentication credentials:
 
 ```bash
-$ export SCM_CLIENT_ID="your_client_id"
-$ export SCM_CLIENT_SECRET="your_client_secret"
-$ export SCM_TSG_ID="your_tsg_id"
+export SCM_CLIENT_ID="your_client_id"
+export SCM_CLIENT_SECRET="your_client_secret"
+export SCM_TSG_ID="your_tsg_id"
 ```
 
 ### Example: Creating an Address Object
