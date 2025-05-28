@@ -1,132 +1,132 @@
-# Application Group Management
+# Application Group Objects
 
-This section covers the commands for managing application group objects in Strata Cloud Manager.
+Application group objects provide a way to logically group multiple applications together for use in security policies in Strata Cloud Manager. The `scm` CLI provides commands to create, update, delete, show, backup, and load application group objects.
 
 ## Overview
 
-Application groups provide a way to logically group multiple applications together for use in security policies. The `application-group` commands allow you to:
+Application groups allow you to:
 
 - Create and manage groups of applications
 - Reference both built-in and custom applications
 - Use application groups in security rules
 - Apply tags for organization
 
-## Commands
+## Set Application Group
 
-### Creating/Updating Application Groups
+Create or update an application group object.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli set objects application-group --folder Texas --name business-apps \
-  --members "salesforce,office365,zoom,custom-crm" \
-  --description "Business critical applications"
-<span style="color: green;">✓</span> Application group 'business-apps' created successfully
+scm set objects application-group [OPTIONS]
 ```
 
-</div>
+### Options
 
-With tags:
+| Option               | Description                               | Required |
+| -------------------- | ----------------------------------------- | -------- |
+| `--folder TEXT`      | Folder for the application group object   | Yes\*    |
+| `--snippet TEXT`     | Snippet for the application group object  | Yes\*    |
+| `--device TEXT`      | Device for the application group object   | Yes\*    |
+| `--name TEXT`        | Name of the application group             | Yes      |
+| `--members LIST`     | Comma-separated list of application names | Yes      |
+| `--description TEXT` | Description of the group                  | No       |
+| `--tag LIST`         | Tags for categorization                   | No       |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Examples
+
+#### Create a Basic Application Group
+
 ```bash
-$ scm-cli set objects application-group --folder Texas --name collaboration-tools \
-  --members "slack,ms-teams,zoom,webex" \
-  --tag "collaboration,approved" \
-  --description "Approved collaboration applications"
-<span style="color: green;">✓</span> Application group 'collaboration-tools' created successfully
+$ scm set objects application-group \
+    --folder Texas \
+    --name business-apps \
+    --members "salesforce,office365,zoom,custom-crm" \
+    --description "Business critical applications"
+---> 100%
+Created application group: business-apps in folder Texas
 ```
 
-</div>
+#### Create an Application Group with Tags
 
-### Listing Application Groups
-
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli show objects application-group --folder Texas --list
-Application groups in folder 'Texas':
-- business-apps
-- collaboration-tools
-- file-sharing-apps
-- social-media
+$ scm set objects application-group \
+    --folder Texas \
+    --name collaboration-tools \
+    --members "slack,ms-teams,zoom,webex" \
+    --tag "collaboration,approved" \
+    --description "Approved collaboration applications"
+---> 100%
+Created application group: collaboration-tools in folder Texas
 ```
 
-</div>
+## Delete Application Group
 
-### Showing Application Group Details
+Delete an application group object from SCM.
 
-<div class="termy">
+### Syntax
 
-<!-- termynal -->
 ```bash
-$ scm-cli show objects application-group --folder Texas --name business-apps
-Application Group: business-apps
-  Members: salesforce, office365, zoom, custom-crm
-  Description: Business critical applications
-  Tags: None
-  Folder: Texas
+scm delete objects application-group [OPTIONS]
 ```
 
-</div>
+### Options
 
-### Deleting Application Groups
+| Option           | Description                                     | Required |
+| ---------------- | ----------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder containing the application group object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the application group object | Yes\*    |
+| `--device TEXT`  | Device containing the application group object  | Yes\*    |
+| `--name TEXT`    | Name of the application group object to delete  | Yes      |
 
-<div class="termy">
+\* You must specify exactly one of --folder, --snippet, or --device.
 
-<!-- termynal -->
+### Example
+
 ```bash
-$ scm-cli delete objects application-group --folder Texas --name business-apps
-<span style="color: green;">✓</span> Application group 'business-apps' deleted successfully
+$ scm delete objects application-group --folder Texas --name business-apps
+---> 100%
+Deleted application group: business-apps from folder Texas
 ```
 
-</div>
+## Load Application Groups
 
-### Bulk Operations
+Load multiple application group objects from a YAML file.
 
-Load multiple application groups from a YAML file:
+### Syntax
 
-<div class="termy">
-
-<!-- termynal -->
 ```bash
-$ scm-cli load objects application-group --folder Texas --file app-groups.yml
-<span style="color: green;">✓</span> Loaded 10 application groups successfully
+scm load objects application-group [OPTIONS]
 ```
 
-</div>
+### Options
 
-Backup existing application groups:
+| Option           | Description                                                | Required |
+| ---------------- | ---------------------------------------------------------- | -------- |
+| `--file TEXT`    | Path to YAML file containing application group definitions | Yes      |
+| `--folder TEXT`  | Override folder location for all objects                   | No       |
+| `--snippet TEXT` | Override snippet location for all objects                  | No       |
+| `--device TEXT`  | Override device location for all objects                   | No       |
+| `--dry-run`      | Preview changes without applying them                      | No       |
 
-<div class="termy">
-
-<!-- termynal -->
-```bash
-$ scm-cli backup objects application-group --folder Texas
-<span style="color: green;">✓</span> Backed up 10 application groups to application-group-texas.yaml
-```
-
-</div>
-
-## YAML Configuration Format
-
-Application groups can be defined in YAML for bulk operations:
+### YAML File Format
 
 ```yaml
+---
 application_groups:
   - name: business-apps
+    folder: Texas # Container location (folder, snippet, or device)
     description: "Business critical applications"
     members:
       - salesforce
       - office365
       - zoom
       - custom-crm
-    
+
   - name: collaboration-tools
+    folder: Texas
     description: "Approved collaboration applications"
     members:
       - slack
@@ -136,8 +136,9 @@ application_groups:
     tag:
       - collaboration
       - approved
-    
+
   - name: file-sharing-apps
+    folder: Texas
     description: "File sharing and transfer applications"
     members:
       - dropbox
@@ -146,8 +147,9 @@ application_groups:
       - box
     tag:
       - file-sharing
-    
+
   - name: social-media
+    folder: Texas
     description: "Social media applications"
     members:
       - facebook
@@ -159,84 +161,208 @@ application_groups:
       - monitor
 ```
 
-## Configuration Options
+### Examples
 
-### Required Parameters
-
-- `--name`: Name of the application group
-- `--members`: Comma-separated list of application names
-
-### Optional Parameters
-
-- `--description`: Detailed description of the group
-- `--tag`: Tags for categorization (comma-separated)
-
-### Context Parameters
-
-Exactly one context parameter must be specified:
-
-- `--folder`: Folder name (e.g., "Texas", "Shared")
-- `--snippet`: Snippet name for Panorama
-- `--device`: Device name for NGFW
-
-## Examples
-
-### Create a Basic Application Group
+#### Load with Original Locations
 
 ```bash
-scm-cli set objects application-group --folder Shared --name web-apps \
-  --members "web-browsing,ssl,http,https"
+$ scm load objects application-group --file app-groups.yml
+---> 100%
+✓ Loaded application group: business-apps
+✓ Loaded application group: collaboration-tools
+✓ Loaded application group: file-sharing-apps
+✓ Loaded application group: social-media
+
+Successfully loaded 4 out of 4 application groups from 'app-groups.yml'
 ```
 
-### Create a Comprehensive Business Group
+#### Load with Folder Override
 
 ```bash
-scm-cli set objects application-group --folder Shared --name critical-business \
-  --members "salesforce,sap,oracle,custom-erp,custom-crm" \
-  --tag "critical,business,monitor" \
-  --description "Critical business applications requiring monitoring"
+$ scm load objects application-group --file app-groups.yml --folder Austin
+---> 100%
+✓ Loaded application group: business-apps
+✓ Loaded application group: collaboration-tools
+✓ Loaded application group: file-sharing-apps
+✓ Loaded application group: social-media
+
+Successfully loaded 4 out of 4 application groups from 'app-groups.yml'
 ```
 
-### Create a Security-Focused Group
+!!! note
+When using container override options (--folder, --snippet, --device), all application groups will be loaded into the specified container, ignoring the container specified in the YAML file.
+
+## Show Application Group
+
+Display application group objects.
+
+### Syntax
 
 ```bash
-scm-cli set objects application-group --folder Shared --name high-risk-apps \
-  --members "bittorrent,tor,psiphon,ultrasurf" \
-  --tag "block,high-risk" \
-  --description "High-risk applications to block"
+scm show objects application-group [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                     | Required |
+| ---------------- | ----------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder containing the application group object  | Yes\*    |
+| `--snippet TEXT` | Snippet containing the application group object | Yes\*    |
+| `--device TEXT`  | Device containing the application group object  | Yes\*    |
+| `--name TEXT`    | Name of the application group object to show    | No\*\*   |
+| `--list`         | List all application groups in the container    | No\*\*   |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+\*\* You must specify either --name or --list.
+
+### Examples
+
+#### Show Specific Application Group
+
+```bash
+$ scm show objects application-group --folder Texas --name business-apps
+---> 100%
+Application Group: business-apps
+Location: Folder 'Texas'
+Members: salesforce, office365, zoom, custom-crm
+Description: Business critical applications
+Tags: None
+ID: 123e4567-e89b-12d3-a456-426614174000
+```
+
+#### List All Application Groups
+
+```bash
+$ scm show objects application-group --folder Texas --list
+---> 100%
+Application Groups in folder 'Texas':
+------------------------------------------------------------
+Name: business-apps
+  Location: Folder 'Texas'
+  Members: salesforce, office365, zoom, custom-crm
+  Description: Business critical applications
+------------------------------------------------------------
+Name: collaboration-tools
+  Location: Folder 'Texas'
+  Members: slack, ms-teams, zoom, webex
+  Tags: collaboration, approved
+  Description: Approved collaboration applications
+------------------------------------------------------------
+Name: file-sharing-apps
+  Location: Folder 'Texas'
+  Members: dropbox, google-drive, onedrive, box
+  Tags: file-sharing
+  Description: File sharing and transfer applications
+------------------------------------------------------------
+```
+
+## Backup Application Groups
+
+Backup all application group objects from a specified location to a YAML file.
+
+### Syntax
+
+```bash
+scm backup objects application-group [OPTIONS]
+```
+
+### Options
+
+| Option           | Description                                  | Required |
+| ---------------- | -------------------------------------------- | -------- |
+| `--folder TEXT`  | Folder to backup application groups from     | No\*     |
+| `--snippet TEXT` | Snippet to backup application groups from    | No\*     |
+| `--device TEXT`  | Device to backup application groups from     | No\*     |
+| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
+
+\* You must specify exactly one of --folder, --snippet, or --device.
+
+### Examples
+
+#### Backup from Folder
+
+```bash
+$ scm backup objects application-group --folder Texas
+---> 100%
+Successfully backed up 10 application groups to application-group_folder_texas_20240115_120530.yaml
+```
+
+#### Backup with Custom Filename
+
+```bash
+$ scm backup objects application-group --folder Texas --file texas-app-groups.yaml
+---> 100%
+Successfully backed up 10 application groups to texas-app-groups.yaml
 ```
 
 ## Best Practices
 
 1. **Logical Grouping**: Group applications that serve similar purposes or have similar security requirements
-
 2. **Naming Convention**: Use descriptive names that indicate the group's purpose
-
 3. **Documentation**: Always include descriptions to explain the group's purpose
-
 4. **Tag Usage**: Use tags to categorize groups for easier management
-
 5. **Regular Review**: Periodically review group membership to ensure accuracy
+6. **Use YAML for Bulk Operations**: For complex deployments, use YAML files
+7. **Organize by Container**: Keep groups organized in appropriate folders, snippets, or devices
+
+## Additional Examples
+
+### Create a Basic Application Group
+
+```bash
+$ scm set objects application-group \
+    --folder Shared \
+    --name web-apps \
+    --members "web-browsing,ssl,http,https"
+---> 100%
+Created application group: web-apps in folder Shared
+```
+
+### Create a Comprehensive Business Group
+
+```bash
+$ scm set objects application-group \
+    --folder Shared \
+    --name critical-business \
+    --members "salesforce,sap,oracle,custom-erp,custom-crm" \
+    --tag "critical,business,monitor" \
+    --description "Critical business applications requiring monitoring"
+---> 100%
+Created application group: critical-business in folder Shared
+```
+
+### Create a Security-Focused Group
+
+```bash
+$ scm set objects application-group \
+    --folder Shared \
+    --name high-risk-apps \
+    --members "bittorrent,tor,psiphon,ultrasurf" \
+    --tag "block,high-risk" \
+    --description "High-risk applications to block"
+---> 100%
+Created application group: high-risk-apps in folder Shared
+```
 
 ## Integration with Security Policies
 
 Application groups are commonly used in security rules:
 
 ```bash
-# Allow business applications
-scm-cli set security rule --folder Shared --name "Allow-Business-Apps" \
-  --source-zones "Trust" --destination-zones "Internet" \
-  --applications "@business-apps" --action allow
-
-# Block high-risk applications
-scm-cli set security rule --folder Shared --name "Block-High-Risk" \
-  --source-zones "any" --destination-zones "any" \
-  --applications "@high-risk-apps" --action deny
+$ scm set security rule \
+    --folder Shared \
+    --name "Allow-Business-Apps" \
+    --source-zones "Trust" \
+    --destination-zones "Internet" \
+    --applications "@business-apps" \
+    --action allow
+---> 100%
+Created security rule: Allow-Business-Apps in folder Shared
 ```
 
 ## Notes
 
-- Application group names must be unique within a folder
+- Application group names must be unique within a container
 - Members must be existing applications (built-in or custom)
 - Groups can contain both built-in and custom applications
 - Tags must exist before being referenced

@@ -25,8 +25,8 @@ Manually managing configurations in the SCM web interface can be time-consuming 
 
 Commands in `pan-scm-cli` follow a consistent structure:
 
-```
-scm-cli <action> <resource-type> <resource> [options]
+```bash
+scm <action> <resource-type> <resource> [options]
 ```
 
 Where:
@@ -47,7 +47,7 @@ Where:
 
 - **Documentation**: Explore the [CLI Reference](../cli/index.md) for detailed command information
 - **GitHub Repository**: Visit the [pan-scm-cli GitHub repository](https://github.com/cdot65/pan-scm-cli) for source code and issue tracking
-- **Help Command**: Use `scm-cli --help` or `scm-cli <command> --help` for command-specific assistance
+- **Help Command**: Use `scm --help` or `scm <command> --help` for command-specific assistance
 
 ## Next Steps
 

@@ -1,6 +1,6 @@
 # CLI Operations Management
 
-The `pan-scm-cli` provides capabilities beyond just managing individual configuration objects, allowing you to handle operations like deployment, status checking, and more.
+The `scm` CLI provides capabilities beyond just managing individual configuration objects, allowing you to handle operations like deployment, status checking, and more.
 
 ## Configuration Deployment
 
@@ -12,7 +12,7 @@ To commit your configuration changes:
 
 ```bash
 # Commit changes with a description
-scm-cli set deployment commit --description "Updated address objects and security rules"
+scm set deployment commit --description "Updated address objects and security rules"
 ```
 
 ### Pushing Configurations
@@ -21,10 +21,10 @@ To push configurations to devices:
 
 ```bash
 # Push configurations to all devices
-scm-cli set deployment push
+scm set deployment push
 
 # Push to specific device groups
-scm-cli set deployment push --device-groups "Branch-Firewalls,DataCenter"
+scm set deployment push --device-groups "Branch-Firewalls,DataCenter"
 ```
 
 ## Job Monitoring
@@ -37,7 +37,7 @@ To check the status of a job:
 
 ```bash
 # Check job status by ID
-scm-cli get operations job --job-id "12345"
+scm get operations job --job-id "12345"
 ```
 
 ### Listing Recent Jobs
@@ -46,7 +46,7 @@ To view recent jobs:
 
 ```bash
 # List the 10 most recent jobs
-scm-cli get operations jobs --limit 10
+scm get operations jobs --limit 10
 ```
 
 ## License Management
@@ -57,7 +57,7 @@ Manage licenses for your deployment using the CLI.
 
 ```bash
 # Check current license status
-scm-cli get operations licenses
+scm get operations licenses
 ```
 
 ## Health Monitoring
@@ -70,7 +70,7 @@ Check the current system status:
 
 ```bash
 # Get overall system status
-scm-cli get operations status
+scm get operations status
 ```
 
 ### Connectivity Tests
@@ -79,7 +79,7 @@ Test connectivity to various services:
 
 ```bash
 # Test connectivity to firewalls
-scm-cli get operations connectivity-test --target firewalls
+scm get operations connectivity-test --target firewalls
 ```
 
 ## User Management
@@ -90,14 +90,14 @@ The CLI includes commands for managing users and roles.
 
 ```bash
 # List all users
-scm-cli get operations users
+scm get operations users
 ```
 
 ### User Roles
 
 ```bash
 # List available roles
-scm-cli get operations roles
+scm get operations roles
 ```
 
 ## Audit Logs
@@ -108,17 +108,17 @@ Access audit logs to track changes made through the CLI and other interfaces.
 
 ```bash
 # Get recent audit logs
-scm-cli get operations audit-logs --limit 20
+scm get operations audit-logs --limit 20
 ```
 
 ### Filtering Audit Logs
 
 ```bash
 # Filter audit logs by user
-scm-cli get operations audit-logs --filter-user "admin"
+scm get operations audit-logs --filter-user "admin"
 
 # Filter audit logs by date range
-scm-cli get operations audit-logs --start-date "2025-03-01" --end-date "2025-03-30"
+scm get operations audit-logs --start-date "2025-03-01" --end-date "2025-03-30"
 ```
 
 ## Scheduled Tasks
@@ -129,14 +129,14 @@ Manage scheduled tasks for recurring operations.
 
 ```bash
 # List all scheduled tasks
-scm-cli get operations scheduled-tasks
+scm get operations scheduled-tasks
 ```
 
 ### Creating Backup Tasks
 
 ```bash
 # Create a scheduled backup
-scm-cli set operations scheduled-task --type backup --name "Daily-Backup" --schedule "0 0 * * *"
+scm set operations scheduled-task --type backup --name "Daily-Backup" --schedule "0 0 * * *"
 ```
 
 ## Troubleshooting
@@ -147,14 +147,14 @@ The CLI provides tools to help with troubleshooting.
 
 ```bash
 # Run diagnostic checks
-scm-cli get operations diagnostics
+scm get operations diagnostics
 ```
 
 ### Log Collection
 
 ```bash
 # Collect logs for support
-scm-cli get operations collect-logs --output-dir "./support-logs"
+scm get operations collect-logs --output-dir "./support-logs"
 ```
 
 ## Best Practices

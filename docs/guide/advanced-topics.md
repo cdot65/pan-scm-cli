@@ -12,7 +12,7 @@ All object-related commands require the `--folder` parameter to specify where ob
 
 ```bash
 # Create an address in the Shared folder
-scm-cli set objects address --folder Shared --name web-server --ip-netmask 10.1.1.10/32
+scm set objects address --folder Shared --name web-server --ip-netmask 10.1.1.10/32
 ```
 
 ### Common Folder Operations
@@ -21,10 +21,10 @@ Working across multiple folders:
 
 ```bash
 # List all address objects in the Shared folder
-scm-cli set objects address --list --folder Shared
+scm set objects address --list --folder Shared
 
 # List all address objects in a different folder
-scm-cli set objects address --list --folder Branch-Office-1
+scm set objects address --list --folder Branch-Office-1
 ```
 
 ## Bulk Operations
@@ -37,7 +37,7 @@ Load multiple objects of the same type from a YAML file:
 
 ```bash
 # Create multiple addresses defined in a YAML file
-scm-cli load objects address --folder Shared --file addresses.yaml
+scm load objects address --folder Shared --file addresses.yaml
 ```
 
 ### YAML Structure for Bulk Loading
@@ -71,7 +71,7 @@ Add the `--mock` flag to any command to run it in mock mode:
 
 ```bash
 # Test creating an address without actually calling the API
-scm-cli set objects address --mock --folder Shared --name test-server --ip-netmask 10.1.1.10/32
+scm set objects address --mock --folder Shared --name test-server --ip-netmask 10.1.1.10/32
 ```
 
 This is useful for:
@@ -90,10 +90,11 @@ Add the `--verbose` flag to see detailed operation information:
 
 ```bash
 # Get verbose output when creating an address
-scm-cli set objects address --verbose --folder Shared --name test-server --ip-netmask 10.1.1.10/32
+scm set objects address --verbose --folder Shared --name test-server --ip-netmask 10.1.1.10/32
 ```
 
 Verbose output includes:
+
 - API request details
 - Response data
 - Timing information
@@ -105,12 +106,12 @@ The CLI can be configured using environment variables for authentication and oth
 
 ### Available Environment Variables
 
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `SCM_CLIENT_ID` | Client ID for authentication | `export SCM_CLIENT_ID=client-id-value` |
-| `SCM_CLIENT_SECRET` | Client secret for authentication | `export SCM_CLIENT_SECRET=client-secret-value` |
-| `SCM_TSG_ID` | Tenant Service Group ID | `export SCM_TSG_ID=tsg-id-value` |
-| `SCM_CLI_LOG_LEVEL` | Logging level (DEBUG, INFO, etc.) | `export SCM_CLI_LOG_LEVEL=DEBUG` |
+| Variable            | Purpose                           | Example                                        |
+| ------------------- | --------------------------------- | ---------------------------------------------- |
+| `SCM_CLIENT_ID`     | Client ID for authentication      | `export SCM_CLIENT_ID=client-id-value`         |
+| `SCM_CLIENT_SECRET` | Client secret for authentication  | `export SCM_CLIENT_SECRET=client-secret-value` |
+| `SCM_TSG_ID`        | Tenant Service Group ID           | `export SCM_TSG_ID=tsg-id-value`               |
+| `SCM_CLI_LOG_LEVEL` | Logging level (DEBUG, INFO, etc.) | `export SCM_CLI_LOG_LEVEL=DEBUG`               |
 
 ## Script Integration
 
@@ -119,6 +120,7 @@ The CLI is designed to work well in scripts and automation.
 ### Exit Codes
 
 The CLI uses standard exit codes:
+
 - `0`: Success
 - Non-zero: Failure
 
@@ -127,7 +129,7 @@ This allows for scripting with error checking:
 ```bash
 #!/bin/bash
 # Create an address and check if successful
-scm-cli set objects address --folder Shared --name test-server --ip-netmask 10.1.1.10/32
+scm set objects address --folder Shared --name test-server --ip-netmask 10.1.1.10/32
 if [ $? -eq 0 ]; then
   echo "Address created successfully"
 else
@@ -142,10 +144,10 @@ For programmatic use, consider parsing the CLI output:
 
 ```bash
 # Get a list of addresses in JSON format and process with jq
-ADDRESSES=$(scm-cli set objects address --list --folder Shared --output json | jq '.[] | select(.name | startswith("web-"))')
+ADDRESSES=$(scm set objects address --list --folder Shared --output json | jq '.[] | select(.name | startswith("web-"))')
 ```
 
 ## Next Steps
 
 - Explore the [CLI Reference](../cli/index.md) for detailed information on all available commands
-- Check the [GitHub repository](https://github.com/cdot65/pan-scm-cli) for examples and updates
+- Check the [GitHub repository](https://github.com/cdot65/pan-scm) for examples and updates
