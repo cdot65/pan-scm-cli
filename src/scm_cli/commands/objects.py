@@ -572,22 +572,26 @@ def load_address_group(
 
         for ag_data in address_groups:
             try:
+                # Apply container override if specified
+                if folder:
+                    ag_data["folder"] = folder
+                    ag_data.pop("snippet", None)
+                    ag_data.pop("device", None)
+                elif snippet:
+                    typer.echo(
+                        f"Warning: Address groups do not support snippets. Skipping group '{ag_data.get('name', 'unknown')}'",
+                        err=True,
+                    )
+                    continue
+                elif device:
+                    typer.echo(
+                        f"Warning: Address groups do not support devices. Skipping group '{ag_data.get('name', 'unknown')}'",
+                        err=True,
+                    )
+                    continue
+
                 # Validate using the Pydantic model
                 address_group = AddressGroup(**ag_data)
-
-                # Override container if specified
-                if folder:
-                    address_group.folder = folder
-                    address_group.snippet = None
-                    address_group.device = None
-                elif snippet:
-                    address_group.snippet = snippet
-                    address_group.folder = None
-                    address_group.device = None
-                elif device:
-                    address_group.device = device
-                    address_group.folder = None
-                    address_group.snippet = None
 
                 # Call the SDK client to create the address group
                 result = scm_client.create_address_group(
@@ -1353,22 +1357,26 @@ def load_application(
 
         for app_data in applications:
             try:
+                # Apply container override if specified
+                if folder:
+                    app_data["folder"] = folder
+                    app_data.pop("snippet", None)
+                    app_data.pop("device", None)
+                elif snippet:
+                    typer.echo(
+                        f"Warning: Applications do not support snippets. Skipping application '{app_data.get('name', 'unknown')}'",
+                        err=True,
+                    )
+                    continue
+                elif device:
+                    typer.echo(
+                        f"Warning: Applications do not support devices. Skipping application '{app_data.get('name', 'unknown')}'",
+                        err=True,
+                    )
+                    continue
+
                 # Validate using the Pydantic model
                 application = Application(**app_data)
-
-                # Override container if specified
-                if folder:
-                    application.folder = folder
-                    application.snippet = None
-                    application.device = None
-                elif snippet:
-                    application.snippet = snippet
-                    application.folder = None
-                    application.device = None
-                elif device:
-                    application.device = device
-                    application.folder = None
-                    application.snippet = None
 
                 # Call the SDK client to create the application
                 result = scm_client.create_application(
@@ -2923,7 +2931,7 @@ def load_external_dynamic_list(
     try:
         # Validate location parameters
         location_type, location_value = validate_location_params(
-            folder, snippet, device, required=False
+            folder, snippet, device
         )
 
         # Validate the file exists
@@ -2978,16 +2986,20 @@ def load_external_dynamic_list(
                     results.append({"action": "would create/update", "name": edl.name})
                 else:
                     # Convert to SDK model format
-                    edl_data = edl.to_sdk_model()
-                    container_params = {
-                        edl_data.get("folder", "folder"): edl_data.get(
-                            edl_data.get("folder", "folder"), "folder"
-                        )
-                    }
+                    sdk_data = edl.to_sdk_model()
+
+                    # Extract container params
+                    container_params = {}
+                    if "folder" in edl_config:
+                        container_params["folder"] = edl_config["folder"]
+                    elif "snippet" in edl_config:
+                        container_params["snippet"] = edl_config["snippet"]
+                    elif "device" in edl_config:
+                        container_params["device"] = edl_config["device"]
+                    # Create the EDL using the SDK data
                     result = scm_client.create_external_dynamic_list(
                         **container_params,
-                        name=edl.name,
-                        type_config=edl_data["type"],
+                        **sdk_data,
                     )
                     typer.echo(f"✓ Loaded external dynamic list: {edl.name}")
                     loaded_count += 1
@@ -3076,8 +3088,8 @@ def set_external_dynamic_list(
             "name": name,
             "type": type,
             "url": url,
-            "description": description,
-            "exception_list": exception_list,
+            "description": description or "",
+            "exception_list": exception_list or [],
             "recurring": recurring,
             "hour": hour,
             "day": day,
@@ -3087,8 +3099,12 @@ def set_external_dynamic_list(
             "expand_domain": expand_domain,
         }
 
-        # Remove None values
-        edl_config = {k: v for k, v in edl_config.items() if v is not None}
+        # Remove None values except for fields with defaults
+        edl_config = {
+            k: v
+            for k, v in edl_config.items()
+            if v is not None or k in ["description", "exception_list"]
+        }
 
         # Validate using Pydantic model
         edl = ExternalDynamicList(**edl_config)
@@ -3497,7 +3513,7 @@ def load_hip_object(
     try:
         # Validate location parameters
         location_type, location_value = validate_location_params(
-            folder, snippet, device, required=False
+            folder, snippet, device
         )
 
         # Validate the file exists
@@ -3559,14 +3575,7 @@ def load_hip_object(
                     }
                     result = scm_client.create_hip_object(
                         **container_params,
-                        name=hip_obj.name,
-                        description=sdk_data.get("description"),
-                        host_info=sdk_data.get("host_info"),
-                        network_info=sdk_data.get("network_info"),
-                        patch_management=sdk_data.get("patch_management"),
-                        disk_encryption=sdk_data.get("disk_encryption"),
-                        mobile_device=sdk_data.get("mobile_device"),
-                        certificate=sdk_data.get("certificate"),
+                        **sdk_data,
                     )
 
                     typer.echo(f"✓ Loaded HIP object: {hip_obj.name}")
@@ -3734,7 +3743,9 @@ def set_hip_object(
             hip_data["certificate_profile"] = certificate_profile
 
         # Validate using the Pydantic model
-        hip_obj = HIPObject(**hip_data)
+        # Ensure proper typing for fields
+        typed_hip_data = hip_data.copy()
+        hip_obj = HIPObject(**typed_hip_data)
 
         # Convert to SDK model format
         sdk_data = hip_obj.to_sdk_model()
@@ -4042,7 +4053,7 @@ def backup_hip_profile(
             return
 
         # Prepare the data for YAML export
-        backup_data = {"hip_profiles": []}
+        backup_data: dict[str, list[dict[str, Any]]] = {"hip_profiles": []}
 
         for profile in hip_profiles:
             # Create a clean dict with only the fields we want to export
@@ -4105,12 +4116,12 @@ def load_hip_profile(
     snippet: str = LOAD_SNIPPET_OPTION,
     device: str = LOAD_DEVICE_OPTION,
     dry_run: bool = HIP_PROFILE_DRY_RUN_OPTION,
-) -> None:
+):
     """Load HIP profiles from a YAML file."""
     try:
         # Validate location parameters
         location_type, location_value = validate_location_params(
-            folder, snippet, device, required=False
+            folder, snippet, device
         )
 
         # Validate the file exists
@@ -4226,7 +4237,7 @@ def set_hip_profile(
     description: str = typer.Option(
         None, "--description", help="Description of the HIP profile"
     ),
-) -> None:
+):
     """Create or update a HIP profile."""
     try:
         # Create the HIP profile object
@@ -4375,7 +4386,7 @@ def backup_http_server_profile(
             return
 
         # Prepare the data for YAML export
-        backup_data = {"http_server_profiles": []}
+        backup_data: dict[str, list[dict[str, Any]]] = {"http_server_profiles": []}
 
         for profile in http_server_profiles:
             # Create a clean dict with only the fields we want to export
@@ -4450,12 +4461,12 @@ def load_http_server_profile(
     snippet: str = LOAD_SNIPPET_OPTION,
     device: str = LOAD_DEVICE_OPTION,
     dry_run: bool = HTTP_SERVER_PROFILE_DRY_RUN_OPTION,
-) -> None:
+):
     """Load HTTP server profiles from a YAML file."""
     try:
         # Validate location parameters
         location_type, location_value = validate_location_params(
-            folder, snippet, device, required=False
+            folder, snippet, device
         )
 
         # Validate the file exists
@@ -4524,11 +4535,7 @@ def load_http_server_profile(
                     }
                     scm_client.create_http_server_profile(
                         **container_params,
-                        name=profile_sdk["name"],
-                        servers=profile_sdk["server"],
-                        description=profile_sdk.get("description"),
-                        tag_registration=profile_sdk.get("tag_registration", False),
-                        format_config=profile_sdk.get("format"),
+                        **profile_sdk,
                     )
                     typer.echo(f"✓ Loaded HTTP server profile: {profile.name}")
                     loaded_count += 1
@@ -4584,7 +4591,7 @@ def set_http_server_profile(
     tag_registration: bool = typer.Option(
         False, "--tag-registration", help="Register tags on match"
     ),
-) -> None:
+):
     """Create or update an HTTP server profile.
 
     Server configuration must be provided as a JSON string, e.g.:
@@ -4836,7 +4843,7 @@ def backup_log_forwarding_profile(
         )
 
         # Write to file
-        with file.open() as f:
+        with open(filename, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
         typer.echo(
@@ -4884,12 +4891,12 @@ def load_log_forwarding_profile(
     snippet: str = LOAD_SNIPPET_OPTION,
     device: str = LOAD_DEVICE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
-) -> None:
+):
     """Load log forwarding profiles from a YAML file."""
     try:
         # Validate location parameters
         location_type, location_value = validate_location_params(
-            folder, snippet, device, required=False
+            folder, snippet, device
         )
 
         # Validate the file exists
@@ -5314,7 +5321,7 @@ def load_service(
     try:
         # Validate location parameters
         location_type, location_value = validate_location_params(
-            folder, snippet, device, required=False
+            folder, snippet, device
         )
 
         # Validate the file exists
@@ -5489,7 +5496,7 @@ def set_service(
             tag_list = [t.strip() for t in tag.split(",") if t.strip()]
 
         # Validate using Pydantic model
-        service_data = {
+        service_data: dict[str, Any] = {
             "folder": folder,
             "name": name,
             "protocol": protocol_config,
@@ -5712,7 +5719,7 @@ def backup_service_group(
         )
 
         # Write to file
-        with file.open() as f:
+        with open(filename, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
         typer.echo(
@@ -5761,7 +5768,7 @@ def load_service_group(
     try:
         # Validate location parameters
         location_type, location_value = validate_location_params(
-            folder, snippet, device, required=False
+            folder, snippet, device
         )
 
         # Validate the file exists
@@ -6142,7 +6149,7 @@ def load_syslog_server_profile(
     try:
         # Validate location parameters
         location_type, location_value = validate_location_params(
-            folder, snippet, device, required=False
+            folder, snippet, device
         )
 
         # Validate the file exists

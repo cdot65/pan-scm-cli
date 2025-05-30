@@ -15,6 +15,7 @@ scm-cli <action> objects <object-type> [options]
 #### Supported Object Types and Commands
 
 ##### Address Objects
+
 ```bash
 # Create/update an address object
 scm-cli set objects address --folder Shared --name web-server \
@@ -35,6 +36,7 @@ scm-cli backup objects address --folder Shared
 ```
 
 ##### Address Groups
+
 ```bash
 # Create/update an address group
 scm-cli set objects address-group --folder Shared --name servers \
@@ -53,6 +55,7 @@ scm-cli backup objects address-group --folder Shared
 ```
 
 ##### Applications
+
 ```bash
 # Create/update an application
 scm-cli set objects application --folder Shared --name custom-app \
@@ -72,6 +75,7 @@ scm-cli backup objects application --folder Shared
 ```
 
 ##### Application Groups
+
 ```bash
 # Create/update an application group
 scm-cli set objects application-group --folder Shared --name business-apps \
@@ -90,6 +94,7 @@ scm-cli backup objects application-group --folder Shared
 ```
 
 ##### Application Filters
+
 ```bash
 # Create/update an application filter
 scm-cli set objects application-filter --folder Shared --name high-risk \
@@ -108,6 +113,7 @@ scm-cli backup objects application-filter --folder Shared
 ```
 
 ##### Dynamic User Groups
+
 ```bash
 # Create/update a dynamic user group
 scm-cli set objects dynamic-user-group --folder Shared --name it-admins \
@@ -126,6 +132,7 @@ scm-cli backup objects dynamic-user-group --folder Shared
 ```
 
 ##### External Dynamic Lists
+
 ```bash
 # Create/update an external dynamic list
 scm-cli set objects external-dynamic-list --folder Shared \
@@ -145,6 +152,7 @@ scm-cli backup objects external-dynamic-list --folder Shared
 ```
 
 ##### HIP Objects
+
 ```bash
 # Create/update a HIP object
 scm-cli set objects hip-object --folder Shared --name windows-compliance \
@@ -165,6 +173,7 @@ scm-cli backup objects hip-object --folder Shared
 ```
 
 ##### HIP Profiles
+
 ```bash
 # Create/update a HIP profile
 scm-cli set objects hip-profile --folder Shared --name secure-endpoints \
@@ -183,6 +192,7 @@ scm-cli backup objects hip-profile --folder Shared
 ```
 
 ##### HTTP Server Profiles
+
 ```bash
 # Create/update an HTTP server profile
 scm-cli set objects http-server-profile --folder Shared --name syslog-http \
@@ -201,6 +211,7 @@ scm-cli backup objects http-server-profile --folder Shared
 ```
 
 ##### Log Forwarding Profiles
+
 ```bash
 # Create/update a log forwarding profile
 scm-cli set objects log-forwarding-profile --folder Shared --name central-logging \
@@ -219,6 +230,7 @@ scm-cli backup objects log-forwarding-profile --folder Shared
 ```
 
 ##### Services
+
 ```bash
 # Create/update a service
 scm-cli set objects service --folder Shared --name custom-tcp \
@@ -237,6 +249,7 @@ scm-cli backup objects service --folder Shared
 ```
 
 ##### Service Groups
+
 ```bash
 # Create/update a service group
 scm-cli set objects service-group --folder Shared --name web-services \
@@ -255,6 +268,7 @@ scm-cli backup objects service-group --folder Shared
 ```
 
 ##### Syslog Server Profiles
+
 ```bash
 # Create/update a syslog server profile
 scm-cli set objects syslog-server-profile --folder Shared --name central-syslog \
@@ -273,6 +287,7 @@ scm-cli backup objects syslog-server-profile --folder Shared
 ```
 
 ##### Tags
+
 ```bash
 # Create/update a tag
 scm-cli set objects tag --folder Shared --name production \
@@ -353,6 +368,7 @@ All object types support bulk operations via YAML files:
 2. **Backup**: Export existing objects to a YAML file
 
 Example YAML format:
+
 ```yaml
 addresses:
   - name: server1
