@@ -11,7 +11,7 @@ python = ">=3.12,<3.14"
 typer = "^0.15.4"
 pyyaml = "^6.0.2"
 pydantic = "^2.11.5"
-pan-scm-sdk = "0.3.39"
+pan-scm-sdk = "0.3.40"
 dynaconf = "^3.2.11"
 
 [tool.poetry.group.dev.dependencies]
@@ -51,7 +51,7 @@ line-length = 192
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "C4", "SIM", "UP", "W", "N", "D"]
-ignore = ["D203", "D213"]
+ignore = ["D203", "D213", "N805"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
@@ -63,8 +63,8 @@ python_files = "test_*.py"
 python_functions = "test_*"
 pythonpath = ["."]
 markers = [
-    "unit: marks tests as unit tests",
-    "integration: marks tests as integration tests",
+  "unit: marks tests as unit tests",
+  "integration: marks tests as integration tests",
 ]
 
 [tool.coverage.run]
@@ -73,12 +73,12 @@ omit = ["tests/*", "**/__init__.py"]
 
 [tool.coverage.report]
 exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "pass",
-    "raise ImportError",
+  "pragma: no cover",
+  "def __repr__",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+  "pass",
+  "raise ImportError",
 ]
 
 [tool.isort]
