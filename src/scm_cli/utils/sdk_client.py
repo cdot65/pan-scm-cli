@@ -613,6 +613,7 @@ class SCMClient:
         name: str,
         type: str,
         members: list[str] | None = None,
+        filter: str | None = None,
         description: str = "",
         tags: list[str] | None = None,
     ) -> dict[str, Any]:
@@ -622,7 +623,8 @@ class SCMClient:
             folder: Folder to create the address group in
             name: Name of the address group
             type: Type of address group ("static" or "dynamic")
-            members: List of member addresses for static groups or filter for dynamic groups
+            members: List of member addresses (for static groups)
+            filter: Filter expression (for dynamic groups)
             description: Optional description
             tags: Optional list of tags
 
@@ -683,8 +685,11 @@ class SCMClient:
             if type.lower() == "static":
                 group_data["static"] = members or []
             elif type.lower() == "dynamic":
-                # For dynamic groups, we expect the filter to be passed in members parameter
-                if members and len(members) > 0:
+                # For dynamic groups, use the filter parameter
+                if filter:
+                    group_data["dynamic"] = {"filter": filter}
+                elif members and len(members) > 0:
+                    # Backward compatibility: treat first member as filter
                     group_data["dynamic"] = {"filter": members[0]}
                 else:
                     raise ValueError(
@@ -733,13 +738,12 @@ class SCMClient:
                     # Update the members/filter if provided and same type
                     if new_type == "static" and current_type == "static":
                         existing_group.static = members or []
-                    elif (
-                        new_type == "dynamic"
-                        and current_type == "dynamic"
-                        and members
-                        and len(members) > 0
-                    ):
-                        existing_group.dynamic = {"filter": members[0]}
+                    elif new_type == "dynamic" and current_type == "dynamic":
+                        if filter:
+                            existing_group.dynamic = {"filter": filter}
+                        elif members and len(members) > 0:
+                            # Backward compatibility: treat first member as filter
+                            existing_group.dynamic = {"filter": members[0]}
 
                     # Perform update
                     result = self.client.address_group.update(existing_group)
@@ -776,8 +780,11 @@ class SCMClient:
             return True
 
         try:
-            # Delete using the SDK address_group service
-            self.client.address_group.delete(folder=folder, name=name)
+            # Get the address group first to retrieve its ID
+            address_group = self.client.address_group.fetch(name=name, folder=folder)
+
+            # Delete using the address group's ID
+            self.client.address_group.delete(object_id=str(address_group.id))
             return True
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)
@@ -4111,6 +4118,8 @@ class SCMClient:
         interfaces: list[str] | None = None,
         description: str = "",
         tags: list[str] | None = None,
+        enable_user_identification: bool | None = None,
+        enable_device_identification: bool | None = None,
     ) -> dict[str, Any]:
         """Create a security zone.
 
@@ -4121,6 +4130,8 @@ class SCMClient:
             interfaces: List of interfaces
             description: Optional description
             tags: Optional list of tags
+            enable_user_identification: Enable user identification
+            enable_device_identification: Enable device identification
 
         Returns:
             dict[str, Any]: The created zone object
@@ -4185,6 +4196,12 @@ class SCMClient:
 
             if tags:
                 zone_data["tags"] = tags
+
+            # Add identification settings if specified
+            if enable_user_identification is not None:
+                zone_data["enable_user_identification"] = enable_user_identification
+            if enable_device_identification is not None:
+                zone_data["enable_device_identification"] = enable_device_identification
 
             # If zone exists, update it
             if existing_zone:

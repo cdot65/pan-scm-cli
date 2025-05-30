@@ -52,7 +52,10 @@ class AddressGroup(BaseModel):
     name: str = Field(..., description="Name of the address group")
     type: str = Field(..., description="Type of address group (static or dynamic)")
     members: list[str] = Field(
-        default_factory=list, description="List of addresses in the group"
+        default_factory=list, description="List of addresses in the group (for static groups)"
+    )
+    filter: str | None = Field(
+        None, description="Filter expression for dynamic address groups"
     )
     description: str = Field("", description="Description of the address group")
     tags: list[str] = Field(default_factory=list, description="List of tags")
@@ -70,7 +73,8 @@ class AddressGroup(BaseModel):
             model_data["members"] = self.members
         else:
             model_data["type"] = "dynamic"
-            # Handle dynamic group fields if needed
+            if self.filter:
+                model_data["filter"] = self.filter
 
         return model_data
 
@@ -1540,13 +1544,21 @@ class Zone(BaseModel):
                 mode = "tunnel"
                 interfaces = self.network.get("tunnel", [])
 
-        return {
+        model_data = {
             "name": self.name,
             "mode": mode,
             "interfaces": interfaces,
             "description": self.description or "",
             "tags": self.tags or [],
         }
+
+        # Add user/device identification settings if specified
+        if self.enable_user_identification is not None:
+            model_data["enable_user_identification"] = self.enable_user_identification
+        if self.enable_device_identification is not None:
+            model_data["enable_device_identification"] = self.enable_device_identification
+
+        return model_data
 
 
 # ========================================================================================================================================================================================
@@ -1761,6 +1773,9 @@ class DecryptionProfile(BaseModel):
         None, description="Device path for the decryption profile"
     )
     name: str = Field(..., description="Name of the decryption profile")
+    description: str | None = Field(
+        None, description="Description of the decryption profile"
+    )
 
     # SSL Forward Proxy settings
     ssl_forward_proxy: dict[str, Any] | None = Field(
@@ -1848,6 +1863,10 @@ class DecryptionProfile(BaseModel):
             model_data["snippet"] = self.snippet
         elif self.device:
             model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
 
         # Add proxy settings if present
         if self.ssl_forward_proxy:
