@@ -17,7 +17,6 @@ from .commands import deployment, network, objects, security
 app = typer.Typer(
     name="scm",
     help="CLI for Palo Alto Networks Strata Cloud Manager",
-    add_completion=True,
 )
 
 # ============================================================================================================================================================================================
@@ -28,27 +27,22 @@ app = typer.Typer(
 backup_app = typer.Typer(
     help="Backup configurations to YAML files",
     name="backup",
-    add_completion=True,
 )
 delete_app = typer.Typer(
     help="Remove configurations",
     name="delete",
-    add_completion=True,
 )
 load_app = typer.Typer(
     help="Load configurations from YAML files",
     name="load",
-    add_completion=True,
 )
 set_app = typer.Typer(
     help="Create or update configurations",
     name="set",
-    add_completion=True,
 )
 show_app = typer.Typer(
     help="Display configurations",
     name="show",
-    add_completion=True,
 )
 
 # ============================================================================================================================================================================================
@@ -60,27 +54,22 @@ show_app = typer.Typer(
 app.add_typer(
     backup_app,
     name="backup",
-    add_completion=True,
 )
 app.add_typer(
     delete_app,
     name="delete",
-    add_completion=True,
 )
 app.add_typer(
     load_app,
     name="load",
-    add_completion=True,
 )
 app.add_typer(
     set_app,
     name="set",
-    add_completion=True,
 )
 app.add_typer(
     show_app,
     name="show",
-    add_completion=True,
 )
 
 # --------------------------------------------------------------------------------- Register Module Commands ---------------------------------------------------------------------------------
