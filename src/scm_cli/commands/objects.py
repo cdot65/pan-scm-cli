@@ -909,7 +909,6 @@ def load_address(
     """Load address objects from a YAML file.
 
     Examples:
-    --------
         # Load from file with original locations
         scm-cli load objects address --file config/addresses.yml
 
