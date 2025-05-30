@@ -121,7 +121,9 @@ def get_auth_config() -> dict[str, str]:
     # Check for missing parameters
     missing = [k for k, v in auth.items() if not v]
     if missing:
-        raise ValueError(f"Missing required authentication parameters: {', '.join(missing)}")
+        raise ValueError(
+            f"Missing required authentication parameters: {', '.join(missing)}"
+        )
 
     return auth
 

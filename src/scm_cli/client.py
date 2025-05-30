@@ -38,7 +38,11 @@ class MockSCMClient:
             logger.info(f"Mock SCM API call: {name}(*{args}, **{kwargs})")
             return {"status": "success", "message": f"Mock call to {name}"}
 
-        return MockSCMClient() if name not in ["list", "create", "update", "delete"] else mock_callable
+        return (
+            MockSCMClient()
+            if name not in ["list", "create", "update", "delete"]
+            else mock_callable
+        )
 
 
 def get_scm_client(mock: bool = False) -> Any:
@@ -70,7 +74,9 @@ def get_scm_client(mock: bool = False) -> Any:
     try:
         # Use the Scm client from the pan-scm-sdk (imported as scm.client)
         client = scm.client.Scm(**auth_params)
-        logger.info(f"Successfully initialized SDK client for TSG ID: {auth_params['tsg_id']}")
+        logger.info(
+            f"Successfully initialized SDK client for TSG ID: {auth_params['tsg_id']}"
+        )
         return client
     except AuthenticationError as e:
         logger.error(f"Authentication error: {str(e)}")
