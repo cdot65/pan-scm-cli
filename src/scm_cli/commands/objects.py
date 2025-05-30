@@ -64,7 +64,12 @@ TYPE_OPTION = typer.Option(
 MEMBERS_OPTION = typer.Option(
     None,
     "--members",
-    help="List of addresses in the group",
+    help="List of addresses in the group (for static groups)",
+)
+FILTER_OPTION = typer.Option(
+    None,
+    "--filter",
+    help="Filter expression for dynamic address groups (e.g., \"'tag1' and 'tag2'\")",
 )
 DESCRIPTION_OPTION = typer.Option(
     None,
@@ -348,13 +353,19 @@ BACKUP_FILE_OPTION = typer.Option(
 
 # Container override options for load commands
 LOAD_FOLDER_OPTION = typer.Option(
-    None, "--folder", help="Override folder location for all objects"
+    None,
+    "--folder",
+    help="Override folder location for all objects",
 )
 LOAD_SNIPPET_OPTION = typer.Option(
-    None, "--snippet", help="Override snippet location for all objects"
+    None,
+    "--snippet",
+    help="Override snippet location for all objects",
 )
 LOAD_DEVICE_OPTION = typer.Option(
-    None, "--device", help="Override device location for all objects"
+    None,
+    "--device",
+    help="Override device location for all objects",
 )
 
 # ========================================================================================================================================================================================
@@ -638,6 +649,7 @@ def set_address_group(
     name: str = NAME_OPTION,
     type: str = TYPE_OPTION,
     members: list[str] | None = MEMBERS_OPTION,
+    filter: str | None = FILTER_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     tags: list[str] | None = TAGS_OPTION,
 ):
@@ -645,13 +657,21 @@ def set_address_group(
 
     Example:
     -------
+        # Static address group
         scm-cli set objects address-group \
         --folder Texas \
-        --name test123 \
+        --name test-static \
         --type static \
-        --members ["abc", "xyz"] \
-        --description "test" \
-        --tags ["abc", "automation"]
+        --members ["addr1", "addr2"] \
+        --description "test static group"
+
+        # Dynamic address group
+        scm-cli set objects address-group \
+        --folder Texas \
+        --name test-dynamic \
+        --type dynamic \
+        --filter "'web' and 'production'" \
+        --description "test dynamic group"
 
     """
     try:
@@ -661,6 +681,7 @@ def set_address_group(
             name=name,
             type=type,
             members=members or [],
+            filter=filter,
             description=description or "",
             tags=tags or [],
         )
@@ -671,6 +692,7 @@ def set_address_group(
             name=address_group.name,
             type=address_group.type,
             members=address_group.members,
+            filter=address_group.filter,
             description=address_group.description,
             tags=address_group.tags,
         )

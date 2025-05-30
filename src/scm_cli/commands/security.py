@@ -178,7 +178,9 @@ BACKUP_FILE_OPTION = typer.Option(
 
 
 def validate_location_params(
-    folder: str = None, snippet: str = None, device: str = None
+    folder: str = None,
+    snippet: str = None,
+    device: str = None,
 ) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
 
@@ -209,7 +211,10 @@ def validate_location_params(
 
 
 def get_default_backup_filename(
-    object_type: str, location_type: str, location_value: str, rulebase: str = None
+    object_type: str,
+    location_type: str,
+    location_value: str,
+    rulebase: str = None,
 ) -> str:
     """Generate default backup filename.
 
@@ -1746,6 +1751,11 @@ def set_decryption_profile(
         None, "--device", help="Device path for the decryption profile"
     ),
     name: str = NAME_OPTION,
+    description: str | None = typer.Option(
+        None,
+        "--description",
+        help="Description of the decryption profile",
+    ),
     ssl_forward_proxy: str | None = typer.Option(
         None,
         "--ssl-forward-proxy",
@@ -1797,6 +1807,10 @@ def set_decryption_profile(
             location_type: location_value,
             "name": name,
         }
+
+        # Add optional description
+        if description:
+            profile_data["description"] = description
 
         # Parse JSON strings for proxy settings
         if ssl_forward_proxy:
@@ -1899,6 +1913,10 @@ def show_decryption_profile(
                 elif profile.get("device"):
                     typer.echo(f"  Location: Device '{profile['device']}'")
 
+                # Display description if present
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+
                 # Display proxy types configured
                 proxy_types = []
                 if profile.get("ssl_forward_proxy"):
@@ -1942,6 +1960,10 @@ def show_decryption_profile(
                 typer.echo(f"Location: Snippet '{profile['snippet']}'")
             elif profile.get("device"):
                 typer.echo(f"Location: Device '{profile['device']}'")
+
+            # Display description if present
+            if profile.get("description"):
+                typer.echo(f"Description: {profile['description']}")
 
             # Display SSL Forward Proxy settings
             if profile.get("ssl_forward_proxy"):
