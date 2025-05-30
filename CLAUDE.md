@@ -151,3 +151,8 @@ Always refer to the appropriate style guide when writing or modifying code to en
 - Tags support 42 predefined colors (Red, Green, Blue, Yellow, Copper, Orange, Purple, Gray, Light Green, Cyan, Light Gray, Blue Gray, Lime, Black, Gold, Brown, Olive, Maroon, Red-Orange, Yellow-Orange, Forest Green, Turquoise Blue, Azure Blue, Cerulean Blue, Midnight Blue, Medium Blue, Cobalt Blue, Violet Blue, Blue Violet, Medium Violet, Medium Rose, Lavender, Orchid, Thistle, Peach, Salmon, Magenta, Red Violet, Mahogany, Burnt Sienna, Chestnut)
 - Tag color validation is case-insensitive in validator but API requires exact case
 - Tags can have comments for additional metadata
+- Decryption profiles support SSL/TLS inspection configurations with three proxy types: SSL Forward Proxy (outbound), SSL Inbound Proxy (inbound), and SSL No Proxy (bypass)
+- Decryption profile SSL protocol settings control minimum/maximum TLS versions and allowed cipher suites
+- Decryption profiles use JSON input for complex settings in the set command due to nested configuration requirements
+- Anti-spyware profiles require at least one rule to be defined (SDK validation requirement)
+- Security commands are organized in security.py following the same patterns as object commands
