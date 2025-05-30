@@ -33,12 +33,16 @@ backup_app = typer.Typer(help="Backup network configurations to YAML files")
 # Define typer option constants
 FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the zone")
 NAME_OPTION = typer.Option(..., "--name", help="Name of the zone")
-MODE_OPTION = typer.Option(..., "--mode", help="Zone mode (L2, L3, external, virtual-wire, tunnel)")
+MODE_OPTION = typer.Option(
+    ..., "--mode", help="Zone mode (L2, L3, external, virtual-wire, tunnel)"
+)
 INTERFACES_OPTION = typer.Option(None, "--interfaces", help="List of interfaces")
 DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of the zone")
 TAGS_OPTION = typer.Option(None, "--tags", help="List of tags")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
-DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
+DRY_RUN_OPTION = typer.Option(
+    False, "--dry-run", help="Simulate execution without applying changes"
+)
 
 # Backup command options
 BACKUP_FOLDER_OPTION = typer.Option(
@@ -67,19 +71,27 @@ BACKUP_FILE_OPTION = typer.Option(
 # ========================================================================================================================================================================================
 
 
-def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
+def validate_location_params(
+    folder: str = None, snippet: str = None, device: str = None
+) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
 
     Returns:
         tuple: (location_type, location_value)
+
     """
     location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
 
     if location_count == 0:
-        typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
+        typer.echo(
+            "Error: One of --folder, --snippet, or --device must be specified", err=True
+        )
         raise typer.Exit(code=1)
     elif location_count > 1:
-        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        typer.echo(
+            "Error: Only one of --folder, --snippet, or --device can be specified",
+            err=True,
+        )
         raise typer.Exit(code=1)
 
     if folder:
@@ -90,7 +102,9 @@ def validate_location_params(folder: str = None, snippet: str = None, device: st
         return "device", device
 
 
-def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
+def get_default_backup_filename(
+    object_type: str, location_type: str, location_value: str
+) -> str:
     """Generate default backup filename.
 
     Args:
@@ -100,6 +114,7 @@ def get_default_backup_filename(object_type: str, location_type: str, location_v
 
     Returns:
         str: Default filename
+
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_location = location_value.lower().replace(" ", "-").replace("/", "-")
@@ -120,7 +135,7 @@ def backup_security_zone(
 ):
     """Backup all security zones from a container to a YAML file.
 
-    Examples:
+    Examples
     --------
         # Backup from folder
         scm-cli backup network security-zone --folder Austin
@@ -140,11 +155,15 @@ def backup_security_zone(
 
     # Set default filename if not provided
     if not file:
-        file = get_default_backup_filename("security-zones", location_type, location_value)
+        file = get_default_backup_filename(
+            "security-zones", location_type, location_value
+        )
 
     try:
         # List all security zones with exact_match=True
-        zones = scm_client.list_security_zones(folder=folder, snippet=snippet, device=device, exact_match=True)
+        zones = scm_client.list_security_zones(
+            folder=folder, snippet=snippet, device=device, exact_match=True
+        )
 
         if not zones:
             typer.echo(f"No security zones found in {location_type} '{location_value}'")
@@ -167,7 +186,9 @@ def backup_security_zone(
         with open(file, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} security zones to {file}")
+        typer.echo(
+            f"Successfully backed up {len(backup_data)} security zones to {file}"
+        )
         return file
 
     except NotImplementedError as e:
@@ -267,22 +288,40 @@ def set_zone(
     """
     try:
         # Validate input using the Pydantic model
+        # Build network configuration based on mode
+        network_config = {}
+        if mode == "L3":
+            network_config["layer3"] = interfaces or []
+        elif mode == "L2":
+            network_config["layer2"] = interfaces or []
+        elif mode == "virtual-wire":
+            network_config["virtual_wire"] = interfaces or []
+        elif mode == "tap":
+            network_config["tap"] = interfaces or []
+
         zone = Zone(
             name=name,
             folder=folder,
-            mode=mode,
-            interfaces=interfaces or [],
-            description=description or "",
-            tags=tags or [],
+            network=network_config,
+            description=description,
+            tags=tags,
+            # Add None defaults for optional fields
+            snippet=None,
+            device=None,
+            enable_user_identification=None,
+            enable_device_identification=None,
         )
 
         # Call the SDK client
+        # Convert to SDK model
+        sdk_model = zone.to_sdk_model()
+
         result = scm_client.create_zone(
             folder=zone.folder,
             name=zone.name,
-            mode=zone.mode,
-            interfaces=zone.interfaces,
-            description=zone.description,
+            mode=sdk_model["mode"],
+            interfaces=sdk_model["interfaces"],
+            description=sdk_model["description"],
             tags=zone.tags,
         )
 
@@ -296,7 +335,9 @@ def set_zone(
 @show_app.command("zone")
 def show_zone(
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the security zone to show"),
+    name: str | None = typer.Option(
+        None, "--name", help="Name of the security zone to show"
+    ),
     list_zones: bool = typer.Option(False, "--list", help="List all security zones"),
 ):
     """Display security zones.
@@ -348,7 +389,9 @@ def show_zone(
                         typer.echo(f"  Interfaces: {', '.join(network['layer2'])}")
                     elif network.get("virtual_wire"):
                         typer.echo("  Type: Virtual Wire")
-                        typer.echo(f"  Interfaces: {', '.join(network['virtual_wire'])}")
+                        typer.echo(
+                            f"  Interfaces: {', '.join(network['virtual_wire'])}"
+                        )
                     elif network.get("tap"):
                         typer.echo("  Type: TAP")
                         typer.echo(f"  Interfaces: {', '.join(network['tap'])}")
@@ -360,7 +403,9 @@ def show_zone(
 
                     # Display zone protection profile if present
                     if network.get("zone_protection_profile"):
-                        typer.echo(f"  Zone Protection Profile: {network['zone_protection_profile']}")
+                        typer.echo(
+                            f"  Zone Protection Profile: {network['zone_protection_profile']}"
+                        )
 
                     # Display packet buffer protection if enabled
                     if network.get("enable_packet_buffer_protection"):
@@ -435,7 +480,9 @@ def show_zone(
 
                 # Display zone protection profile if present
                 if network.get("zone_protection_profile"):
-                    typer.echo(f"Zone Protection Profile: {network['zone_protection_profile']}")
+                    typer.echo(
+                        f"Zone Protection Profile: {network['zone_protection_profile']}"
+                    )
 
                 # Display packet buffer protection if enabled
                 if network.get("enable_packet_buffer_protection"):
