@@ -31,17 +31,50 @@ backup_app = typer.Typer(help="Backup network configurations to YAML files")
 # ========================================================================================================================================================================================
 
 # Define typer option constants
-FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the zone")
-NAME_OPTION = typer.Option(..., "--name", help="Name of the zone")
-MODE_OPTION = typer.Option(
-    ..., "--mode", help="Zone mode (L2, L3, external, virtual-wire, tunnel)"
+FOLDER_OPTION = typer.Option(
+    ...,
+    "--folder",
+    help="Folder path for the zone",
 )
-INTERFACES_OPTION = typer.Option(None, "--interfaces", help="List of interfaces")
-DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of the zone")
-TAGS_OPTION = typer.Option(None, "--tags", help="List of tags")
-FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
+NAME_OPTION = typer.Option(
+    ...,
+    "--name",
+    help="Name of the zone",
+)
+MODE_OPTION = typer.Option(
+    ...,
+    "--mode",
+    help="Zone mode (L2, L3, external, virtual-wire, tunnel)",
+)
+INTERFACES_OPTION = typer.Option(
+    None,
+    "--interfaces",
+    help="List of interfaces",
+)
+DESCRIPTION_OPTION = typer.Option(
+    None,
+    "--description",
+    help="Description of the zone",
+)
+TAGS_OPTION = typer.Option(
+    None,
+    "--tags",
+    help="List of tags",
+)
+ENABLE_USER_ID_OPTION = typer.Option(
+    None,
+    "--enable-user-id",
+    help="Enable user identification",
+)
+FILE_OPTION = typer.Option(
+    ...,
+    "--file",
+    help="YAML file to load configurations from",
+)
 DRY_RUN_OPTION = typer.Option(
-    False, "--dry-run", help="Simulate execution without applying changes"
+    False,
+    "--dry-run",
+    help="Simulate execution without applying changes",
 )
 
 # Backup command options
@@ -126,7 +159,7 @@ def get_default_backup_filename(
 # ========================================================================================================================================================================================
 
 
-@backup_app.command("security-zone")
+@backup_app.command("zone")
 def backup_security_zone(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
@@ -138,16 +171,16 @@ def backup_security_zone(
     Examples
     --------
         # Backup from folder
-        scm-cli backup network security-zone --folder Austin
+        scm-cli backup network zone --folder Austin
 
         # Backup from snippet
-        scm-cli backup network security-zone --snippet DNS-Best-Practice
+        scm-cli backup network zone --snippet DNS-Best-Practice
 
         # Backup from device
-        scm-cli backup network security-zone --device austin-01
+        scm-cli backup network zone --device austin-01
 
         # Backup to custom filename
-        scm-cli backup network security-zone --folder Austin --file my-zones.yaml
+        scm-cli backup network zone --folder Austin --file my-zones.yaml
 
     """
     # Validate location parameters
@@ -222,14 +255,14 @@ def delete_zone(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command("security-zone")
+@load_app.command("zone")
 def load_security_zone(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
 ):
     """Load security zones from a YAML file.
 
-    Example: scm-cli load network security-zone --file security-zone-austin.yaml
+    Example: scm-cli load network zone --file security-zone-austin.yaml
     """
     try:
         # Load and parse the YAML file
@@ -277,13 +310,15 @@ def set_zone(
     interfaces: list[str] | None = INTERFACES_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     tags: list[str] | None = TAGS_OPTION,
+    enable_user_id: bool | None = ENABLE_USER_ID_OPTION,
 ):
     """Create or update a security zone.
 
     Example:
     -------
         scm-cli set network zone --folder Texas --name trust --mode L3 \
-        --interfaces ["ethernet1/1"] --description "Trust zone" --tags ["internal"]
+        --interfaces ["ethernet1/1"] --description "Trust zone" --tags ["internal"] \
+        --enable-user-id
 
     """
     try:
@@ -308,7 +343,7 @@ def set_zone(
             # Add None defaults for optional fields
             snippet=None,
             device=None,
-            enable_user_identification=None,
+            enable_user_identification=enable_user_id,
             enable_device_identification=None,
         )
 
@@ -323,6 +358,8 @@ def set_zone(
             interfaces=sdk_model["interfaces"],
             description=sdk_model["description"],
             tags=zone.tags,
+            enable_user_identification=sdk_model.get("enable_user_identification"),
+            enable_device_identification=sdk_model.get("enable_device_identification"),
         )
 
         typer.echo(f"Created zone: {result['name']} in folder {result['folder']}")
