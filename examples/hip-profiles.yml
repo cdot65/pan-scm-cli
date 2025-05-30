@@ -1,3 +1,4 @@
+---
 # Example HIP profile configurations for Strata Cloud Manager
 # HIP profiles define combinations of HIP objects to enforce compliance policies
 
@@ -5,71 +6,74 @@ hip_profiles:
   # Basic compliance profile for corporate endpoints
   - name: corporate-endpoint-compliance
     folder: Texas
-    description: "Standard compliance policy for corporate endpoints"
-    match: "'domain-member' and 'patch-management'"
+    description: Standard compliance policy for corporate endpoints
+    match: domain-member and patch-management
 
   # Enhanced security profile for privileged users
   - name: privileged-user-policy
     folder: Texas
-    description: "Enhanced security requirements for privileged access"
-    match: "'domain-member' and 'patch-management' and 'disk-encryption' and 'antivirus'"
+    description: Enhanced security requirements for privileged access
+    match: |
+      domain-member and patch-management and disk-encryption and antivirus
 
   # Mobile device compliance
   - name: mobile-device-compliance
     folder: Texas
-    description: "Compliance policy for mobile devices"
-    match: "'mobile-device' and 'disk-encryption'"
+    description: Compliance policy for mobile devices
+    match: mobile-device and disk-encryption
 
   # Basic network access profile
   - name: basic-network-access
     folder: Austin
-    description: "Minimum requirements for network access"
-    match: "'domain-member' or 'certificate-valid'"
+    description: Minimum requirements for network access
+    match: domain-member or certificate-valid
 
   # Guest access profile
   - name: guest-access-policy
     folder: Austin
-    description: "Limited access for guest devices"
-    match: "not 'domain-member'"
+    description: Limited access for guest devices
+    match: not domain-member
 
   # Development workstation profile
   - name: developer-workstation
     folder: Austin
-    description: "Policy for development workstations"
-    match: "'domain-member' and 'antivirus' and 'host-info'"
+    description: Policy for development workstations
+    match: domain-member and antivirus and host-info
 
   # Remote access profile
   - name: remote-access-compliance
     folder: ngfw-shared
-    description: "Compliance requirements for remote access"
-    match: "'domain-member' and 'patch-management' and 'disk-encryption' and 'certificate-valid'"
+    description: Compliance requirements for remote access
+    match: |
+      domain-member and patch-management and disk-encryption and certificate-valid
 
   # Contractor device profile
   - name: contractor-device-policy
     folder: ngfw-shared
-    description: "Policy for contractor devices"
-    match: "'certificate-valid' and 'antivirus'"
+    description: Policy for contractor devices
+    match: certificate-valid and antivirus
 
   # IoT device profile
   - name: iot-device-profile
     folder: ngfw-shared
-    description: "Profile for IoT devices"
-    match: "'certificate-valid' and not 'patch-management'"
+    description: Profile for IoT devices
+    match: certificate-valid and not patch-management
 
   # Emergency access profile
   - name: emergency-access
     folder: Shared
-    description: "Emergency access with minimal requirements"
-    match: "'certificate-valid' or 'emergency-override'"
+    description: Emergency access with minimal requirements
+    match: certificate-valid or emergency-override
 
   # High security profile
   - name: high-security-compliance
     folder: Shared
-    description: "Maximum security requirements"
-    match: "'domain-member' and 'patch-management' and 'disk-encryption' and 'antivirus' and 'certificate-valid' and 'firewall-enabled'"
+    description: Maximum security requirements
+    match: |
+      domain-member and patch-management and disk-encryption and antivirus and certificate-valid and firewall-enabled
 
   # BYOD profile
   - name: byod-device-policy
     folder: Shared
-    description: "Bring Your Own Device policy"
-    match: "'mobile-device' and 'disk-encryption' and 'passcode-set'"
+    description: Bring Your Own Device policy
+    match: mobile-device and disk-encryption and passcode-set

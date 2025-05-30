@@ -1,3 +1,4 @@
+---
 # hip-objects.yml
 # Example HIP (Host Information Profile) object configurations
 # Used with: scm-cli load objects hip-object --file hip-objects.yml
@@ -19,7 +20,7 @@ hip_objects:
     # Patch management requirement
     patch_management_enabled: true
     patch_management_missing_patches: has-none
-    patch_management_severity: 50  # Critical patches only
+    patch_management_severity: 50 # Critical patches only
     patch_management_vendors:
       - name: Microsoft
         product:
@@ -60,7 +61,7 @@ hip_objects:
     # Patch management
     patch_management_enabled: true
     patch_management_missing_patches: has-any
-    patch_management_severity: 30  # High and critical patches
+    patch_management_severity: 30 # High and critical patches
 
   # Certificate-based authentication
   - folder: Austin
@@ -69,9 +70,9 @@ hip_objects:
     certificate_profile: Corporate-CA-Profile
     certificate_attributes:
       - name: issuer
-        value: "CN=Corporate CA, O=Example Corp"
+        value: CN=Corporate CA, O=Example Corp
       - name: valid
-        value: "true"
+        value: true
 
   # Linux server compliance
   - folder: Servers
@@ -117,7 +118,7 @@ hip_objects:
         product: []
       - name: McAfee
         product:
-          - "Endpoint Encryption"
+          - Endpoint Encryption
 
   # Mobile app control policy
   - folder: Mobile
@@ -125,11 +126,11 @@ hip_objects:
     description: Control specific mobile applications
     mobile_device_jailbroken: false
     mobile_device_applications:
-      - name: "Corporate VPN"
-        package: "com.example.corp.vpn"
-      - name: "MDM Agent"
-        package: "com.example.mdm"
-        hash: "a1b2c3d4e5f6"
+      - name: Corporate VPN
+        package: com.example.corp.vpn
+      - name: MDM Agent
+        package: com.example.mdm
+        hash: a1b2c3d4e5f6
 
   # Minimum viable policy
   - folder: Austin
@@ -145,10 +146,10 @@ hip_objects:
     host_info_domain: is
     host_info_domain_value: secure.corp.example.com
     host_info_os: Microsoft
-    host_info_os_value: "Windows 10"
+    host_info_os_value: Windows 10
     host_info_managed: true
     host_info_client_version: contains
-    host_info_client_version_value: "10.0"
+    host_info_client_version_value: 10.0
     # Network restrictions
     network_info_type: is_not
     network_info_value: unknown
@@ -160,6 +161,6 @@ hip_objects:
           is: encrypted
     patch_management_enabled: true
     patch_management_missing_patches: has-none
-    patch_management_severity: 1  # All patches
+    patch_management_severity: 1 # All patches
     # Certificate required
     certificate_profile: High-Security-Cert

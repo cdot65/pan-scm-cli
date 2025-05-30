@@ -1,6 +1,8 @@
+---
 # Example syslog server profiles for Palo Alto Networks Strata Cloud Manager
 # This file demonstrates various configurations for syslog server profiles
-# Each profile can have one or more servers with different transport protocols and formats
+# Each profile can have one or more servers with different transport protocols
+# and formats
 
 syslog_server_profiles:
   # Basic UDP syslog profile

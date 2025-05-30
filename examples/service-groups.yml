@@ -1,3 +1,4 @@
+---
 # Service Group Configuration Example
 # This file demonstrates various service group configurations.
 # Service groups organize related services for use in security policies.
@@ -83,9 +84,9 @@ service_groups:
     members:
       - web-services           # Nested group
       - database-services      # Nested group
-      - communication-services # Nested group
+      - communication-services  # Nested group
       - infrastructure-mgmt    # Nested group
-      - file-transfer-services # Nested group
+      - file-transfer-services  # Nested group
       - gaming-services        # Nested group
 
   # Production services only

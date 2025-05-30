@@ -1,11 +1,13 @@
+---
 # Example HTTP server profile configurations for Strata Cloud Manager
-# HTTP server profiles define HTTP/HTTPS servers for log forwarding and integration
+# HTTP server profiles define HTTP/HTTPS servers for log forwarding and
+# integration
 
 http_server_profiles:
   # Basic syslog forwarding profile
   - name: syslog-http-forward
     folder: Texas
-    description: "Forward logs to syslog server via HTTPS"
+    description: Forward logs to syslog server via HTTPS
     tag_registration: true
     servers:
       - name: primary-syslog
@@ -164,11 +166,15 @@ http_server_profiles:
             value: "palo-alto"
           - name: "format"
             value: "json"
-        payload: '{"timestamp": "{{timestamp}}", "source_ip": "{{src_ip}}", "dest_ip": "{{dst_ip}}", "action": "{{action}}"}'
+        payload: |
+          {"timestamp": "{{timestamp}}", "source_ip": "{{src_ip}}",
+           "dest_ip": "{{dst_ip}}", "action": "{{action}}"}
       threat:
         name: "Custom Threat Format"
         url_format: "/api/v1/threat/logs"
         headers:
           - name: "Content-Type"
             value: "application/json"
-        payload: '{"threat_id": "{{threat_id}}", "severity": "{{severity}}", "action": "{{action}}"}'
+        payload: |
+          {"threat_id": "{{threat_id}}", "severity": "{{severity}}",
+           "action": "{{action}}"}

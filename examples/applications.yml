@@ -8,7 +8,7 @@ applications:
     subcategory: database
     technology: client-server
     risk: 3
-    description: "Austin office custom database application"
+    description: Austin office custom database application
     ports:
       - tcp/1521
       - tcp/1522
@@ -21,7 +21,7 @@ applications:
     subcategory: instant-messaging
     technology: browser-based
     risk: 2
-    description: "Austin internal chat application"
+    description: Austin internal chat application
     ports:
       - tcp/443
       - tcp/8080
@@ -34,7 +34,7 @@ applications:
     subcategory: general-business
     technology: client-server
     risk: 4
-    description: "Austin file server application"
+    description: Austin file server application
     ports:
       - tcp/445
       - tcp/139
@@ -49,7 +49,7 @@ applications:
     subcategory: general-business
     technology: browser-based
     risk: 3
-    description: "Texas CRM system application"
+    description: Texas CRM system application
     ports:
       - tcp/443
     pervasive: true
@@ -60,7 +60,7 @@ applications:
     subcategory: file-sharing
     technology: client-server
     risk: 2
-    description: "Texas development tool"
+    description: Texas development tool
     ports:
       - tcp/22
       - tcp/3000
@@ -72,7 +72,7 @@ applications:
     subcategory: storage-backup
     technology: network-protocol
     risk: 3
-    description: "Texas backup application"
+    description: Texas backup application
     ports:
       - tcp/873
       - tcp/22
@@ -86,7 +86,7 @@ applications:
     subcategory: it-management
     technology: browser-based
     risk: 2
-    description: "Shared network monitoring tool"
+    description: Shared network monitoring tool
     ports:
       - tcp/8443
       - udp/161
@@ -98,7 +98,7 @@ applications:
     subcategory: it-management
     technology: client-server
     risk: 5
-    description: "Shared security vulnerability scanner"
+    description: Shared security vulnerability scanner
     ports:
       - tcp/443
       - tcp/8834
@@ -112,7 +112,7 @@ applications:
     subcategory: it-management
     technology: network-protocol
     risk: 1
-    description: "Shared log collection service"
+    description: Shared log collection service
     ports:
       - udp/514
       - tcp/514

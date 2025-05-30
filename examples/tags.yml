@@ -1,5 +1,7 @@
+---
 # Example tags for Palo Alto Networks Strata Cloud Manager
-# Tags are used to label and categorize configuration objects for easier management
+# Tags are used to label and categorize configuration objects for easier
+# management
 # Each tag can have a name, color, and optional comments
 
 tags:
