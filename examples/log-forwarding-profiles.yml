@@ -1,5 +1,7 @@
+---
 # Example log forwarding profile configurations
-# This file demonstrates various log forwarding profile setups for different use cases
+# This file demonstrates various log forwarding profile setups for different
+# use cases
 
 log_forwarding_profiles:
   # Basic traffic logging to Panorama

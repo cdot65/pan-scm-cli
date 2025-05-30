@@ -1,10 +1,11 @@
+---
 # Example bandwidth allocations for different folders
 bandwidth_allocations:
   # Austin folder examples
   - name: austin-primary-link
     folder: Austin
     bandwidth: 1000
-    description: "Austin primary internet link - 1Gbps"
+    description: Austin primary internet link - 1Gbps
     tags:
       - primary
       - austin
@@ -12,7 +13,7 @@ bandwidth_allocations:
   - name: austin-backup-link
     folder: Austin
     bandwidth: 500
-    description: "Austin backup internet link - 500Mbps"
+    description: Austin backup internet link - 500Mbps
     tags:
       - backup
       - austin
@@ -20,7 +21,7 @@ bandwidth_allocations:
   - name: austin-guest-allocation
     folder: Austin
     bandwidth: 100
-    description: "Austin guest network bandwidth - 100Mbps"
+    description: Austin guest network bandwidth - 100Mbps
     tags:
       - guest
       - austin
@@ -29,7 +30,7 @@ bandwidth_allocations:
   - name: texas-hq-allocation
     folder: Texas
     bandwidth: 2000
-    description: "Texas HQ bandwidth allocation - 2Gbps"
+    description: Texas HQ bandwidth allocation - 2Gbps
     tags:
       - headquarters
       - texas
@@ -37,7 +38,7 @@ bandwidth_allocations:
   - name: texas-branch-allocation
     folder: Texas
     bandwidth: 250
-    description: "Texas branch office bandwidth - 250Mbps"
+    description: Texas branch office bandwidth - 250Mbps
     tags:
       - branch
       - texas
@@ -45,7 +46,7 @@ bandwidth_allocations:
   - name: texas-vpn-allocation
     folder: Texas
     bandwidth: 300
-    description: "Texas VPN tunnel bandwidth - 300Mbps"
+    description: Texas VPN tunnel bandwidth - 300Mbps
     tags:
       - vpn
       - texas
@@ -54,7 +55,7 @@ bandwidth_allocations:
   - name: shared-cloud-services
     folder: ngfw-shared
     bandwidth: 5000
-    description: "Shared cloud services bandwidth - 5Gbps"
+    description: Shared cloud services bandwidth - 5Gbps
     tags:
       - cloud
       - shared
@@ -62,7 +63,7 @@ bandwidth_allocations:
   - name: shared-internet-primary
     folder: ngfw-shared
     bandwidth: 10000
-    description: "Shared primary internet connection - 10Gbps"
+    description: Shared primary internet connection - 10Gbps
     tags:
       - internet
       - primary
@@ -71,7 +72,7 @@ bandwidth_allocations:
   - name: shared-disaster-recovery
     folder: ngfw-shared
     bandwidth: 1000
-    description: "Shared DR site bandwidth - 1Gbps"
+    description: Shared DR site bandwidth - 1Gbps
     tags:
       - disaster-recovery
       - shared

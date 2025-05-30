@@ -1,7 +1,9 @@
+---
 # Dynamic User Groups Configuration Example
-# 
-# This file demonstrates how to configure dynamic user groups for Strata Cloud Manager.
-# Dynamic user groups automatically populate based on tag-based filter expressions.
+#
+# This file demonstrates how to configure dynamic user groups for Strata Cloud
+# Manager. Dynamic user groups automatically populate based on tag-based filter
+# expressions.
 #
 # Filter Syntax:
 # - Use single quotes around tag values
@@ -12,7 +14,8 @@
 # Example filters:
 # - Simple tag match: "'Engineering' and 'Developer'"
 # - Attribute match: "tag.Department='IT' and tag.Role='Admin'"
-# - Complex logic: "tag.Department='Finance' and (tag.Role='Analyst' or tag.Role='Manager')"
+# - Complex logic: "tag.Department='Finance' and (tag.Role='Analyst' or
+#                   tag.Role='Manager')"
 # - Numeric comparison: "tag.risk_score.gt.80"
 
 dynamic_user_groups:
@@ -20,84 +23,84 @@ dynamic_user_groups:
   - folder: Texas
     name: it-administrators
     filter: "'IT' and 'Admin'"
-    description: "IT administrators with elevated privileges"
+    description: IT administrators with elevated privileges
     tags:
       - administration
       - privileged
       - it
-      
+
   - folder: Texas
     name: it-developers
     filter: "'IT' and 'Developer'"
-    description: "IT development team members"
+    description: IT development team members
     tags:
       - development
       - it
-      
+
   # Remote Access Groups
   - folder: Texas
     name: remote-workers
     filter: "'Remote' and 'Active'"
-    description: "Active remote workers requiring VPN access"
+    description: Active remote workers requiring VPN access
     tags:
       - remote
       - vpn
-      
+
   - folder: Texas
     name: contractors
     filter: "'Contractor' and 'Standard'"
-    description: "External contractors with standard access"
+    description: External contractors with standard access
     tags:
       - external
       - contractors
-      
+
   # Department-based Groups
   - folder: Texas
     name: finance-team
     filter: "'Finance' and ('Analyst' or 'Manager')"
-    description: "Finance department analysts and managers"
+    description: Finance department analysts and managers
     tags:
       - finance
       - sensitive-data
-      
+
   - folder: Texas
     name: hr-team
     filter: "'HR' and 'Active'"
-    description: "Human resources team members"
+    description: Human resources team members
     tags:
       - hr
       - confidential
-      
+
   # Risk-based Groups
   - folder: Texas
     name: high-risk-users
-    filter: "tag.criticality.high"
-    description: "Users with high risk classification"
+    filter: tag.criticality.high
+    description: Users with high risk classification
     tags:
       - risk
       - monitoring
-      
+
   - folder: Texas
     name: privileged-users
     filter: "'Privileged' and 'Active'"
-    description: "Users with privileged access rights"
+    description: Users with privileged access rights
     tags:
       - privileged
       - audit
-      
+
   # Location-based Groups
   - folder: Texas
     name: asia-pacific-users
     filter: "'APAC' and 'Active'"
-    description: "Active users in Asia-Pacific region"
+    description: Active users in Asia-Pacific region
     tags:
       - regional
       - apac
-      
+
   - folder: Texas
     name: europe-users
     filter: "'EMEA' and 'Active'"
-    description: "Active users in Europe, Middle East, and Africa"
+    description: Active users in Europe, Middle East, and Africa
     tags:
       - regional
       - emea

@@ -1,9 +1,10 @@
+---
 # Example address groups for different folders
 address_groups:
   # Austin folder examples
   - name: austin-web-servers
     type: static
-    description: "All web servers in Austin office"
+    description: All web servers in Austin office
     folder: Austin
     members:
       - austin-web-server
@@ -16,7 +17,7 @@ address_groups:
 
   - name: austin-db-servers
     type: static
-    description: "Database servers in Austin"
+    description: Database servers in Austin
     folder: Austin
     members:
       - austin-db-server
@@ -26,7 +27,7 @@ address_groups:
 
   - name: austin-dynamic-endpoints
     type: dynamic
-    description: "Dynamic group for Austin endpoints"
+    description: Dynamic group for Austin endpoints
     folder: Austin
     filter: "'austin' and 'endpoint'"
     tags:
@@ -36,7 +37,7 @@ address_groups:
   # Texas folder examples
   - name: texas-email-servers
     type: static
-    description: "Email infrastructure in Texas"
+    description: Email infrastructure in Texas
     folder: Texas
     members:
       - texas-mail-server
@@ -46,7 +47,7 @@ address_groups:
 
   - name: texas-branch-networks
     type: static
-    description: "All Texas branch networks"
+    description: All Texas branch networks
     folder: Texas
     members:
       - texas-branch-network
@@ -58,7 +59,7 @@ address_groups:
 
   - name: texas-dynamic-servers
     type: dynamic
-    description: "Dynamic group for Texas servers"
+    description: Dynamic group for Texas servers
     folder: Texas
     filter: "'texas' and 'server'"
     tags:
@@ -68,7 +69,7 @@ address_groups:
   # ngfw-shared folder examples
   - name: public-dns-servers
     type: static
-    description: "Public DNS server addresses"
+    description: Public DNS server addresses
     folder: ngfw-shared
     members:
       - google-dns-primary
@@ -81,7 +82,7 @@ address_groups:
 
   - name: all-internal-services
     type: static
-    description: "All internal service ranges"
+    description: All internal service ranges
     folder: ngfw-shared
     members:
       - internal-services
@@ -92,7 +93,7 @@ address_groups:
 
   - name: dynamic-cloud-services
     type: dynamic
-    description: "Dynamic group for cloud services"
+    description: Dynamic group for cloud services
     folder: ngfw-shared
     filter: "'cloud' and 'service'"
     tags:

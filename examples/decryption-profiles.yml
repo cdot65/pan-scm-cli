@@ -1,0 +1,63 @@
+---
+decryption_profiles:
+  - name: ssl-forward-proxy-strict
+    folder: Texas
+    ssl_forward_proxy:
+      auto_include_altname: false
+      block_client_cert: false
+      block_expired_certificate: true
+      block_timeout_cert: true
+      block_tls13_downgrade_no_resource: false
+      block_unknown_cert: true
+      block_unsupported_cipher: false
+      block_unsupported_version: false
+      block_untrusted_issuer: true
+      restrict_cert_exts: false
+      strip_alpn: false
+    ssl_protocol_settings:
+      min_version: tls1-0
+      max_version: tls1-3
+      auth_algo_md5: false
+      auth_algo_sha1: true
+      auth_algo_sha256: true
+      auth_algo_sha384: true
+      enc_algo_3des: false
+      enc_algo_aes_128_cbc: true
+      enc_algo_aes_128_gcm: true
+      enc_algo_aes_256_cbc: true
+      enc_algo_aes_256_gcm: true
+      enc_algo_chacha20_poly1305: true
+      enc_algo_rc4: false
+      keyxchg_algo_dhe: true
+      keyxchg_algo_ecdhe: true
+      keyxchg_algo_rsa: true
+
+  - name: ssl-inbound-inspection
+    folder: Texas
+    ssl_inbound_proxy:
+      block_if_hsm_unavailable: false
+      block_if_no_resource: true
+      block_unsupported_cipher: true
+      block_unsupported_version: true
+    ssl_protocol_settings:
+      min_version: tls1-2
+      max_version: tls1-3
+
+  - name: no-decrypt-medical
+    folder: Texas
+    ssl_no_proxy:
+      block_expired_certificate: false
+      block_untrusted_issuer: false
+
+  - name: ssl-forward-proxy-balanced
+    snippet: Security-Best-Practice
+    ssl_forward_proxy:
+      auto_include_altname: true
+      block_client_cert: false
+      block_expired_certificate: true
+      block_unknown_cert: false
+      block_untrusted_issuer: true
+      strip_alpn: false
+    ssl_protocol_settings:
+      min_version: tls1-1
+      max_version: tls1-3

@@ -1,3 +1,4 @@
+---
 # RFC 1918 Private IP Address Group
 # This creates an address group containing all RFC 1918 private IP ranges
 # Note: The address objects must be created first using rfc1918-addresses.yml
@@ -5,7 +6,9 @@
 address_groups:
   - name: rfc1918-all-private-networks
     type: static
-    description: "All RFC 1918 private IP address ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)"
+    description: |
+      All RFC 1918 private IP address ranges (10.0.0.0/8, 172.16.0.0/12,
+      192.168.0.0/16)
     folder: ngfw-shared
     members:
       - rfc1918-10-0-0-0-8
