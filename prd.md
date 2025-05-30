@@ -2003,3 +2003,125 @@ scm-cli load objects tag --file tags.yml --dry-run
 # Container override with dry run
 scm-cli load objects application --file apps.yml --folder Texas --dry-run
 ```
+
+## 32. Decryption Profile Support
+
+### 32.1 Problem Statement
+
+Decryption profiles are critical for SSL/TLS inspection in modern security architectures. They enable organizations to inspect encrypted traffic for threats while maintaining control over which traffic to decrypt based on security and privacy requirements. The CLI needed comprehensive decryption profile management to support SSL forward proxy, SSL inbound proxy, and no-decrypt scenarios.
+
+### 32.2 Solution: Full Decryption Profile Management
+
+Implemented comprehensive support for decryption profiles with all CRUD operations and flexible SSL/TLS configuration options.
+
+#### 32.2.1 Decryption Profile Features
+
+- **Create/Update**: Support for multiple proxy types and SSL protocol settings
+  - SSL Forward Proxy: Client-to-server traffic inspection
+  - SSL Inbound Proxy: Server-to-client traffic inspection
+  - SSL No Proxy: Bypass decryption for specific traffic
+  - SSL Protocol Settings: Control supported protocols and cipher suites
+  - Smart upsert logic for seamless updates
+- **Show**: List all or display specific profiles with configuration details
+- **Load**: Bulk import from YAML files with validation
+- **Delete**: Remove profiles by name and container
+- **Backup**: Export profiles to YAML with proper formatting
+
+#### 32.2.2 Proxy Type Configurations
+
+1. **SSL Forward Proxy**: Controls decryption of outbound SSL/TLS traffic
+
+   - Certificate validation options (expired, untrusted, unknown)
+   - Client certificate handling
+   - TLS 1.3 downgrade behavior
+   - ALPN stripping
+
+2. **SSL Inbound Proxy**: Controls decryption of inbound SSL/TLS traffic
+
+   - HSM availability handling
+   - Resource availability checks
+   - Cipher and version support
+
+3. **SSL No Proxy**: Defines traffic that should not be decrypted
+
+   - Certificate validation bypass options
+
+4. **SSL Protocol Settings**: Fine-grained control over SSL/TLS parameters
+   - Minimum and maximum TLS versions
+   - Authentication algorithms (MD5, SHA1, SHA256, SHA384)
+   - Encryption algorithms (3DES, AES variants, ChaCha20-Poly1305, RC4)
+   - Key exchange algorithms (DHE, ECDHE, RSA)
+
+### 32.3 Technical Implementation Details
+
+#### 32.3.1 SDK Client Methods
+
+Added the following methods to `sdk_client.py`:
+
+- `create_decryption_profile()`: Smart upsert with proxy type configuration
+- `delete_decryption_profile()`: Remove by name and container
+- `get_decryption_profile()`: Fetch specific profile with all settings
+- `list_decryption_profiles()`: List with exact_match support
+
+#### 32.3.2 Validator Model
+
+Created `DecryptionProfile` model in `validators.py` with:
+
+- Container validation (folder/snippet/device)
+- Proxy type validation (at least one required)
+- SSL version ordering validation
+- Proper `to_sdk_model()` method
+
+#### 32.3.3 CLI Commands
+
+Implemented in `security.py`:
+
+- `backup_decryption_profile()`: Export to YAML format
+- `delete_decryption_profile()`: Remove by name and container
+- `load_decryption_profile()`: Import with validation
+- `set_decryption_profile()`: Create/update with JSON configuration
+- `show_decryption_profile()`: Display with formatted settings
+
+### 32.4 Usage Examples
+
+```bash
+# Create SSL forward proxy profile
+scm-cli set security decryption-profile --folder Texas --name ssl-forward \
+  --ssl-forward-proxy '{"block_expired_certificate": true, "block_untrusted_issuer": true}'
+
+# Create SSL inbound inspection profile
+scm-cli set security decryption-profile --folder Texas --name ssl-inbound \
+  --ssl-inbound-proxy '{"block_if_no_resource": true, "block_unsupported_cipher": true}'
+
+# Create no-decrypt profile for sensitive traffic
+scm-cli set security decryption-profile --folder Texas --name no-decrypt-medical \
+  --ssl-no-proxy '{"block_expired_certificate": false, "block_untrusted_issuer": false}'
+
+# Create profile with custom protocol settings
+scm-cli set security decryption-profile --folder Texas --name secure-decrypt \
+  --ssl-forward-proxy '{"block_expired_certificate": true}' \
+  --ssl-protocol-settings '{"min_version": "tls1-2", "max_version": "tls1-3", "enc_algo_rc4": false}'
+
+# List all profiles
+scm-cli show security decryption-profile --folder Texas --list
+
+# Show specific profile details
+scm-cli show security decryption-profile --folder Texas --name ssl-forward
+
+# Backup profiles
+scm-cli backup security decryption-profile --folder Texas
+
+# Load profiles from YAML
+scm-cli load security decryption-profile --file decryption-profiles.yml
+```
+
+### 32.5 Testing Results
+
+All commands have been tested and verified:
+
+- ✅ Set command creates profiles with all proxy types
+- ✅ Show command displays detailed configuration settings
+- ✅ Load command imports from YAML files correctly
+- ✅ Delete command removes profiles cleanly
+- ✅ Backup command exports to YAML format
+- ✅ Example YAML file created with various profile configurations

@@ -237,6 +237,16 @@ The project has successfully implemented:
 - [x] Create comprehensive example YAML file with various tag configurations
 - [x] Add tests and documentation
 
+### Decryption Profiles (Completed ✅)
+
+- [x] Implement `show security decryption-profile` command with `--list` and `--name` flags
+- [x] Add SDK client methods: `list_decryption_profiles()` and `get_decryption_profile()`
+- [x] Implement all CRUD operations: set, load, delete, backup
+- [x] Add support for SSL forward proxy, inbound proxy, and no proxy configurations
+- [x] Support SSL protocol settings with cipher suite control
+- [x] Create comprehensive example YAML file with various profile configurations
+- [x] Add tests and documentation
+
 ## Command Styling Guide (Completed ✅)
 
 - [x] Review styling patterns for address, address-group, and application objects
@@ -270,6 +280,8 @@ The project has successfully implemented:
 - [x] Implement `backup objects tag` command
 - [x] Implement `backup network security-zone` command
 - [x] Implement `backup security rule` command
+- [x] Implement `backup security anti-spyware-profile` command
+- [x] Implement `backup security decryption-profile` command
 - [x] Implement `backup deployment bandwidth` command
 - [x] Update SDK client with `exact_match` parameter for list methods
 - [x] Add field mapping from SDK to CLI format
