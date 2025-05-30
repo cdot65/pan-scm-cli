@@ -25,11 +25,31 @@ app = typer.Typer(
 # ============================================================================================================================================================================================
 
 # Create app groups for each action
-backup_app = typer.Typer(help="Backup configurations to YAML files", name="backup")
-delete_app = typer.Typer(help="Remove configurations", name="delete")
-load_app = typer.Typer(help="Load configurations from YAML files", name="load")
-set_app = typer.Typer(help="Create or update configurations", name="set")
-show_app = typer.Typer(help="Display configurations", name="show")
+backup_app = typer.Typer(
+    help="Backup configurations to YAML files",
+    name="backup",
+    add_completion=True,
+)
+delete_app = typer.Typer(
+    help="Remove configurations",
+    name="delete",
+    add_completion=True,
+)
+load_app = typer.Typer(
+    help="Load configurations from YAML files",
+    name="load",
+    add_completion=True,
+)
+set_app = typer.Typer(
+    help="Create or update configurations",
+    name="set",
+    add_completion=True,
+)
+show_app = typer.Typer(
+    help="Display configurations",
+    name="show",
+    add_completion=True,
+)
 
 # ============================================================================================================================================================================================
 # APP REGISTRATION
@@ -37,43 +57,143 @@ show_app = typer.Typer(help="Display configurations", name="show")
 
 # ----------------------------------------------------------------------------------- Register Action Apps -----------------------------------------------------------------------------------
 
-app.add_typer(backup_app, name="backup")
-app.add_typer(delete_app, name="delete")
-app.add_typer(load_app, name="load")
-app.add_typer(set_app, name="set")
-app.add_typer(show_app, name="show")
+app.add_typer(
+    backup_app,
+    name="backup",
+    add_completion=True,
+)
+app.add_typer(
+    delete_app,
+    name="delete",
+    add_completion=True,
+)
+app.add_typer(
+    load_app,
+    name="load",
+    add_completion=True,
+)
+app.add_typer(
+    set_app,
+    name="set",
+    add_completion=True,
+)
+app.add_typer(
+    show_app,
+    name="show",
+    add_completion=True,
+)
 
 # --------------------------------------------------------------------------------- Register Module Commands ---------------------------------------------------------------------------------
 
 # Backup commands
-backup_app.add_typer(deployment.backup_app, name="deployment")
-backup_app.add_typer(network.backup_app, name="network")
-backup_app.add_typer(objects.backup_app, name="objects")
-backup_app.add_typer(security.backup_app, name="security")
+backup_app.add_typer(
+    deployment.backup_app,
+    name="deployment",
+    help="Backup deployment configurations",
+)
+backup_app.add_typer(
+    network.backup_app,
+    name="network",
+    help="Backup network configurations",
+)
+backup_app.add_typer(
+    objects.backup_app,
+    name="objects",
+    help="Backup object configurations",
+)
+backup_app.add_typer(
+    security.backup_app,
+    name="security",
+    help="Backup security configurations",
+)
 
 # Delete commands
-delete_app.add_typer(deployment.delete_app, name="deployment")
-delete_app.add_typer(network.delete_app, name="network")
-delete_app.add_typer(objects.delete_app, name="objects")
-delete_app.add_typer(security.delete_app, name="security")
+delete_app.add_typer(
+    deployment.delete_app,
+    name="deployment",
+    help="Delete deployment configurations",
+)
+delete_app.add_typer(
+    network.delete_app,
+    name="network",
+    help="Delete network configurations",
+)
+delete_app.add_typer(
+    objects.delete_app,
+    name="objects",
+    help="Delete object configurations",
+)
+delete_app.add_typer(
+    security.delete_app,
+    name="security",
+    help="Delete security configurations",
+)
 
 # Load commands
-load_app.add_typer(deployment.load_app, name="deployment")
-load_app.add_typer(network.load_app, name="network")
-load_app.add_typer(objects.load_app, name="objects")
-load_app.add_typer(security.load_app, name="security")
+load_app.add_typer(
+    deployment.load_app,
+    name="deployment",
+    help="Load deployment configurations",
+)
+load_app.add_typer(
+    network.load_app,
+    name="network",
+    help="Load network configurations",
+)
+load_app.add_typer(
+    objects.load_app,
+    name="objects",
+    help="Load object configurations",
+)
+load_app.add_typer(
+    security.load_app,
+    name="security",
+    help="Load security configurations",
+)
 
 # Set commands
-set_app.add_typer(deployment.set_app, name="deployment")
-set_app.add_typer(network.set_app, name="network")
-set_app.add_typer(objects.set_app, name="objects")
-set_app.add_typer(security.set_app, name="security")
+set_app.add_typer(
+    deployment.set_app,
+    name="deployment",
+    help="Set deployment configurations",
+)
+set_app.add_typer(
+    network.set_app,
+    name="network",
+    help="Set network configurations",
+)
+set_app.add_typer(
+    objects.set_app,
+    name="objects",
+    help="Set object configurations",
+)
+set_app.add_typer(
+    security.set_app,
+    name="security",
+    help="Set security configurations",
+)
 
 # Show commands
-show_app.add_typer(deployment.show_app, name="deployment")
-show_app.add_typer(network.show_app, name="network")
-show_app.add_typer(objects.show_app, name="objects")
-show_app.add_typer(security.show_app, name="security")
+show_app.add_typer(
+    deployment.show_app,
+    name="deployment",
+    help="Show deployment configurations",
+)
+show_app.add_typer(
+    network.show_app,
+    name="network",
+    help="Show network configurations",
+)
+show_app.add_typer(
+    objects.show_app,
+    name="objects",
+    help="Show object configurations",
+)
+show_app.add_typer(
+    security.show_app,
+    name="security",
+    help="Show security configurations",
+)
 
 # ============================================================================================================================================================================================
 # CLI COMMANDS
@@ -104,20 +224,33 @@ def test_auth(
     try:
         client = get_scm_client(mock=mock)
         if mock:
-            typer.echo(typer.style("Authentication simulation successful (mock mode)", fg="green"))
+            typer.echo(
+                typer.style(
+                    "Authentication simulation successful (mock mode)", fg="green"
+                )
+            )
         else:
             # The Scm client has been successfully initialized at this point
             typer.echo(typer.style("Authentication successful!", fg="green"))
-            typer.echo("Successfully initialized SCM client with credentials from environment variables or config file")
+            typer.echo(
+                "Successfully initialized SCM client with credentials from environment variables or config file"
+            )
 
             # Try to get network locations as a simple test
             try:
                 # Address Objects is a basic endpoint we can use to test connectivity
                 address_objects = client.address.list(folder="Shared")
-                typer.echo(f"Successfully connected to SCM API. Found {len(address_objects)} address objects in Shared (Prisma Access) folder.")
+                typer.echo(
+                    f"Successfully connected to SCM API. Found {len(address_objects)} address objects in Shared (Prisma Access) folder."
+                )
             except Exception as connection_error:
                 # Still consider auth successful, but note the connection issue
-                typer.echo(typer.style(f"Note: Could not verify API connectivity: {str(connection_error)}", fg="yellow"))
+                typer.echo(
+                    typer.style(
+                        f"Note: Could not verify API connectivity: {str(connection_error)}",
+                        fg="yellow",
+                    )
+                )
     except Exception as e:
         typer.echo(typer.style(f"Authentication failed: {str(e)}", fg="red"))
         raise typer.Exit(code=1) from e
