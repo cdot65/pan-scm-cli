@@ -51,16 +51,6 @@ INTERFACES_OPTION = typer.Option(
     "--interfaces",
     help="List of interfaces",
 )
-DESCRIPTION_OPTION = typer.Option(
-    None,
-    "--description",
-    help="Description of the zone",
-)
-TAGS_OPTION = typer.Option(
-    None,
-    "--tags",
-    help="List of tags",
-)
 ENABLE_USER_ID_OPTION = typer.Option(
     None,
     "--enable-user-id",
@@ -286,8 +276,6 @@ def load_security_zone(
                 name=sdk_data["name"],
                 mode=sdk_data["mode"],
                 interfaces=sdk_data["interfaces"],
-                description=sdk_data["description"],
-                tags=sdk_data["tags"],
             )
 
             results.append(result)
@@ -308,8 +296,6 @@ def set_zone(
     name: str = NAME_OPTION,
     mode: str = MODE_OPTION,
     interfaces: list[str] | None = INTERFACES_OPTION,
-    description: str | None = DESCRIPTION_OPTION,
-    tags: list[str] | None = TAGS_OPTION,
     enable_user_id: bool | None = ENABLE_USER_ID_OPTION,
 ):
     """Create or update a security zone.
@@ -317,8 +303,7 @@ def set_zone(
     Example:
     -------
         scm-cli set network zone --folder Texas --name trust --mode L3 \
-        --interfaces ["ethernet1/1"] --description "Trust zone" --tags ["internal"] \
-        --enable-user-id
+        --interfaces ["ethernet1/1"] --enable-user-id
 
     """
     try:
@@ -338,8 +323,8 @@ def set_zone(
             name=name,
             folder=folder,
             network=network_config,
-            description=description,
-            tags=tags,
+            description=None,
+            tags=None,
             # Add None defaults for optional fields
             snippet=None,
             device=None,
@@ -356,8 +341,6 @@ def set_zone(
             name=zone.name,
             mode=sdk_model["mode"],
             interfaces=sdk_model["interfaces"],
-            description=sdk_model["description"],
-            tags=zone.tags,
             enable_user_identification=sdk_model.get("enable_user_identification"),
             enable_device_identification=sdk_model.get("enable_device_identification"),
         )
