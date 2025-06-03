@@ -44,7 +44,7 @@ NAME_OPTION = typer.Option(
 MODE_OPTION = typer.Option(
     ...,
     "--mode",
-    help="Zone mode (L2, L3, external, virtual-wire, tunnel)",
+    help="Zone mode (layer2, layer3, external, virtual-wire, tunnel, tap)",
 )
 INTERFACES_OPTION = typer.Option(
     None,
@@ -302,22 +302,34 @@ def set_zone(
 
     Example:
     -------
-        scm-cli set network zone --folder Texas --name trust --mode L3 \
+        scm-cli set network zone --folder Texas --name trust --mode layer3 \
         --interfaces ["ethernet1/1"] --enable-user-id
 
     """
     try:
-        # Validate input using the Pydantic model
+        # Validate mode parameter
+        valid_modes = ["layer3", "layer2", "virtual-wire", "tap", "external", "tunnel"]
+        if mode not in valid_modes:
+            typer.echo(
+                f"Error: Invalid mode '{mode}'. Must be one of: {', '.join(valid_modes)}",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
         # Build network configuration based on mode
         network_config = {}
-        if mode == "L3":
+        if mode == "layer3":
             network_config["layer3"] = interfaces or []
-        elif mode == "L2":
+        elif mode == "layer2":
             network_config["layer2"] = interfaces or []
         elif mode == "virtual-wire":
             network_config["virtual_wire"] = interfaces or []
         elif mode == "tap":
             network_config["tap"] = interfaces or []
+        elif mode == "external":
+            network_config["external"] = interfaces or []
+        elif mode == "tunnel":
+            network_config["tunnel"] = interfaces or []
 
         zone = Zone(
             name=name,
