@@ -244,17 +244,14 @@ def set_bandwidth_allocation(
 def show_bandwidth_allocation(
     name: str | None = typer.Option(
         None, "--name", help="Name of the bandwidth allocation to show"
-    ),
-    list_allocations: bool = typer.Option(
-        False, "--list", help="List all bandwidth allocations"
-    ),
+    )
 ):
     """Display bandwidth allocations.
 
     Example:
     -------
-        # List all bandwidth allocations
-        scm-cli show deployment bandwidth-allocation --list
+        # List all bandwidth allocations (default behavior)
+        scm-cli show deployment bandwidth-allocation
 
         # Show a specific bandwidth allocation by name
         scm-cli show deployment bandwidth-allocation --name primary
@@ -263,8 +260,43 @@ def show_bandwidth_allocation(
 
     """
     try:
-        if list_allocations:
-            # List all bandwidth allocations
+        if name:
+            # Get a specific bandwidth allocation by name
+            allocation = scm_client.get_bandwidth_allocation(name=name)
+
+            typer.echo(f"Bandwidth Allocation: {allocation.get('name', 'N/A')}")
+            typer.echo(
+                f"Allocated Bandwidth: {allocation.get('allocated_bandwidth', 'N/A')} Mbps"
+            )
+
+            # Display SPN names if present
+            spn_names = allocation.get("spn_name_list", [])
+            if spn_names:
+                typer.echo(f"SPN Names: {', '.join(spn_names)}")
+            else:
+                typer.echo("SPN Names: None")
+
+            typer.echo(f"Description: {allocation.get('description', 'N/A')}")
+
+            # Display QoS settings if present
+            if allocation.get("qos_enabled"):
+                typer.echo("QoS Settings:")
+                typer.echo("  Enabled: True")
+                if allocation.get("qos_guaranteed_ratio") is not None:
+                    typer.echo(
+                        f"  Guaranteed Ratio: {allocation.get('qos_guaranteed_ratio')}%"
+                    )
+
+            # Display ID if present
+            if allocation.get("id"):
+                typer.echo(f"ID: {allocation['id']}")
+
+            return allocation
+
+        else:
+
+            # Default behavior: list all
+            # List all bandwidth allocations (default behavior)
             allocations = scm_client.list_bandwidth_allocations()
 
             if not allocations:
@@ -306,44 +338,6 @@ def show_bandwidth_allocation(
                 typer.echo("-" * 60)
 
             return allocations
-
-        elif name:
-            # Get a specific bandwidth allocation by name
-            allocation = scm_client.get_bandwidth_allocation(name=name)
-
-            typer.echo(f"Bandwidth Allocation: {allocation.get('name', 'N/A')}")
-            typer.echo(
-                f"Allocated Bandwidth: {allocation.get('allocated_bandwidth', 'N/A')} Mbps"
-            )
-
-            # Display SPN names if present
-            spn_names = allocation.get("spn_name_list", [])
-            if spn_names:
-                typer.echo(f"SPN Names: {', '.join(spn_names)}")
-            else:
-                typer.echo("SPN Names: None")
-
-            typer.echo(f"Description: {allocation.get('description', 'N/A')}")
-
-            # Display QoS settings if present
-            if allocation.get("qos_enabled"):
-                typer.echo("QoS Settings:")
-                typer.echo("  Enabled: True")
-                if allocation.get("qos_guaranteed_ratio") is not None:
-                    typer.echo(
-                        f"  Guaranteed Ratio: {allocation.get('qos_guaranteed_ratio')}%"
-                    )
-
-            # Display ID if present
-            if allocation.get("id"):
-                typer.echo(f"ID: {allocation['id']}")
-
-            return allocation
-
-        else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
 
     except Exception as e:
         typer.echo(f"Error showing bandwidth allocation: {str(e)}", err=True)
