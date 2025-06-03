@@ -139,13 +139,12 @@ scm show objects address-group [OPTIONS]
 
 ### Options
 
-| Option          | Description                           | Required |
-| --------------- | ------------------------------------- | -------- |
-| `--folder TEXT` | Folder containing the address group   | Yes      |
-| `--name TEXT`   | Name of the address group to show     | No\*     |
-| `--list`        | List all address groups in the folder | No\*     |
+| Option          | Description                         | Required |
+| --------------- | ----------------------------------- | -------- |
+| `--folder TEXT` | Folder containing the address group | Yes      |
+| `--name TEXT`   | Name of the address group to show   | No       |
 
-\* You must specify either --name or --list.
+\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -164,10 +163,10 @@ Tags: web, servers
 ID: 123e4567-e89b-12d3-a456-426614174001
 ```
 
-#### List All Address Groups
+#### List All Address Groups (Default Behavior)
 
 ```bash
-$ scm show objects address-group --folder Texas --list
+$ scm show objects address-group --folder Texas
 Address Groups in folder 'Texas':
 ------------------------------------------------------------
 Name: web-servers

@@ -35,10 +35,10 @@ $ scm set objects tag --folder Texas --name web-tier --color "Green"
 <span style="color: green;">✓</span> Tag 'web-tier' created successfully
 ```
 
-### Listing Tags
+### Listing Tags (Default Behavior)
 
 ```bash
-$ scm show objects tag --folder Texas --list
+$ scm show objects tag --folder Texas
 Tags in folder 'Texas':
 - production (Red)
 - development (Yellow)
@@ -46,6 +46,9 @@ Tags in folder 'Texas':
 - database (Blue)
 - web-tier (Green)
 ```
+
+!!! note
+When no --name is specified, all tags are listed by default.
 
 ### Showing Tag Details
 

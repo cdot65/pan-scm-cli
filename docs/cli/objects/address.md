@@ -209,10 +209,9 @@ scm show objects address [OPTIONS]
 | Option          | Description                          | Required |
 | --------------- | ------------------------------------ | -------- |
 | `--folder TEXT` | Folder containing the address object | Yes      |
-| `--name TEXT`   | Name of the address object to show   | No\*     |
-| `--list`        | List all addresses in the folder     | No\*     |
+| `--name TEXT`   | Name of the address object to show   | No       |
 
-\* You must specify either --name or --list.
+\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -230,10 +229,10 @@ Tags: server, web
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All Addresses
+#### List All Addresses (Default Behavior)
 
 ```bash
-$ scm show objects address --folder Texas --list
+$ scm show objects address --folder Texas
 ---> 100%
 Addresses in folder 'Texas':
 ------------------------------------------------------------

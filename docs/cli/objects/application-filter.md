@@ -240,7 +240,7 @@ scm show objects application-filter [OPTIONS]
 | `--list`         | List all application filters in the container    | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -257,10 +257,10 @@ Description: High-risk file sharing applications
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All Application Filters
+#### List All Application Filters (Default Behavior)
 
 ```bash
-$ scm show objects application-filter --folder Texas --list
+$ scm show objects application-filter --folder Texas
 ---> 100%
 Application Filters in folder 'Texas':
 ------------------------------------------------------------

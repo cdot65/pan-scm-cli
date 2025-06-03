@@ -44,16 +44,19 @@ $ scm set objects service --folder Texas --name database-service \
 <span style="color: green;">✓</span> Service 'database-service' created successfully
 ```
 
-### Listing Services
+### Listing Services (Default Behavior)
 
 ```bash
-$ scm show objects service --folder Texas --list
+$ scm show objects service --folder Texas
 Services in folder 'Texas':
 - custom-web
 - custom-voip
 - database-service
 - legacy-app
 ```
+
+!!! note
+When no --name is specified, all services are listed by default.
 
 ### Showing Service Details
 
