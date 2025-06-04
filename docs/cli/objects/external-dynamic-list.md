@@ -229,7 +229,7 @@ scm show objects external-dynamic-list [OPTIONS]
 | `--list`         | List all external dynamic lists in the container    | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -247,10 +247,10 @@ Description: Custom threat IP list
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All External Dynamic Lists
+#### List All External Dynamic Lists (Default Behavior)
 
 ```bash
-$ scm show objects external-dynamic-list --folder Texas --list
+$ scm show objects external-dynamic-list --folder Texas
 ---> 100%
 External Dynamic Lists in folder 'Texas':
 ------------------------------------------------------------

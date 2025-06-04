@@ -219,7 +219,7 @@ scm show objects hip-object [OPTIONS]
 | `--list`         | List all HIP objects in the container | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -239,10 +239,10 @@ Patch Management:
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All HIP Objects
+#### List All HIP Objects (Default Behavior)
 
 ```bash
-$ scm show objects hip-object --folder Texas --list
+$ scm show objects hip-object --folder Texas
 ---> 100%
 HIP Objects in folder 'Texas':
 ------------------------------------------------------------

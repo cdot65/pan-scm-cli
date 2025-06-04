@@ -682,17 +682,16 @@ def show_security_rule(
     name: str | None = typer.Option(
         None, "--name", help="Name of the security rule to show"
     ),
-    list_rules: bool = typer.Option(False, "--list", help="List all security rules"),
 ):
     """Display security rules.
 
     Examples:
     --------
-        # List all security rules in a folder and rulebase
-        scm-cli show security rule --folder Texas --list
+        # List all security rules in a folder and rulebase (default behavior)
+        scm-cli show security rule --folder Texas
 
         # List rules in post rulebase
-        scm-cli show security rule --folder Texas --rulebase post --list
+        scm-cli show security rule --folder Texas --rulebase post
 
         # Show a specific security rule by name
         scm-cli show security rule --folder Texas --name "Allow Web Traffic"
@@ -706,98 +705,7 @@ def show_security_rule(
     location_type, location_value = validate_location_params(folder, snippet, device)
 
     try:
-        if list_rules:
-            # List all security rules in the specified container and rulebase
-            kwargs = {location_type: location_value}
-            rules = scm_client.list_security_rules(**kwargs, rulebase=rulebase)
-
-            if not rules:
-                typer.echo(
-                    f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'"
-                )
-                return
-
-            typer.echo(
-                f"\nSecurity Rules in {location_type} '{location_value}' rulebase '{rulebase}':"
-            )
-            typer.echo("=" * 80)
-
-            for rule in rules:
-                # Display rule information
-                typer.echo(f"Name: {rule.get('name', 'N/A')}")
-
-                # Display container location (folder, snippet, or device) and rulebase
-                if rule.get("folder"):
-                    typer.echo(
-                        f"  Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'"
-                    )
-                elif rule.get("snippet"):
-                    typer.echo(
-                        f"  Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'"
-                    )
-                elif rule.get("device"):
-                    typer.echo(
-                        f"  Location: Device '{rule['device']}' / Rulebase '{rulebase}'"
-                    )
-                else:
-                    typer.echo(f"  Location: N/A / Rulebase '{rulebase}'")
-
-                typer.echo(f"  Action: {rule.get('action', 'N/A')}")
-
-                # Display source zones
-                source_zones = rule.get("from_", [])
-                typer.echo(
-                    f"  Source Zones: {', '.join(source_zones) if source_zones else 'any'}"
-                )
-
-                # Display destination zones
-                dest_zones = rule.get("to_", [])
-                typer.echo(
-                    f"  Destination Zones: {', '.join(dest_zones) if dest_zones else 'any'}"
-                )
-
-                # Display source addresses
-                source_addrs = rule.get("source", [])
-                typer.echo(
-                    f"  Source Addresses: {', '.join(source_addrs) if source_addrs else 'any'}"
-                )
-
-                # Display destination addresses
-                dest_addrs = rule.get("destination", [])
-                typer.echo(
-                    f"  Destination Addresses: {', '.join(dest_addrs) if dest_addrs else 'any'}"
-                )
-
-                # Display applications
-                apps = rule.get("application", [])
-                typer.echo(f"  Applications: {', '.join(apps) if apps else 'any'}")
-
-                # Display services
-                services = rule.get("service", [])
-                typer.echo(f"  Services: {', '.join(services) if services else 'any'}")
-
-                # Display description if present
-                if rule.get("description"):
-                    typer.echo(f"  Description: {rule['description']}")
-
-                # Display tags if present
-                tags = rule.get("tag", [])
-                if tags:
-                    typer.echo(f"  Tags: {', '.join(tags)}")
-
-                # Display enabled/disabled status
-                disabled = rule.get("disabled", False)
-                typer.echo(f"  Status: {'Disabled' if disabled else 'Enabled'}")
-
-                # Display ID if present
-                if rule.get("id"):
-                    typer.echo(f"  ID: {rule['id']}")
-
-                typer.echo("-" * 80)
-
-            return rules
-
-        elif name:
+        if name:
             # For now, SDK only supports folder for get operations
             if location_type != "folder":
                 typer.echo(
@@ -924,9 +832,97 @@ def show_security_rule(
             return rule
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+
+            # Default behavior: list all
+            # List all security rules in the specified container and rulebase (default behavior)
+            kwargs = {location_type: location_value}
+            rules = scm_client.list_security_rules(**kwargs, rulebase=rulebase)
+
+            if not rules:
+                typer.echo(
+                    f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'"
+                )
+                return
+
+            typer.echo(
+                f"\nSecurity Rules in {location_type} '{location_value}' rulebase '{rulebase}':"
+            )
+            typer.echo("=" * 80)
+
+            for rule in rules:
+                # Display rule information
+                typer.echo(f"Name: {rule.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device) and rulebase
+                if rule.get("folder"):
+                    typer.echo(
+                        f"  Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'"
+                    )
+                elif rule.get("snippet"):
+                    typer.echo(
+                        f"  Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'"
+                    )
+                elif rule.get("device"):
+                    typer.echo(
+                        f"  Location: Device '{rule['device']}' / Rulebase '{rulebase}'"
+                    )
+                else:
+                    typer.echo(f"  Location: N/A / Rulebase '{rulebase}'")
+
+                typer.echo(f"  Action: {rule.get('action', 'N/A')}")
+
+                # Display source zones
+                source_zones = rule.get("from_", [])
+                typer.echo(
+                    f"  Source Zones: {', '.join(source_zones) if source_zones else 'any'}"
+                )
+
+                # Display destination zones
+                dest_zones = rule.get("to_", [])
+                typer.echo(
+                    f"  Destination Zones: {', '.join(dest_zones) if dest_zones else 'any'}"
+                )
+
+                # Display source addresses
+                source_addrs = rule.get("source", [])
+                typer.echo(
+                    f"  Source Addresses: {', '.join(source_addrs) if source_addrs else 'any'}"
+                )
+
+                # Display destination addresses
+                dest_addrs = rule.get("destination", [])
+                typer.echo(
+                    f"  Destination Addresses: {', '.join(dest_addrs) if dest_addrs else 'any'}"
+                )
+
+                # Display applications
+                apps = rule.get("application", [])
+                typer.echo(f"  Applications: {', '.join(apps) if apps else 'any'}")
+
+                # Display services
+                services = rule.get("service", [])
+                typer.echo(f"  Services: {', '.join(services) if services else 'any'}")
+
+                # Display description if present
+                if rule.get("description"):
+                    typer.echo(f"  Description: {rule['description']}")
+
+                # Display tags if present
+                tags = rule.get("tag", [])
+                if tags:
+                    typer.echo(f"  Tags: {', '.join(tags)}")
+
+                # Display enabled/disabled status
+                disabled = rule.get("disabled", False)
+                typer.echo(f"  Status: {'Disabled' if disabled else 'Enabled'}")
+
+                # Display ID if present
+                if rule.get("id"):
+                    typer.echo(f"  ID: {rule['id']}")
+
+                typer.echo("-" * 80)
+
+            return rules
 
     except Exception as e:
         typer.echo(f"Error showing security rule: {str(e)}", err=True)
@@ -1309,92 +1305,25 @@ def show_anti_spyware_profile(
     name: str | None = typer.Option(
         None, "--name", help="Name of the anti-spyware profile to show"
     ),
-    list_profiles: bool = typer.Option(
-        False, "--list", help="List all anti-spyware profiles"
-    ),
 ):
     """Display anti-spyware profiles.
 
     Examples:
-        # List all anti-spyware profiles in a folder
-        scm-cli show security anti-spyware-profile --folder Texas --list
+        # List all anti-spyware profiles in a folder (default behavior)
+        scm-cli show security anti-spyware-profile --folder Texas
 
         # Show a specific anti-spyware profile by name
         scm-cli show security anti-spyware-profile --folder Texas --name strict-security
 
         # List profiles in snippet
-        scm-cli show security anti-spyware-profile --snippet Security-Best-Practice --list
+        scm-cli show security anti-spyware-profile --snippet Security-Best-Practice
 
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
 
     try:
-        if list_profiles:
-            # List all anti-spyware profiles in the specified container
-            kwargs = {location_type: location_value}
-            profiles = scm_client.list_anti_spyware_profiles(
-                **kwargs, exact_match=False
-            )
-
-            if not profiles:
-                typer.echo(
-                    f"No anti-spyware profiles found in {location_type} '{location_value}'"
-                )
-                return
-
-            typer.echo(
-                f"\nAnti-Spyware Profiles in {location_type} '{location_value}':"
-            )
-            typer.echo("=" * 80)
-
-            for profile in profiles:
-                # Display profile information
-                typer.echo(f"Name: {profile.get('name', 'N/A')}")
-
-                # Display container location (folder, snippet, or device)
-                if profile.get("folder"):
-                    typer.echo(f"  Location: Folder '{profile['folder']}'")
-                elif profile.get("snippet"):
-                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
-                elif profile.get("device"):
-                    typer.echo(f"  Location: Device '{profile['device']}'")
-
-                # Display description if present
-                if profile.get("description"):
-                    typer.echo(f"  Description: {profile['description']}")
-
-                # Display rules if present
-                if profile.get("rules"):
-                    typer.echo(f"  Rules: {len(profile['rules'])} configured")
-                    for rule in profile["rules"]:
-                        typer.echo(
-                            f"    - {rule.get('name', 'Unnamed')}: {rule.get('action', 'N/A')}"
-                        )
-
-                # Display cloud inline analysis setting
-                if profile.get("cloud_inline_analysis"):
-                    typer.echo("  Cloud Inline Analysis: Enabled")
-
-                # Display threat exceptions if present
-                if profile.get("threat_exception"):
-                    typer.echo(
-                        f"  Threat Exceptions: {len(profile['threat_exception'])}"
-                    )
-
-                # Display MICA engine settings if present
-                if profile.get("mica_engine_spyware_enabled"):
-                    typer.echo("  MICA Engine: Configured")
-
-                # Display ID if present
-                if profile.get("id"):
-                    typer.echo(f"  ID: {profile['id']}")
-
-                typer.echo("-" * 80)
-
-            return profiles
-
-        elif name:
+        if name:
             # Get a specific anti-spyware profile by name
             kwargs = {location_type: location_value}
             profile = scm_client.get_anti_spyware_profile(**kwargs, name=name)
@@ -1474,9 +1403,70 @@ def show_anti_spyware_profile(
             return profile
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+
+            # Default behavior: list all
+            # List all anti-spyware profiles in the specified container (default behavior)
+            kwargs = {location_type: location_value}
+            profiles = scm_client.list_anti_spyware_profiles(
+                **kwargs, exact_match=False
+            )
+
+            if not profiles:
+                typer.echo(
+                    f"No anti-spyware profiles found in {location_type} '{location_value}'"
+                )
+                return
+
+            typer.echo(
+                f"\nAnti-Spyware Profiles in {location_type} '{location_value}':"
+            )
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                # Display profile information
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+                elif profile.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
+                elif profile.get("device"):
+                    typer.echo(f"  Location: Device '{profile['device']}'")
+
+                # Display description if present
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+
+                # Display rules if present
+                if profile.get("rules"):
+                    typer.echo(f"  Rules: {len(profile['rules'])} configured")
+                    for rule in profile["rules"]:
+                        typer.echo(
+                            f"    - {rule.get('name', 'Unnamed')}: {rule.get('action', 'N/A')}"
+                        )
+
+                # Display cloud inline analysis setting
+                if profile.get("cloud_inline_analysis"):
+                    typer.echo("  Cloud Inline Analysis: Enabled")
+
+                # Display threat exceptions if present
+                if profile.get("threat_exception"):
+                    typer.echo(
+                        f"  Threat Exceptions: {len(profile['threat_exception'])}"
+                    )
+
+                # Display MICA engine settings if present
+                if profile.get("mica_engine_spyware_enabled"):
+                    typer.echo("  MICA Engine: Configured")
+
+                # Display ID if present
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
 
     except Exception as e:
         typer.echo(f"Error showing anti-spyware profile: {str(e)}", err=True)
@@ -1866,86 +1856,25 @@ def show_decryption_profile(
     name: str | None = typer.Option(
         None, "--name", help="Name of the decryption profile to show"
     ),
-    list_profiles: bool = typer.Option(
-        False, "--list", help="List all decryption profiles"
-    ),
 ):
     """Display decryption profiles.
 
     Examples:
-        # List all decryption profiles in a folder
-        scm-cli show security decryption-profile --folder Texas --list
+        # List all decryption profiles in a folder (default behavior)
+        scm-cli show security decryption-profile --folder Texas
 
         # Show a specific decryption profile by name
         scm-cli show security decryption-profile --folder Texas --name ssl-forward
 
         # List profiles in snippet
-        scm-cli show security decryption-profile --snippet Security-Best-Practice --list
+        scm-cli show security decryption-profile --snippet Security-Best-Practice
 
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
 
     try:
-        if list_profiles:
-            # List all decryption profiles in the specified container
-            kwargs = {location_type: location_value}
-            profiles = scm_client.list_decryption_profiles(**kwargs, exact_match=False)
-
-            if not profiles:
-                typer.echo(
-                    f"No decryption profiles found in {location_type} '{location_value}'"
-                )
-                return
-
-            typer.echo(f"\nDecryption Profiles in {location_type} '{location_value}':")
-            typer.echo("=" * 80)
-
-            for profile in profiles:
-                # Display profile information
-                typer.echo(f"Name: {profile.get('name', 'N/A')}")
-
-                # Display container location (folder, snippet, or device)
-                if profile.get("folder"):
-                    typer.echo(f"  Location: Folder '{profile['folder']}'")
-                elif profile.get("snippet"):
-                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
-                elif profile.get("device"):
-                    typer.echo(f"  Location: Device '{profile['device']}'")
-
-                # Display description if present
-                if profile.get("description"):
-                    typer.echo(f"  Description: {profile['description']}")
-
-                # Display proxy types configured
-                proxy_types = []
-                if profile.get("ssl_forward_proxy"):
-                    proxy_types.append("SSL Forward Proxy")
-                if profile.get("ssl_inbound_proxy"):
-                    proxy_types.append("SSL Inbound Proxy")
-                if profile.get("ssl_no_proxy"):
-                    proxy_types.append("SSL No Proxy")
-
-                if proxy_types:
-                    typer.echo(f"  Proxy Types: {', '.join(proxy_types)}")
-
-                # Display SSL protocol settings if present
-                if profile.get("ssl_protocol_settings"):
-                    settings = profile["ssl_protocol_settings"]
-                    if "min_version" in settings or "max_version" in settings:
-                        typer.echo(
-                            f"  SSL Versions: {settings.get('min_version', 'N/A')} - {settings.get('max_version', 'N/A')}"
-                        )
-
-                # Display ID if present
-                if profile.get("id"):
-                    typer.echo(f"  ID: {profile['id']}")
-
-                typer.echo("-" * 80)
-
-            return profiles
-
-        elif name:
+        if name:
             # Get a specific decryption profile by name
             kwargs = {location_type: location_value}
             profile = scm_client.get_decryption_profile(**kwargs, name=name)
@@ -2004,9 +1933,64 @@ def show_decryption_profile(
             return profile
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+
+            # Default behavior: list all
+            # List all decryption profiles in the specified container (default behavior)
+            kwargs = {location_type: location_value}
+            profiles = scm_client.list_decryption_profiles(**kwargs, exact_match=False)
+
+            if not profiles:
+                typer.echo(
+                    f"No decryption profiles found in {location_type} '{location_value}'"
+                )
+                return
+
+            typer.echo(f"\nDecryption Profiles in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                # Display profile information
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+                elif profile.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
+                elif profile.get("device"):
+                    typer.echo(f"  Location: Device '{profile['device']}'")
+
+                # Display description if present
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+
+                # Display proxy types configured
+                proxy_types = []
+                if profile.get("ssl_forward_proxy"):
+                    proxy_types.append("SSL Forward Proxy")
+                if profile.get("ssl_inbound_proxy"):
+                    proxy_types.append("SSL Inbound Proxy")
+                if profile.get("ssl_no_proxy"):
+                    proxy_types.append("SSL No Proxy")
+
+                if proxy_types:
+                    typer.echo(f"  Proxy Types: {', '.join(proxy_types)}")
+
+                # Display SSL protocol settings if present
+                if profile.get("ssl_protocol_settings"):
+                    settings = profile["ssl_protocol_settings"]
+                    if "min_version" in settings or "max_version" in settings:
+                        typer.echo(
+                            f"  SSL Versions: {settings.get('min_version', 'N/A')} - {settings.get('max_version', 'N/A')}"
+                        )
+
+                # Display ID if present
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
 
     except Exception as e:
         typer.echo(f"Error showing decryption profile: {str(e)}", err=True)

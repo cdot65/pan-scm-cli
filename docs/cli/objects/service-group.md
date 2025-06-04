@@ -44,16 +44,19 @@ $ scm set objects service-group --folder Texas --name all-services \
 <span style="color: green;">✓</span> Service group 'all-services' created successfully
 ```
 
-### Listing Service Groups
+### Listing Service Groups (Default Behavior)
 
 ```bash
-$ scm show objects service-group --folder Texas --list
+$ scm show objects service-group --folder Texas
 Service groups in folder 'Texas':
 - web-services
 - database-services
 - mail-services
 - all-services
 ```
+
+!!! note
+When no --name is specified, all service groups are listed by default.
 
 ### Showing Service Group Details
 

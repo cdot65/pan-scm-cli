@@ -4116,8 +4116,6 @@ class SCMClient:
         name: str,
         mode: str,
         interfaces: list[str] | None = None,
-        description: str = "",
-        tags: list[str] | None = None,
         enable_user_identification: bool | None = None,
         enable_device_identification: bool | None = None,
     ) -> dict[str, Any]:
@@ -4128,8 +4126,6 @@ class SCMClient:
             name: Name of the zone
             mode: Zone mode (L2, L3, external, virtual-wire, tunnel)
             interfaces: List of interfaces
-            description: Optional description
-            tags: Optional list of tags
             enable_user_identification: Enable user identification
             enable_device_identification: Enable device identification
 
@@ -4143,7 +4139,6 @@ class SCMClient:
 
         """
         interfaces = interfaces or []
-        tags = tags or []
         self.logger.info(
             f"Creating or updating zone: {name} with mode {mode} in folder {folder}"
         )
@@ -4156,8 +4151,6 @@ class SCMClient:
                 "name": name,
                 "mode": mode,
                 "interfaces": interfaces,
-                "description": description,
-                "tags": tags,
             }
 
         try:
@@ -4176,7 +4169,7 @@ class SCMClient:
                 )
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
-                self.logger.warning(
+                self.logger.debug(
                     f"Error fetching security zone '{name}': {str(fetch_error)}"
                 )
 
@@ -4184,7 +4177,6 @@ class SCMClient:
             zone_data = {
                 "name": name,
                 "folder": folder,
-                "description": description or "",
             }
 
             # Note: The zone mode is typically stored within the network configuration
@@ -4193,9 +4185,6 @@ class SCMClient:
 
             if interfaces:
                 zone_data["interfaces"] = interfaces
-
-            if tags:
-                zone_data["tags"] = tags
 
             # Add identification settings if specified
             if enable_user_identification is not None:
@@ -4210,8 +4199,7 @@ class SCMClient:
                 # and log a warning if mode might have changed
 
                 # Update only the fields that are changing
-                if description is not None:
-                    existing_zone.description = description or ""
+                # Note: description field not supported by SDK security zone model
 
                 # Update interfaces if provided
                 if interfaces is not None:
@@ -4225,9 +4213,6 @@ class SCMClient:
                         self.logger.warning(
                             f"Zone '{name}' exists but interface update may require network configuration"
                         )
-
-                if tags is not None:
-                    existing_zone.tags = tags
 
                 # Perform update
                 result = self.client.security_zone.update(existing_zone)
@@ -4272,8 +4257,10 @@ class SCMClient:
             return True
 
         try:
-            # Delete using the SDK security_zone service
-            self.client.security_zone.delete(folder=folder, name=name)
+            # First fetch the security zone to get its ID
+            zone = self.client.security_zone.fetch(name=name, folder=folder)
+            self.client.security_zone.delete(str(zone.id))
+            self.logger.info(f"Successfully deleted security zone '{name}'")
             return True
         except Exception as e:
             self._handle_api_exception("deletion", folder, name, e)

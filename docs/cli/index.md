@@ -12,10 +12,13 @@ scm <action> <resource-type> <resource> [options]
 
 Where:
 
-- `<action>`: The operation to perform (set, delete, load)
+- `<action>`: The operation to perform (set, delete, load, show, backup)
 - `<resource-type>`: Category of resource (objects, deployment, network, security)
 - `<resource>`: Specific resource type (address, address-group, zone, etc.)
 - `[options]`: Resource-specific parameters and global options
+
+!!! note "Show Command Default Behavior"
+All `show` commands default to listing all items when no `--name` parameter is provided. The `--list` flag has been removed entirely for a more intuitive experience.
 
 ## Available Commands
 

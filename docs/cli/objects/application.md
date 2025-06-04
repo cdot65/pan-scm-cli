@@ -231,7 +231,7 @@ scm show objects application [OPTIONS]
 | `--list`         | List all applications in the container    | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -251,10 +251,10 @@ Description: Custom CRM application
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All Applications
+#### List All Applications (Default Behavior)
 
 ```bash
-$ scm show objects application --folder Texas --list
+$ scm show objects application --folder Texas
 ---> 100%
 Applications in folder 'Texas':
 ------------------------------------------------------------

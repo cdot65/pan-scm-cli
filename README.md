@@ -1,761 +1,531 @@
 # Strata Cloud Manager CLI
 
-![Banner Image](https://raw.githubusercontent.com/cdot65/pan-scm-cli/main/docs/images/logo.svg)
 [![Build Status](https://github.com/cdot65/pan-scm-cli/actions/workflows/code-quality.yml/badge.svg)](https://github.com/cdot65/pan-scm-cli/actions/workflows/code-quality.yml)
 [![PyPI version](https://badge.fury.io/py/pan-scm-cli.svg)](https://badge.fury.io/py/pan-scm-cli)
 [![Python versions](https://img.shields.io/pypi/pyversions/pan-scm-cli.svg)](https://pypi.org/project/pan-scm-cli/)
 [![License](https://img.shields.io/github/license/cdot65/pan-scm-cli.svg)](https://github.com/cdot65/pan-scm-cli/blob/main/LICENSE)
 
-A powerful command-line interface for managing Palo Alto Networks Strata Cloud Manager configurations. Built on the [pan-scm-sdk](https://github.com/cdot65/pan-scm-sdk), this tool provides network engineers with a consistent, user-friendly CLI experience for automating and managing SCM resources.
+A command-line interface for managing Palo Alto Networks Strata Cloud Manager (SCM) configurations. This tool simplifies the management of security policies, objects, and configurations through an intuitive CLI.
 
-> **NOTE**: Please refer to the [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/) for all
-> examples
+## Quick Start
+
+```bash
+# Install
+pip install pan-scm-cli
+
+# Set credentials
+export SCM_CLIENT_ID="your_client_id"
+export SCM_CLIENT_SECRET="your_client_secret"
+export SCM_TSG_ID="your_tsg_id"
+
+# Create an address object
+scm set objects address --folder Texas --name web-server --ip-netmask 10.1.1.100/32 --description "Web server"
+
+# List all addresses
+scm show objects address --folder Texas
+
+# Create a security rule
+scm set security rule --folder Texas --name allow-web \
+  --source-zones trust --destination-zones dmz \
+  --source-addresses any --destination-addresses web-server \
+  --services any --action allow
+```
 
 ## Table of Contents
 
-- [Strata Cloud Manager CLI](#strata-cloud-manager-cli)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Installation](#installation)
-  - [Usage](#usage)
-    - [Authentication](#authentication)
-      - [Method 1: Environment Variables (Highest Priority)](#method-1-environment-variables-highest-priority)
-      - [Method 2: Config File in Home Directory](#method-2-config-file-in-home-directory)
-      - [Method 3: Local Project Configuration (Development)](#method-3-local-project-configuration-development)
-      - [Verifying Authentication](#verifying-authentication)
-    - [Command Structure](#command-structure)
-    - [Example Commands](#example-commands)
-      - [Managing Address Objects](#managing-address-objects)
-      - [Managing Address Groups](#managing-address-groups)
-      - [Managing Security Zones](#managing-security-zones)
-      - [Managing Security Rules](#managing-security-rules)
-      - [Managing Bandwidth Allocations](#managing-bandwidth-allocations)
-      - [Managing Applications](#managing-applications)
-      - [Managing Application Groups](#managing-application-groups)
-      - [Managing Application Filters](#managing-application-filters)
-      - [Managing Dynamic User Groups](#managing-dynamic-user-groups)
-      - [Managing External Dynamic Lists](#managing-external-dynamic-lists)
-      - [Managing HIP Objects](#managing-hip-objects)
-      - [Managing HIP Profiles](#managing-hip-profiles)
-      - [Managing HTTP Server Profiles](#managing-http-server-profiles)
-      - [Managing Services](#managing-services)
-      - [Managing Service Groups](#managing-service-groups)
-      - [Managing Syslog Server Profiles](#managing-syslog-server-profiles)
-      - [Managing Tags](#managing-tags)
-      - [Bulk Operations](#bulk-operations)
-      - [Backup and Restore Operations](#backup-and-restore-operations)
-  - [Development](#development)
-    - [Setup](#setup)
-    - [Code Quality](#code-quality)
-    - [Pre-commit Hooks](#pre-commit-hooks)
-  - [Contributing](#contributing)
-  - [License](#license)
-  - [Support](#support)
-  - [Project Status](#project-status)
+- [Installation](#installation)
+- [Getting Started](#getting-started)
+- [Common Use Cases](#common-use-cases)
+- [Command Reference](#command-reference)
+- [Advanced Features](#advanced-features)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 
-## Features
+## Key Features
 
-- **Consistent Command Structure**: Intuitive command pattern that follows standard CLI conventions.
-- **Comprehensive Object Management**: Create, read, update, and delete configuration objects including:
-  - Address objects (IP/netmask, FQDN, IP range, wildcard)
-  - Address groups (static and dynamic)
-  - Applications (custom application definitions with security attributes)
-  - Application groups (logical grouping of applications)
-  - Application filters (dynamic application selection based on criteria)
-  - Dynamic user groups (tag-based user grouping)
-  - External dynamic lists (EDLs for threat intelligence integration)
-  - HIP objects (Host Information Profiles for endpoint compliance)
-  - HIP profiles (HIP object combinations for policy enforcement)
-  - HTTP server profiles (Log forwarding and integration configurations)
-  - Services (Network service definitions with protocol and port configurations)
-  - Service groups (Logical grouping of services for policy management)
-  - Syslog server profiles (External syslog server configurations for log forwarding)
-  - Tags (Organizational labels with color categorization)
-  - Security zones (layer3, layer2, virtual-wire, tap modes)
-  - Security rules with full policy configuration
-  - Bandwidth allocation profiles
-- **Bulk Operations**: Load and manage objects in bulk using YAML files for efficient configuration management:
-  - Container override support for all load commands (folder/snippet/device)
-  - Migrate objects between locations during import
-  - Dry run mode to preview changes before applying
-- **Backup and Restore**: Export existing configurations to YAML files and restore them later:
-  - Support for all container types (folder, snippet, device)
-  - Automatic filename generation with timestamps
-  - Exact match filtering to backup only direct objects
-- **Mock Mode**: Test commands without making actual API calls, perfect for validation and development.
-- **Flexible Authentication**: Multiple authentication methods with automatic fallback:
-  - Environment variables (production-ready)
-  - Home directory config (~/.scm/config.yaml)
-  - Local development config (.secrets.yaml)
-- **Input Validation**: Built-in Pydantic validation ensures data integrity before API calls.
-- **Comprehensive Error Handling**: Clear, actionable error messages with detailed logging options.
-- **Extensive Documentation**: Full MkDocs-based documentation with interactive CLI examples.
+- **Comprehensive Object Management**: Create, update, and delete security configurations
+- **Bulk Operations**: Import/export configurations using YAML files
+- **Smart Updates**: Automatically handles existing objects without errors
+- **Container Support**: Work with folders, snippets, and devices
+- **Mock Mode**: Test commands without making API calls
+- **Input Validation**: Prevents errors before they reach the API
 
 ## Installation
 
-**Requirements**:
+### Requirements
 
 - Python 3.10 or higher
+- An active Strata Cloud Manager account
 
-Install the package via pip:
+### Install via pip
 
 ```bash
 pip install pan-scm-cli
 ```
 
-## Usage
+## Getting Started
 
-### Authentication
+### 1. Set Up Authentication
 
-The SCM CLI uses dynaconf to manage authentication credentials. Configure authentication using one of the following methods (in order of precedence):
+Choose one of these methods to configure your credentials:
 
-#### Method 1: Environment Variables (Highest Priority)
-
-For production use or scripting, set environment variables:
+#### Option A: Environment Variables (Recommended)
 
 ```bash
-# Linux/macOS
 export SCM_CLIENT_ID="your_client_id"
 export SCM_CLIENT_SECRET="your_client_secret"
 export SCM_TSG_ID="your_tenant_service_group_id"
-
-# Windows PowerShell
-$env:SCM_CLIENT_ID = "your_client_id"
-$env:SCM_CLIENT_SECRET = "your_client_secret"
-$env:SCM_TSG_ID = "your_tenant_service_group_id"
 ```
 
-These environment variables will be automatically detected and used with highest priority.
-
-#### Method 2: Config File in Home Directory
-
-For a more permanent configuration, create a config file in your home directory:
+#### Option B: Configuration File
 
 ```bash
-# Create the config directory if it doesn't exist
+# Create config directory
 mkdir -p ~/.scm
 
-# Create and edit the config file
+# Create config file
 cat > ~/.scm/config.yaml << EOL
 client_id: "your_client_id"
 client_secret: "your_client_secret"
 tsg_id: "your_tenant_service_group_id"
 EOL
 
-# Secure the file with restrictive permissions
+# Secure the file
 chmod 600 ~/.scm/config.yaml
 ```
 
-This method is used when environment variables are not set.
-
-#### Method 3: Local Project Configuration (Development)
-
-> **⚠️ SECURITY WARNING**
->
-> Storage of credentials in project files poses security risks. Consider these best practices:
->
-> - **NEVER commit credential files to version control**
-> - **Use environment variables for production environments**
-> - **Protect local credential files with appropriate file permissions**
-> - **Regularly rotate your credentials**
-
-For local development, follow these steps:
-
-1. Copy the example configuration file to create a local secrets file:
-
-   ```bash
-   cp example-config.yaml .secrets.yaml
-   ```
-
-2. Edit the `.secrets.yaml` file with your actual credentials:
-
-   ```yaml
-   default:
-     scm_client_id: "your_client_id"
-     scm_client_secret: "your_client_secret"
-     scm_tsg_id: "your_tenant_service_group_id"
-   ```
-
-3. Secure the file with restrictive permissions:
-
-   ```bash
-   # On Linux/macOS
-   chmod 600 .secrets.yaml
-   ```
-
-> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials.
-
-#### Verifying Authentication
-
-To verify your authentication configuration:
+### 2. Verify Your Setup
 
 ```bash
-# Test with actual credentials
+# Test authentication
 scm test-auth
 
-# Test in mock mode (doesn't require real credentials)
+# Test without API calls
 scm test-auth --mock
 ```
 
-### Command Structure
-
-The CLI follows a consistent command pattern:
+### 3. Try Your First Commands
 
 ```bash
-scm <action> <object-type> <object> [options]
+# Create a tag
+scm set objects tag --folder Texas --name production --color Red --comments "Production resources"
+
+# Create an address
+scm set objects address --folder Texas --name web-server --ip-netmask 10.1.1.100/32
+
+# List all addresses
+scm show objects address --folder Texas
 ```
 
-Where:
+## Common Use Cases
 
-- `<action>`: Operation to perform
-  - `set`: Create or update an object
-  - `delete`: Remove an object
-  - `load`: Bulk import from YAML file
-  - `show`: Display existing objects
-  - `backup`: Export configurations to YAML file
-  - `test-auth`: Verify authentication configuration
-- `<object-type>`: Resource category
-  - `objects`: Address objects and address groups
-  - `network`: Security zones
-  - `security`: Security rules
-  - `deployment`: Bandwidth allocations
-- `<object>`: Specific resource type (e.g., `address`, `address-group`, `security-zone`, `rule`, `bandwidth`)
+### Managing Network Objects
 
-Global options available for all commands:
-
-- `--mock`: Run in mock mode without API calls
-- `--folder`: Specify the folder location (default: "Shared")
-- `--list`: List all objects of the specified type
-
-### Example Commands
-
-#### Managing Address Objects
+#### Create Address Objects
 
 ```bash
-# Create a new address object
-scm set objects address --folder Shared --name web-server --ip-netmask 192.168.1.100/32 --description "Web server in DMZ"
+# Single IP address
+scm set objects address --folder Texas --name web-server-1 --ip-netmask 10.1.1.100/32 --description "Production web server"
 
-# List all address objects in a folder
-scm show objects address --folder Shared --list
+# Subnet
+scm set objects address --folder Texas --name dmz-subnet --ip-netmask 10.0.0.0/24 --description "DMZ network"
 
-# Show a specific address object
-scm show objects address --folder Shared --name web-server
-
-# Delete an address object
-scm delete objects address --folder Shared --name web-server
+# FQDN
+scm set objects address --folder Texas --name external-site --fqdn example.com --description "External website"
 ```
 
-#### Managing Address Groups
+#### Create Address Groups
 
 ```bash
-# Create a static address group
-scm set objects address-group --folder Shared --name web-servers --type static --members "web-server-1,web-server-2"
+# Static group with multiple members
+scm set objects address-group --folder Texas --name web-servers --type static --members "web-server-1,web-server-2"
 
-# Create a dynamic address group
-scm set objects address-group --folder Shared --name dynamic-endpoints --type dynamic --filter "'endpoint' and 'corporate'"
-
-# List all address groups in a folder
-scm show objects address-group --folder Shared --list
-
-# Show a specific address group
-scm show objects address-group --folder Shared --name web-servers
-
-# Delete an address group
-scm delete objects address-group --folder Shared --name web-servers
+# Dynamic group based on tags
+scm set objects address-group --folder Texas --name dynamic-web-servers --type dynamic --filter "'web' and 'production'"
 ```
 
-#### Managing Security Zones
+### Security Policy Management
+
+#### Create Security Zones
 
 ```bash
-# Create a security zone
-scm set network security-zone --folder Shared --name DMZ --mode layer3 --enable-user-id true
+# Layer 3 zone
+scm set network zone --folder Texas --name dmz --mode layer3
 
-# List all security zones
-scm set network security-zone --list --folder Shared
+# Zone with user ID enabled
+scm set network zone --folder Texas --name trust --mode layer3 --enable-user-id
 ```
 
-#### Managing Security Rules
+#### Create Security Rules
 
 ```bash
-# Create a security rule
-scm set security rule --folder Shared --name "Allow-Web" \
-  --source-zones "Trust" --destination-zones "DMZ" \
-  --source-addresses "any" --destination-addresses "web-servers" \
-  --applications "web-browsing,ssl" --services "application-default" \
-  --action allow --log-end true
+# Basic allow rule
+scm set security rule --folder Texas --name allow-web-traffic \
+  --source-zones trust \
+  --destination-zones dmz \
+  --source-addresses any \
+  --destination-addresses web-servers \
+  --services any \
+  --action allow \
+  --log-end
 
-# List all security rules
-scm set security rule --list --folder Shared
+# Application-specific rule
+scm set security rule --folder Texas --name allow-database \
+  --source-zones app-zone \
+  --destination-zones db-zone \
+  --source-addresses app-servers \
+  --destination-addresses database-servers \
+  --applications "mysql,postgresql" \
+  --action allow
 ```
 
-#### Managing Bandwidth Allocations
+### Service Management
+
+#### Create Custom Services
 
 ```bash
-# Create a bandwidth allocation profile
-scm set deployment bandwidth --folder Shared --name "Branch-100Mbps" \
-  --egress-guaranteed 50 --egress-burstable 100
+# TCP service
+scm set objects service --folder Texas --name custom-web --protocol tcp --port "8080,8443" --description "Custom web ports"
 
-# List all bandwidth profiles
-scm set deployment bandwidth --list --folder Shared
+# UDP service
+scm set objects service --folder Texas --name custom-dns --protocol udp --port 5353 --description "mDNS"
+
+# Service with timeout override
+scm set objects service --folder Texas --name long-running-db --protocol tcp --port 3306 --timeout 7200
 ```
 
-#### Managing Applications
+#### Service Groups
 
 ```bash
-# Create a custom application
-scm set objects application --folder Shared --name custom-app \
-  --category business-systems --subcategory database \
-  --technology client-server --risk 3 \
-  --ports "tcp/8080,tcp/8443" --description "Custom business application"
-
-# List all applications
-scm show objects application --folder Shared --list
-
-# Show specific application details
-scm show objects application --folder Shared --name custom-app
+# Group related services
+scm set objects service-group --folder Texas --name web-services --members "http,https,custom-web"
 ```
 
-#### Managing Application Groups
+### Tag Management
+
+Tags help organize and categorize your objects:
 
 ```bash
-# Create an application group
-scm set objects application-group --folder Shared --name business-apps \
-  --members "salesforce,ms-365,custom-app"
+# Environment tags
+scm set objects tag --folder Texas --name production --color Red --comments "Production environment"
+scm set objects tag --folder Texas --name development --color Green --comments "Development environment"
+scm set objects tag --folder Texas --name staging --color Blue --comments "Staging environment"
 
-# List all application groups
-scm show objects application-group --folder Shared --list
+# Category tags
+scm set objects tag --folder Texas --name database --color Orange --comments "Database resources"
+scm set objects tag --folder Texas --name web --color Cyan --comments "Web resources"
 ```
 
-#### Managing Application Filters
+### Bulk Operations
+
+Work with multiple objects at once using YAML files:
+
+#### Export Configuration
 
 ```bash
-# Create an application filter for high-risk apps
-scm set objects application-filter --folder Shared --name high-risk-filter \
-  --category "file-sharing,peer-to-peer" --risk 4 --risk 5 \
-  --has-known-vulnerabilities --transfers-files
+# Export all addresses from a folder
+scm backup objects address --folder Texas
+# Creates: address_folder_texas_20250602_143000.yaml
 
-# List all application filters
-scm show objects application-filter --folder Shared --list
+# Export with custom filename
+scm backup objects address-group --folder Texas --file my-groups.yaml
+
+# Export from different containers
+scm backup objects tag --snippet automation
+scm backup objects service --device austin-01
 ```
 
-#### Managing Dynamic User Groups
+#### Import Configuration
 
-```bash
-# Create a dynamic user group based on tags
-scm set objects dynamic-user-group --folder Shared --name it-admins \
-  --filter "'IT' and 'Admin'" --description "IT administrators group"
-
-# List all dynamic user groups
-scm show objects dynamic-user-group --folder Shared --list
-```
-
-#### Managing External Dynamic Lists
-
-```bash
-# Create a predefined IP blocklist
-scm set objects external-dynamic-list --folder Shared \
-  --name paloalto-bulletproof --type predefined_ip \
-  --url "panw-bulletproof-ip-list"
-
-# Create a custom IP blocklist with hourly updates
-scm set objects external-dynamic-list --folder Shared \
-  --name custom-threats --type ip \
-  --url "https://example.com/threats.txt" --recurring hourly
-
-# List all external dynamic lists
-scm show objects external-dynamic-list --folder Shared --list
-```
-
-#### Managing HIP Objects
-
-```bash
-# Create a HIP object for Windows patch management
-scm set objects hip-object --folder Shared --name windows-security-compliance \
-  --description "Windows security compliance check" \
-  --patch-management-vendor-name "Microsoft Corporation" \
-  --patch-management-product-name "Windows" \
-  --patch-management-criteria-is-installed yes \
-  --patch-management-missing-patches check-not-exist
-
-# Create a HIP object for disk encryption
-scm set objects hip-object --folder Shared --name disk-encryption-check \
-  --disk-encryption-vendor-name "BitLocker" \
-  --disk-encryption-product-name "BitLocker Drive Encryption" \
-  --disk-encryption-criteria-is-installed is \
-  --disk-encryption-state is
-
-# List all HIP objects
-scm show objects hip-object --folder Shared --list
-
-# Show specific HIP object details
-scm show objects hip-object --folder Shared --name windows-security-compliance
-```
-
-#### Managing HIP Profiles
-
-```bash
-# Create a HIP profile with multiple match criteria
-scm set objects hip-profile --folder Shared --name secure-endpoints \
-  --match '{"windows-security-compliance": {"is": true}, "disk-encryption-check": {"is": true}}' \
-  --description "Profile for fully compliant Windows endpoints"
-
-# List all HIP profiles
-scm show objects hip-profile --folder Shared --list
-
-# Show specific HIP profile details
-scm show objects hip-profile --folder Shared --name secure-endpoints
-```
-
-#### Managing HTTP Server Profiles
-
-```bash
-# Create an HTTP server profile for syslog forwarding
-scm set objects http-server-profile --folder Shared --name syslog-collector \
-  --servers '[{"name": "primary-syslog", "address": "syslog.example.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' \
-  --description "Primary syslog collector"
-
-# Create an HTTP server profile with authentication
-scm set objects http-server-profile --folder Shared --name splunk-hec \
-  --servers '[{"name": "splunk-server", "address": "10.0.1.100", "protocol": "HTTPS", "port": 8088, "http_method": "POST", "username": "hec_user", "password": "secure_token"}]'
-
-# List all HTTP server profiles
-scm show objects http-server-profile --folder Shared --list
-```
-
-#### Managing Services
-
-```bash
-# Create a basic TCP service
-scm set objects service --folder Shared --name custom-web \
-  --protocol tcp --port "8080,8443" --description "Custom web service"
-
-# Create a UDP service
-scm set objects service --folder Shared --name custom-dns \
-  --protocol udp --port 5353 --description "Custom DNS service"
-
-# Create a TCP service with timeout overrides
-scm set objects service --folder Shared --name database-service \
-  --protocol tcp --port "3306-3310" --timeout 7200 --halfclose-timeout 120 \
-  --description "Database cluster ports with extended timeout"
-
-# List all services
-scm show objects service --folder Shared --list
-
-# Show specific service details
-scm show objects service --folder Shared --name custom-web
-```
-
-#### Managing Service Groups
-
-```bash
-# Create a service group
-scm set objects service-group --folder Shared --name web-services \
-  --members "http,https,web-browsing,ssl"
-
-# Create a service group with tags
-scm set objects service-group --folder Shared --name database-services \
-  --members "mysql,mssql,oracle,postgresql" --tag "database,backend"
-
-# List all service groups
-scm show objects service-group --folder Shared --list
-
-# Show specific service group details
-scm show objects service-group --folder Shared --name web-services
-```
-
-#### Managing Syslog Server Profiles
-
-```bash
-# Create a syslog server profile with TCP
-scm set objects syslog-server-profile --folder Shared --name central-syslog \
-  --servers '[{"name": "syslog-primary", "server": "10.0.1.50", "port": 514, "transport": "TCP", "format": "BSD", "facility": "LOG_USER"}]' \
-  --description "Central syslog collection"
-
-# Create a syslog profile with UDP and custom format
-scm set objects syslog-server-profile --folder Shared --name compliance-syslog \
-  --servers '[{"name": "compliance-server", "server": "syslog.compliance.local", "port": 6514, "transport": "UDP", "format": "IETF", "facility": "LOG_LOCAL7"}]'
-
-# List all syslog server profiles
-scm show objects syslog-server-profile --folder Shared --list
-
-# Show specific syslog profile details
-scm show objects syslog-server-profile --folder Shared --name central-syslog
-```
-
-#### Managing Tags
-
-```bash
-# Create a tag with color
-scm set objects tag --folder Shared --name production \
-  --color "Red" --comments "Production environment resources"
-
-# Create multiple tags for categorization
-scm set objects tag --folder Shared --name database --color "Blue"
-scm set objects tag --folder Shared --name frontend --color "Green"
-scm set objects tag --folder Shared --name critical --color "Orange"
-
-# List all tags
-scm show objects tag --folder Shared --list
-
-# Show specific tag details
-scm show objects tag --folder Shared --name production
-```
-
-#### Bulk Operations
-
-Create a YAML file with multiple objects:
+Create a YAML file for bulk import:
 
 ```yaml
 # addresses.yaml
 addresses:
-  - name: web-server-1
-    description: "Web server 1"
-    ip_netmask: 192.168.1.100/32
-    folder: Development
+  - name: web-01
+    description: "Production web server"
+    ip_netmask: 10.1.1.10/32
+    folder: Texas
     tags:
       - web
       - production
-
-  - name: web-server-2
-    description: "Web server 2"
-    ip_netmask: 192.168.1.101/32
-    folder: Development
+  
+  - name: web-02
+    description: "Production web server"
+    ip_netmask: 10.1.1.11/32
+    folder: Texas
     tags:
       - web
       - production
-
-  - name: db-server
+  
+  - name: db-01
     description: "Database server"
-    fqdn: db.example.com
-    folder: Production
+    ip_netmask: 10.2.1.10/32
+    folder: Texas
     tags:
       - database
       - production
 ```
 
-Load the objects:
+Import the configuration:
 
 ```bash
-# Load objects with their original locations from the file
-scm load objects address --file addresses.yml
+# Preview changes
+scm load objects address --file addresses.yaml --dry-run
 
-# Override all objects to load into a specific folder
-scm load objects address --file addresses.yml --folder Shared
+# Import to original locations
+scm load objects address --file addresses.yaml
 
-# Override to a snippet location
-scm load objects address --file addresses.yml --snippet DNS-Best-Practice
-
-# Override to a device location
-scm load objects address --file addresses.yml --device fw-austin-01
-
-# Verify in mock mode first
-scm load objects address --file addresses.yml --folder Shared --mock
-
-# Dry run to preview changes
-scm load objects address --file addresses.yml --dry-run
+# Override location for all objects
+scm load objects address --file addresses.yaml --folder Production
 ```
 
-All load commands support container overrides, allowing you to:
+### Complete Workflow Example
 
-- Migrate objects between folders/snippets/devices
-- Test configurations in different locations
-- Standardize object locations during bulk imports
-
-See the `examples/` directory for more bulk operation templates, including:
-
-- Complete RFC 1918 private network setup (`rfc1918-addresses.yml` and `rfc1918-address-group.yml`)
-- Multi-folder configuration examples across ngfw-shared, Texas, and Austin folders
-- Security zone configurations for different network modes
-- Pre and post rulebase security rule examples
-- Application definitions with security attributes (`applications.yml`)
-- Application group configurations (`application-groups.yml`)
-- Application filter criteria (`application-filters.yml`)
-- Dynamic user group filter expressions (`dynamic-user-groups.yml`)
-- External dynamic list configurations for all EDL types (`external-dynamic-lists.yml`)
-- HIP object configurations for endpoint compliance (`hip-objects.yml`)
-- HIP profile configurations for policy enforcement (`hip-profiles.yml`)
-- HTTP server profile configurations for log forwarding (`http-server-profiles.yml`)
-- Service configurations with protocol and port definitions (`services.yml`)
-- Service group configurations for logical service organization (`service-groups.yml`)
-- Syslog server profile configurations for external logging (`syslog-server-profiles.yml`)
-- Tag configurations for resource categorization (`tags.yml`)
-
-#### Backup and Restore Operations
-
-Export existing configurations to YAML files. All backup commands support multiple container types (folder, snippet, device) with automatic filename generation:
+Here's a complete example of setting up a web application security policy:
 
 ```bash
-# Backup from different container types
-scm backup objects address --folder Austin
-# Creates: address_folder_austin_20240115_143022.yaml
+# Step 1: Create tags
+scm set objects tag --folder Texas --name web --color Cyan --comments "Web resources"
+scm set objects tag --folder Texas --name database --color Orange --comments "Database resources"
+scm set objects tag --folder Texas --name production --color Red --comments "Production environment"
 
-scm backup objects tag --snippet DNS-Best-Practice
-# Creates: tag_snippet_dns-best-practice_20240115_143022.yaml
+# Step 2: Create addresses
+scm set objects address --folder Texas --name web-01 --ip-netmask 10.1.1.10/32 --tag web,production
+scm set objects address --folder Texas --name web-02 --ip-netmask 10.1.1.11/32 --tag web,production
+scm set objects address --folder Texas --name db-01 --ip-netmask 10.2.1.10/32 --tag database,production
 
-scm backup objects service --device austin-01
-# Creates: service_device_austin-01_20240115_143022.yaml
+# Step 3: Create address groups
+scm set objects address-group --folder Texas --name web-servers-group --type static --members "web-01,web-02"
+scm set objects address-group --folder Texas --name database-servers --type static --members "db-01"
 
-# Custom output filename
-scm backup objects address-group --folder Texas --file my-groups.yaml
-# Creates: my-groups.yaml
+# Step 4: Create custom services
+scm set objects service --folder Texas --name custom-web --protocol tcp --port 443
+scm set objects service --folder Texas --name custom-db --protocol tcp --port 3306
 
-# All object types support folder/snippet/device parameters
-scm backup objects address --folder Austin
-scm backup objects address-group --folder Texas
-scm backup objects application --folder Texas
-scm backup objects application-group --folder Texas
-scm backup objects application-filter --folder Texas
-scm backup objects dynamic-user-group --folder Texas
-scm backup objects external-dynamic-list --folder Texas
-scm backup objects hip-object --folder Texas
-scm backup objects hip-profile --folder Texas
-scm backup objects http-server-profile --folder Texas
-scm backup objects service --folder Texas
-scm backup objects service-group --folder Texas
-scm backup objects syslog-server-profile --folder Texas
-scm backup objects tag --folder Texas
+# Step 5: Create service group
+scm set objects service-group --folder Texas --name app-services --members "custom-web,custom-db"
 
-# Network and security backups also support all container types
-scm backup network security-zone --folder ngfw-shared
-scm backup network security-zone --snippet DNS-Best-Practice
-scm backup network security-zone --device austin-01
+# Step 6: Create security zones
+scm set network zone --folder Texas --name trust --mode layer3
+scm set network zone --folder Texas --name dmz --mode layer3
+scm set network zone --folder Texas --name database --mode layer3
 
-scm backup security rule --folder Austin --rulebase pre
-scm backup security rule --snippet DNS-Best-Practice --rulebase post
+# Step 7: Create security rule
+scm set security rule --folder Texas --name allow-web-to-db \
+  --source-zones dmz \
+  --destination-zones database \
+  --source-addresses web-servers-group \
+  --destination-addresses database-servers \
+  --services custom-db \
+  --action allow \
+  --log-end \
+  --description "Allow web servers to access database"
 
-# Bandwidth allocations are global (no container parameter needed)
-scm backup deployment bandwidth-allocation
-# Creates: bandwidth-allocations.yaml
+# Step 8: Verify configuration
+scm show security rule --folder Texas --name allow-web-to-db
 ```
 
-Note: Not all container types are supported by the SDK for all object types. When using snippet or device parameters, the CLI will show an appropriate error message if the SDK doesn't support that container type yet.
+## Command Reference
 
-Restore configurations from backup files:
+### Basic Command Structure
+
+```
+scm <action> <object-type> <object> [options]
+```
+
+### Actions
+
+- **set**: Create or update an object
+- **show**: Display objects (lists all by default, use --name for specific object)
+- **delete**: Remove an object
+- **load**: Import from YAML file
+- **backup**: Export to YAML file
+- **test-auth**: Verify authentication
+
+### Object Types
+
+- **objects**: Address, service, tag, application configurations
+- **network**: Security zones
+- **security**: Security rules and profiles
+- **deployment**: Bandwidth allocations
+
+### Common Options
+
+- `--folder`: Specify folder location (default: "Shared")
+- `--snippet`: Use snippet instead of folder
+- `--device`: Use device instead of folder
+- `--mock`: Run without API calls
+- `--help`: Show command help
+
+## Advanced Features
+
+### External Dynamic Lists (EDLs)
+
+Integrate threat intelligence feeds:
 
 ```bash
-# Restore addresses (preview first with --dry-run)
-scm load objects address --file address-austin.yaml --dry-run
-scm load objects address --file address-austin.yaml
+# Palo Alto Networks predefined lists
+scm set objects external-dynamic-list --folder Texas \
+  --name bulletproof-ips --type predefined_ip \
+  --url "panw-bulletproof-ip-list"
 
-# Restore address groups
-scm load objects address-group --file address-group-texas.yaml
+# Custom threat feed with hourly updates
+scm set objects external-dynamic-list --folder Texas \
+  --name threat-feed --type ip \
+  --url "https://example.com/threats.txt" \
+  --recurring hourly
 
-# Restore security zones
-scm load network security-zone --file security-zone-ngfw-shared.yaml
-
-# Restore security rules
-scm load security rule --file rule-austin-pre.yaml
-
-# Restore bandwidth allocations
-scm load deployment bandwidth-allocation --file bandwidth-allocations.yaml
+# Domain blocklist with authentication
+scm set objects external-dynamic-list --folder Texas \
+  --name malicious-domains --type domain \
+  --url "https://secure.example.com/domains.txt" \
+  --username api_user --password secure_pass \
+  --recurring daily --hour 3
 ```
 
-The backup feature uses the `exact_match=True` parameter to only export objects that are directly defined in the specified folder, excluding inherited objects from parent folders.
+### Application Management
 
-## Development
-
-### Setup
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/cdot65/pan-scm-cli.git
-   cd pan-scm-cli
-   ```
-
-2. Install dependencies and pre-commit hooks:
-
-   ```bash
-   make setup
-   ```
-
-   Alternatively, you can install manually:
-
-   ```bash
-   poetry install
-   poetry run pre-commit install
-   ```
-
-### Code Quality
-
-This project uses [ruff](https://github.com/astral-sh/ruff) for linting and formatting, along with comprehensive quality checks:
+Define custom applications:
 
 ```bash
-# Run all quality checks (lint, format, type checking, tests)
-make quality
+# Create custom application
+scm set objects application --folder Texas --name internal-portal \
+  --category business-systems --subcategory general-business \
+  --technology browser-based --risk 2 \
+  --ports "tcp/443" --description "Internal employee portal"
 
-# Individual checks
-make lint               # Run flake8 and yamllint
-make format             # Format code with ruff
-make fix                # Auto-fix linting issues with ruff
-
-# Testing
-make tests              # Run the full test suite
-pytest -v               # Run tests with verbose output
-pytest -k "test_name"   # Run specific tests by pattern
+# High-risk application filter
+scm set objects application-filter --folder Texas --name high-risk-apps \
+  --category "file-sharing,peer-to-peer" --risk 4 --risk 5 \
+  --has-known-vulnerabilities
 ```
 
-### Pre-commit Hooks
+### HIP (Host Information Profile) Compliance
 
-We use pre-commit hooks to ensure code quality before committing:
+Enforce endpoint compliance:
 
 ```bash
-# Run pre-commit hooks on all files
-make pre-commit-all
+# Windows compliance check
+scm set objects hip-object --folder Texas --name windows-compliance \
+  --description "Windows security requirements" \
+  --host-info-os Microsoft --host-info-os-value All \
+  --host-info-managed \
+  --disk-encryption-enabled \
+  --patch-management-enabled
+
+# Create HIP profile
+scm set objects hip-profile --folder Texas --name secure-endpoints \
+  --match '{"windows-compliance": {"is": true}}' \
+  --description "Require compliant Windows endpoints"
 ```
 
-The following checks run automatically before each commit:
+### Log Forwarding
 
-- ruff linting and formatting
-- Trailing whitespace removal
-- End-of-file fixer
-- YAML/JSON syntax checking
-- Large file detection
-- Python syntax validation
-- Merge conflict detection
-- Private key detection
+Configure log collection:
+
+```bash
+# Syslog server profile
+scm set objects syslog-server-profile --folder Texas --name central-syslog \
+  --servers '[{"name": "primary", "server": "10.0.1.50", "port": 514, "transport": "TCP", "format": "BSD", "facility": "LOG_USER"}]'
+
+# HTTP server profile for SIEM
+scm set objects http-server-profile --folder Texas --name splunk-hec \
+  --servers '[{"name": "splunk", "address": "10.0.1.100", "protocol": "HTTPS", "port": 8088, "http_method": "POST"}]'
+
+# Log forwarding profile
+scm set objects log-forwarding-profile --folder Texas --name security-logs \
+  --match-list '[{"name": "threats", "log_type": "threat", "send_to_panorama": true}]'
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Authentication Errors
+
+```bash
+# Check current authentication
+scm test-auth
+
+# If fails, verify credentials
+echo $SCM_CLIENT_ID
+echo $SCM_CLIENT_SECRET
+echo $SCM_TSG_ID
+```
+
+#### Object Already Exists
+
+The CLI handles existing objects gracefully:
+
+```bash
+# This will update if exists, create if not
+scm set objects address --folder Texas --name server --ip-netmask 10.1.1.1/32
+```
+
+#### Rate Limiting
+
+If you encounter rate limits:
+
+```bash
+# Use mock mode for testing
+scm set objects address --folder Texas --name test --ip-netmask 10.1.1.1/32 --mock
+
+# Or add delays in scripts
+sleep 1
+```
+
+### Debug Mode
+
+For detailed logging:
+
+```bash
+# Set log level
+export SCM_LOG_LEVEL=DEBUG
+
+# Run command
+scm show objects address --folder Texas
+```
+
+## Examples Directory
+
+The `examples/` directory contains ready-to-use templates:
+
+- `addresses.yml` - Common address objects
+- `rfc1918-addresses.yml` - Private IP ranges
+- `security-rules.yml` - Security policy examples
+- `tags.yml` - Tag organization system
+- `services.yml` - Custom service definitions
+- `hip-objects.yml` - HIP compliance configurations
 
 ## Contributing
 
-We welcome contributions! To contribute:
+We welcome contributions! Please see our [Contributing Guide](./docs/about/contributing.md) for details.
 
-1. Fork the repository.
-2. Create a new feature branch (`git checkout -b feature/your-feature`).
-3. Make your changes, ensuring all quality checks pass:
+### Development Setup
 
-   ```bash
-   make quality  # Run all checks
-   ```
+```bash
+# Clone repository
+git clone https://github.com/cdot65/pan-scm-cli.git
+cd pan-scm-cli
 
-4. Add tests for new functionality in the `tests/` directory.
-5. Update documentation if adding new features.
-6. Commit your changes (`git commit -m 'Add new feature'`).
-7. Push to your branch (`git push origin feature/your-feature`).
-8. Open a Pull Request.
+# Install dependencies
+make setup
 
-Ensure your code adheres to the project's coding standards and includes tests where appropriate. See [CONTRIBUTING.md](./docs/about/contributing.md) for detailed guidelines.
+# Run tests
+make tests
+
+# Check code quality
+make quality
+```
 
 ## License
 
-This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICENSE) file for details.
+Apache 2.0 - see [LICENSE](./LICENSE) for details.
 
-## Support
+## Resources
 
-- **Documentation**: [GitHub Pages site](https://cdot65.github.io/pan-scm-cli/)
-- **Issues**: [GitHub Issues](https://github.com/cdot65/pan-scm-cli/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/cdot65/pan-scm-cli/discussions)
-- **Examples**: See the `examples/` directory for configuration templates
-
-## Project Status
-
-This project is actively maintained and uses:
-
-- Python 3.12+ with Poetry for dependency management
-- pan-scm-sdk v0.3.39 for API interactions
-- Dynaconf for flexible configuration management
-- Pydantic for robust input validation
-- Comprehensive test coverage with pytest
-
----
-
-_Detailed documentation is available on our [GitHub Pages documentation site](https://cdot65.github.io/pan-scm-cli/)._
+- [Documentation](https://cdot65.github.io/pan-scm-cli/)
+- [GitHub Issues](https://github.com/cdot65/pan-scm-cli/issues)
+- [Examples](./examples/)
+- [Release Notes](https://github.com/cdot65/pan-scm-cli/releases)

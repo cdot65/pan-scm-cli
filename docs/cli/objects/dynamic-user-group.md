@@ -202,7 +202,7 @@ scm show objects dynamic-user-group [OPTIONS]
 | `--list`         | List all dynamic user groups in the container    | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -219,10 +219,10 @@ Tags: None
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All Dynamic User Groups
+#### List All Dynamic User Groups (Default Behavior)
 
 ```bash
-$ scm show objects dynamic-user-group --folder Texas --list
+$ scm show objects dynamic-user-group --folder Texas
 ---> 100%
 Dynamic User Groups in folder 'Texas':
 ------------------------------------------------------------

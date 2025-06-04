@@ -34,16 +34,19 @@ $ scm set objects syslog-server-profile --folder Texas --name redundant-syslog \
 <span style="color: green;">✓</span> Syslog server profile 'redundant-syslog' created successfully
 ```
 
-### Listing Syslog Server Profiles
+### Listing Syslog Server Profiles (Default Behavior)
 
 ```bash
-$ scm show objects syslog-server-profile --folder Texas --list
+$ scm show objects syslog-server-profile --folder Texas
 Syslog server profiles in folder 'Texas':
 - central-syslog
 - redundant-syslog
 - compliance-syslog
 - security-syslog
 ```
+
+!!! note
+When no --name is specified, all syslog server profiles are listed by default.
 
 ### Showing Syslog Server Profile Details
 

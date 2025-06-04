@@ -712,68 +712,20 @@ def show_address_group(
     name: str | None = typer.Option(
         None, "--name", help="Name of the address group to show"
     ),
-    list_groups: bool = typer.Option(
-        False, "--list", help="List all address groups in the folder"
-    ),
 ):
     """Display address group objects.
 
     Examples
     --------
-        # List all address groups in a folder
-        scm-cli show objects address-group --folder Texas --list
+        # List all address groups in a folder (default behavior)
+        scm-cli show objects address-group --folder Texas
 
         # Show a specific address group by name
         scm-cli show objects address-group --folder Texas --name web-servers
 
     """
     try:
-        if list_groups:
-            # List all address groups in the folder
-            groups = scm_client.list_address_groups(folder=folder)
-
-            if not groups:
-                typer.echo(f"No address groups found in folder '{folder}'")
-                return
-
-            typer.echo(f"Address Groups in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for group in groups:
-                # Display address group information
-                typer.echo(f"Name: {group.get('name', 'N/A')}")
-
-                # Display container location (folder, snippet, or device)
-                if group.get("folder"):
-                    typer.echo(f"  Location: Folder '{group['folder']}'")
-                elif group.get("snippet"):
-                    typer.echo(f"  Location: Snippet '{group['snippet']}'")
-                elif group.get("device"):
-                    typer.echo(f"  Location: Device '{group['device']}'")
-                else:
-                    typer.echo("  Location: N/A")
-
-                # Determine type based on presence of 'static' or 'dynamic' key
-                if group.get("static") is not None:
-                    typer.echo("  Type: static")
-                    typer.echo(f"  Members: {', '.join(group.get('static', []))}")
-                elif group.get("dynamic") is not None:
-                    typer.echo("  Type: dynamic")
-                    dynamic_info = group.get("dynamic", {})
-                    if dynamic_info.get("filter"):
-                        typer.echo(f"  Filter: {dynamic_info['filter']}")
-
-                typer.echo(f"  Description: {group.get('description', 'N/A')}")
-
-                # Display tags if present
-                if group.get("tag"):
-                    typer.echo(f"  Tags: {', '.join(group['tag'])}")
-
-                typer.echo("-" * 60)
-
-            return groups
-
-        elif name:
+        if name:
             # Get a specific address group by name
             group = scm_client.get_address_group(folder=folder, name=name)
 
@@ -823,9 +775,49 @@ def show_address_group(
             return group
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # Default behavior: list all address groups in the folder
+            groups = scm_client.list_address_groups(folder=folder)
+
+            if not groups:
+                typer.echo(f"No address groups found in folder '{folder}'")
+                return
+
+            typer.echo(f"Address Groups in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for group in groups:
+                # Display address group information
+                typer.echo(f"Name: {group.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if group.get("folder"):
+                    typer.echo(f"  Location: Folder '{group['folder']}'")
+                elif group.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{group['snippet']}'")
+                elif group.get("device"):
+                    typer.echo(f"  Location: Device '{group['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
+
+                # Determine type based on presence of 'static' or 'dynamic' key
+                if group.get("static") is not None:
+                    typer.echo("  Type: static")
+                    typer.echo(f"  Members: {', '.join(group.get('static', []))}")
+                elif group.get("dynamic") is not None:
+                    typer.echo("  Type: dynamic")
+                    dynamic_info = group.get("dynamic", {})
+                    if dynamic_info.get("filter"):
+                        typer.echo(f"  Filter: {dynamic_info['filter']}")
+
+                typer.echo(f"  Description: {group.get('description', 'N/A')}")
+
+                # Display tags if present
+                if group.get("tag"):
+                    typer.echo(f"  Tags: {', '.join(group['tag'])}")
+
+                typer.echo("-" * 60)
+
+            return groups
 
     except Exception as e:
         typer.echo(f"Error showing address group: {str(e)}", err=True)
@@ -1113,24 +1105,63 @@ def set_address(
 def show_address(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the address to show"),
-    list_addresses: bool = typer.Option(
-        False, "--list", help="List all addresses in the folder"
-    ),
 ):
     """Display address objects.
 
     Example:
     -------
-        # List all addresses in a folder
-        scm-cli show objects address --folder Texas --list
+        # List all addresses in a folder (default behavior)
+        scm-cli show objects address --folder Texas
 
         # Show a specific address by name
         scm-cli show objects address --folder Texas --name webserver
 
     """
     try:
-        if list_addresses:
-            # List all addresses in the folder
+        if name:
+            # Get a specific address by name
+            address = scm_client.get_address(folder=folder, name=name)
+
+            typer.echo(f"Address: {address.get('name', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if address.get("folder"):
+                typer.echo(f"Location: Folder '{address['folder']}'")
+            elif address.get("snippet"):
+                typer.echo(f"Location: Snippet '{address['snippet']}'")
+            elif address.get("device"):
+                typer.echo(f"Location: Device '{address['device']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            typer.echo(f"Description: {address.get('description', 'N/A')}")
+
+            # Display the address type and value
+            if address.get("ip_netmask"):
+                typer.echo("Type: IP/Netmask")
+                typer.echo(f"Value: {address['ip_netmask']}")
+            elif address.get("ip_range"):
+                typer.echo("Type: IP Range")
+                typer.echo(f"Value: {address['ip_range']}")
+            elif address.get("ip_wildcard"):
+                typer.echo("Type: IP Wildcard")
+                typer.echo(f"Value: {address['ip_wildcard']}")
+            elif address.get("fqdn"):
+                typer.echo("Type: FQDN")
+                typer.echo(f"Value: {address['fqdn']}")
+
+            # Display tags if present
+            if address.get("tag"):
+                typer.echo(f"Tags: {', '.join(address['tag'])}")
+
+            # Display ID if present
+            if address.get("id"):
+                typer.echo(f"ID: {address['id']}")
+
+            return address
+
+        else:
+            # Default behavior: list all addresses in the folder
             addresses = scm_client.list_addresses(folder=folder)
 
             if not addresses:
@@ -1177,53 +1208,6 @@ def show_address(
                 typer.echo("-" * 60)
 
             return addresses
-
-        elif name:
-            # Get a specific address by name
-            address = scm_client.get_address(folder=folder, name=name)
-
-            typer.echo(f"Address: {address.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if address.get("folder"):
-                typer.echo(f"Location: Folder '{address['folder']}'")
-            elif address.get("snippet"):
-                typer.echo(f"Location: Snippet '{address['snippet']}'")
-            elif address.get("device"):
-                typer.echo(f"Location: Device '{address['device']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            typer.echo(f"Description: {address.get('description', 'N/A')}")
-
-            # Display the address type and value
-            if address.get("ip_netmask"):
-                typer.echo("Type: IP/Netmask")
-                typer.echo(f"Value: {address['ip_netmask']}")
-            elif address.get("ip_range"):
-                typer.echo("Type: IP Range")
-                typer.echo(f"Value: {address['ip_range']}")
-            elif address.get("ip_wildcard"):
-                typer.echo("Type: IP Wildcard")
-                typer.echo(f"Value: {address['ip_wildcard']}")
-            elif address.get("fqdn"):
-                typer.echo("Type: FQDN")
-                typer.echo(f"Value: {address['fqdn']}")
-
-            # Display tags if present
-            if address.get("tag"):
-                typer.echo(f"Tags: {', '.join(address['tag'])}")
-
-            # Display ID if present
-            if address.get("id"):
-                typer.echo(f"ID: {address['id']}")
-
-            return address
-
-        else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
 
     except Exception as e:
         typer.echo(f"Error showing address: {str(e)}", err=True)
@@ -1545,24 +1529,79 @@ def show_application(
     name: str | None = typer.Option(
         None, "--name", help="Name of the application to show"
     ),
-    list_applications: bool = typer.Option(
-        False, "--list", help="List all applications in the folder"
-    ),
 ):
     """Display application objects.
 
     Examples
     --------
-        # List all applications in a folder
-        scm-cli show objects application --folder Texas --list
+        # List all applications in a folder (default behavior)
+        scm-cli show objects application --folder Texas
 
         # Show a specific application by name
         scm-cli show objects application --folder Texas --name custom-database
 
     """
     try:
-        if list_applications:
-            # List all applications in the folder
+        if name:
+            # Get a specific application by name
+            application = scm_client.get_application(folder=folder, name=name)
+
+            typer.echo(f"Application: {application.get('name', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if application.get("folder"):
+                typer.echo(f"Location: Folder '{application['folder']}'")
+            elif application.get("snippet"):
+                typer.echo(f"Location: Snippet '{application['snippet']}'")
+            elif application.get("device"):
+                typer.echo(f"Location: Device '{application['device']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            typer.echo(f"Category: {application.get('category', 'N/A')}")
+            typer.echo(f"Subcategory: {application.get('subcategory', 'N/A')}")
+            typer.echo(f"Technology: {application.get('technology', 'N/A')}")
+            typer.echo(f"Risk: {application.get('risk', 'N/A')}")
+            typer.echo(f"Description: {application.get('description', 'N/A')}")
+
+            # Display ports if present
+            if application.get("ports"):
+                typer.echo(f"Ports: {', '.join(application['ports'])}")
+
+            # Display security attributes
+            typer.echo("Security Attributes:")
+            typer.echo(f"  Evasive: {application.get('evasive', False)}")
+            typer.echo(f"  Pervasive: {application.get('pervasive', False)}")
+            typer.echo(
+                f"  Excessive Bandwidth Use: {application.get('excessive_bandwidth_use', False)}"
+            )
+            typer.echo(
+                f"  Used by Malware: {application.get('used_by_malware', False)}"
+            )
+            typer.echo(
+                f"  Transfers Files: {application.get('transfers_files', False)}"
+            )
+            typer.echo(
+                f"  Has Known Vulnerabilities: {application.get('has_known_vulnerabilities', False)}"
+            )
+            typer.echo(
+                f"  Tunnels Other Apps: {application.get('tunnels_other_apps', False)}"
+            )
+            typer.echo(
+                f"  Prone to Misuse: {application.get('prone_to_misuse', False)}"
+            )
+            typer.echo(
+                f"  No Certifications: {application.get('no_certifications', False)}"
+            )
+
+            # Display ID if present
+            if application.get("id"):
+                typer.echo(f"ID: {application['id']}")
+
+            return application
+
+        else:
+            # List all applications in the folder (default behavior)
             applications = scm_client.list_applications(folder=folder)
 
             if not applications:
@@ -1623,69 +1662,6 @@ def show_application(
                 typer.echo("-" * 60)
 
             return applications
-
-        elif name:
-            # Get a specific application by name
-            application = scm_client.get_application(folder=folder, name=name)
-
-            typer.echo(f"Application: {application.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if application.get("folder"):
-                typer.echo(f"Location: Folder '{application['folder']}'")
-            elif application.get("snippet"):
-                typer.echo(f"Location: Snippet '{application['snippet']}'")
-            elif application.get("device"):
-                typer.echo(f"Location: Device '{application['device']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            typer.echo(f"Category: {application.get('category', 'N/A')}")
-            typer.echo(f"Subcategory: {application.get('subcategory', 'N/A')}")
-            typer.echo(f"Technology: {application.get('technology', 'N/A')}")
-            typer.echo(f"Risk: {application.get('risk', 'N/A')}")
-            typer.echo(f"Description: {application.get('description', 'N/A')}")
-
-            # Display ports if present
-            if application.get("ports"):
-                typer.echo(f"Ports: {', '.join(application['ports'])}")
-
-            # Display security attributes
-            typer.echo("Security Attributes:")
-            typer.echo(f"  Evasive: {application.get('evasive', False)}")
-            typer.echo(f"  Pervasive: {application.get('pervasive', False)}")
-            typer.echo(
-                f"  Excessive Bandwidth Use: {application.get('excessive_bandwidth_use', False)}"
-            )
-            typer.echo(
-                f"  Used by Malware: {application.get('used_by_malware', False)}"
-            )
-            typer.echo(
-                f"  Transfers Files: {application.get('transfers_files', False)}"
-            )
-            typer.echo(
-                f"  Has Known Vulnerabilities: {application.get('has_known_vulnerabilities', False)}"
-            )
-            typer.echo(
-                f"  Tunnels Other Apps: {application.get('tunnels_other_apps', False)}"
-            )
-            typer.echo(
-                f"  Prone to Misuse: {application.get('prone_to_misuse', False)}"
-            )
-            typer.echo(
-                f"  No Certifications: {application.get('no_certifications', False)}"
-            )
-
-            # Display ID if present
-            if application.get("id"):
-                typer.echo(f"ID: {application['id']}")
-
-            return application
-
-        else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
 
     except Exception as e:
         typer.echo(f"Error showing application: {str(e)}", err=True)
@@ -1930,24 +1906,52 @@ def show_application_group(
     name: str | None = typer.Option(
         None, "--name", help="Name of the application group to show"
     ),
-    list_groups: bool = typer.Option(
-        False, "--list", help="List all application groups in the folder"
-    ),
 ):
     """Display application group objects.
 
     Examples
     --------
-        # List all application groups in a folder
-        scm-cli show objects application-group --folder Texas --list
+        # List all application groups in a folder (default behavior)
+        scm-cli show objects application-group --folder Texas
 
         # Show a specific application group by name
         scm-cli show objects application-group --folder Texas --name web-apps
 
     """
     try:
-        if list_groups:
-            # List all application groups in the folder
+        if name:
+            # Get a specific application group by name
+            group = scm_client.get_application_group(folder=folder, name=name)
+
+            typer.echo(f"Application Group: {group.get('name', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if group.get("folder"):
+                typer.echo(f"Location: Folder '{group['folder']}'")
+            elif group.get("snippet"):
+                typer.echo(f"Location: Snippet '{group['snippet']}'")
+            elif group.get("device"):
+                typer.echo(f"Location: Device '{group['device']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            # Display members
+            members = group.get("members", [])
+            if members:
+                typer.echo(f"Members ({len(members)}):")
+                for member in members:
+                    typer.echo(f"  - {member}")
+            else:
+                typer.echo("Members: None")
+
+            # Display ID if present
+            if group.get("id"):
+                typer.echo(f"ID: {group['id']}")
+
+            return group
+
+        else:
+            # List all application groups in the folder (default behavior)
             groups = scm_client.list_application_groups(folder=folder)
 
             if not groups:
@@ -1981,42 +1985,6 @@ def show_application_group(
                 typer.echo("-" * 60)
 
             return groups
-
-        elif name:
-            # Get a specific application group by name
-            group = scm_client.get_application_group(folder=folder, name=name)
-
-            typer.echo(f"Application Group: {group.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if group.get("folder"):
-                typer.echo(f"Location: Folder '{group['folder']}'")
-            elif group.get("snippet"):
-                typer.echo(f"Location: Snippet '{group['snippet']}'")
-            elif group.get("device"):
-                typer.echo(f"Location: Device '{group['device']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            # Display members
-            members = group.get("members", [])
-            if members:
-                typer.echo(f"Members ({len(members)}):")
-                for member in members:
-                    typer.echo(f"  - {member}")
-            else:
-                typer.echo("Members: None")
-
-            # Display ID if present
-            if group.get("id"):
-                typer.echo(f"ID: {group['id']}")
-
-            return group
-
-        else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
 
     except Exception as e:
         typer.echo(f"Error showing application group: {str(e)}", err=True)
@@ -2316,24 +2284,74 @@ def show_application_filter(
     name: str | None = typer.Option(
         None, "--name", help="Name of the application filter to show"
     ),
-    list_filters: bool = typer.Option(
-        False, "--list", help="List all application filters in the folder"
-    ),
 ):
     """Display application filter objects.
 
     Examples
     --------
-        # List all application filters in a folder
-        scm-cli show objects application-filter --folder Texas --list
+        # List all application filters in a folder (default behavior)
+        scm-cli show objects application-filter --folder Texas
 
         # Show a specific application filter by name
         scm-cli show objects application-filter --folder Texas --name high-risk-apps
 
     """
     try:
-        if list_filters:
-            # List all application filters in the folder
+        if name:
+            # Get a specific application filter by name
+            filter_obj = scm_client.get_application_filter(folder=folder, name=name)
+
+            typer.echo(f"Application Filter: {filter_obj.get('name', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if filter_obj.get("folder"):
+                typer.echo(f"Location: Folder '{filter_obj['folder']}'")
+            elif filter_obj.get("snippet"):
+                typer.echo(f"Location: Snippet '{filter_obj['snippet']}'")
+            elif filter_obj.get("device"):
+                typer.echo(f"Location: Device '{filter_obj['device']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            # Display filter criteria
+            typer.echo("\nFilter Criteria:")
+            if filter_obj.get("category"):
+                typer.echo(f"  Categories: {', '.join(filter_obj['category'])}")
+            if filter_obj.get("sub_category"):
+                typer.echo(f"  Subcategories: {', '.join(filter_obj['sub_category'])}")
+            if filter_obj.get("technology"):
+                typer.echo(f"  Technologies: {', '.join(filter_obj['technology'])}")
+            if filter_obj.get("risk"):
+                typer.echo(f"  Risk Levels: {', '.join(map(str, filter_obj['risk']))}")
+
+            # Display boolean attributes
+            typer.echo("\nFilter Attributes:")
+            typer.echo(f"  Evasive: {filter_obj.get('evasive', False)}")
+            typer.echo(f"  Pervasive: {filter_obj.get('pervasive', False)}")
+            typer.echo(
+                f"  Excessive Bandwidth Use: {filter_obj.get('excessive_bandwidth_use', False)}"
+            )
+            typer.echo(f"  Used by Malware: {filter_obj.get('used_by_malware', False)}")
+            typer.echo(f"  Transfers Files: {filter_obj.get('transfers_files', False)}")
+            typer.echo(
+                f"  Has Known Vulnerabilities: {filter_obj.get('has_known_vulnerabilities', False)}"
+            )
+            typer.echo(
+                f"  Tunnels Other Apps: {filter_obj.get('tunnels_other_apps', False)}"
+            )
+            typer.echo(f"  Prone to Misuse: {filter_obj.get('prone_to_misuse', False)}")
+            typer.echo(
+                f"  No Certifications: {filter_obj.get('no_certifications', False)}"
+            )
+
+            # Display ID if present
+            if filter_obj.get("id"):
+                typer.echo(f"\nID: {filter_obj['id']}")
+
+            return filter_obj
+
+        else:
+            # List all application filters in the folder (default behavior)
             filters = scm_client.list_application_filters(folder=folder)
 
             if not filters:
@@ -2398,64 +2416,6 @@ def show_application_filter(
                 typer.echo("-" * 60)
 
             return filters
-
-        elif name:
-            # Get a specific application filter by name
-            filter_obj = scm_client.get_application_filter(folder=folder, name=name)
-
-            typer.echo(f"Application Filter: {filter_obj.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if filter_obj.get("folder"):
-                typer.echo(f"Location: Folder '{filter_obj['folder']}'")
-            elif filter_obj.get("snippet"):
-                typer.echo(f"Location: Snippet '{filter_obj['snippet']}'")
-            elif filter_obj.get("device"):
-                typer.echo(f"Location: Device '{filter_obj['device']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            # Display filter criteria
-            typer.echo("\nFilter Criteria:")
-            if filter_obj.get("category"):
-                typer.echo(f"  Categories: {', '.join(filter_obj['category'])}")
-            if filter_obj.get("sub_category"):
-                typer.echo(f"  Subcategories: {', '.join(filter_obj['sub_category'])}")
-            if filter_obj.get("technology"):
-                typer.echo(f"  Technologies: {', '.join(filter_obj['technology'])}")
-            if filter_obj.get("risk"):
-                typer.echo(f"  Risk Levels: {', '.join(map(str, filter_obj['risk']))}")
-
-            # Display boolean attributes
-            typer.echo("\nFilter Attributes:")
-            typer.echo(f"  Evasive: {filter_obj.get('evasive', False)}")
-            typer.echo(f"  Pervasive: {filter_obj.get('pervasive', False)}")
-            typer.echo(
-                f"  Excessive Bandwidth Use: {filter_obj.get('excessive_bandwidth_use', False)}"
-            )
-            typer.echo(f"  Used by Malware: {filter_obj.get('used_by_malware', False)}")
-            typer.echo(f"  Transfers Files: {filter_obj.get('transfers_files', False)}")
-            typer.echo(
-                f"  Has Known Vulnerabilities: {filter_obj.get('has_known_vulnerabilities', False)}"
-            )
-            typer.echo(
-                f"  Tunnels Other Apps: {filter_obj.get('tunnels_other_apps', False)}"
-            )
-            typer.echo(f"  Prone to Misuse: {filter_obj.get('prone_to_misuse', False)}")
-            typer.echo(
-                f"  No Certifications: {filter_obj.get('no_certifications', False)}"
-            )
-
-            # Display ID if present
-            if filter_obj.get("id"):
-                typer.echo(f"\nID: {filter_obj['id']}")
-
-            return filter_obj
-
-        else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
 
     except Exception as e:
         typer.echo(f"Error showing application filter: {str(e)}", err=True)
@@ -2717,24 +2677,50 @@ def show_dynamic_user_group(
     name: str | None = typer.Option(
         None, "--name", help="Name of the dynamic user group to show"
     ),
-    list_groups: bool = typer.Option(
-        False, "--list", help="List all dynamic user groups in the folder"
-    ),
 ):
     """Display dynamic user group objects.
 
     Examples
     --------
-        # List all dynamic user groups in a folder
-        scm-cli show objects dynamic-user-group --folder Texas --list
+        # List all dynamic user groups in a folder (default behavior)
+        scm-cli show objects dynamic-user-group --folder Texas
 
         # Show a specific dynamic user group by name
         scm-cli show objects dynamic-user-group --folder Texas --name it-admins
 
     """
     try:
-        if list_groups:
-            # List all dynamic user groups in the folder
+        if name:
+            # Get a specific dynamic user group by name
+            group = scm_client.get_dynamic_user_group(folder=folder, name=name)
+
+            typer.echo(f"Dynamic User Group: {group.get('name', 'N/A')}")
+
+            # Display container location (folder, snippet, or device)
+            if group.get("folder"):
+                typer.echo(f"Location: Folder '{group['folder']}'")
+            elif group.get("snippet"):
+                typer.echo(f"Location: Snippet '{group['snippet']}'")
+            elif group.get("device"):
+                typer.echo(f"Location: Device '{group['device']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            typer.echo(f"Filter: {group.get('filter', 'N/A')}")
+            typer.echo(f"Description: {group.get('description', 'N/A')}")
+
+            # Display tags if present
+            if group.get("tag"):
+                typer.echo(f"Tags: {', '.join(group['tag'])}")
+
+            # Display ID if present
+            if group.get("id"):
+                typer.echo(f"ID: {group['id']}")
+
+            return group
+
+        else:
+            # List all dynamic user groups in the folder (default behavior)
             groups = scm_client.list_dynamic_user_groups(folder=folder)
 
             if not groups:
@@ -2768,40 +2754,6 @@ def show_dynamic_user_group(
                 typer.echo("-" * 60)
 
             return groups
-
-        elif name:
-            # Get a specific dynamic user group by name
-            group = scm_client.get_dynamic_user_group(folder=folder, name=name)
-
-            typer.echo(f"Dynamic User Group: {group.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if group.get("folder"):
-                typer.echo(f"Location: Folder '{group['folder']}'")
-            elif group.get("snippet"):
-                typer.echo(f"Location: Snippet '{group['snippet']}'")
-            elif group.get("device"):
-                typer.echo(f"Location: Device '{group['device']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            typer.echo(f"Filter: {group.get('filter', 'N/A')}")
-            typer.echo(f"Description: {group.get('description', 'N/A')}")
-
-            # Display tags if present
-            if group.get("tag"):
-                typer.echo(f"Tags: {', '.join(group['tag'])}")
-
-            # Display ID if present
-            if group.get("id"):
-                typer.echo(f"ID: {group['id']}")
-
-            return group
-
-        else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
 
     except Exception as e:
         typer.echo(f"Error showing dynamic user group: {str(e)}", err=True)
@@ -3153,68 +3105,20 @@ def set_external_dynamic_list(
 def show_external_dynamic_list(
     folder: str = FOLDER_OPTION,
     name: str = typer.Option(None, help="Name of the external dynamic list to show"),
-    list_edls: bool = typer.Option(
-        False, "--list", help="List all external dynamic lists in the folder"
-    ),
 ):
     """Show external dynamic list details or list all external dynamic lists in a folder.
 
     Examples
     --------
-        # List all external dynamic lists in a folder
-        scm-cli show objects external-dynamic-list --folder Texas --list
+        # List all external dynamic lists in a folder (default behavior)
+        scm-cli show objects external-dynamic-list --folder Texas
 
         # Show a specific external dynamic list by name
         scm-cli show objects external-dynamic-list --folder Texas --name malicious-ips
 
     """
     try:
-        if list_edls:
-            # List all external dynamic lists in the folder
-            edls = scm_client.list_external_dynamic_lists(folder=folder)
-
-            if not edls:
-                typer.echo(f"No external dynamic lists found in folder '{folder}'")
-                return
-
-            typer.echo(f"External Dynamic Lists in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for edl in edls:
-                # Display external dynamic list information
-                typer.echo(f"Name: {edl.get('name', 'N/A')}")
-
-                # Display container location (folder, snippet, or device)
-                if edl.get("folder"):
-                    typer.echo(f"  Location: Folder '{edl['folder']}'")
-                elif edl.get("snippet"):
-                    typer.echo(f"  Location: Snippet '{edl['snippet']}'")
-                elif edl.get("device"):
-                    typer.echo(f"  Location: Device '{edl['device']}'")
-                else:
-                    typer.echo("  Location: N/A")
-
-                # Display type information
-                if edl.get("type") and isinstance(edl["type"], dict):
-                    type_key = list(edl["type"].keys())[0]
-                    type_config = edl["type"][type_key]
-                    typer.echo(f"  Type: {type_key}")
-                    typer.echo(f"  URL: {type_config.get('url', 'N/A')}")
-                    if type_config.get("description"):
-                        typer.echo(f"  Description: {type_config['description']}")
-                    if type_config.get("recurring"):
-                        recur_type = list(type_config["recurring"].keys())[0]
-                        typer.echo(f"  Update Frequency: {recur_type}")
-                    if type_config.get("exception_list"):
-                        typer.echo(
-                            f"  Exception List: {', '.join(type_config['exception_list'])}"
-                        )
-
-                typer.echo("-" * 60)
-
-            return edls
-
-        elif name:
+        if name:
             # Get a specific external dynamic list by name
             edl = scm_client.get_external_dynamic_list(folder=folder, name=name)
 
@@ -3271,9 +3175,49 @@ def show_external_dynamic_list(
             return edl
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # List all external dynamic lists in the folder (default behavior)
+            edls = scm_client.list_external_dynamic_lists(folder=folder)
+
+            if not edls:
+                typer.echo(f"No external dynamic lists found in folder '{folder}'")
+                return
+
+            typer.echo(f"External Dynamic Lists in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for edl in edls:
+                # Display external dynamic list information
+                typer.echo(f"Name: {edl.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if edl.get("folder"):
+                    typer.echo(f"  Location: Folder '{edl['folder']}'")
+                elif edl.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{edl['snippet']}'")
+                elif edl.get("device"):
+                    typer.echo(f"  Location: Device '{edl['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
+
+                # Display type information
+                if edl.get("type") and isinstance(edl["type"], dict):
+                    type_key = list(edl["type"].keys())[0]
+                    type_config = edl["type"][type_key]
+                    typer.echo(f"  Type: {type_key}")
+                    typer.echo(f"  URL: {type_config.get('url', 'N/A')}")
+                    if type_config.get("description"):
+                        typer.echo(f"  Description: {type_config['description']}")
+                    if type_config.get("recurring"):
+                        recur_type = list(type_config["recurring"].keys())[0]
+                        typer.echo(f"  Update Frequency: {recur_type}")
+                    if type_config.get("exception_list"):
+                        typer.echo(
+                            f"  Exception List: {', '.join(type_config['exception_list'])}"
+                        )
+
+                typer.echo("-" * 60)
+
+            return edls
 
     except Exception as e:
         typer.echo(f"Error showing external dynamic list: {str(e)}", err=True)
@@ -3796,72 +3740,20 @@ def set_hip_object(
 def show_hip_object(
     folder: str = FOLDER_OPTION,
     name: str = typer.Option(None, help="Name of the HIP object to show"),
-    list_objects: bool = typer.Option(
-        False, "--list", help="List all HIP objects in the folder"
-    ),
 ):
     """Display HIP object configurations.
 
     Examples
     --------
-        # List all HIP objects in a folder
-        scm-cli show objects hip-object --folder Texas --list
+        # List all HIP objects in a folder (default behavior)
+        scm-cli show objects hip-object --folder Texas
 
         # Show a specific HIP object by name
         scm-cli show objects hip-object --folder Texas --name windows-compliance
 
     """
     try:
-        if list_objects:
-            # List all HIP objects in the folder
-            hip_objects = scm_client.list_hip_objects(folder=folder)
-
-            if not hip_objects:
-                typer.echo(f"No HIP objects found in folder '{folder}'")
-                return
-
-            typer.echo(f"HIP Objects in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for hip_obj in hip_objects:
-                # Display HIP object information
-                typer.echo(f"Name: {hip_obj.get('name', 'N/A')}")
-
-                # Display container location (folder, snippet, or device)
-                if hip_obj.get("folder"):
-                    typer.echo(f"  Location: Folder '{hip_obj['folder']}'")
-                elif hip_obj.get("snippet"):
-                    typer.echo(f"  Location: Snippet '{hip_obj['snippet']}'")
-                elif hip_obj.get("device"):
-                    typer.echo(f"  Location: Device '{hip_obj['device']}'")
-                else:
-                    typer.echo("  Location: N/A")
-
-                typer.echo(f"  Description: {hip_obj.get('description', 'N/A')}")
-
-                # Display criteria types
-                criteria_types = []
-                if hip_obj.get("host_info"):
-                    criteria_types.append("Host Info")
-                if hip_obj.get("network_info"):
-                    criteria_types.append("Network Info")
-                if hip_obj.get("patch_management"):
-                    criteria_types.append("Patch Management")
-                if hip_obj.get("disk_encryption"):
-                    criteria_types.append("Disk Encryption")
-                if hip_obj.get("mobile_device"):
-                    criteria_types.append("Mobile Device")
-                if hip_obj.get("certificate"):
-                    criteria_types.append("Certificate")
-
-                if criteria_types:
-                    typer.echo(f"  Criteria Types: {', '.join(criteria_types)}")
-
-                typer.echo("-" * 60)
-
-            return hip_objects
-
-        elif name:
+        if name:
             # Get a specific HIP object by name
             hip_obj = scm_client.get_hip_object(folder=folder, name=name)
 
@@ -4027,9 +3919,53 @@ def show_hip_object(
             return hip_obj
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # List all HIP objects in the folder (default behavior)
+            hip_objects = scm_client.list_hip_objects(folder=folder)
+
+            if not hip_objects:
+                typer.echo(f"No HIP objects found in folder '{folder}'")
+                return
+
+            typer.echo(f"HIP Objects in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for hip_obj in hip_objects:
+                # Display HIP object information
+                typer.echo(f"Name: {hip_obj.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if hip_obj.get("folder"):
+                    typer.echo(f"  Location: Folder '{hip_obj['folder']}'")
+                elif hip_obj.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{hip_obj['snippet']}'")
+                elif hip_obj.get("device"):
+                    typer.echo(f"  Location: Device '{hip_obj['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
+
+                typer.echo(f"  Description: {hip_obj.get('description', 'N/A')}")
+
+                # Display criteria types
+                criteria_types = []
+                if hip_obj.get("host_info"):
+                    criteria_types.append("Host Info")
+                if hip_obj.get("network_info"):
+                    criteria_types.append("Network Info")
+                if hip_obj.get("patch_management"):
+                    criteria_types.append("Patch Management")
+                if hip_obj.get("disk_encryption"):
+                    criteria_types.append("Disk Encryption")
+                if hip_obj.get("mobile_device"):
+                    criteria_types.append("Mobile Device")
+                if hip_obj.get("certificate"):
+                    criteria_types.append("Certificate")
+
+                if criteria_types:
+                    typer.echo(f"  Criteria Types: {', '.join(criteria_types)}")
+
+                typer.echo("-" * 60)
+
+            return hip_objects
 
     except Exception as e:
         typer.echo(f"Error showing HIP object: {str(e)}", err=True)
@@ -4298,44 +4234,20 @@ def show_hip_profile(
     name: str = typer.Option(
         None, "--name", help="Name of specific HIP profile to show"
     ),
-    list: bool = typer.Option(
-        False, "--list", help="List all HIP profiles in the folder"
-    ),
 ) -> dict[str, Any] | None:
     """Show HIP profile details or list all HIP profiles in a folder.
 
     Examples
     --------
-        # List all HIP profiles in a folder
-        scm-cli show objects hip-profile --folder Texas --list
+        # List all HIP profiles in a folder (default behavior)
+        scm-cli show objects hip-profile --folder Texas
 
         # Show a specific HIP profile by name
         scm-cli show objects hip-profile --folder Texas --name windows-compliance
 
     """
     try:
-        if list:
-            # List all HIP profiles in the folder
-            hip_profiles = scm_client.list_hip_profiles(folder=folder)
-            if not hip_profiles:
-                typer.echo(f"No HIP profiles found in folder '{folder}'")
-                return None
-
-            typer.echo(f"HIP profiles in folder '{folder}':")
-            typer.echo("-" * 80)
-
-            # Display in table format
-            for profile in hip_profiles:
-                typer.echo(f"Name: {profile['name']}")
-                typer.echo(f"  Match: {profile['match']}")
-                if profile.get("description"):
-                    typer.echo(f"  Description: {profile['description']}")
-                typer.echo("")
-
-            typer.echo(f"Total: {len(hip_profiles)} HIP profiles")
-            return None
-
-        elif name:
+        if name:
             # Show specific HIP profile
             hip_profile = scm_client.get_hip_profile(folder=folder, name=name)
 
@@ -4354,9 +4266,25 @@ def show_hip_profile(
             return hip_profile
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # Default behavior: list all HIP profiles in the folder
+            hip_profiles = scm_client.list_hip_profiles(folder=folder)
+            if not hip_profiles:
+                typer.echo(f"No HIP profiles found in folder '{folder}'")
+                return None
+
+            typer.echo(f"HIP profiles in folder '{folder}':")
+            typer.echo("-" * 80)
+
+            # Display in table format
+            for profile in hip_profiles:
+                typer.echo(f"Name: {profile['name']}")
+                typer.echo(f"  Match: {profile['match']}")
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+                typer.echo("")
+
+            typer.echo(f"Total: {len(hip_profiles)} HIP profiles")
+            return None
 
     except Exception as e:
         typer.echo(f"Error showing HIP profile: {str(e)}", err=True)
@@ -4682,8 +4610,8 @@ def show_http_server_profile(
 
     Examples
     --------
-        # List all HTTP server profiles in a folder
-        scm-cli show objects http-server-profile --folder Texas --list
+        # List all HTTP server profiles in a folder (default behavior)
+        scm-cli show objects http-server-profile --folder Texas
 
         # Show a specific HTTP server profile by name
         scm-cli show objects http-server-profile --folder Texas --name syslog-collector
@@ -4691,7 +4619,7 @@ def show_http_server_profile(
     """
     try:
         if list:
-            # List all HTTP server profiles in the folder
+            # List all HTTP server profiles in the folder (default behavior)
             http_server_profiles = scm_client.list_http_server_profiles(folder=folder)
             if not http_server_profiles:
                 typer.echo(f"No HTTP server profiles found in folder '{folder}'")
@@ -5125,8 +5053,8 @@ def show_log_forwarding_profile(
 
     Examples
     --------
-        # List all log forwarding profiles in a folder
-        scm-cli show objects log-forwarding-profile --folder Texas --list
+        # List all log forwarding profiles in a folder (default behavior)
+        scm-cli show objects log-forwarding-profile --folder Texas
 
         # Show a specific log forwarding profile by name
         scm-cli show objects log-forwarding-profile --folder Texas --name security-logs
@@ -5134,7 +5062,7 @@ def show_log_forwarding_profile(
     """
     try:
         if list:
-            # List all log forwarding profiles in the folder
+            # List all log forwarding profiles in the folder (default behavior)
             log_forwarding_profiles = scm_client.list_log_forwarding_profiles(
                 folder=folder
             )
@@ -5564,8 +5492,8 @@ def show_service(
 
     Examples
     --------
-        # List all services in a folder
-        scm-cli show objects service --folder Texas --list
+        # List all services in a folder (default behavior)
+        scm-cli show objects service --folder Texas
 
         # Show a specific service by name
         scm-cli show objects service --folder Texas --name web-server
@@ -5573,7 +5501,7 @@ def show_service(
     """
     try:
         if list:
-            # List all services in the folder
+            # List all services in the folder (default behavior)
             services = scm_client.list_services(folder=folder)
             if not services:
                 typer.echo(f"No services found in folder '{folder}'")
@@ -5971,8 +5899,8 @@ def show_service_group(
 
     Examples
     --------
-        # List all service groups in a folder
-        scm-cli show objects service-group --folder Texas --list
+        # List all service groups in a folder (default behavior)
+        scm-cli show objects service-group --folder Texas
 
         # Show a specific service group by name
         scm-cli show objects service-group --folder Texas --name web-services
@@ -5980,7 +5908,7 @@ def show_service_group(
     """
     try:
         if list:
-            # List all service groups in the folder
+            # List all service groups in the folder (default behavior)
             service_groups = scm_client.list_service_groups(folder=folder)
             if not service_groups:
                 typer.echo(f"No service groups found in folder '{folder}'")
@@ -6363,9 +6291,6 @@ def show_syslog_server_profile(
     name: str = typer.Option(
         None, "--name", help="Name of specific syslog server profile to show"
     ),
-    list_profiles: bool = typer.Option(
-        False, "--list", help="List all syslog server profiles"
-    ),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
@@ -6374,8 +6299,8 @@ def show_syslog_server_profile(
 
     Examples
     --------
-        # List all syslog server profiles
-        scm-cli show objects syslog-server-profile --list
+        # List all syslog server profiles (default behavior)
+        scm-cli show objects syslog-server-profile
 
         # Show a specific syslog server profile by name
         scm-cli show objects syslog-server-profile --name primary-syslog
@@ -6388,49 +6313,7 @@ def show_syslog_server_profile(
         if not any([folder, snippet, device]):
             folder = "Texas"  # Default to Texas folder
 
-        if list_profiles:
-            # List all syslog server profiles
-            profiles = scm_client.list_syslog_server_profiles(
-                folder=folder,
-                snippet=snippet,
-                device=device,
-            )
-
-            if not profiles:
-                typer.echo("No syslog server profiles found")
-                return
-
-            # Display in table format
-            typer.echo("\nSyslog Server Profiles:")
-            typer.echo("-" * 100)
-
-            for profile in profiles:
-                location = (
-                    profile.get("folder")
-                    or profile.get("snippet")
-                    or profile.get("device", "N/A")
-                )
-                servers = profile.get("server", [])
-                server_count = len(servers)
-
-                typer.echo(f"\nName: {profile['name']}")
-                typer.echo(f"Location: {location}")
-                if profile.get("description"):
-                    typer.echo(f"Description: {profile['description']}")
-                typer.echo(f"Servers: {server_count}")
-
-                # Show server details
-                for server in servers:
-                    typer.echo(
-                        f"  - {server['name']}: {server['server']}:{server['port']} ({server['transport']}) - {server['format']}/{server['facility']}"
-                    )
-
-                if profile.get("tag"):
-                    typer.echo(f"Tags: {', '.join(profile['tag'])}")
-
-            typer.echo(f"\nTotal: {len(profiles)} syslog server profiles")
-
-        elif name:
+        if name:
             # Show specific syslog server profile
             profile = scm_client.get_syslog_server_profile(
                 name=name,
@@ -6484,9 +6367,46 @@ def show_syslog_server_profile(
             return profile
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # Default behavior: list all syslog server profiles
+            profiles = scm_client.list_syslog_server_profiles(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not profiles:
+                typer.echo("No syslog server profiles found")
+                return
+
+            # Display in table format
+            typer.echo("\nSyslog Server Profiles:")
+            typer.echo("-" * 100)
+
+            for profile in profiles:
+                location = (
+                    profile.get("folder")
+                    or profile.get("snippet")
+                    or profile.get("device", "N/A")
+                )
+                servers = profile.get("server", [])
+                server_count = len(servers)
+
+                typer.echo(f"\nName: {profile['name']}")
+                typer.echo(f"Location: {location}")
+                if profile.get("description"):
+                    typer.echo(f"Description: {profile['description']}")
+                typer.echo(f"Servers: {server_count}")
+
+                # Show server details
+                for server in servers:
+                    typer.echo(
+                        f"  - {server['name']}: {server['server']}:{server['port']} ({server['transport']}) - {server['format']}/{server['facility']}"
+                    )
+
+                if profile.get("tag"):
+                    typer.echo(f"Tags: {', '.join(profile['tag'])}")
+
+            typer.echo(f"\nTotal: {len(profiles)} syslog server profiles")
 
     except Exception as e:
         typer.echo(f"Error showing syslog server profile: {str(e)}", err=True)
@@ -6731,7 +6651,6 @@ def set_tag(
 @show_app.command("tag", help="Show tag details.")
 def show_tag(
     name: str = typer.Option(None, "--name", help="Name of specific tag to show"),
-    list_tags: bool = typer.Option(False, "--list", help="List all tags"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
@@ -6740,8 +6659,8 @@ def show_tag(
 
     Examples
     --------
-        # List all tags
-        scm-cli show objects tag --list
+        # List all tags (default behavior)
+        scm-cli show objects tag
 
         # Show a specific tag by name
         scm-cli show objects tag --name Production
@@ -6752,37 +6671,7 @@ def show_tag(
         if not any([folder, snippet, device]):
             folder = "Texas"  # Default to Texas folder
 
-        if list_tags:
-            # List all tags
-            tags = scm_client.list_tags(
-                folder=folder,
-                snippet=snippet,
-                device=device,
-            )
-
-            if not tags:
-                typer.echo("No tags found")
-                return
-
-            # Display in table format
-            typer.echo("\nTags:")
-            typer.echo("-" * 80)
-
-            for tag in tags:
-                location = (
-                    tag.get("folder") or tag.get("snippet") or tag.get("device", "N/A")
-                )
-                color = tag.get("color", "No color")
-
-                typer.echo(f"\nName: {tag['name']}")
-                typer.echo(f"Location: {location}")
-                typer.echo(f"Color: {color}")
-                if tag.get("comments"):
-                    typer.echo(f"Comments: {tag['comments']}")
-
-            typer.echo(f"\nTotal: {len(tags)} tags")
-
-        elif name:
+        if name:
             # Show specific tag
             tag = scm_client.get_tag(
                 name=name,
@@ -6817,9 +6706,34 @@ def show_tag(
             return tag
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # Default behavior: list all tags
+            tags = scm_client.list_tags(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not tags:
+                typer.echo("No tags found")
+                return
+
+            # Display in table format
+            typer.echo("\nTags:")
+            typer.echo("-" * 80)
+
+            for tag in tags:
+                location = (
+                    tag.get("folder") or tag.get("snippet") or tag.get("device", "N/A")
+                )
+                color = tag.get("color", "No color")
+
+                typer.echo(f"\nName: {tag['name']}")
+                typer.echo(f"Location: {location}")
+                typer.echo(f"Color: {color}")
+                if tag.get("comments"):
+                    typer.echo(f"Comments: {tag['comments']}")
+
+            typer.echo(f"\nTotal: {len(tags)} tags")
 
     except Exception as e:
         typer.echo(f"Error showing tag: {str(e)}", err=True)

@@ -195,7 +195,7 @@ scm show objects hip-profile [OPTIONS]
 | `--list`         | List all HIP profiles in the container    | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -211,10 +211,10 @@ Description: Comprehensive endpoint security
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All HIP Profiles
+#### List All HIP Profiles (Default Behavior)
 
 ```bash
-$ scm show objects hip-profile --folder Texas --list
+$ scm show objects hip-profile --folder Texas
 ---> 100%
 HIP Profiles in folder 'Texas':
 ------------------------------------------------------------

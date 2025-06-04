@@ -213,7 +213,7 @@ scm show objects application-group [OPTIONS]
 | `--list`         | List all application groups in the container    | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -230,10 +230,10 @@ Tags: None
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All Application Groups
+#### List All Application Groups (Default Behavior)
 
 ```bash
-$ scm show objects application-group --folder Texas --list
+$ scm show objects application-group --folder Texas
 ---> 100%
 Application Groups in folder 'Texas':
 ------------------------------------------------------------
