@@ -84,14 +84,14 @@ export SCM_TSG_ID="your_tenant_service_group_id"
 mkdir -p ~/.scm
 
 # Create config file
-cat > ~/.scm/config.yaml << EOL
+cat > ~/.scm-cli/config.yaml << EOL
 client_id: "your_client_id"
 client_secret: "your_client_secret"
 tsg_id: "your_tenant_service_group_id"
 EOL
 
 # Secure the file
-chmod 600 ~/.scm/config.yaml
+chmod 600 ~/.scm-cli/config.yaml
 ```
 
 ### 2. Verify Your Setup
