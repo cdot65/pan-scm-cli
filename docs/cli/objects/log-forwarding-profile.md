@@ -211,7 +211,7 @@ scm show objects log-forwarding-profile [OPTIONS]
 | `--list`         | List all log forwarding profiles in the container    | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -233,10 +233,10 @@ Description: Forward threat logs to SIEM
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All Log Forwarding Profiles
+#### List All Log Forwarding Profiles (Default Behavior)
 
 ```bash
-$ scm show objects log-forwarding-profile --folder Texas --list
+$ scm show objects log-forwarding-profile --folder Texas
 ---> 100%
 Log Forwarding Profiles in folder 'Texas':
 ------------------------------------------------------------

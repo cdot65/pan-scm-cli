@@ -212,7 +212,7 @@ scm show objects http-server-profile [OPTIONS]
 | `--list`         | List all HTTP server profiles in the container    | No\*\*   |
 
 \* You must specify exactly one of --folder, --snippet, or --device.
-\*\* You must specify either --name or --list.
+\*\* If --name is not specified, all items will be listed.
 
 ### Examples
 
@@ -235,10 +235,10 @@ Tag Registration: False
 ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
-#### List All HTTP Server Profiles
+#### List All HTTP Server Profiles (Default Behavior)
 
 ```bash
-$ scm show objects http-server-profile --folder Texas --list
+$ scm show objects http-server-profile --folder Texas
 ---> 100%
 HTTP Server Profiles in folder 'Texas':
 ------------------------------------------------------------

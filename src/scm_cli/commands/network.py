@@ -44,22 +44,12 @@ NAME_OPTION = typer.Option(
 MODE_OPTION = typer.Option(
     ...,
     "--mode",
-    help="Zone mode (L2, L3, external, virtual-wire, tunnel)",
+    help="Zone mode (layer2, layer3, external, virtual-wire, tunnel, tap)",
 )
 INTERFACES_OPTION = typer.Option(
     None,
     "--interfaces",
     help="List of interfaces",
-)
-DESCRIPTION_OPTION = typer.Option(
-    None,
-    "--description",
-    help="Description of the zone",
-)
-TAGS_OPTION = typer.Option(
-    None,
-    "--tags",
-    help="List of tags",
 )
 ENABLE_USER_ID_OPTION = typer.Option(
     None,
@@ -286,8 +276,6 @@ def load_security_zone(
                 name=sdk_data["name"],
                 mode=sdk_data["mode"],
                 interfaces=sdk_data["interfaces"],
-                description=sdk_data["description"],
-                tags=sdk_data["tags"],
             )
 
             results.append(result)
@@ -308,38 +296,47 @@ def set_zone(
     name: str = NAME_OPTION,
     mode: str = MODE_OPTION,
     interfaces: list[str] | None = INTERFACES_OPTION,
-    description: str | None = DESCRIPTION_OPTION,
-    tags: list[str] | None = TAGS_OPTION,
     enable_user_id: bool | None = ENABLE_USER_ID_OPTION,
 ):
     """Create or update a security zone.
 
     Example:
     -------
-        scm-cli set network zone --folder Texas --name trust --mode L3 \
-        --interfaces ["ethernet1/1"] --description "Trust zone" --tags ["internal"] \
-        --enable-user-id
+        scm-cli set network zone --folder Texas --name trust --mode layer3 \
+        --interfaces ["ethernet1/1"] --enable-user-id
 
     """
     try:
-        # Validate input using the Pydantic model
+        # Validate mode parameter
+        valid_modes = ["layer3", "layer2", "virtual-wire", "tap", "external", "tunnel"]
+        if mode not in valid_modes:
+            typer.echo(
+                f"Error: Invalid mode '{mode}'. Must be one of: {', '.join(valid_modes)}",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
         # Build network configuration based on mode
         network_config = {}
-        if mode == "L3":
+        if mode == "layer3":
             network_config["layer3"] = interfaces or []
-        elif mode == "L2":
+        elif mode == "layer2":
             network_config["layer2"] = interfaces or []
         elif mode == "virtual-wire":
             network_config["virtual_wire"] = interfaces or []
         elif mode == "tap":
             network_config["tap"] = interfaces or []
+        elif mode == "external":
+            network_config["external"] = interfaces or []
+        elif mode == "tunnel":
+            network_config["tunnel"] = interfaces or []
 
         zone = Zone(
             name=name,
             folder=folder,
             network=network_config,
-            description=description,
-            tags=tags,
+            description=None,
+            tags=None,
             # Add None defaults for optional fields
             snippet=None,
             device=None,
@@ -356,8 +353,6 @@ def set_zone(
             name=zone.name,
             mode=sdk_model["mode"],
             interfaces=sdk_model["interfaces"],
-            description=sdk_model["description"],
-            tags=zone.tags,
             enable_user_identification=sdk_model.get("enable_user_identification"),
             enable_device_identification=sdk_model.get("enable_device_identification"),
         )
@@ -375,108 +370,20 @@ def show_zone(
     name: str | None = typer.Option(
         None, "--name", help="Name of the security zone to show"
     ),
-    list_zones: bool = typer.Option(False, "--list", help="List all security zones"),
 ):
     """Display security zones.
 
     Example:
     -------
-        # List all security zones in a folder
-        scm-cli show network zone --folder Texas --list
+        # List all security zones in a folder (default behavior)
+        scm-cli show network zone --folder Texas
 
         # Show a specific security zone by name
         scm-cli show network zone --folder Texas --name trust
 
     """
     try:
-        if list_zones:
-            # List all security zones in the specified folder
-            zones = scm_client.list_security_zones(folder=folder)
-
-            if not zones:
-                typer.echo(f"No security zones found in folder '{folder}'")
-                return
-
-            typer.echo(f"\nSecurity Zones in folder '{folder}':")
-            typer.echo("=" * 80)
-
-            for zone in zones:
-                # Display zone information
-                typer.echo(f"Name: {zone.get('name', 'N/A')}")
-
-                # Display container location (folder, snippet, or device)
-                if zone.get("folder"):
-                    typer.echo(f"  Location: Folder '{zone['folder']}'")
-                elif zone.get("snippet"):
-                    typer.echo(f"  Location: Snippet '{zone['snippet']}'")
-                elif zone.get("device"):
-                    typer.echo(f"  Location: Device '{zone['device']}'")
-                else:
-                    typer.echo("  Location: N/A")
-
-                # Display network type and interfaces
-                network = zone.get("network", {})
-                if network:
-                    # Check which type of network configuration is present
-                    if network.get("layer3"):
-                        typer.echo("  Type: Layer 3")
-                        typer.echo(f"  Interfaces: {', '.join(network['layer3'])}")
-                    elif network.get("layer2"):
-                        typer.echo("  Type: Layer 2")
-                        typer.echo(f"  Interfaces: {', '.join(network['layer2'])}")
-                    elif network.get("virtual_wire"):
-                        typer.echo("  Type: Virtual Wire")
-                        typer.echo(
-                            f"  Interfaces: {', '.join(network['virtual_wire'])}"
-                        )
-                    elif network.get("tap"):
-                        typer.echo("  Type: TAP")
-                        typer.echo(f"  Interfaces: {', '.join(network['tap'])}")
-                    elif network.get("external"):
-                        typer.echo("  Type: External")
-                        typer.echo(f"  Interfaces: {', '.join(network['external'])}")
-                    elif network.get("tunnel"):
-                        typer.echo("  Type: Tunnel")
-
-                    # Display zone protection profile if present
-                    if network.get("zone_protection_profile"):
-                        typer.echo(
-                            f"  Zone Protection Profile: {network['zone_protection_profile']}"
-                        )
-
-                    # Display packet buffer protection if enabled
-                    if network.get("enable_packet_buffer_protection"):
-                        typer.echo("  Packet Buffer Protection: Enabled")
-
-                    # Display log setting if present
-                    if network.get("log_setting"):
-                        typer.echo(f"  Log Setting: {network['log_setting']}")
-
-                # Display user/device identification settings
-                if zone.get("enable_user_identification"):
-                    typer.echo("  User Identification: Enabled")
-                if zone.get("enable_device_identification"):
-                    typer.echo("  Device Identification: Enabled")
-
-                # Display DoS profile settings
-                if zone.get("dos_profile"):
-                    typer.echo(f"  DoS Profile: {zone['dos_profile']}")
-                if zone.get("dos_log_setting"):
-                    typer.echo(f"  DoS Log Setting: {zone['dos_log_setting']}")
-
-                # Display description if present
-                if zone.get("description"):
-                    typer.echo(f"  Description: {zone['description']}")
-
-                # Display ID if present
-                if zone.get("id"):
-                    typer.echo(f"  ID: {zone['id']}")
-
-                typer.echo("-" * 80)
-
-            return zones
-
-        elif name:
+        if name:
             # Get a specific security zone by name
             zone = scm_client.get_security_zone(folder=folder, name=name)
 
@@ -570,9 +477,93 @@ def show_zone(
             return zone
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+
+            # Default behavior: list all
+            # List all security zones in the specified folder (default behavior)
+            zones = scm_client.list_security_zones(folder=folder)
+
+            if not zones:
+                typer.echo(f"No security zones found in folder '{folder}'")
+                return
+
+            typer.echo(f"\nSecurity Zones in folder '{folder}':")
+            typer.echo("=" * 80)
+
+            for zone in zones:
+                # Display zone information
+                typer.echo(f"Name: {zone.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if zone.get("folder"):
+                    typer.echo(f"  Location: Folder '{zone['folder']}'")
+                elif zone.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{zone['snippet']}'")
+                elif zone.get("device"):
+                    typer.echo(f"  Location: Device '{zone['device']}'")
+                else:
+                    typer.echo("  Location: N/A")
+
+                # Display network type and interfaces
+                network = zone.get("network", {})
+                if network:
+                    # Check which type of network configuration is present
+                    if network.get("layer3"):
+                        typer.echo("  Type: Layer 3")
+                        typer.echo(f"  Interfaces: {', '.join(network['layer3'])}")
+                    elif network.get("layer2"):
+                        typer.echo("  Type: Layer 2")
+                        typer.echo(f"  Interfaces: {', '.join(network['layer2'])}")
+                    elif network.get("virtual_wire"):
+                        typer.echo("  Type: Virtual Wire")
+                        typer.echo(
+                            f"  Interfaces: {', '.join(network['virtual_wire'])}"
+                        )
+                    elif network.get("tap"):
+                        typer.echo("  Type: TAP")
+                        typer.echo(f"  Interfaces: {', '.join(network['tap'])}")
+                    elif network.get("external"):
+                        typer.echo("  Type: External")
+                        typer.echo(f"  Interfaces: {', '.join(network['external'])}")
+                    elif network.get("tunnel"):
+                        typer.echo("  Type: Tunnel")
+
+                    # Display zone protection profile if present
+                    if network.get("zone_protection_profile"):
+                        typer.echo(
+                            f"  Zone Protection Profile: {network['zone_protection_profile']}"
+                        )
+
+                    # Display packet buffer protection if enabled
+                    if network.get("enable_packet_buffer_protection"):
+                        typer.echo("  Packet Buffer Protection: Enabled")
+
+                    # Display log setting if present
+                    if network.get("log_setting"):
+                        typer.echo(f"  Log Setting: {network['log_setting']}")
+
+                # Display user/device identification settings
+                if zone.get("enable_user_identification"):
+                    typer.echo("  User Identification: Enabled")
+                if zone.get("enable_device_identification"):
+                    typer.echo("  Device Identification: Enabled")
+
+                # Display DoS profile settings
+                if zone.get("dos_profile"):
+                    typer.echo(f"  DoS Profile: {zone['dos_profile']}")
+                if zone.get("dos_log_setting"):
+                    typer.echo(f"  DoS Log Setting: {zone['dos_log_setting']}")
+
+                # Display description if present
+                if zone.get("description"):
+                    typer.echo(f"  Description: {zone['description']}")
+
+                # Display ID if present
+                if zone.get("id"):
+                    typer.echo(f"  ID: {zone['id']}")
+
+                typer.echo("-" * 80)
+
+            return zones
 
     except Exception as e:
         typer.echo(f"Error showing security zone: {str(e)}", err=True)

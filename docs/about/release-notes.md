@@ -2,6 +2,31 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 0.4.0 (Unreleased)
+
+**Released:** TBD
+
+### Changed
+
+- **Show Commands Default Behavior**: Updated all `show` commands to make listing the default behavior
+  - Removed the `--list` flag from all show commands across objects, network, security, and deployment modules
+  - When no `--name` parameter is provided, the command now lists all items by default
+  - This change affects all 20+ show commands including addresses, address groups, applications, services, tags, security zones, rules, and more
+  - **Migration**: If you have scripts using `--list`, simply remove the flag - the behavior remains the same
+
+### Examples
+
+```bash
+# Old syntax (no longer supported)
+scm show objects address --folder Texas --list
+
+# New syntax (lists all by default)
+scm show objects address --folder Texas
+
+# Show specific item (unchanged)
+scm show objects address --folder Texas --name web-server
+```
+
 ## Version 0.3.39
 
 **Released:** March 29, 2025
