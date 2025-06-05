@@ -402,7 +402,7 @@ class Scm:
             try:
                 final_status = self.wait_for_job(commit_response.job_id, timeout=timeout)
                 if final_status:
-                    self.logger.info(f"Commit job {commit_response.job_id} completed: " f"{final_status.data[0].result_str}")
+                    self.logger.info(f"Commit job {commit_response.job_id} completed: {final_status.data[0].result_str}")
             except TimeoutError as e:
                 self.logger.error(f"Commit job timed out: {str(e)}")
                 raise

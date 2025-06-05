@@ -6,10 +6,11 @@ Provides client initialization for SCM API interaction.
 import logging
 from typing import Any
 
-import scm.client
+from scm.client import Scm
 from scm.exceptions import AuthenticationError
 
 from .utils.config import get_auth_config
+from .utils.context import get_current_context
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +39,7 @@ class MockSCMClient:
             logger.info(f"Mock SCM API call: {name}(*{args}, **{kwargs})")
             return {"status": "success", "message": f"Mock call to {name}"}
 
-        return (
-            MockSCMClient()
-            if name not in ["list", "create", "update", "delete"]
-            else mock_callable
-        )
+        return MockSCMClient() if name not in ["list", "create", "update", "delete"] else mock_callable
 
 
 def get_scm_client(mock: bool = False) -> Any:
@@ -61,8 +58,8 @@ def get_scm_client(mock: bool = False) -> Any:
 
     Examples:
     --------
-        client = get_scm_client()  # Real client
-        mock_client = get_scm_client(mock=True)  # Mock client
+        client = get_scm_client() # Real client
+        mock_client = get_scm_client(mock=True) # Mock client
 
     """
     if mock:
@@ -70,13 +67,19 @@ def get_scm_client(mock: bool = False) -> Any:
         return MockSCMClient()
 
     logger.info("Initializing SCM client")
+
+    # Log the current context if one is set
+    current_context = get_current_context()
+    if current_context:
+        logger.info(f"Using authentication context: {current_context}")
+    else:
+        logger.info("No context set, using environment variables or default settings")
+
     auth_params = get_auth_config()
     try:
-        # Use the Scm client from the pan-scm-sdk (imported as scm.client)
-        client = scm.client.Scm(**auth_params)
-        logger.info(
-            f"Successfully initialized SDK client for TSG ID: {auth_params['tsg_id']}"
-        )
+        # Use the Scm client from the pan-scm-sdk
+        client = Scm(**auth_params)
+        logger.info(f"Successfully initialized SDK client for TSG ID: {auth_params['tsg_id']}")
         return client
     except AuthenticationError as e:
         logger.error(f"Authentication error: {str(e)}")

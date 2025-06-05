@@ -7,8 +7,7 @@ various SCM configuration actions (set, delete, load) and object types.
 import typer
 
 # Import object type modules
-from .client import get_scm_client
-from .commands import deployment, network, objects, security
+from .commands import context, deployment, network, objects, security
 
 # ============================================================================================================================================================================================
 # MAIN CLI APPLICATION
@@ -188,61 +187,13 @@ show_app.add_typer(
 # CLI COMMANDS
 # ============================================================================================================================================================================================
 
+# Register context management as a top-level command
+app.add_typer(context.app, name="context")
 
-@app.command()
-def test_auth(
-    mock: bool = typer.Option(
-        False,
-        "--mock",
-        help="Test authentication in mock mode without making API calls",
-    ),
-):
-    """Test authentication configuration.
 
-    Verifies that authentication credentials are properly configured
-    either from environment variables or ~/.scm-cli/config.yaml.
-
-    If run with --mock, simulates authentication without API calls.
-
-    Examples
-    --------
-        scm-cli test-auth
-        scm-cli test-auth --mock
-
-    """
-    try:
-        client = get_scm_client(mock=mock)
-        if mock:
-            typer.echo(
-                typer.style(
-                    "Authentication simulation successful (mock mode)", fg="green"
-                )
-            )
-        else:
-            # The Scm client has been successfully initialized at this point
-            typer.echo(typer.style("Authentication successful!", fg="green"))
-            typer.echo(
-                "Successfully initialized SCM client with credentials from environment variables or config file"
-            )
-
-            # Try to get network locations as a simple test
-            try:
-                # Address Objects is a basic endpoint we can use to test connectivity
-                address_objects = client.address.list(folder="Shared")
-                typer.echo(
-                    f"Successfully connected to SCM API. Found {len(address_objects)} address objects in Shared (Prisma Access) folder."
-                )
-            except Exception as connection_error:
-                # Still consider auth successful, but note the connection issue
-                typer.echo(
-                    typer.style(
-                        f"Note: Could not verify API connectivity: {str(connection_error)}",
-                        fg="yellow",
-                    )
-                )
-    except Exception as e:
-        typer.echo(typer.style(f"Authentication failed: {str(e)}", fg="red"))
-        raise typer.Exit(code=1) from e
+# Note: test-auth command has been removed in favor of 'scm context test'
+# Use 'scm context test' to test the current context
+# Use 'scm context test <name>' to test a specific context without switching
 
 
 @app.callback()

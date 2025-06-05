@@ -1,6 +1,5 @@
 # Strata Cloud Manager CLI
 
-[![Build Status](https://github.com/cdot65/pan-scm-cli/actions/workflows/code-quality.yml/badge.svg)](https://github.com/cdot65/pan-scm-cli/actions/workflows/code-quality.yml)
 [![PyPI version](https://badge.fury.io/py/pan-scm-cli.svg)](https://badge.fury.io/py/pan-scm-cli)
 [![Python versions](https://img.shields.io/pypi/pyversions/pan-scm-cli.svg)](https://pypi.org/project/pan-scm-cli/)
 [![License](https://img.shields.io/github/license/cdot65/pan-scm-cli.svg)](https://github.com/cdot65/pan-scm-cli/blob/main/LICENSE)
@@ -69,7 +68,61 @@ pip install pan-scm-cli
 
 Choose one of these methods to configure your credentials:
 
-#### Option A: Environment Variables (Recommended)
+#### Option A: Context-based Authentication (Recommended for Multiple Tenants)
+
+```bash
+# Create a context for each SCM tenant
+$ scm context create production \
+  --client-id "prod-app@123456789.iam.panserviceaccount.com" \
+  --client-secret "your-secret-key" \
+  --tsg-id "123456789"
+✓ Context 'production' created successfully
+✓ Context 'production' set as current
+
+# Create another context (with custom log level)
+$ scm context create development \
+  --client-id "dev-app@987654321.iam.panserviceaccount.com" \
+  --client-secret "your-dev-secret" \
+  --tsg-id "987654321" \
+  --log-level DEBUG
+✓ Context 'development' created successfully
+
+# View all available contexts
+$ scm context list
+                       SCM Authentication Contexts                        
+┏━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Context     ┃ Current ┃ Client ID                                       ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ production  │ ✓       │ prod-app@1...@123456789.iam.panserviceaccount.com │
+│ development │         │ dev-app@98...@987654321.iam.panserviceaccount.com │
+└─────────────┴─────────┴────────────────────────────────────────────────────┘
+
+# Show details of a specific context
+$ scm context show production
+Context: production
+
+Configuration:
+  Client ID: prod-app@123456789.iam.panserviceaccount.com
+  TSG ID: 123456789
+  Log Level: INFO
+  Client Secret: ***** (configured)
+
+# Switch between contexts
+$ scm context use development
+✓ Switched to context 'development'
+
+Client ID: dev-app@987654321.iam.panserviceaccount.com
+TSG ID: 987654321
+
+# Check current context
+$ scm context current
+Current context: development
+
+Client ID: dev-app@987654321.iam.panserviceaccount.com
+TSG ID: 987654321
+```
+
+#### Option B: Environment Variables (For CI/CD and Automation)
 
 ```bash
 export SCM_CLIENT_ID="your_client_id"
@@ -77,31 +130,33 @@ export SCM_CLIENT_SECRET="your_client_secret"
 export SCM_TSG_ID="your_tenant_service_group_id"
 ```
 
-#### Option B: Configuration File
-
-```bash
-# Create config directory
-mkdir -p ~/.scm
-
-# Create config file
-cat > ~/.scm-cli/config.yaml << EOL
-client_id: "your_client_id"
-client_secret: "your_client_secret"
-tsg_id: "your_tenant_service_group_id"
-EOL
-
-# Secure the file
-chmod 600 ~/.scm-cli/config.yaml
-```
+**Note:** Environment variables take precedence over contexts when both are set.
 
 ### 2. Verify Your Setup
 
 ```bash
-# Test authentication
-scm test-auth
+# Test current context authentication
+$ scm context test
+Testing authentication for context: development
+✓ Authentication successful!
+  Client ID: dev-app@987654321.iam.panserviceaccount.com
+  TSG ID: 987654321
+✓ API connectivity verified (found 42 address objects in Shared folder)
 
-# Test without API calls
-scm test-auth --mock
+# Test a specific context without switching
+$ scm context test production
+Testing authentication for context: production
+✓ Authentication successful!
+  Client ID: prod-app@123456789.iam.panserviceaccount.com
+  TSG ID: 123456789
+✓ API connectivity verified (found 15 address objects in Shared folder)
+
+# Test without API calls (mock mode)
+$ scm context test --mock
+Testing authentication for context: development
+✓ Authentication simulation successful (mock mode)
+  Client ID: dev-app@987654321.iam.panserviceaccount.com
+  TSG ID: 987654321
 ```
 
 ### 3. Try Your First Commands
@@ -280,6 +335,112 @@ scm load objects address --file addresses.yaml
 scm load objects address --file addresses.yaml --folder Production
 ```
 
+### Context Management Examples
+
+#### Working with Multiple Tenants
+
+```bash
+# Create contexts for different environments
+$ scm context create prod-us \
+  --client-id "us-prod@111111111.iam.panserviceaccount.com" \
+  --client-secret "prod-secret" \
+  --tsg-id "111111111" \
+  --log-level WARNING
+✓ Context 'prod-us' created successfully
+
+$ scm context create prod-eu \
+  --client-id "eu-prod@222222222.iam.panserviceaccount.com" \
+  --client-secret "prod-secret" \
+  --tsg-id "222222222" \
+  --log-level WARNING
+✓ Context 'prod-eu' created successfully
+
+# List all contexts
+$ scm context list
+                           SCM Authentication Contexts                            
+┏━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Context     ┃ Current ┃ Client ID                                       ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ production  │         │ prod-app@1...@123456789.iam.panserviceaccount.com │
+│ development │ ✓       │ dev-app@98...@987654321.iam.panserviceaccount.com │
+│ prod-us     │         │ us-prod@11...@111111111.iam.panserviceaccount.com │
+│ prod-eu     │         │ eu-prod@22...@222222222.iam.panserviceaccount.com │
+└─────────────┴─────────┴────────────────────────────────────────────────────┘
+
+# Work with US production
+$ scm context use prod-us
+✓ Switched to context 'prod-us'
+
+$ scm show objects address --folder Texas
+[INFO] Using authentication context: prod-us
+Addresses in folder 'Texas':
+...
+
+# Switch to EU production
+$ scm context use prod-eu
+✓ Switched to context 'prod-eu'
+
+$ scm show objects address --folder London
+[INFO] Using authentication context: prod-eu
+Addresses in folder 'London':
+...
+
+# Delete a context you no longer need
+$ scm context delete old-dev
+Are you sure you want to delete context 'old-dev'? [y/N]: y
+✓ Context 'old-dev' deleted
+```
+
+### Docker Container Support
+
+The SCM CLI is available as a Docker image, providing a consistent environment across different platforms. The Docker image integrates seamlessly with the context management system:
+
+#### Running with Contexts
+
+```bash
+# Pull the official image
+docker pull ghcr.io/cdot65/pan-scm-cli:latest
+
+# Run with context volume mounting
+docker run -d \
+  --name pan-scm \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
+  ghcr.io/cdot65/pan-scm-cli:latest
+
+# Your contexts are now available in the container
+docker exec pan-scm scm context list
+
+# Switch contexts in the container
+docker exec pan-scm scm context use production
+
+# Run commands with the active context
+docker exec pan-scm scm show objects address --folder Texas
+```
+
+#### Benefits of Docker with Contexts
+
+1. **Consistent Environment**: Same CLI version and dependencies across all systems
+2. **Context Portability**: Your contexts work identically on host and in containers
+3. **Security**: Credentials stay on the host, never baked into images
+4. **Multi-tenant Isolation**: Run multiple containers with different contexts simultaneously
+5. **CI/CD Ready**: Perfect for automated workflows with environment variable overrides
+
+#### Multi-tenant Example
+
+```bash
+# Run containers for different environments
+docker run -d --name scm-prod -v ~/.scm-cli:/home/scmuser/.scm-cli ghcr.io/cdot65/pan-scm-cli:latest
+docker run -d --name scm-dev -v ~/.scm-cli:/home/scmuser/.scm-cli ghcr.io/cdot65/pan-scm-cli:latest
+
+# Use different contexts in each container
+docker exec scm-prod scm context use production
+docker exec scm-dev scm context use development
+
+# Now each container operates on different tenants
+docker exec scm-prod scm show objects address --folder Production
+docker exec scm-dev scm show objects address --folder Development
+```
+
 ### Complete Workflow Example
 
 Here's a complete example of setting up a web application security policy:
@@ -341,7 +502,7 @@ scm <action> <object-type> <object> [options]
 - **delete**: Remove an object
 - **load**: Import from YAML file
 - **backup**: Export to YAML file
-- **test-auth**: Verify authentication
+- **context**: Manage authentication contexts
 
 ### Object Types
 
@@ -446,7 +607,7 @@ scm set objects log-forwarding-profile --folder Texas --name security-logs \
 
 ```bash
 # Check current authentication
-scm test-auth
+scm context test
 
 # If fails, verify credentials
 echo $SCM_CLIENT_ID

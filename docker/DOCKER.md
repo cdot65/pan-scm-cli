@@ -61,49 +61,106 @@ docker buildx build \
 
 ## Usage
 
-### Running the Container
+### Running the Container with Context Support
+
+The SCM CLI uses a context-based authentication system that makes it easy to manage multiple SCM tenants. The recommended approach is to mount your context directory into the container:
 
 ```bash
-# Start the container in detached mode
+# Start the container with context directory mounted
+docker run -d \
+  --name pan-scm \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
+  pan-scm-cli:latest
+
+# Your contexts are now available in the container
+docker exec pan-scm scm context list
+
+# Switch to a specific context
+docker exec pan-scm scm context use production
+
+# Run commands with the active context
+docker exec pan-scm scm show objects address --folder Texas
+```
+
+### Authentication Methods
+
+#### Method 1: Context-based (Recommended)
+
+```bash
+# Create contexts on your host machine first
+scm context create production \
+  --client-id "prod@123456789.iam.panserviceaccount.com" \
+  --client-secret "your-secret" \
+  --tsg-id "123456789"
+
+# Run container with context volume
+docker run -d \
+  --name pan-scm \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
+  pan-scm-cli:latest
+
+# Use contexts in the container
+docker exec pan-scm scm context use production
+docker exec pan-scm scm context test
+```
+
+#### Method 2: Environment Variables (CI/CD)
+
+```bash
+# For CI/CD pipelines, use environment variables
 docker run -d \
   --name pan-scm \
   -e SCM_CLIENT_ID=your-client-id \
   -e SCM_CLIENT_SECRET=your-client-secret \
   -e SCM_TSG_ID=your-tsg-id \
   pan-scm-cli:latest
+```
 
-# Access the container with interactive shell
-docker exec -it pan-scm /bin/ash
+### Working with Data Files
 
-# Run scm commands inside the container
-scm list address
-scm create address "test-addr" --type ip-netmask --ip-netmask "10.0.0.1"
-
-# Exit the shell (container keeps running)
-exit
-
-# Execute commands from outside
-docker exec pan-scm scm list address
-
-# Mount config file
+```bash
+# Mount both contexts and data files
 docker run -d \
   --name pan-scm \
-  -v ~/.scm-cli/config.yaml:/home/scmuser/.scm-cli/config.yaml:ro \
-  pan-scm-cli:latest
-
-# Mount config and data files
-docker run -d \
-  --name pan-scm \
-  -v ~/.scm-cli/config.yaml:/home/scmuser/.scm-cli/config.yaml:ro \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
   -v $(pwd)/data:/home/scmuser/data:ro \
   pan-scm-cli:latest
 
 # Process YAML files
-docker exec pan-scm scm create address --from-file /home/scmuser/data/addresses.yml
+docker exec pan-scm scm load objects address --file /home/scmuser/data/addresses.yml
 
+# Interactive shell access
+docker exec -it pan-scm /bin/ash
+```
+
+### Multi-tenant Operations
+
+```bash
+# Run multiple containers for different environments
+docker run -d --name scm-prod -v ~/.scm-cli:/home/scmuser/.scm-cli pan-scm-cli:latest
+docker run -d --name scm-dev -v ~/.scm-cli:/home/scmuser/.scm-cli pan-scm-cli:latest
+
+# Each container can use different contexts
+docker exec scm-prod scm context use production
+docker exec scm-dev scm context use development
+
+# Operations are isolated to each tenant
+docker exec scm-prod scm backup objects address --folder Production
+docker exec scm-dev scm set objects address --folder Development --name test --ip-netmask 10.0.0.1/32
+```
+
+### Container Management
+
+```bash
 # Stop and remove container
 docker stop pan-scm
 docker rm pan-scm
+
+# View logs
+docker logs pan-scm
+
+# Remove all stopped containers
+docker container prune
 ```
 
 ### Using as Base Image
