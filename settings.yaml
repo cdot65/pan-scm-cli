@@ -1,21 +1,8 @@
 ---
 default:
-  # Application settings
-  app_name: "pan-scm-cli"
+  # Logging configuration
   log_level: "INFO"
-
-  # Environment settings
-  environment: "development"
-
-development:
-  # Development-specific settings
-  debug: true
-
-testing:
-  # Test-specific settings
-  debug: true
 
 production:
   # Production-specific settings
-  debug: false
   log_level: "WARNING"

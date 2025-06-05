@@ -29,19 +29,13 @@ backup_app = typer.Typer(help="Backup deployment configurations to YAML files")
 # ========================================================================================================================================================================================
 
 # Define typer option constants
-FOLDER_OPTION = typer.Option(
-    ..., "--folder", help="Folder path for the bandwidth allocation"
-)
+FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the bandwidth allocation")
 NAME_OPTION = typer.Option(..., "--name", help="Name of the bandwidth allocation")
 BANDWIDTH_OPTION = typer.Option(..., "--bandwidth", help="Bandwidth value in Mbps")
-DESCRIPTION_OPTION = typer.Option(
-    None, "--description", help="Description of the bandwidth allocation"
-)
+DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of the bandwidth allocation")
 TAGS_OPTION = typer.Option(None, "--tags", help="List of tags")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
-DRY_RUN_OPTION = typer.Option(
-    False, "--dry-run", help="Simulate execution without applying changes"
-)
+DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
 
 # ========================================================================================================================================================================================
 # BANDWIDTH ALLOCATION COMMANDS
@@ -50,7 +44,7 @@ DRY_RUN_OPTION = typer.Option(
 
 @backup_app.command("bandwidth")
 def backup_bandwidth_allocation():
-    """Backup all bandwidth allocations to a YAML file.
+    """Back up all bandwidth allocations to a YAML file.
 
     The backup file will be named 'bandwidth-allocations.yaml' in the current directory.
 
@@ -67,21 +61,19 @@ def backup_bandwidth_allocation():
 
         if not allocations:
             typer.echo("No bandwidth allocations found")
-            return
+            return None
 
         # Convert SDK models to dictionaries, excluding unset values
         backup_data = []
         for allocation in allocations:
             # The list method returns dict objects already, but let's ensure we exclude any None values
             allocation_dict = {k: v for k, v in allocation.items() if v is not None}
-            # Remove system fields that shouldn't be in backup
+            # Remove system fields that shouldn't be in the backup
             allocation_dict.pop("id", None)
 
             # Map SDK fields to CLI fields for consistency
             if "allocated_bandwidth" in allocation_dict:
-                allocation_dict["bandwidth"] = allocation_dict.pop(
-                    "allocated_bandwidth"
-                )
+                allocation_dict["bandwidth"] = allocation_dict.pop("allocated_bandwidth")
 
             backup_data.append(allocation_dict)
 
@@ -95,9 +87,7 @@ def backup_bandwidth_allocation():
         with open(filename, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} bandwidth allocations to {filename}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} bandwidth allocations to {filename}")
         return filename
 
     except Exception as e:
@@ -124,9 +114,7 @@ def delete_bandwidth_allocation(
         if result:
             typer.echo(f"Deleted bandwidth allocation: {name} from folder {folder}")
         else:
-            typer.echo(
-                f"Bandwidth allocation not found: {name} in folder {folder}", err=True
-            )
+            typer.echo(f"Bandwidth allocation not found: {name} in folder {folder}", err=True)
             raise typer.Exit(code=1)
     except Exception as e:
         typer.echo(f"Error deleting bandwidth allocation: {str(e)}", err=True)
@@ -155,11 +143,9 @@ def load_bandwidth_allocation(
             typer.echo("DRY RUN: Would apply the following configurations:")
             for allocation_data in config["bandwidth_allocations"]:
                 # Output details about each allocation that would be created
-                typer.echo(
-                    f"Would create bandwidth allocation: {allocation_data['name']} ({allocation_data['bandwidth']} Mbps) in folder {allocation_data['folder']}"
-                )
+                typer.echo(f"Would create bandwidth allocation: {allocation_data['name']} ({allocation_data['bandwidth']} Mbps) in folder {allocation_data['folder']}")
             typer.echo(yaml.dump(config["bandwidth_allocations"]))
-            return
+            return None
 
         # Apply each allocation
         results = []
@@ -178,11 +164,9 @@ def load_bandwidth_allocation(
 
             results.append(result)
             # Output details about each allocation
-            typer.echo(
-                f"Applied bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}"
-            )
+            typer.echo(f"Applied bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
 
-        # Add summary message that matches test expectations
+        # Add a summary message that matches test expectations
         typer.echo(f"Loaded {len(results)} bandwidth allocation(s)")
         return results
     except Exception as e:
@@ -231,9 +215,7 @@ def set_bandwidth_allocation(
         )
 
         # Include bandwidth in the output message to match test expectations
-        typer.echo(
-            f"Created bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}"
-        )
+        typer.echo(f"Created bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating bandwidth allocation: {str(e)}", err=True)
@@ -241,11 +223,7 @@ def set_bandwidth_allocation(
 
 
 @show_app.command("bandwidth-allocation")
-def show_bandwidth_allocation(
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the bandwidth allocation to show"
-    )
-):
+def show_bandwidth_allocation(name: str | None = typer.Option(None, "--name", help="Name of the bandwidth allocation to show")):
     """Display bandwidth allocations.
 
     Example:
@@ -265,9 +243,7 @@ def show_bandwidth_allocation(
             allocation = scm_client.get_bandwidth_allocation(name=name)
 
             typer.echo(f"Bandwidth Allocation: {allocation.get('name', 'N/A')}")
-            typer.echo(
-                f"Allocated Bandwidth: {allocation.get('allocated_bandwidth', 'N/A')} Mbps"
-            )
+            typer.echo(f"Allocated Bandwidth: {allocation.get('allocated_bandwidth', 'N/A')} Mbps")
 
             # Display SPN names if present
             spn_names = allocation.get("spn_name_list", [])
@@ -283,9 +259,7 @@ def show_bandwidth_allocation(
                 typer.echo("QoS Settings:")
                 typer.echo("  Enabled: True")
                 if allocation.get("qos_guaranteed_ratio") is not None:
-                    typer.echo(
-                        f"  Guaranteed Ratio: {allocation.get('qos_guaranteed_ratio')}%"
-                    )
+                    typer.echo(f"  Guaranteed Ratio: {allocation.get('qos_guaranteed_ratio')}%")
 
             # Display ID if present
             if allocation.get("id"):
@@ -294,14 +268,12 @@ def show_bandwidth_allocation(
             return allocation
 
         else:
-
-            # Default behavior: list all
             # List all bandwidth allocations (default behavior)
             allocations = scm_client.list_bandwidth_allocations()
 
             if not allocations:
                 typer.echo("No bandwidth allocations found")
-                return
+                return None
 
             typer.echo("Bandwidth Allocations:")
             typer.echo("-" * 60)
@@ -309,9 +281,7 @@ def show_bandwidth_allocation(
             for allocation in allocations:
                 # Display bandwidth allocation information
                 typer.echo(f"Name: {allocation.get('name', 'N/A')}")
-                typer.echo(
-                    f"  Allocated Bandwidth: {allocation.get('allocated_bandwidth', 'N/A')} Mbps"
-                )
+                typer.echo(f"  Allocated Bandwidth: {allocation.get('allocated_bandwidth', 'N/A')} Mbps")
 
                 # Display SPN names if present
                 spn_names = allocation.get("spn_name_list", [])
@@ -327,9 +297,7 @@ def show_bandwidth_allocation(
                     typer.echo("  QoS Settings:")
                     typer.echo("    Enabled: True")
                     if allocation.get("qos_guaranteed_ratio") is not None:
-                        typer.echo(
-                            f"    Guaranteed Ratio: {allocation.get('qos_guaranteed_ratio')}%"
-                        )
+                        typer.echo(f"    Guaranteed Ratio: {allocation.get('qos_guaranteed_ratio')}%")
 
                 # Display ID if present
                 if allocation.get("id"):

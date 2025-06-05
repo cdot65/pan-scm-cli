@@ -7,28 +7,17 @@ import os
 from typing import Any, TypeVar
 
 import yaml
-from dynaconf import Dynaconf
 from pydantic import BaseModel
+
+from .context import get_context_aware_settings
 
 T = TypeVar("T", bound=BaseModel)
 
 # Define config paths
 HOME_CONFIG_PATH = os.path.expanduser("~/.scm-cli/config.yaml")
 
-# Initialize Dynaconf settings with both environment variables and config file
-settings = Dynaconf(
-    envvar_prefix="SCM",
-    settings_files=[
-        # Local project settings (for development)
-        "settings.yaml",
-        ".secrets.yaml",
-        # User config in home directory (as documented in README)
-        HOME_CONFIG_PATH,
-    ],
-    load_dotenv=True,
-    environments=False,  # Disable environments to ensure home config is loaded properly
-    merge_enabled=True,
-)
+# Initialize Dynaconf settings with context awareness
+settings = get_context_aware_settings()
 
 
 def load_from_yaml(file_path: str, submodule: str) -> dict[str, Any]:
@@ -121,9 +110,7 @@ def get_auth_config() -> dict[str, str]:
     # Check for missing parameters
     missing = [k for k, v in auth.items() if not v]
     if missing:
-        raise ValueError(
-            f"Missing required authentication parameters: {', '.join(missing)}"
-        )
+        raise ValueError(f"Missing required authentication parameters: {', '.join(missing)}")
 
     return auth
 
