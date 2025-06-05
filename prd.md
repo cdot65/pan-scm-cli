@@ -2249,3 +2249,61 @@ Users currently using ~/.scm-cli/config.yaml or environment variables should:
 2. Remove ~/.scm-cli/config.yaml file
 3. Unset SCM_* environment variables (unless needed for automation)
 4. Use `scm context use <name>` to switch between tenants
+
+### 33.8 Implementation Status (Completed ✅)
+
+All authentication precedence issues have been successfully resolved:
+
+1. **✅ Removed ~/.scm-cli/config.yaml from dynaconf loading**
+   - Updated `get_context_aware_settings()` to exclude legacy config files
+   - Simplified configuration loading to only use contexts and environment variables
+
+2. **✅ Removed .secrets.yaml from dynaconf loading**  
+   - Development credentials now managed through contexts
+   - Prevents accidental credential leakage
+
+3. **✅ Added informational logging for context usage**
+   - Both `client.py` and `sdk_client.py` log the current context when initialized
+   - `show_context_info()` helper displays context information at INFO log level
+   - Clear visibility into which tenant is being accessed
+
+4. **✅ Fixed precedence order**
+   - Context settings now take priority as expected
+   - Environment variables can still override for CI/CD scenarios
+   - Removed manual config file loading from `get_auth_config()`
+
+5. **✅ Updated documentation**
+   - README.md fully updated with context examples and real command output
+   - All documentation files show context-based authentication
+   - Migration guide included for users transitioning from legacy methods
+
+6. **✅ Replaced test-auth with context test**
+   - Removed legacy `test-auth` command from main.py
+   - `scm context test` provides enhanced authentication testing
+   - Supports testing any context without switching
+
+### 33.9 Docker Container Support
+
+The context management system integrates seamlessly with Docker containers:
+
+#### 33.9.1 Volume Mounting for Contexts
+
+```bash
+# Mount the entire .scm-cli directory to preserve contexts
+docker run -d \
+  --name pan-scm \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
+  pan-scm-cli:latest
+
+# Now all your contexts are available in the container
+docker exec pan-scm scm context list
+docker exec pan-scm scm context use production
+```
+
+#### 33.9.2 Benefits of Docker with Contexts
+
+1. **Consistent Environment**: Same contexts work across host and container
+2. **Isolation**: Each container can use different contexts
+3. **Security**: Credentials stay on host, not baked into images
+4. **Portability**: Easy to share workflows without exposing credentials
+5. **Multi-tenant Testing**: Run multiple containers with different contexts

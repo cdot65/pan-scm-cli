@@ -391,6 +391,56 @@ Are you sure you want to delete context 'old-dev'? [y/N]: y
 ✓ Context 'old-dev' deleted
 ```
 
+### Docker Container Support
+
+The SCM CLI is available as a Docker image, providing a consistent environment across different platforms. The Docker image integrates seamlessly with the context management system:
+
+#### Running with Contexts
+
+```bash
+# Pull the official image
+docker pull ghcr.io/cdot65/pan-scm-cli:latest
+
+# Run with context volume mounting
+docker run -d \
+  --name pan-scm \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
+  ghcr.io/cdot65/pan-scm-cli:latest
+
+# Your contexts are now available in the container
+docker exec pan-scm scm context list
+
+# Switch contexts in the container
+docker exec pan-scm scm context use production
+
+# Run commands with the active context
+docker exec pan-scm scm show objects address --folder Texas
+```
+
+#### Benefits of Docker with Contexts
+
+1. **Consistent Environment**: Same CLI version and dependencies across all systems
+2. **Context Portability**: Your contexts work identically on host and in containers
+3. **Security**: Credentials stay on the host, never baked into images
+4. **Multi-tenant Isolation**: Run multiple containers with different contexts simultaneously
+5. **CI/CD Ready**: Perfect for automated workflows with environment variable overrides
+
+#### Multi-tenant Example
+
+```bash
+# Run containers for different environments
+docker run -d --name scm-prod -v ~/.scm-cli:/home/scmuser/.scm-cli ghcr.io/cdot65/pan-scm-cli:latest
+docker run -d --name scm-dev -v ~/.scm-cli:/home/scmuser/.scm-cli ghcr.io/cdot65/pan-scm-cli:latest
+
+# Use different contexts in each container
+docker exec scm-prod scm context use production
+docker exec scm-dev scm context use development
+
+# Now each container operates on different tenants
+docker exec scm-prod scm show objects address --folder Production
+docker exec scm-dev scm show objects address --folder Development
+```
+
 ### Complete Workflow Example
 
 Here's a complete example of setting up a web application security policy:

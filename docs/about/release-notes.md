@@ -6,6 +6,16 @@ This page contains the release history of the Strata Cloud Manager CLI, with the
 
 **Released:** TBD
 
+### Added
+
+- **Multi-tenant Context Management**: Comprehensive authentication context system for managing multiple SCM tenants
+  - New `scm context` command group with subcommands: create, list, use, delete, show, current, test
+  - Context-based authentication takes precedence over environment variables
+  - Secure credential storage in `~/.scm-cli/contexts/` directory
+  - Seamless Docker integration with volume mounting support
+  - Informational logging shows active context during operations
+  - Test authentication without switching contexts
+
 ### Changed
 
 - **Show Commands Default Behavior**: Updated all `show` commands to make listing the default behavior
@@ -14,8 +24,40 @@ This page contains the release history of the Strata Cloud Manager CLI, with the
   - This change affects all 20+ show commands including addresses, address groups, applications, services, tags, security zones, rules, and more
   - **Migration**: If you have scripts using `--list`, simply remove the flag - the behavior remains the same
 
+- **Authentication Precedence**: Fixed authentication order to prioritize contexts
+  - Active context (set via `scm context use`) now takes precedence
+  - Environment variables can still override for CI/CD scenarios
+  - Removed support for legacy config files (`~/.scm-cli/config.yaml` and `.secrets.yaml`)
+  - **Migration**: Create contexts for your existing configurations using `scm context create`
+
+### Removed
+
+- **test-auth Command**: Replaced with `scm context test` for enhanced functionality
+- **Legacy Config Files**: No longer loads `~/.scm-cli/config.yaml` or `.secrets.yaml`
+
 ### Examples
 
+#### Context Management
+```bash
+# Create a context for production
+scm context create production \
+  --client-id "prod@123456789.iam.panserviceaccount.com" \
+  --client-secret "your-secret" \
+  --tsg-id "123456789"
+
+# Switch to production context
+scm context use production
+
+# Test authentication
+scm context test
+
+# Docker integration
+docker run -d --name pan-scm \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
+  ghcr.io/cdot65/pan-scm-cli:latest
+```
+
+#### Show Commands
 ```bash
 # Old syntax (no longer supported)
 scm show objects address --folder Texas --list
