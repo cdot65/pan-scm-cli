@@ -100,6 +100,39 @@ scm context list
 - Test data fixtures are in `tests/data/`
 - Environment-specific tests check auth/config behavior
 
+### Docker Support
+
+The project includes a Docker build script that supports multi-platform builds:
+
+```bash
+# Build locally for Apple Silicon
+docker/docker-build.sh --local
+
+# Build AMD64 for testing
+docker/docker-build.sh --amd64
+
+# Build both platforms (requires push to registry)
+docker/docker-build.sh
+```
+
+#### Docker Context Integration
+
+When running in Docker containers, contexts are preserved through volume mounting:
+
+```bash
+# Run with context support
+docker run -d \
+  --name pan-scm \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
+  ghcr.io/cdot65/pan-scm-cli:latest
+
+# Use contexts in container
+docker exec pan-scm scm context list
+docker exec pan-scm scm context use production
+```
+
+The Docker image is available at `ghcr.io/cdot65/pan-scm-cli:latest` (AMD64) and `ghcr.io/cdot65/pan-scm-cli:apple` (ARM64).
+
 ## Code Style and Standards
 
 **IMPORTANT**: All code in this project must follow the comprehensive style guides located in the `.claude/` directory:
