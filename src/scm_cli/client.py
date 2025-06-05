@@ -10,6 +10,7 @@ from scm.client import Scm
 from scm.exceptions import AuthenticationError
 
 from .utils.config import get_auth_config
+from .utils.context import get_current_context
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +58,8 @@ def get_scm_client(mock: bool = False) -> Any:
 
     Examples:
     --------
-        client = get_scm_client()  # Real client
-        mock_client = get_scm_client(mock=True)  # Mock client
+        client = get_scm_client() # Real client
+        mock_client = get_scm_client(mock=True) # Mock client
 
     """
     if mock:
@@ -66,6 +67,14 @@ def get_scm_client(mock: bool = False) -> Any:
         return MockSCMClient()
 
     logger.info("Initializing SCM client")
+
+    # Log the current context if one is set
+    current_context = get_current_context()
+    if current_context:
+        logger.info(f"Using authentication context: {current_context}")
+    else:
+        logger.info("No context set, using environment variables or default settings")
+
     auth_params = get_auth_config()
     try:
         # Use the Scm client from the pan-scm-sdk

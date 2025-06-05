@@ -35,7 +35,7 @@ def load_from_yaml(file_path: str, submodule: str) -> dict[str, Any]:
     Raises:
     ------
         ValueError: If the submodule key is missing from the YAML.
-        yaml.YAMLError: If the YAML file is invalid.
+        Yaml.YAMLError: If the YAML file is invalid.
 
     """
     try:
@@ -58,8 +58,13 @@ def load_from_yaml(file_path: str, submodule: str) -> dict[str, Any]:
 def get_auth_config() -> dict[str, str]:
     """Get SCM API authentication configuration from dynaconf settings.
 
-    Prioritizes environment variables over config file values.
-    Checks for client_id, client_secret, and tsg_id from either source.
+    Uses the following precedence order:
+    1. Current context (set via 'scm context use')
+    2. Environment variables (SCM_CLIENT_ID, etc.)
+    3. Default settings
+
+    Note: Legacy config file (~/.scm-cli/config.yaml) is no longer supported.
+    Use contexts for multi-tenant support.
 
     Returns
     -------
@@ -72,40 +77,24 @@ def get_auth_config() -> dict[str, str]:
     Examples
     --------
         >>> auth = get_auth_config()
-        >>> client = Scm(**auth)
+        >>> client = Scm(**auth) #noqa
 
     """
-    # Check if home config file exists and manually load it if Dynaconf didn't pick it up
-    home_config: dict[str, Any] = {}
-    if os.path.exists(HOME_CONFIG_PATH) and not settings.get("client_id"):
-        try:
-            with open(HOME_CONFIG_PATH) as f:
-                home_config = yaml.safe_load(f) or {}
-        except Exception as e:
-            print(f"Warning: Error loading {HOME_CONFIG_PATH}: {e}")
-
-    # First try environment variables (PREFIX_client_id)
+    # Get authentication from settings (which already includes context awareness)
     auth = {
-        "client_id": str(settings.get("client_id")),
-        "client_secret": str(settings.get("client_secret")),
-        "tsg_id": str(settings.get("tsg_id")),
+        "client_id": settings.get("client_id", ""),
+        "client_secret": settings.get("client_secret", ""),
+        "tsg_id": settings.get("tsg_id", ""),
     }
 
     # For backward compatibility, also check the scm_ prefixed settings
+    # but only if the non-prefixed values are empty
     if not auth["client_id"]:
-        auth["client_id"] = settings.get("scm_client_id")
+        auth["client_id"] = settings.get("scm_client_id", "")
     if not auth["client_secret"]:
-        auth["client_secret"] = settings.get("scm_client_secret")
+        auth["client_secret"] = settings.get("scm_client_secret", "")
     if not auth["tsg_id"]:
-        auth["tsg_id"] = settings.get("scm_tsg_id")
-
-    # Try the manually loaded home config values as a last resort
-    if not auth["client_id"] and "client_id" in home_config:
-        auth["client_id"] = home_config.get("client_id")
-    if not auth["client_secret"] and "client_secret" in home_config:
-        auth["client_secret"] = home_config.get("client_secret")
-    if not auth["tsg_id"] and "tsg_id" in home_config:
-        auth["tsg_id"] = home_config.get("tsg_id")
+        auth["tsg_id"] = settings.get("scm_tsg_id", "")
 
     # Check for missing parameters
     missing = [k for k, v in auth.items() if not v]

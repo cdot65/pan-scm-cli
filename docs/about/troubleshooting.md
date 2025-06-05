@@ -10,12 +10,49 @@ If you encounter issues while using `pan-scm-cli`, this guide provides solutions
 
 **Solutions:**
 
-- **Check Environment Variables**: Ensure that `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, and `SCM_TSG_ID` are correctly set.
-- **Check Local Secrets File**: If using a local configuration, verify that credentials are properly configured in `.secrets.yaml` in the directory where you're running the CLI.
-- **File Location**: Make sure you're running the CLI from the same directory where your `.secrets.yaml` file is located, as dynaconf looks for this file in the current working directory.
-- **File Format**: Ensure your `.secrets.yaml` follows the correct format with the `default` section.
-- **Permissions**: Verify that your credentials have the necessary permissions to access the API.
-- **Network Issues**: Ensure there are no network issues blocking access to the SCM authentication endpoint.
+- **Check Current Context**: Verify which context is active and test it:
+  ```bash
+  $ scm context current
+  Current context: production
+  
+  $ scm context test
+  Testing authentication for context: production
+  ✗ Authentication failed: (invalid_client) Client authentication failed
+  ```
+
+- **Verify Context Credentials**: Show the context details to check configuration:
+  ```bash
+  $ scm context show production
+  Context: production
+  
+  Configuration:
+    Client ID: prod@123456789.iam.panserviceaccount.com
+    TSG ID: 123456789
+    Log Level: INFO
+    Client Secret: ***** (configured)
+  ```
+
+- **Create New Context**: If credentials are incorrect, create a new context:
+  ```bash
+  $ scm context create production-fixed \
+    --client-id "correct-id@123456789.iam.panserviceaccount.com" \
+    --client-secret "correct-secret" \
+    --tsg-id "123456789"
+  ✓ Context 'production-fixed' created successfully
+  ```
+
+- **Environment Variable Override**: Check if environment variables are overriding your context:
+  ```bash
+  # Check for SCM environment variables
+  $ env | grep SCM_
+  SCM_CLIENT_ID=old-value
+  
+  # Unset them to use context
+  $ unset SCM_CLIENT_ID SCM_CLIENT_SECRET SCM_TSG_ID
+  ```
+
+- **Network Issues**: Test connectivity to SCM API endpoints
+- **Permissions**: Verify your service account has necessary permissions in SCM
 
 ### 2. Command Execution Errors
 
@@ -54,9 +91,24 @@ If you encounter issues while using `pan-scm-cli`, this guide provides solutions
 
 For more detailed troubleshooting, you can enable debug logging:
 
+### Method 1: Set log level in context
 ```bash
-export SCM_CLI_LOG_LEVEL=DEBUG
-scm <command>
+# Create or update context with DEBUG logging
+$ scm context create debug-env \
+  --client-id "your-id@123456789.iam.panserviceaccount.com" \
+  --client-secret "your-secret" \
+  --tsg-id "123456789" \
+  --log-level DEBUG
+✓ Context 'debug-env' created successfully
+
+$ scm context use debug-env
+✓ Switched to context 'debug-env'
+```
+
+### Method 2: Use environment variable (overrides context setting)
+```bash
+export SCM_LOG_LEVEL=DEBUG
+scm show objects address --folder Texas
 ```
 
 This will produce verbose output showing each API call, request payloads, and response details.

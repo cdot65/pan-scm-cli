@@ -11,6 +11,8 @@ import typer
 import yaml
 
 # Removed unused import: from the `..utils.config` import load_from_yaml
+from ..utils.config import settings
+from ..utils.context import get_current_context
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     Address,
@@ -29,6 +31,22 @@ from ..utils.validators import (
     SyslogServerProfile,
     Tag,
 )
+
+# ========================================================================================================================================================================================
+# HELPER FUNCTIONS
+# ========================================================================================================================================================================================
+
+
+def show_context_info() -> None:
+    """Display current context information if log level is INFO."""
+    log_level = settings.get("log_level", "INFO").upper()
+    if log_level == "INFO":
+        current_context = get_current_context()
+        if current_context:
+            typer.echo(f"[INFO] Using authentication context: {current_context}", err=True)
+        else:
+            typer.echo("[INFO] No context set, using environment variables or default settings", err=True)
+
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -1074,6 +1092,9 @@ def show_address(
 
     """
     try:
+        # Show context info if log level is INFO
+        show_context_info()
+
         if name:
             # Get a specific address by name
             address = scm_client.get_address(folder=folder, name=name)

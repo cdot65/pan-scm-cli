@@ -44,32 +44,52 @@ Successfully installed pan-scm-cli
 
 Verify that the installation was successful by checking the available commands:
 
-````bash
+```bash
 $ scm --help
-INFO:scm_cli.utils.sdk_client:Initializing SCM client
-INFO:scm_cli.utils.sdk_client:Successfully initialized SDK client for TSG ID: 1527824794
 
  Usage: scm [OPTIONS] COMMAND [ARGS]...
 
  CLI for Palo Alto Networks Strata Cloud Manager
 
-Commands
-test-auth   Test authentication configuration.
-backup      Backup configurations to YAML files
-load        Load configurations from YAML files
-set         Create or update configurations
-show        Display configurations
+Commands:
+  backup   Backup configurations to YAML files
+  context  Manage authentication contexts for multiple SCM tenants
+  delete   Remove configurations
+  load     Load configurations from YAML files
+  set      Create or update configurations
+  show     Display configurations
+```
+
+### 4. Set Up Authentication
+
+After installation, create your first context to connect to SCM:
+
+```bash
+# Create a context with your credentials
+$ scm context create my-tenant \
+  --client-id "your-app@123456789.iam.panserviceaccount.com" \
+  --client-secret "your-secret-key" \
+  --tsg-id "123456789"
+✓ Context 'my-tenant' created successfully
+✓ Context 'my-tenant' set as current
+
+# Test the connection
+$ scm context test
+Testing authentication for context: my-tenant
+✓ Authentication successful!
+  Client ID: your-app@123456789.iam.panserviceaccount.com
+  TSG ID: 123456789
+✓ API connectivity verified (found 15 address objects in Shared folder)
 ```
 
 ## Next Steps
 
-Once you've installed the CLI, proceed to:
+Once you've installed the CLI and set up authentication, you can:
 
-1. [Configure authentication](getting-started.md#authentication-setup) with your SCM credentials
-2. Set up your SCM environment
-3. Start managing your SCM resources
+1. [Get started with basic commands](getting-started.md)
+2. [Explore configuration objects](../guide/configuration-objects.md)
+3. [Learn about advanced operations](../guide/advanced-topics.md)
 
 ---
 
 If you encounter any issues during installation, see the [Troubleshooting](troubleshooting.md) guide.
-````

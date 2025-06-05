@@ -241,25 +241,14 @@ class TestShowAddressCommands:
 
     def test_show_address_list(self, runner, monkeypatch):
         """Test the show address command with --list flag."""
-        from scm_cli.commands.objects import show_address, show_app
+        from scm_cli.commands.objects import show_address
         from scm_cli.utils.sdk_client import scm_client
 
         # Mock the list_addresses method to return sample data
         def mock_list_addresses(*args, **kwargs):
             return [
-                {
-                    "name": "test-address-1",
-                    "description": "Test address 1",
-                    "ip_netmask": "192.168.1.0/24",
-                    "folder": "Shared",
-                    "tag": ["test", "network"]
-                },
-                {
-                    "name": "test-address-2",
-                    "description": "Test address 2",
-                    "fqdn": "example.com",
-                    "folder": "Shared"
-                }
+                {"name": "test-address-1", "description": "Test address 1", "ip_netmask": "192.168.1.0/24", "folder": "Shared", "tag": ["test", "network"]},
+                {"name": "test-address-2", "description": "Test address 2", "fqdn": "example.com", "folder": "Shared"},
             ]
 
         monkeypatch.setattr(scm_client, "list_addresses", mock_list_addresses)
@@ -290,7 +279,7 @@ class TestShowAddressCommands:
                 "description": "Production web server",
                 "ip_netmask": "10.0.1.100/32",
                 "folder": "Shared",
-                "tag": ["production", "web"]
+                "tag": ["production", "web"],
             }
 
         monkeypatch.setattr(scm_client, "get_address", mock_get_address)
@@ -361,16 +350,9 @@ class TestShowAddressGroupCommands:
                     "type": "static",
                     "members": ["192.168.1.10", "192.168.1.11", "192.168.1.12"],
                     "folder": "Shared",
-                    "tag": ["web", "production"]
+                    "tag": ["web", "production"],
                 },
-                {
-                    "name": "dynamic-endpoints",
-                    "description": "Dynamic endpoint group",
-                    "type": "dynamic",
-                    "filter": "'endpoint' and 'corporate'",
-                    "folder": "Shared",
-                    "tag": ["dynamic"]
-                }
+                {"name": "dynamic-endpoints", "description": "Dynamic endpoint group", "type": "dynamic", "filter": "'endpoint' and 'corporate'", "folder": "Shared", "tag": ["dynamic"]},
             ]
 
         monkeypatch.setattr(scm_client, "list_address_groups", mock_list_address_groups)
@@ -404,7 +386,7 @@ class TestShowAddressGroupCommands:
                 "type": "static",
                 "members": ["web-1", "web-2", "web-3"],
                 "folder": "Shared",
-                "tag": ["production", "web"]
+                "tag": ["production", "web"],
             }
 
         monkeypatch.setattr(scm_client, "get_address_group", mock_get_address_group)
@@ -441,7 +423,7 @@ class TestShowAddressGroupCommands:
                 "type": "dynamic",
                 "filter": "'endpoint' and 'corporate'",
                 "folder": "Shared",
-                "tag": ["dynamic", "auto"]
+                "tag": ["dynamic", "auto"],
             }
 
         monkeypatch.setattr(scm_client, "get_address_group", mock_get_address_group)
