@@ -1,6 +1,4 @@
-I'll create a comprehensive style guide based on the provided mkdocs files, capturing the structure, styling, and design patterns for future documentation.
-
-# Palo Alto Networks Strata Cloud Manager Documentation Style Guide
+# Style Guide
 
 ## Document Structure
 
@@ -74,16 +72,8 @@ I'll create a comprehensive style guide based on the provided mkdocs files, capt
    - Include `` comment before each code block
    - Use triple backtick code blocks with language specification
 
-   ````
-
-
-
-
    ```python
    # Code goes here
-   ````
-
-   </div>
    ```
 
 2. **Import Statements**
@@ -186,21 +176,18 @@ For consistency, use these templates for common documentation patterns:
 
 ### Method Table Template
 
-```markdown
 ## Core Methods
 
 | Method     | Description                | Parameters                 | Return Type           |
-| ---------- | -------------------------- | -------------------------- | --------------------- |
+|------------|----------------------------|----------------------------|-----------------------|
 | `create()` | Creates a new object       | `data: Dict[str, Any]`     | `ResponseModel`       |
 | `get()`    | Retrieves object by ID     | `object_id: str`           | `ResponseModel`       |
 | `update()` | Updates an existing object | `object: UpdateModel`      | `ResponseModel`       |
 | `delete()` | Deletes an object          | `object_id: str`           | `None`                |
 | `list()`   | Lists objects with filters | `folder: str`, `**filters` | `List[ResponseModel]` |
-```
 
 ### Code Example Template
 
-````markdown
 ```python
 from scm.client import ScmClient
 
@@ -224,14 +211,9 @@ result = client.service.operation(config)
 # Process results
 print(f"Operation result: {result.id}")
 ```
-````
-
-</div>
-```
 
 ### Error Handling Template
 
-````markdown
 ```python
 from scm.client import ScmClient
 from scm.exceptions import (
@@ -255,10 +237,7 @@ except ExceptionType1 as e:
 except ExceptionType2 as e:
    print(f"Error message: {e.message}")
 ```
-````
 
-</div>
-```
 
 ## Final Recommendations
 
