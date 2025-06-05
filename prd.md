@@ -2125,3 +2125,127 @@ All commands have been tested and verified:
 - ✅ Delete command removes profiles cleanly
 - ✅ Backup command exports to YAML format
 - ✅ Example YAML file created with various profile configurations
+
+## 33. Multi-tenant Context Management
+
+### 33.1 Problem Statement
+
+Users need the ability to manage multiple SCM tenant configurations and switch between them easily. The current authentication system relied on environment variables or a single config file, making it difficult to work with multiple tenants without constantly updating credentials.
+
+### 33.2 Solution: Context-based Authentication Management
+
+Implemented a comprehensive context management system that allows users to:
+- Create named authentication contexts for different SCM tenants
+- Switch between contexts with a simple command
+- Test authentication for specific contexts without switching
+- Maintain separate configurations for each tenant
+
+#### 33.2.1 Context Management Features
+
+- **Create**: Store authentication credentials for a named context
+- **List**: View all available contexts with current context highlighted
+- **Use**: Switch to a different context for all subsequent commands
+- **Delete**: Remove contexts that are no longer needed
+- **Show**: Display details of a specific context
+- **Current**: Show which context is currently active
+- **Test**: Verify authentication for any context without switching
+
+### 33.3 Technical Implementation Details
+
+#### 33.3.1 Context Storage
+
+- Contexts stored in `~/.scm-cli/contexts/` directory
+- Each context is a separate YAML file with credentials
+- Current context tracked in `~/.scm-cli/current-context`
+- Secure file permissions (600) for credential files
+
+#### 33.3.2 Commands Added
+
+```bash
+# Create a new context
+scm context create production \
+  --client-id <id> \
+  --client-secret <secret> \
+  --tsg-id <tsg>
+
+# List all contexts
+scm context list
+
+# Switch to a context
+scm context use production
+
+# Test authentication for a context
+scm context test staging
+
+# Show current context
+scm context current
+
+# Delete a context
+scm context delete old-tenant
+```
+
+### 33.4 Authentication Precedence Issue
+
+During implementation, a critical issue was discovered with authentication precedence:
+
+#### 33.4.1 Current (Problematic) Precedence Order
+
+1. Environment variables (SCM_CLIENT_ID, etc.) - **Always wins**
+2. ~/.scm-cli/config.yaml - **Overrides contexts**
+3. Context file from `scm context use`
+4. .secrets.yaml (development)
+5. settings.yaml
+
+This means that `scm context use` doesn't guarantee the context will be used if environment variables or ~/.scm-cli/config.yaml exist.
+
+#### 33.4.2 Required Precedence Order
+
+The precedence order needs to be fixed so that contexts work as users expect:
+
+1. Currently active context (set via `scm context use`)
+2. Environment variables (for CI/CD and automation)
+3. Default configuration
+
+### 33.5 Tasks for Fixing Authentication Precedence
+
+The following tasks are required to fix the authentication precedence order:
+
+1. **Remove ~/.scm-cli/config.yaml from dynaconf loading**
+   - This legacy configuration method conflicts with the new context system
+   - Users should migrate to contexts for better multi-tenant support
+
+2. **Remove .secrets.yaml from dynaconf loading**
+   - Development credentials should be managed through contexts
+   - This prevents accidental use of development credentials in production
+
+3. **Add informational logging for context usage**
+   - When log level is set to INFO, display which context is being used
+   - Example: "Using authentication context: production"
+   - Helps users verify they're using the intended credentials
+
+4. **Update precedence logic in get_context_aware_settings()**
+   - Ensure active context takes precedence over environment variables
+   - Load context first, then allow env vars to override specific fields
+   - Remove legacy config file loading
+
+5. **Update documentation**
+   - Clearly document the new precedence order
+   - Provide migration guide from old config methods to contexts
+   - Update all examples to use context-based authentication
+
+### 33.6 Benefits
+
+1. **Multi-tenant Support**: Easy switching between different SCM environments
+2. **Secure Credential Storage**: Each context isolated in its own file
+3. **Testing Flexibility**: Test authentication without affecting current context
+4. **Clear Context Visibility**: Always know which tenant you're working with
+5. **Simplified Workflows**: No need to manage environment variables manually
+
+### 33.7 Migration Path
+
+Users currently using ~/.scm-cli/config.yaml or environment variables should:
+
+1. Create a context for each tenant: `scm context create <name>`
+2. Remove ~/.scm-cli/config.yaml file
+3. Unset SCM_* environment variables (unless needed for automation)
+4. Use `scm context use <name>` to switch between tenants

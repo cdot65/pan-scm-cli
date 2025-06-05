@@ -54,7 +54,8 @@ def get_current_context() -> str | None:
         try:
             with open(CURRENT_CONTEXT_FILE) as f:
                 return f.read().strip()
-        except Exception:
+        except Exception as e:
+            print(f"Error reading current context: {e}")
             return None
     return None
 
@@ -161,7 +162,7 @@ def get_context_config(context_name: str | None = None) -> dict[str, Any]:
 
     Raises:
     ------
-        ValueError: If context not found or no current context set.
+        ValueError: If the context is not found or no current context is set.
 
     """
     if context_name is None:
@@ -187,36 +188,36 @@ def get_context_aware_settings() -> Dynaconf:
     """Get Dynaconf settings with context awareness.
 
     Returns settings that prioritize:
-    1. Environment variables
-    2. Current context configuration
-    3. Default settings files
+    1. Current context configuration (if set via 'scm context use')
+    2. Environment variables (for CI/CD automation)
+    3. Default settings.yaml
+
+    Note: Legacy config files (~/.scm-cli/config.yaml and .secrets.yaml) are
+    no longer supported. Use contexts instead of multi-tenant support.
 
     Returns
     -------
         Configured Dynaconf instance.
 
     """
-    settings_files = [
-        "settings.yaml",
-        ".secrets.yaml",
-    ]
+    # Start with only the base settings file
+    settings_files = ["settings.yaml"]
 
-    # Add current context file if set
+    # Add the current context file FIRST so it has the highest priority for file-based config
     current_context = get_current_context()
     if current_context:
         context_file = os.path.join(CONTEXT_DIR, f"{current_context}.yaml")
         if os.path.exists(context_file):
-            settings_files.append(context_file)
+            # Insert at the beginning so context has priority over settings.yaml
+            settings_files.insert(0, context_file)
         else:
             # Try .yml extension
             context_file = os.path.join(CONTEXT_DIR, f"{current_context}.yml")
             if os.path.exists(context_file):
-                settings_files.append(context_file)
+                settings_files.insert(0, context_file)
 
-    # Add legacy home config as fallback
-    home_config = os.path.expanduser("~/.scm-cli/config.yaml")
-    if os.path.exists(home_config):
-        settings_files.append(home_config)
+    # Note: We removed .secrets.yaml and ~/.scm-cli/config.yaml
+    # Users should migrate to contexts for better multi-tenant support
 
     return Dynaconf(
         envvar_prefix="SCM",

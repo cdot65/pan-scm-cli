@@ -65,12 +65,24 @@ Successfully installed pan-scm-cli
 
 ## Quick Start
 
-Setting up your authentication credentials:
+### Setting up authentication:
 
 ```bash
-export SCM_CLIENT_ID="your_client_id"
-export SCM_CLIENT_SECRET="your_client_secret"
-export SCM_TSG_ID="your_tsg_id"
+# Create a context for your SCM tenant
+$ scm context create my-tenant \
+  --client-id "app@123456789.iam.panserviceaccount.com" \
+  --client-secret "your-secret-key" \
+  --tsg-id "123456789"
+✓ Context 'my-tenant' created successfully
+✓ Context 'my-tenant' set as current
+
+# Test the connection
+$ scm context test
+Testing authentication for context: my-tenant
+✓ Authentication successful!
+  Client ID: app@123456789.iam.panserviceaccount.com
+  TSG ID: 123456789
+✓ API connectivity verified (found 25 address objects in Shared folder)
 ```
 
 ### Example: Creating an Address Object
@@ -82,7 +94,7 @@ $ scm set objects address \
     --ip-netmask 192.168.1.100/32 \
     --description "Web server" \
     --tags ["server", "web"]
----> 100%
+[INFO] Using authentication context: my-tenant
 Created address: webserver in folder Texas
 ```
 

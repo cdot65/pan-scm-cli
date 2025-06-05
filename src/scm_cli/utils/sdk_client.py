@@ -14,6 +14,7 @@ from scm.client import Scm
 from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
 
 from .config import get_credentials, settings
+from .context import get_current_context
 
 # Create logger (will be configured in __init__)
 logger = logging.getLogger(__name__)
@@ -55,6 +56,13 @@ class SCMClient:
         self.logger = logger
         self.logger.info("Initializing SCM client")
         self.client = None
+
+        # Log the current context if one is set
+        current_context = get_current_context()
+        if current_context:
+            self.logger.info(f"Using authentication context: {current_context}")
+        else:
+            self.logger.info("No context set, using environment variables or default settings")
 
         try:
             # Get credentials from dynaconf settings

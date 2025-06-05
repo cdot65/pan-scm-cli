@@ -18,64 +18,71 @@ poetry add pan-scm-cli
 
 ## Authentication
 
-The SCM CLI uses dynaconf to manage authentication credentials. You have the following options for authentication:
+The SCM CLI uses contexts to manage authentication credentials for multiple SCM tenants.
 
-### Option 1: Using Local .secrets.yaml (Recommended for Development)
+### Option 1: Context-based Authentication (Recommended)
 
-> **⚠️ SECURITY WARNING**
->
-> Storage of credentials in files poses security risks. Consider these best practices:
->
-> - **NEVER commit credential files to version control**
-> - **Use environment variables for production environments**
-> - **Protect local credential files with appropriate file permissions**
-> - **Regularly rotate your credentials**
+Context management is the recommended approach for working with SCM, especially when managing multiple tenants or environments:
 
-For local development, follow these steps:
+```bash
+# Create a context for production
+$ scm context create production \
+  --client-id "prod@123456789.iam.panserviceaccount.com" \
+  --client-secret "your-secret-key" \
+  --tsg-id "123456789"
+✓ Context 'production' created successfully
+✓ Context 'production' set as current
 
-1. Copy the example configuration file to create a local secrets file:
+# Create a context for development with debug logging
+$ scm context create development \
+  --client-id "dev@987654321.iam.panserviceaccount.com" \
+  --client-secret "your-dev-secret" \
+  --tsg-id "987654321" \
+  --log-level DEBUG
+✓ Context 'development' created successfully
 
-   ```bash
-   cp example-config.yaml .secrets.yaml
-   ```
+# View all contexts
+$ scm context list
+                       SCM Authentication Contexts                        
+┏━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Context     ┃ Current ┃ Client ID                                       ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ production  │ ✓       │ prod@12345...@123456789.iam.panserviceaccount.com │
+│ development │         │ dev@987654...@987654321.iam.panserviceaccount.com │
+└─────────────┴─────────┴────────────────────────────────────────────────────┘
 
-2. Edit the `.secrets.yaml` file with your actual credentials:
+# Switch between contexts
+$ scm context use development
+✓ Switched to context 'development'
 
-   ```yaml
-   default:
-     scm_client_id: "your_client_id"
-     scm_client_secret: "your_client_secret"
-     scm_tsg_id: "your_tenant_service_group_id"
-   ```
+# Test authentication
+$ scm context test
+Testing authentication for context: development
+✓ Authentication successful!
+  Client ID: dev@987654321.iam.panserviceaccount.com
+  TSG ID: 987654321
+✓ API connectivity verified (found 42 address objects in Shared folder)
+```
 
-3. Secure the file with restrictive permissions:
+> **Note**: Contexts are stored in `~/.scm-cli/contexts/` with appropriate file permissions. Each context is isolated, making it safe to work with multiple tenants.
 
-   ```bash
-   # On Linux/macOS
-   chmod 600 .secrets.yaml
-   ```
+### Option 2: Environment Variables (For CI/CD)
 
-4. Run the CLI from the same directory where `.secrets.yaml` is located. Dynaconf will automatically load credentials from this file.
-
-> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
-
-### Option 2: Environment Variables
-
-For production use or scripting, set environment variables:
+For automated workflows and CI/CD pipelines, use environment variables:
 
 ```bash
 # For Linux/macOS
-export SCM_CLIENT_ID="your-client-id"
+export SCM_CLIENT_ID="your-client-id@123456789.iam.panserviceaccount.com"
 export SCM_CLIENT_SECRET="your-client-secret"
-export SCM_TSG_ID="your-tenant-service-group-id"
+export SCM_TSG_ID="123456789"
 
 # For Windows PowerShell
-$env:SCM_CLIENT_ID = "your-client-id"
+$env:SCM_CLIENT_ID = "your-client-id@123456789.iam.panserviceaccount.com"
 $env:SCM_CLIENT_SECRET = "your-client-secret"
-$env:SCM_TSG_ID = "your-tenant-service-group-id"
+$env:SCM_TSG_ID = "123456789"
 ```
 
-These environment variables will be automatically detected by dynaconf and used for authentication.
+> **Important**: Environment variables take precedence over contexts when both are set.
 
 ## Basic Usage Examples
 
