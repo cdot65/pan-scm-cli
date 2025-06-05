@@ -10,7 +10,7 @@ from typing import Any
 import typer
 import yaml
 
-# Removed unused import: from ..utils.config import load_from_yaml
+# Removed unused import: from the `..utils.config` import load_from_yaml
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     Address,
@@ -198,26 +198,6 @@ EXPAND_DOMAIN_OPTION = typer.Option(
     False,
     help="Enable/Disable expand domain (for domain type)",
 )
-IP_NETMASK_OPTION = typer.Option(
-    None,
-    "--ip-netmask",
-    help="IP address with CIDR notation (e.g. 192.168.1.0/24)",
-)
-IP_RANGE_OPTION = typer.Option(
-    None,
-    "--ip-range",
-    help="IP address range (e.g. 192.168.1.1-192.168.1.10)",
-)
-IP_WILDCARD_OPTION = typer.Option(
-    None,
-    "--ip-wildcard",
-    help="IP wildcard mask (e.g. 10.20.1.0/0.0.248.255)",
-)
-FQDN_OPTION = typer.Option(
-    None,
-    "--fqdn",
-    help="Fully qualified domain name (e.g. example.com)",
-)
 
 # Application-specific options
 CATEGORY_OPTION = typer.Option(
@@ -373,9 +353,7 @@ LOAD_DEVICE_OPTION = typer.Option(
 # ========================================================================================================================================================================================
 
 
-def validate_location_params(
-    folder: str = None, snippet: str = None, device: str = None
-) -> tuple[str, str]:
+def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
 
     Returnas:
@@ -387,9 +365,7 @@ def validate_location_params(
     location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
 
     if location_count == 0:
-        typer.echo(
-            "Error: One of --folder, --snippet, or --device must be specified", err=True
-        )
+        typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
         raise typer.Exit(code=1)
     elif location_count > 1:
         typer.echo(
@@ -406,9 +382,7 @@ def validate_location_params(
         return "device", device
 
 
-def get_default_backup_filename(
-    object_type: str, location_type: str, location_value: str
-) -> str:
+def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
     """Generate default backup filename based on object type and location."""
     # Sanitize location value for filename
     safe_location = location_value.lower().replace("/", "-").replace(" ", "-")
@@ -446,9 +420,7 @@ def backup_address_group(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all address groups in the location with exact_match=True
         kwargs = {location_type: location_value}
@@ -483,19 +455,13 @@ def backup_address_group(
 
         # Generate filename
         if file is None:
-            file = Path(
-                get_default_backup_filename(
-                    "address-group", location_type, location_value
-                )
-            )
+            file = Path(get_default_backup_filename("address-group", location_type, location_value))
 
         # Write to YAML file
         with file.open("w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} address groups to {file}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} address groups to {file}")
         return str(file)
 
     except Exception as e:
@@ -697,9 +663,7 @@ def set_address_group(
             tags=address_group.tags,
         )
 
-        typer.echo(
-            f"Created address group: {result['name']} in folder {result['folder']}"
-        )
+        typer.echo(f"Created address group: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating address group: {str(e)}", err=True)
@@ -709,9 +673,7 @@ def set_address_group(
 @show_app.command("address-group")
 def show_address_group(
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the address group to show"
-    ),
+    name: str | None = typer.Option(None, "--name", help="Name of the address group to show"),
 ):
     """Display address group objects.
 
@@ -852,9 +814,7 @@ def backup_address(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all addresses in the location with exact_match=True
         kwargs = {location_type: location_value}
@@ -878,9 +838,7 @@ def backup_address(
 
         # Generate filename
         if file is None:
-            file = Path(
-                get_default_backup_filename("address", location_type, location_value)
-            )
+            file = Path(get_default_backup_filename("address", location_type, location_value))
 
         # Write to YAML file
         with file.open("w") as f:
@@ -970,9 +928,7 @@ def load_address(
             typer.echo("Dry run mode: would apply the following configurations:")
             # Show override information if applicable
             if folder or snippet or device:
-                override_type = (
-                    "folder" if folder else ("snippet" if snippet else "device")
-                )
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
                 override_value = folder or snippet or device
                 typer.echo(f"Container override: {override_type} = '{override_value}'")
             typer.echo(yaml.dump(addresses))
@@ -1239,9 +1195,7 @@ def backup_application(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all applications in the location with exact_match=True
         kwargs = {location_type: location_value}
@@ -1265,11 +1219,7 @@ def backup_application(
 
         # Generate filename
         if file is None:
-            file = Path(
-                get_default_backup_filename(
-                    "application", location_type, location_value
-                )
-            )
+            file = Path(get_default_backup_filename("application", location_type, location_value))
 
         # Write to YAML file
         with file.open("w") as f:
@@ -1514,9 +1464,7 @@ def set_application(
             no_certifications=application.no_certifications,
         )
 
-        typer.echo(
-            f"Created application: {result['name']} in folder {result['folder']}"
-        )
+        typer.echo(f"Created application: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating application: {str(e)}", err=True)
@@ -1526,9 +1474,7 @@ def set_application(
 @show_app.command("application")
 def show_application(
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the application to show"
-    ),
+    name: str | None = typer.Option(None, "--name", help="Name of the application to show"),
 ):
     """Display application objects.
 
@@ -1572,27 +1518,13 @@ def show_application(
             typer.echo("Security Attributes:")
             typer.echo(f"  Evasive: {application.get('evasive', False)}")
             typer.echo(f"  Pervasive: {application.get('pervasive', False)}")
-            typer.echo(
-                f"  Excessive Bandwidth Use: {application.get('excessive_bandwidth_use', False)}"
-            )
-            typer.echo(
-                f"  Used by Malware: {application.get('used_by_malware', False)}"
-            )
-            typer.echo(
-                f"  Transfers Files: {application.get('transfers_files', False)}"
-            )
-            typer.echo(
-                f"  Has Known Vulnerabilities: {application.get('has_known_vulnerabilities', False)}"
-            )
-            typer.echo(
-                f"  Tunnels Other Apps: {application.get('tunnels_other_apps', False)}"
-            )
-            typer.echo(
-                f"  Prone to Misuse: {application.get('prone_to_misuse', False)}"
-            )
-            typer.echo(
-                f"  No Certifications: {application.get('no_certifications', False)}"
-            )
+            typer.echo(f"  Excessive Bandwidth Use: {application.get('excessive_bandwidth_use', False)}")
+            typer.echo(f"  Used by Malware: {application.get('used_by_malware', False)}")
+            typer.echo(f"  Transfers Files: {application.get('transfers_files', False)}")
+            typer.echo(f"  Has Known Vulnerabilities: {application.get('has_known_vulnerabilities', False)}")
+            typer.echo(f"  Tunnels Other Apps: {application.get('tunnels_other_apps', False)}")
+            typer.echo(f"  Prone to Misuse: {application.get('prone_to_misuse', False)}")
+            typer.echo(f"  No Certifications: {application.get('no_certifications', False)}")
 
             # Display ID if present
             if application.get("id"):
@@ -1693,18 +1625,14 @@ def backup_application_group(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all application groups in the location with exact_match=True
         kwargs = {location_type: location_value}
         groups = scm_client.list_application_groups(**kwargs, exact_match=True)
 
         if not groups:
-            typer.echo(
-                f"No application groups found in {location_type} '{location_value}'"
-            )
+            typer.echo(f"No application groups found in {location_type} '{location_value}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -1721,19 +1649,13 @@ def backup_application_group(
 
         # Generate filename
         if file is None:
-            file = Path(
-                get_default_backup_filename(
-                    "application-group", location_type, location_value
-                )
-            )
+            file = Path(get_default_backup_filename("application-group", location_type, location_value))
 
         # Write to YAML file
         with file.open("w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} application groups to {file}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} application groups to {file}")
         return str(file)
 
     except Exception as e:
@@ -1891,9 +1813,7 @@ def set_application_group(
             members=app_group.members,
         )
 
-        typer.echo(
-            f"Created application group: {result['name']} in folder {result['folder']}"
-        )
+        typer.echo(f"Created application group: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating application group: {str(e)}", err=True)
@@ -1903,9 +1823,7 @@ def set_application_group(
 @show_app.command("application-group")
 def show_application_group(
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the application group to show"
-    ),
+    name: str | None = typer.Option(None, "--name", help="Name of the application group to show"),
 ):
     """Display application group objects.
 
@@ -2016,18 +1934,14 @@ def backup_application_filter(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all application filters in the location with exact_match=True
         kwargs = {location_type: location_value}
         filters = scm_client.list_application_filters(**kwargs, exact_match=True)
 
         if not filters:
-            typer.echo(
-                f"No application filters found in {location_type} '{location_value}'"
-            )
+            typer.echo(f"No application filters found in {location_type} '{location_value}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -2044,19 +1958,13 @@ def backup_application_filter(
 
         # Generate filename
         if file is None:
-            file = Path(
-                get_default_backup_filename(
-                    "application-filter", location_type, location_value
-                )
-            )
+            file = Path(get_default_backup_filename("application-filter", location_type, location_value))
 
         # Write to YAML file
         with file.open("w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} application filters to {file}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} application filters to {file}")
         return str(file)
 
     except Exception as e:
@@ -2086,9 +1994,7 @@ def delete_application_filter(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command(
-    "application-filter", help="Load application filters from a YAML file."
-)
+@load_app.command("application-filter", help="Load application filters from a YAML file.")
 def load_application_filter(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -2269,9 +2175,7 @@ def set_application_filter(
             no_certifications=app_filter.no_certifications,
         )
 
-        typer.echo(
-            f"Created application filter: {result['name']} in folder {result['folder']}"
-        )
+        typer.echo(f"Created application filter: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating application filter: {str(e)}", err=True)
@@ -2281,9 +2185,7 @@ def set_application_filter(
 @show_app.command("application-filter")
 def show_application_filter(
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the application filter to show"
-    ),
+    name: str | None = typer.Option(None, "--name", help="Name of the application filter to show"),
 ):
     """Display application filter objects.
 
@@ -2328,21 +2230,13 @@ def show_application_filter(
             typer.echo("\nFilter Attributes:")
             typer.echo(f"  Evasive: {filter_obj.get('evasive', False)}")
             typer.echo(f"  Pervasive: {filter_obj.get('pervasive', False)}")
-            typer.echo(
-                f"  Excessive Bandwidth Use: {filter_obj.get('excessive_bandwidth_use', False)}"
-            )
+            typer.echo(f"  Excessive Bandwidth Use: {filter_obj.get('excessive_bandwidth_use', False)}")
             typer.echo(f"  Used by Malware: {filter_obj.get('used_by_malware', False)}")
             typer.echo(f"  Transfers Files: {filter_obj.get('transfers_files', False)}")
-            typer.echo(
-                f"  Has Known Vulnerabilities: {filter_obj.get('has_known_vulnerabilities', False)}"
-            )
-            typer.echo(
-                f"  Tunnels Other Apps: {filter_obj.get('tunnels_other_apps', False)}"
-            )
+            typer.echo(f"  Has Known Vulnerabilities: {filter_obj.get('has_known_vulnerabilities', False)}")
+            typer.echo(f"  Tunnels Other Apps: {filter_obj.get('tunnels_other_apps', False)}")
             typer.echo(f"  Prone to Misuse: {filter_obj.get('prone_to_misuse', False)}")
-            typer.echo(
-                f"  No Certifications: {filter_obj.get('no_certifications', False)}"
-            )
+            typer.echo(f"  No Certifications: {filter_obj.get('no_certifications', False)}")
 
             # Display ID if present
             if filter_obj.get("id"):
@@ -2379,15 +2273,11 @@ def show_application_filter(
                 if filter_obj.get("category"):
                     typer.echo(f"  Categories: {', '.join(filter_obj['category'])}")
                 if filter_obj.get("sub_category"):
-                    typer.echo(
-                        f"  Subcategories: {', '.join(filter_obj['sub_category'])}"
-                    )
+                    typer.echo(f"  Subcategories: {', '.join(filter_obj['sub_category'])}")
                 if filter_obj.get("technology"):
                     typer.echo(f"  Technologies: {', '.join(filter_obj['technology'])}")
                 if filter_obj.get("risk"):
-                    typer.echo(
-                        f"  Risk Levels: {', '.join(map(str, filter_obj['risk']))}"
-                    )
+                    typer.echo(f"  Risk Levels: {', '.join(map(str, filter_obj['risk']))}")
 
                 # Display boolean criteria if any are true
                 attrs = []
@@ -2447,18 +2337,14 @@ def backup_dynamic_user_group(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all dynamic user groups in the location with exact_match=True
         kwargs = {location_type: location_value}
         groups = scm_client.list_dynamic_user_groups(**kwargs, exact_match=True)
 
         if not groups:
-            typer.echo(
-                f"No dynamic user groups found in {location_type} '{location_value}'"
-            )
+            typer.echo(f"No dynamic user groups found in {location_type} '{location_value}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -2480,19 +2366,13 @@ def backup_dynamic_user_group(
 
         # Generate filename
         if file is None:
-            file = Path(
-                get_default_backup_filename(
-                    "dynamic-user-group", location_type, location_value
-                )
-            )
+            file = Path(get_default_backup_filename("dynamic-user-group", location_type, location_value))
 
         # Write to YAML file
         with file.open("w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} dynamic user groups to {file}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} dynamic user groups to {file}")
         return str(file)
 
     except Exception as e:
@@ -2522,9 +2402,7 @@ def delete_dynamic_user_group(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command(
-    "dynamic-user-group", help="Load dynamic user groups from a YAML file."
-)
+@load_app.command("dynamic-user-group", help="Load dynamic user groups from a YAML file.")
 def load_dynamic_user_group(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -2662,9 +2540,7 @@ def set_dynamic_user_group(
             tags=dug.tags,
         )
 
-        typer.echo(
-            f"Created dynamic user group: {result['name']} in folder {result['folder']}"
-        )
+        typer.echo(f"Created dynamic user group: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating dynamic user group: {str(e)}", err=True)
@@ -2674,9 +2550,7 @@ def set_dynamic_user_group(
 @show_app.command("dynamic-user-group")
 def show_dynamic_user_group(
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the dynamic user group to show"
-    ),
+    name: str | None = typer.Option(None, "--name", help="Name of the dynamic user group to show"),
 ):
     """Display dynamic user group objects.
 
@@ -2785,18 +2659,14 @@ def backup_external_dynamic_list(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all external dynamic lists in the location with exact_match=True
         kwargs = {location_type: location_value}
         edls = scm_client.list_external_dynamic_lists(**kwargs, exact_match=True)
 
         if not edls:
-            typer.echo(
-                f"No external dynamic lists found in {location_type} '{location_value}'"
-            )
+            typer.echo(f"No external dynamic lists found in {location_type} '{location_value}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -2843,19 +2713,13 @@ def backup_external_dynamic_list(
 
         # Generate filename
         if file is None:
-            file = Path(
-                get_default_backup_filename(
-                    "external-dynamic-list", location_type, location_value
-                )
-            )
+            file = Path(get_default_backup_filename("external-dynamic-list", location_type, location_value))
 
         # Write to YAML file
         with file.open("w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} external dynamic lists to {file}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} external dynamic lists to {file}")
         return str(file)
 
     except Exception as e:
@@ -2885,9 +2749,7 @@ def delete_external_dynamic_list(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command(
-    "external-dynamic-list", help="Load external dynamic lists from a YAML file."
-)
+@load_app.command("external-dynamic-list", help="Load external dynamic lists from a YAML file.")
 def load_external_dynamic_list(
     file: Path = FILE_OPTION,
     folder: str = LOAD_FOLDER_OPTION,
@@ -2904,9 +2766,7 @@ def load_external_dynamic_list(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Validate the file exists
         if not file.exists():
@@ -2948,9 +2808,7 @@ def load_external_dynamic_list(
 
                 if dry_run:
                     typer.echo(f"\n[{idx}] External Dynamic List: {edl.name}")
-                    typer.echo(
-                        f"  Container: {getattr(edl, location_type or 'folder')}"
-                    )
+                    typer.echo(f"  Container: {getattr(edl, location_type or 'folder')}")
                     typer.echo(f"  Type: {edl.type}")
                     typer.echo(f"  URL: {edl.url}")
                     if edl.description:
@@ -3000,13 +2858,9 @@ def load_external_dynamic_list(
 
         # Summary
         if dry_run:
-            typer.echo(
-                f"\n[DRY RUN] Would load {len(external_dynamic_lists)} external dynamic lists from '{file}'"
-            )
+            typer.echo(f"\n[DRY RUN] Would load {len(external_dynamic_lists)} external dynamic lists from '{file}'")
         else:
-            typer.echo(
-                f"\nSuccessfully loaded {loaded_count} out of {len(external_dynamic_lists)} external dynamic lists from '{file}'"
-            )
+            typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(external_dynamic_lists)} external dynamic lists from '{file}'")
 
         return results
 
@@ -3024,9 +2878,7 @@ def set_external_dynamic_list(
         help="Type of EDL (predefined_ip, predefined_url, ip, domain, url, imsi, imei)",
     ),
     url: str = typer.Option(..., help="URL for the external list"),
-    description: str = typer.Option(
-        "", help="Description of the external dynamic list"
-    ),
+    description: str = typer.Option("", help="Description of the external dynamic list"),
     exception_list: list[str] = EXCEPTION_LIST_OPTION,
     recurring: str = RECURRING_OPTION,
     hour: str = HOUR_OPTION,
@@ -3074,11 +2926,7 @@ def set_external_dynamic_list(
         }
 
         # Remove None values except for fields with defaults
-        edl_config = {
-            k: v
-            for k, v in edl_config.items()
-            if v is not None or k in ["description", "exception_list"]
-        }
+        edl_config = {k: v for k, v in edl_config.items() if v is not None or k in ["description", "exception_list"]}
 
         # Validate using Pydantic model
         edl = ExternalDynamicList(**edl_config)
@@ -3154,17 +3002,11 @@ def show_external_dynamic_list(
                         elif "day_of_month" in recur_config:
                             typer.echo(f"  Update Day: {recur_config['day_of_month']}")
                 if type_config.get("exception_list"):
-                    typer.echo(
-                        f"Exception List: {', '.join(type_config['exception_list'])}"
-                    )
+                    typer.echo(f"Exception List: {', '.join(type_config['exception_list'])}")
                 if type_config.get("auth"):
-                    typer.echo(
-                        f"Authentication: Username '{type_config['auth']['username']}'"
-                    )
+                    typer.echo(f"Authentication: Username '{type_config['auth']['username']}'")
                 if type_config.get("certificate_profile"):
-                    typer.echo(
-                        f"Certificate Profile: {type_config['certificate_profile']}"
-                    )
+                    typer.echo(f"Certificate Profile: {type_config['certificate_profile']}")
                 if type_config.get("expand_domain"):
                     typer.echo(f"Expand Domain: {type_config['expand_domain']}")
 
@@ -3211,9 +3053,7 @@ def show_external_dynamic_list(
                         recur_type = list(type_config["recurring"].keys())[0]
                         typer.echo(f"  Update Frequency: {recur_type}")
                     if type_config.get("exception_list"):
-                        typer.echo(
-                            f"  Exception List: {', '.join(type_config['exception_list'])}"
-                        )
+                        typer.echo(f"  Exception List: {', '.join(type_config['exception_list'])}")
 
                 typer.echo("-" * 60)
 
@@ -3249,9 +3089,7 @@ def backup_hip_object(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all HIP objects in the location with exact_match=True
         kwargs = {location_type: location_value}
@@ -3316,31 +3154,23 @@ def backup_hip_object(
                             flat_dict[f"host_info_{field}_value"] = field_val["is_not"]
                         elif "contains" in field_val:
                             flat_dict[f"host_info_{field}"] = "contains"
-                            flat_dict[f"host_info_{field}_value"] = field_val[
-                                "contains"
-                            ]
+                            flat_dict[f"host_info_{field}_value"] = field_val["contains"]
 
                 # Handle managed state
                 if "managed" in criteria:
                     flat_dict["host_info_managed"] = criteria["managed"]
 
             # Flatten network info
-            if hip_dict.get("network_info") and hip_dict["network_info"].get(
-                "criteria"
-            ):
+            if hip_dict.get("network_info") and hip_dict["network_info"].get("criteria"):
                 criteria = hip_dict["network_info"]["criteria"]
                 if criteria.get("network"):
                     network_val = criteria["network"]
                     if "is" in network_val:
                         flat_dict["network_info_type"] = "is"
-                        flat_dict["network_info_value"] = list(
-                            network_val["is"].keys()
-                        )[0]
+                        flat_dict["network_info_value"] = list(network_val["is"].keys())[0]
                     elif "is_not" in network_val:
                         flat_dict["network_info_type"] = "is_not"
-                        flat_dict["network_info_value"] = list(
-                            network_val["is_not"].keys()
-                        )[0]
+                        flat_dict["network_info_value"] = list(network_val["is_not"].keys())[0]
 
             # Handle patch management
             if hip_dict.get("patch_management"):
@@ -3368,23 +3198,17 @@ def backup_hip_object(
                     if "is_installed" in criteria:
                         flat_dict["disk_encryption_enabled"] = criteria["is_installed"]
                     if "encrypted_locations" in criteria:
-                        flat_dict["disk_encryption_locations"] = criteria[
-                            "encrypted_locations"
-                        ]
+                        flat_dict["disk_encryption_locations"] = criteria["encrypted_locations"]
                 if de_data.get("vendor"):
                     flat_dict["disk_encryption_vendors"] = de_data["vendor"]
 
             # Handle mobile device
-            if hip_dict.get("mobile_device") and hip_dict["mobile_device"].get(
-                "criteria"
-            ):
+            if hip_dict.get("mobile_device") and hip_dict["mobile_device"].get("criteria"):
                 criteria = hip_dict["mobile_device"]["criteria"]
                 if "jailbroken" in criteria:
                     flat_dict["mobile_device_jailbroken"] = criteria["jailbroken"]
                 if "disk_encrypted" in criteria:
-                    flat_dict["mobile_device_disk_encrypted"] = criteria[
-                        "disk_encrypted"
-                    ]
+                    flat_dict["mobile_device_disk_encrypted"] = criteria["disk_encrypted"]
                 if "passcode_set" in criteria:
                     flat_dict["mobile_device_passcode_set"] = criteria["passcode_set"]
                 if criteria.get("last_checkin_time"):
@@ -3400,9 +3224,7 @@ def backup_hip_object(
                     if "has_malware" in apps:
                         flat_dict["mobile_device_has_malware"] = apps["has_malware"]
                     if "has_unmanaged_app" in apps:
-                        flat_dict["mobile_device_has_unmanaged_app"] = apps[
-                            "has_unmanaged_app"
-                        ]
+                        flat_dict["mobile_device_has_unmanaged_app"] = apps["has_unmanaged_app"]
                     if "includes" in apps:
                         flat_dict["mobile_device_applications"] = apps["includes"]
 
@@ -3412,9 +3234,7 @@ def backup_hip_object(
                 if "certificate_profile" in criteria:
                     flat_dict["certificate_profile"] = criteria["certificate_profile"]
                 if "certificate_attributes" in criteria:
-                    flat_dict["certificate_attributes"] = criteria[
-                        "certificate_attributes"
-                    ]
+                    flat_dict["certificate_attributes"] = criteria["certificate_attributes"]
 
             backup_data.append(flat_dict)
 
@@ -3423,9 +3243,7 @@ def backup_hip_object(
 
         # Generate filename
         if file is None:
-            file = Path(
-                get_default_backup_filename("hip-object", location_type, location_value)
-            )
+            file = Path(get_default_backup_filename("hip-object", location_type, location_value))
 
         # Write to YAML file
         with file.open("w") as f:
@@ -3478,9 +3296,7 @@ def load_hip_object(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Validate the file exists
         if not file.exists():
@@ -3522,23 +3338,16 @@ def load_hip_object(
 
                 if dry_run:
                     typer.echo(f"\n[{idx}] HIP Object: {hip_obj.name}")
-                    typer.echo(
-                        f"  Container: {getattr(hip_obj, location_type or 'folder')}"
-                    )
+                    typer.echo(f"  Container: {getattr(hip_obj, location_type or 'folder')}")
                     if hip_obj.description:
                         typer.echo(f"  Description: {hip_obj.description}")
-                    results.append(
-                        {"action": "would create/update", "name": hip_obj.name}
-                    )
+                    results.append({"action": "would create/update", "name": hip_obj.name})
                 else:
                     # Convert to SDK model format
                     sdk_data = hip_obj.to_sdk_model()
 
                     # Call the SDK client to create the HIP object
-                    container_params = {
-                        location_type
-                        or "folder": getattr(hip_obj, location_type or "folder")
-                    }
+                    container_params = {location_type or "folder": getattr(hip_obj, location_type or "folder")}
                     result = scm_client.create_hip_object(
                         **container_params,
                         **sdk_data,
@@ -3569,13 +3378,9 @@ def load_hip_object(
 
         # Summary
         if dry_run:
-            typer.echo(
-                f"\n[DRY RUN] Would load {len(hip_objects)} HIP objects from '{file}'"
-            )
+            typer.echo(f"\n[DRY RUN] Would load {len(hip_objects)} HIP objects from '{file}'")
         else:
-            typer.echo(
-                f"\nSuccessfully loaded {loaded_count} out of {len(hip_objects)} HIP objects from '{file}'"
-            )
+            typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(hip_objects)} HIP objects from '{file}'")
 
         return results
     except Exception as e:
@@ -3589,39 +3394,23 @@ def set_hip_object(
     name: str = NAME_OPTION,
     description: str = typer.Option("", help="Description of the HIP object"),
     # Host info options
-    host_info_domain: str = typer.Option(
-        None, help="Domain criteria (is, is_not, contains)"
-    ),
+    host_info_domain: str = typer.Option(None, help="Domain criteria (is, is_not, contains)"),
     host_info_domain_value: str = typer.Option(None, help="Domain value to match"),
-    host_info_os: str = typer.Option(
-        None, help="OS vendor (Microsoft, Apple, Google, Linux, Other)"
-    ),
-    host_info_os_value: str = typer.Option(
-        None, help="OS value (All or specific version)"
-    ),
+    host_info_os: str = typer.Option(None, help="OS vendor (Microsoft, Apple, Google, Linux, Other)"),
+    host_info_os_value: str = typer.Option(None, help="OS value (All or specific version)"),
     host_info_managed: bool = typer.Option(None, help="Managed state criteria"),
     # Network info options
     network_info_type: str = typer.Option(None, help="Network type (is, is_not)"),
-    network_info_value: str = typer.Option(
-        None, help="Network value (wifi, mobile, ethernet, unknown)"
-    ),
+    network_info_value: str = typer.Option(None, help="Network value (wifi, mobile, ethernet, unknown)"),
     # Patch management options
-    patch_management_enabled: bool = typer.Option(
-        None, help="Whether patch management is enabled"
-    ),
-    patch_management_missing_patches: str = typer.Option(
-        None, help="Missing patches check (has-any, has-none, has-all)"
-    ),
+    patch_management_enabled: bool = typer.Option(None, help="Whether patch management is enabled"),
+    patch_management_missing_patches: str = typer.Option(None, help="Missing patches check (has-any, has-none, has-all)"),
     patch_management_severity: int = typer.Option(None, help="Patch severity level"),
     # Disk encryption options
-    disk_encryption_enabled: bool = typer.Option(
-        None, help="Whether disk encryption is enabled"
-    ),
+    disk_encryption_enabled: bool = typer.Option(None, help="Whether disk encryption is enabled"),
     # Mobile device options
     mobile_device_jailbroken: bool = typer.Option(None, help="Jailbroken status"),
-    mobile_device_disk_encrypted: bool = typer.Option(
-        None, help="Disk encryption status"
-    ),
+    mobile_device_disk_encrypted: bool = typer.Option(None, help="Disk encryption status"),
     mobile_device_passcode_set: bool = typer.Option(None, help="Passcode status"),
     # Certificate options
     certificate_profile: str = typer.Option(None, help="Certificate profile name"),
@@ -3686,9 +3475,7 @@ def set_hip_object(
         if patch_management_enabled is not None:
             hip_data["patch_management_enabled"] = patch_management_enabled
         if patch_management_missing_patches:
-            hip_data["patch_management_missing_patches"] = (
-                patch_management_missing_patches
-            )
+            hip_data["patch_management_missing_patches"] = patch_management_missing_patches
         if patch_management_severity is not None:
             hip_data["patch_management_severity"] = patch_management_severity
 
@@ -3798,9 +3585,7 @@ def show_hip_object(
                     if criteria.get(field):
                         field_val = criteria[field]
                         for key, value in field_val.items():
-                            typer.echo(
-                                f"  {field.replace('_', ' ').title()} {key}: {value}"
-                            )
+                            typer.echo(f"  {field.replace('_', ' ').title()} {key}: {value}")
 
             # Display network info criteria
             if hip_obj.get("network_info") and hip_obj["network_info"].get("criteria"):
@@ -3826,15 +3611,11 @@ def show_hip_object(
                         if "severity" in mp:
                             typer.echo(f"  Severity Threshold: {mp['severity']}")
                         if "patches" in mp:
-                            typer.echo(
-                                f"  Specific Patches: {', '.join(mp['patches'])}"
-                            )
+                            typer.echo(f"  Specific Patches: {', '.join(mp['patches'])}")
                 if pm_data.get("vendor"):
                     typer.echo("  Vendors:")
                     for vendor in pm_data["vendor"]:
-                        typer.echo(
-                            f"    - {vendor.get('name', 'N/A')}: {', '.join(vendor.get('product', []))}"
-                        )
+                        typer.echo(f"    - {vendor.get('name', 'N/A')}: {', '.join(vendor.get('product', []))}")
 
             # Display disk encryption criteria
             if hip_obj.get("disk_encryption"):
@@ -3857,14 +3638,10 @@ def show_hip_object(
                 if de_data.get("vendor"):
                     typer.echo("  Vendors:")
                     for vendor in de_data["vendor"]:
-                        typer.echo(
-                            f"    - {vendor.get('name', 'N/A')}: {', '.join(vendor.get('product', []))}"
-                        )
+                        typer.echo(f"    - {vendor.get('name', 'N/A')}: {', '.join(vendor.get('product', []))}")
 
             # Display mobile device criteria
-            if hip_obj.get("mobile_device") and hip_obj["mobile_device"].get(
-                "criteria"
-            ):
+            if hip_obj.get("mobile_device") and hip_obj["mobile_device"].get("criteria"):
                 typer.echo("\nMobile Device Criteria:")
                 criteria = hip_obj["mobile_device"]["criteria"]
 
@@ -3901,16 +3678,12 @@ def show_hip_object(
                 criteria = hip_obj["certificate"]["criteria"]
 
                 if criteria.get("certificate_profile"):
-                    typer.echo(
-                        f"  Certificate Profile: {criteria['certificate_profile']}"
-                    )
+                    typer.echo(f"  Certificate Profile: {criteria['certificate_profile']}")
 
                 if criteria.get("certificate_attributes"):
                     typer.echo("  Certificate Attributes:")
                     for attr in criteria["certificate_attributes"]:
-                        typer.echo(
-                            f"    - {attr.get('name', 'N/A')}: {attr.get('value', 'N/A')}"
-                        )
+                        typer.echo(f"    - {attr.get('name', 'N/A')}: {attr.get('value', 'N/A')}")
 
             # Display ID if present
             if hip_obj.get("id"):
@@ -3997,9 +3770,7 @@ def backup_hip_profile(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Get all HIP profiles from the location
         typer.echo(f"Fetching HIP profiles from {location_type} '{location_value}'...")
@@ -4031,17 +3802,13 @@ def backup_hip_profile(
         backup_data["hip_profiles"].sort(key=lambda x: x["name"])
 
         # Determine output file name
-        filename = file or get_default_backup_filename(
-            "hip-profile", location_type, location_value
-        )
+        filename = file or get_default_backup_filename("hip-profile", location_type, location_value)
 
         # Write to YAML file
         with open(filename, "w") as f:
             yaml.dump(backup_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(hip_profiles)} HIP profiles to {filename}"
-        )
+        typer.echo(f"Successfully backed up {len(hip_profiles)} HIP profiles to {filename}")
 
     except Exception as e:
         typer.echo(f"Error backing up HIP profiles: {str(e)}", err=True)
@@ -4050,9 +3817,7 @@ def backup_hip_profile(
 
 @delete_app.command("hip-profile")
 def delete_hip_profile(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder containing the HIP profile"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder containing the HIP profile"),
     name: str = typer.Option(..., "--name", help="Name of the HIP profile to delete"),
 ) -> None:
     """Delete a HIP profile from a specific folder."""
@@ -4078,9 +3843,7 @@ def load_hip_profile(
     """Load HIP profiles from a YAML file."""
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Validate the file exists
         if not file.exists():
@@ -4122,24 +3885,17 @@ def load_hip_profile(
 
                 if dry_run:
                     typer.echo(f"\n[{idx}] HIP Profile: {profile.name}")
-                    typer.echo(
-                        f"  Container: {getattr(profile, location_type or 'folder')}"
-                    )
+                    typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
                     typer.echo(f"  Match: {profile.match}")
                     if profile.description:
                         typer.echo(f"  Description: {profile.description}")
-                    results.append(
-                        {"action": "would create/update", "name": profile.name}
-                    )
+                    results.append({"action": "would create/update", "name": profile.name})
                 else:
                     # Convert to SDK model format
                     profile_sdk = profile.to_sdk_model()
 
                     # Call the SDK client to create the HIP profile
-                    container_params = {
-                        location_type
-                        or "folder": getattr(profile, location_type or "folder")
-                    }
+                    container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
                     scm_client.create_hip_profile(
                         **container_params,
                         name=profile_sdk["name"],
@@ -4171,13 +3927,9 @@ def load_hip_profile(
 
         # Summary
         if dry_run:
-            typer.echo(
-                f"\n[DRY RUN] Would load {len(hip_profiles)} HIP profiles from '{file}'"
-            )
+            typer.echo(f"\n[DRY RUN] Would load {len(hip_profiles)} HIP profiles from '{file}'")
         else:
-            typer.echo(
-                f"\nSuccessfully loaded {loaded_count} out of {len(hip_profiles)} HIP profiles from '{file}'"
-            )
+            typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(hip_profiles)} HIP profiles from '{file}'")
 
         return results
     except Exception as e:
@@ -4189,12 +3941,8 @@ def load_hip_profile(
 def set_hip_profile(
     folder: str = typer.Option(..., "--folder", help="Folder path for the HIP profile"),
     name: str = typer.Option(..., "--name", help="Name of the HIP profile"),
-    match: str = typer.Option(
-        ..., "--match", help="Match criteria for the HIP profile"
-    ),
-    description: str = typer.Option(
-        None, "--description", help="Description of the HIP profile"
-    ),
+    match: str = typer.Option(..., "--match", help="Match criteria for the HIP profile"),
+    description: str = typer.Option(None, "--description", help="Description of the HIP profile"),
 ):
     """Create or update a HIP profile."""
     try:
@@ -4218,9 +3966,7 @@ def set_hip_profile(
         )
 
         # Display result
-        typer.echo(
-            f"Created HIP profile: {result['name']} in folder {result['folder']}"
-        )
+        typer.echo(f"Created HIP profile: {result['name']} in folder {result['folder']}")
         return result
 
     except Exception as e:
@@ -4231,9 +3977,7 @@ def set_hip_profile(
 @show_app.command("hip-profile")
 def show_hip_profile(
     folder: str = typer.Option(..., "--folder", help="Folder path for the HIP profile"),
-    name: str = typer.Option(
-        None, "--name", help="Name of specific HIP profile to show"
-    ),
+    name: str = typer.Option(None, "--name", help="Name of specific HIP profile to show"),
 ) -> dict[str, Any] | None:
     """Show HIP profile details or list all HIP profiles in a folder.
 
@@ -4316,23 +4060,15 @@ def backup_http_server_profile(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Get all HTTP server profiles from the location
-        typer.echo(
-            f"Fetching HTTP server profiles from {location_type} '{location_value}'..."
-        )
+        typer.echo(f"Fetching HTTP server profiles from {location_type} '{location_value}'...")
         kwargs = {location_type: location_value}
-        http_server_profiles = scm_client.list_http_server_profiles(
-            **kwargs, exact_match=True
-        )
+        http_server_profiles = scm_client.list_http_server_profiles(**kwargs, exact_match=True)
 
         if not http_server_profiles:
-            typer.echo(
-                f"No HTTP server profiles found in {location_type} '{location_value}'"
-            )
+            typer.echo(f"No HTTP server profiles found in {location_type} '{location_value}'")
             return
 
         # Prepare the data for YAML export
@@ -4343,9 +4079,7 @@ def backup_http_server_profile(
             profile_data = {
                 "name": profile["name"],
                 "folder": profile["folder"],
-                "servers": profile[
-                    "server"
-                ],  # Note: API uses 'server' but we'll use 'servers' in YAML
+                "servers": profile["server"],  # Note: API uses 'server' but we'll use 'servers' in YAML
             }
 
             # Add optional fields if present
@@ -4364,17 +4098,13 @@ def backup_http_server_profile(
         backup_data["http_server_profiles"].sort(key=lambda x: x["name"])
 
         # Determine output file name
-        filename = file or get_default_backup_filename(
-            "http-server-profile", location_type, location_value
-        )
+        filename = file or get_default_backup_filename("http-server-profile", location_type, location_value)
 
         # Write to YAML file
         with open(filename, "w") as f:
             yaml.dump(backup_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(http_server_profiles)} HTTP server profiles to {filename}"
-        )
+        typer.echo(f"Successfully backed up {len(http_server_profiles)} HTTP server profiles to {filename}")
 
     except Exception as e:
         typer.echo(f"Error backing up HTTP server profiles: {str(e)}", err=True)
@@ -4383,12 +4113,8 @@ def backup_http_server_profile(
 
 @delete_app.command("http-server-profile")
 def delete_http_server_profile(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder containing the HTTP server profile"
-    ),
-    name: str = typer.Option(
-        ..., "--name", help="Name of the HTTP server profile to delete"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder containing the HTTP server profile"),
+    name: str = typer.Option(..., "--name", help="Name of the HTTP server profile to delete"),
 ) -> None:
     """Delete an HTTP server profile from a specific folder."""
     try:
@@ -4402,9 +4128,7 @@ def delete_http_server_profile(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command(
-    "http-server-profile", help="Load HTTP server profiles from a YAML file."
-)
+@load_app.command("http-server-profile", help="Load HTTP server profiles from a YAML file.")
 def load_http_server_profile(
     file: Path = HTTP_SERVER_PROFILE_FILE_OPTION,
     folder: str = LOAD_FOLDER_OPTION,
@@ -4415,9 +4139,7 @@ def load_http_server_profile(
     """Load HTTP server profiles from a YAML file."""
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Validate the file exists
         if not file.exists():
@@ -4459,9 +4181,7 @@ def load_http_server_profile(
 
                 if dry_run:
                     typer.echo(f"\n[{idx}] HTTP Server Profile: {profile.name}")
-                    typer.echo(
-                        f"  Container: {getattr(profile, location_type or 'folder')}"
-                    )
+                    typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
                     typer.echo(f"  Servers: {len(profile.servers)}")
                     for server_idx, server in enumerate(profile.servers):
                         typer.echo(
@@ -4471,18 +4191,13 @@ def load_http_server_profile(
                         typer.echo(f"  Description: {profile.description}")
                     if profile.tag_registration:
                         typer.echo(f"  Tag Registration: {profile.tag_registration}")
-                    results.append(
-                        {"action": "would create/update", "name": profile.name}
-                    )
+                    results.append({"action": "would create/update", "name": profile.name})
                 else:
                     # Convert to SDK model format
                     profile_sdk = profile.to_sdk_model()
 
                     # Call the SDK client to create the HTTP server profile
-                    container_params = {
-                        location_type
-                        or "folder": getattr(profile, location_type or "folder")
-                    }
+                    container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
                     scm_client.create_http_server_profile(
                         **container_params,
                         **profile_sdk,
@@ -4512,13 +4227,9 @@ def load_http_server_profile(
 
         # Summary
         if dry_run:
-            typer.echo(
-                f"\n[DRY RUN] Would load {len(http_server_profiles)} HTTP server profiles from '{file}'"
-            )
+            typer.echo(f"\n[DRY RUN] Would load {len(http_server_profiles)} HTTP server profiles from '{file}'")
         else:
-            typer.echo(
-                f"\nSuccessfully loaded {loaded_count} out of {len(http_server_profiles)} HTTP server profiles from '{file}'"
-            )
+            typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(http_server_profiles)} HTTP server profiles from '{file}'")
 
         return results
     except Exception as e:
@@ -4528,19 +4239,11 @@ def load_http_server_profile(
 
 @set_app.command("http-server-profile")
 def set_http_server_profile(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder path for the HTTP server profile"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder path for the HTTP server profile"),
     name: str = typer.Option(..., "--name", help="Name of the HTTP server profile"),
-    servers: str = typer.Option(
-        ..., "--servers", help="JSON string of server configurations"
-    ),
-    description: str = typer.Option(
-        None, "--description", help="Description of the HTTP server profile"
-    ),
-    tag_registration: bool = typer.Option(
-        False, "--tag-registration", help="Register tags on match"
-    ),
+    servers: str = typer.Option(..., "--servers", help="JSON string of server configurations"),
+    description: str = typer.Option(None, "--description", help="Description of the HTTP server profile"),
+    tag_registration: bool = typer.Option(False, "--tag-registration", help="Register tags on match"),
 ):
     """Create or update an HTTP server profile.
 
@@ -4581,9 +4284,7 @@ def set_http_server_profile(
         )
 
         # Display result
-        typer.echo(
-            f"Created HTTP server profile: {result['name']} in folder {result['folder']}"
-        )
+        typer.echo(f"Created HTTP server profile: {result['name']} in folder {result['folder']}")
         return result
 
     except ValueError as e:
@@ -4596,15 +4297,9 @@ def set_http_server_profile(
 
 @show_app.command("http-server-profile")
 def show_http_server_profile(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder path for the HTTP server profile"
-    ),
-    name: str = typer.Option(
-        None, "--name", help="Name of specific HTTP server profile to show"
-    ),
-    list: bool = typer.Option(
-        False, "--list", help="List all HTTP server profiles in the folder"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder path for the HTTP server profile"),
+    name: str = typer.Option(None, "--name", help="Name of specific HTTP server profile to show"),
+    list: bool = typer.Option(False, "--list", help="List all HTTP server profiles in the folder"),
 ) -> dict[str, Any] | None:
     """Show HTTP server profile details or list all HTTP server profiles in a folder.
 
@@ -4633,14 +4328,10 @@ def show_http_server_profile(
                 typer.echo(f"Name: {profile['name']}")
                 if profile.get("description"):
                     typer.echo(f"  Description: {profile['description']}")
-                typer.echo(
-                    f"  Tag Registration: {profile.get('tag_registration', False)}"
-                )
+                typer.echo(f"  Tag Registration: {profile.get('tag_registration', False)}")
                 typer.echo(f"  Servers: {len(profile.get('server', []))}")
                 for idx, server in enumerate(profile.get("server", [])):
-                    typer.echo(
-                        f"    Server {idx + 1}: {server.get('name', 'unnamed')} - {server.get('address', 'N/A')}:{server.get('port', 'N/A')} ({server.get('protocol', 'N/A')})"
-                    )
+                    typer.echo(f"    Server {idx + 1}: {server.get('name', 'unnamed')} - {server.get('address', 'N/A')}:{server.get('port', 'N/A')} ({server.get('protocol', 'N/A')})")
                 typer.echo("")
 
             typer.echo(f"Total: {len(http_server_profiles)} HTTP server profiles")
@@ -4648,9 +4339,7 @@ def show_http_server_profile(
 
         elif name:
             # Show specific HTTP server profile
-            http_server_profile = scm_client.get_http_server_profile(
-                folder=folder, name=name
-            )
+            http_server_profile = scm_client.get_http_server_profile(folder=folder, name=name)
 
             typer.echo(f"HTTP Server Profile: {http_server_profile['name']}")
             typer.echo("-" * 80)
@@ -4659,9 +4348,7 @@ def show_http_server_profile(
             if http_server_profile.get("description"):
                 typer.echo(f"Description: {http_server_profile['description']}")
 
-            typer.echo(
-                f"Tag Registration: {http_server_profile.get('tag_registration', False)}"
-            )
+            typer.echo(f"Tag Registration: {http_server_profile.get('tag_registration', False)}")
 
             # Display servers
             typer.echo(f"\nServers ({len(http_server_profile.get('server', []))}):")
@@ -4673,9 +4360,7 @@ def show_http_server_profile(
                 if server.get("protocol") == "HTTPS" and server.get("tls_version"):
                     typer.echo(f"    TLS Version: {server.get('tls_version')}")
                 if server.get("certificate_profile"):
-                    typer.echo(
-                        f"    Certificate Profile: {server.get('certificate_profile')}"
-                    )
+                    typer.echo(f"    Certificate Profile: {server.get('certificate_profile')}")
                 if server.get("http_method"):
                     typer.echo(f"    HTTP Method: {server.get('http_method')}")
                 if server.get("username"):
@@ -4693,13 +4378,9 @@ def show_http_server_profile(
                         if format_config.get("url_format"):
                             typer.echo(f"    URL Format: {format_config['url_format']}")
                         if format_config.get("headers"):
-                            typer.echo(
-                                f"    Headers: {len(format_config['headers'])} configured"
-                            )
+                            typer.echo(f"    Headers: {len(format_config['headers'])} configured")
                         if format_config.get("params"):
-                            typer.echo(
-                                f"    Parameters: {len(format_config['params'])} configured"
-                            )
+                            typer.echo(f"    Parameters: {len(format_config['params'])} configured")
 
             # Display ID if present
             if http_server_profile.get("id"):
@@ -4745,20 +4426,14 @@ def backup_log_forwarding_profile(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all log forwarding profiles in the location (exact match)
         kwargs = {location_type: location_value}
-        log_forwarding_profiles = scm_client.list_log_forwarding_profiles(
-            **kwargs, exact_match=True
-        )
+        log_forwarding_profiles = scm_client.list_log_forwarding_profiles(**kwargs, exact_match=True)
 
         if not log_forwarding_profiles:
-            typer.echo(
-                f"No log forwarding profiles found in {location_type} '{location_value}'"
-            )
+            typer.echo(f"No log forwarding profiles found in {location_type} '{location_value}'")
             return
 
         # Convert profiles to backup format
@@ -4775,9 +4450,7 @@ def backup_log_forwarding_profile(
                 profile_data["description"] = profile["description"]
 
             if profile.get("enhanced_application_logging"):
-                profile_data["enhanced_application_logging"] = profile[
-                    "enhanced_application_logging"
-                ]
+                profile_data["enhanced_application_logging"] = profile["enhanced_application_logging"]
 
             if profile.get("match_list"):
                 profile_data["match_list"] = profile["match_list"]
@@ -4788,17 +4461,13 @@ def backup_log_forwarding_profile(
         yaml_data = {"log_forwarding_profiles": profiles_data}
 
         # Generate output filename if not provided
-        filename = file or get_default_backup_filename(
-            "log-forwarding-profile", location_type, location_value
-        )
+        filename = file or get_default_backup_filename("log-forwarding-profile", location_type, location_value)
 
         # Write to file
         with open(filename, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(profiles_data)} log forwarding profiles to {filename}"
-        )
+        typer.echo(f"Successfully backed up {len(profiles_data)} log forwarding profiles to {filename}")
 
     except Exception as e:
         typer.echo(f"Error backing up log forwarding profiles: {str(e)}", err=True)
@@ -4807,12 +4476,8 @@ def backup_log_forwarding_profile(
 
 @delete_app.command("log-forwarding-profile")
 def delete_log_forwarding_profile(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder path for the log forwarding profile"
-    ),
-    name: str = typer.Option(
-        ..., "--name", help="Name of the log forwarding profile to delete"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
+    name: str = typer.Option(..., "--name", help="Name of the log forwarding profile to delete"),
 ) -> None:
     """Delete a log forwarding profile."""
     try:
@@ -4832,9 +4497,7 @@ def delete_log_forwarding_profile(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command(
-    "log-forwarding-profile", help="Load log forwarding profiles from a YAML file."
-)
+@load_app.command("log-forwarding-profile", help="Load log forwarding profiles from a YAML file.")
 def load_log_forwarding_profile(
     file: Path = FILE_OPTION,
     folder: str = LOAD_FOLDER_OPTION,
@@ -4845,9 +4508,7 @@ def load_log_forwarding_profile(
     """Load log forwarding profiles from a YAML file."""
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Validate the file exists
         if not file.exists():
@@ -4889,36 +4550,24 @@ def load_log_forwarding_profile(
 
                 if dry_run:
                     typer.echo(f"\n[{idx}] Log Forwarding Profile: {profile.name}")
-                    typer.echo(
-                        f"  Container: {getattr(profile, location_type or 'folder')}"
-                    )
+                    typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
                     if profile.description:
                         typer.echo(f"  Description: {profile.description}")
                     if profile.enhanced_application_logging:
-                        typer.echo(
-                            f"  Enhanced Application Logging: {profile.enhanced_application_logging}"
-                        )
+                        typer.echo(f"  Enhanced Application Logging: {profile.enhanced_application_logging}")
                     if profile.match_list:
                         typer.echo(f"  Match List: {len(profile.match_list)} entries")
                         for match_idx, match in enumerate(profile.match_list):
-                            typer.echo(
-                                f"    Match {match_idx + 1}: {match.get('name', 'unnamed')} - {match.get('log_type', 'N/A')}"
-                            )
-                    results.append(
-                        {"action": "would create/update", "name": profile.name}
-                    )
+                            typer.echo(f"    Match {match_idx + 1}: {match.get('name', 'unnamed')} - {match.get('log_type', 'N/A')}")
+                    results.append({"action": "would create/update", "name": profile.name})
                 else:
                     # Create the log forwarding profile
-                    container_params = {
-                        location_type
-                        or "folder": getattr(profile, location_type or "folder")
-                    }
+                    container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
                     result = scm_client.create_log_forwarding_profile(
                         **container_params,
                         name=profile.name,
                         description=profile.description,
-                        enhanced_application_logging=profile.enhanced_application_logging
-                        or False,
+                        enhanced_application_logging=profile.enhanced_application_logging or False,
                         match_list=profile.match_list,
                     )
 
@@ -4947,13 +4596,9 @@ def load_log_forwarding_profile(
 
         # Summary
         if dry_run:
-            typer.echo(
-                f"\n[DRY RUN] Would load {len(log_forwarding_profiles)} log forwarding profiles from '{file}'"
-            )
+            typer.echo(f"\n[DRY RUN] Would load {len(log_forwarding_profiles)} log forwarding profiles from '{file}'")
         else:
-            typer.echo(
-                f"\nSuccessfully loaded {loaded_count} out of {len(log_forwarding_profiles)} log forwarding profiles from '{file}'"
-            )
+            typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(log_forwarding_profiles)} log forwarding profiles from '{file}'")
 
         return results
     except Exception as e:
@@ -4963,16 +4608,10 @@ def load_log_forwarding_profile(
 
 @set_app.command("log-forwarding-profile")
 def set_log_forwarding_profile(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder path for the log forwarding profile"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
     name: str = typer.Option(..., "--name", help="Name of the log forwarding profile"),
-    match_list: str = typer.Option(
-        None, "--match-list", help="Match list configuration as JSON string"
-    ),
-    description: str = typer.Option(
-        None, "--description", help="Description of the log forwarding profile"
-    ),
+    match_list: str = typer.Option(None, "--match-list", help="Match list configuration as JSON string"),
+    description: str = typer.Option(None, "--description", help="Description of the log forwarding profile"),
     enhanced_application_logging: bool = typer.Option(
         False,
         "--enhanced-application-logging",
@@ -5022,32 +4661,22 @@ def set_log_forwarding_profile(
         if result:
             typer.echo(f"Created log forwarding profile: {name} in folder {folder}")
         else:
-            typer.echo(
-                f"Failed to create/update log forwarding profile '{name}'", err=True
-            )
+            typer.echo(f"Failed to create/update log forwarding profile '{name}'", err=True)
             raise typer.Exit(code=1)
 
     except ValueError as e:
         typer.echo(f"Validation error: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
     except Exception as e:
-        typer.echo(
-            f"Error creating/updating log forwarding profile: {str(e)}", err=True
-        )
+        typer.echo(f"Error creating/updating log forwarding profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
 @show_app.command("log-forwarding-profile")
 def show_log_forwarding_profile(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder path for the log forwarding profile"
-    ),
-    name: str = typer.Option(
-        None, "--name", help="Name of specific log forwarding profile to show"
-    ),
-    list: bool = typer.Option(
-        False, "--list", help="List all log forwarding profiles in the folder"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
+    name: str = typer.Option(None, "--name", help="Name of specific log forwarding profile to show"),
+    list: bool = typer.Option(False, "--list", help="List all log forwarding profiles in the folder"),
 ) -> dict[str, Any] | None:
     """Show log forwarding profile details or list all log forwarding profiles in a folder.
 
@@ -5063,9 +4692,7 @@ def show_log_forwarding_profile(
     try:
         if list:
             # List all log forwarding profiles in the folder (default behavior)
-            log_forwarding_profiles = scm_client.list_log_forwarding_profiles(
-                folder=folder
-            )
+            log_forwarding_profiles = scm_client.list_log_forwarding_profiles(folder=folder)
             if not log_forwarding_profiles:
                 typer.echo(f"No log forwarding profiles found in folder '{folder}'")
                 return None
@@ -5078,15 +4705,11 @@ def show_log_forwarding_profile(
                 typer.echo(f"Name: {profile['name']}")
                 if profile.get("description"):
                     typer.echo(f"  Description: {profile['description']}")
-                typer.echo(
-                    f"  Enhanced Application Logging: {profile.get('enhanced_application_logging', False)}"
-                )
+                typer.echo(f"  Enhanced Application Logging: {profile.get('enhanced_application_logging', False)}")
                 match_list = profile.get("match_list", [])
                 typer.echo(f"  Match Rules: {len(match_list)}")
                 for idx, match in enumerate(match_list):
-                    typer.echo(
-                        f"    Rule {idx + 1}: {match.get('name', 'unnamed')} ({match.get('log_type', 'N/A')})"
-                    )
+                    typer.echo(f"    Rule {idx + 1}: {match.get('name', 'unnamed')} ({match.get('log_type', 'N/A')})")
                     actions = []
                     if match.get("send_to_panorama"):
                         actions.append("Panorama")
@@ -5105,9 +4728,7 @@ def show_log_forwarding_profile(
 
         elif name:
             # Show specific log forwarding profile
-            log_forwarding_profile = scm_client.get_log_forwarding_profile(
-                folder=folder, name=name
-            )
+            log_forwarding_profile = scm_client.get_log_forwarding_profile(folder=folder, name=name)
 
             typer.echo(f"Log Forwarding Profile: {log_forwarding_profile['name']}")
             typer.echo("-" * 80)
@@ -5116,9 +4737,7 @@ def show_log_forwarding_profile(
             if log_forwarding_profile.get("description"):
                 typer.echo(f"Description: {log_forwarding_profile['description']}")
 
-            typer.echo(
-                f"Enhanced Application Logging: {log_forwarding_profile.get('enhanced_application_logging', False)}"
-            )
+            typer.echo(f"Enhanced Application Logging: {log_forwarding_profile.get('enhanced_application_logging', False)}")
 
             # Display match list
             match_list = log_forwarding_profile.get("match_list", [])
@@ -5136,9 +4755,7 @@ def show_log_forwarding_profile(
                 if match.get("send_to_panorama"):
                     typer.echo("      - Send to Panorama")
                 if match.get("send_syslog"):
-                    typer.echo(
-                        f"      - Send to Syslog: {', '.join(match['send_syslog'])}"
-                    )
+                    typer.echo(f"      - Send to Syslog: {', '.join(match['send_syslog'])}")
                 if match.get("send_http"):
                     typer.echo(f"      - Send to HTTP: {', '.join(match['send_http'])}")
                 if match.get("quarantine"):
@@ -5185,9 +4802,7 @@ def backup_service(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all services in the location (exact match)
         kwargs = {location_type: location_value}
@@ -5220,17 +4835,13 @@ def backup_service(
         yaml_data = {"services": services_data}
 
         # Generate output filename if not provided
-        filename = file or get_default_backup_filename(
-            "service", location_type, location_value
-        )
+        filename = file or get_default_backup_filename("service", location_type, location_value)
 
         # Write to file
         with file.open() as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(services_data)} services to {filename}"
-        )
+        typer.echo(f"Successfully backed up {len(services_data)} services to {filename}")
 
     except Exception as e:
         typer.echo(f"Error backing up services: {str(e)}", err=True)
@@ -5250,9 +4861,7 @@ def delete_service(
         if success:
             typer.echo(f"Deleted service: {name} from folder {folder}")
         else:
-            typer.echo(
-                f"Failed to delete service '{name}' from folder '{folder}'", err=True
-            )
+            typer.echo(f"Failed to delete service '{name}' from folder '{folder}'", err=True)
             raise typer.Exit(code=1)
     except Exception as e:
         typer.echo(f"Error deleting service: {str(e)}", err=True)
@@ -5270,9 +4879,7 @@ def load_service(
     """Load services from a YAML file."""
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Validate the file exists
         if not file.exists():
@@ -5314,9 +4921,7 @@ def load_service(
 
                 if dry_run:
                     typer.echo(f"\n[{idx}] Service: {service.name}")
-                    typer.echo(
-                        f"  Container: {getattr(service, location_type or 'folder')}"
-                    )
+                    typer.echo(f"  Container: {getattr(service, location_type or 'folder')}")
                     if service.description:
                         typer.echo(f"  Description: {service.description}")
 
@@ -5326,28 +4931,19 @@ def load_service(
                         typer.echo("  Protocol: TCP")
                         typer.echo(f"    Port: {protocol['tcp']['port']}")
                         if "override" in protocol["tcp"]:
-                            typer.echo(
-                                f"    Override settings: {protocol['tcp']['override']}"
-                            )
+                            typer.echo(f"    Override settings: {protocol['tcp']['override']}")
                     elif "udp" in protocol:
                         typer.echo("  Protocol: UDP")
                         typer.echo(f"    Port: {protocol['udp']['port']}")
                         if "override" in protocol["udp"]:
-                            typer.echo(
-                                f"    Override settings: {protocol['udp']['override']}"
-                            )
+                            typer.echo(f"    Override settings: {protocol['udp']['override']}")
 
                     if service.tag:
                         typer.echo(f"  Tags: {', '.join(service.tag)}")
-                    results.append(
-                        {"action": "would create/update", "name": service.name}
-                    )
+                    results.append({"action": "would create/update", "name": service.name})
                 else:
                     # Create the service
-                    container_params = {
-                        location_type
-                        or "folder": getattr(service, location_type or "folder")
-                    }
+                    container_params = {location_type or "folder": getattr(service, location_type or "folder")}
                     result = scm_client.create_service(
                         **container_params,
                         name=service.name,
@@ -5384,9 +4980,7 @@ def load_service(
         if dry_run:
             typer.echo(f"\n[DRY RUN] Would load {len(services)} services from '{file}'")
         else:
-            typer.echo(
-                f"\nSuccessfully loaded {loaded_count} out of {len(services)} services from '{file}'"
-            )
+            typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(services)} services from '{file}'")
 
         return results
     except Exception as e:
@@ -5404,13 +4998,9 @@ def set_service(
         "--port",
         help="Port number, range (e.g., 80-443), or comma-separated list (e.g., 80,443,8080)",
     ),
-    description: str = typer.Option(
-        None, "--description", help="Description of the service"
-    ),
+    description: str = typer.Option(None, "--description", help="Description of the service"),
     tag: str = typer.Option(None, "--tag", help="Comma-separated list of tags"),
-    timeout: int = typer.Option(
-        None, "--timeout", help="Timeout override in seconds (TCP only)"
-    ),
+    timeout: int = typer.Option(None, "--timeout", help="Timeout override in seconds (TCP only)"),
     halfclose_timeout: int = typer.Option(
         None,
         "--halfclose-timeout",
@@ -5428,9 +5018,7 @@ def set_service(
         protocol_config = {protocol.lower(): {"port": port}}
 
         # Add override settings if provided (TCP only)
-        if protocol.lower() == "tcp" and any(
-            [timeout, halfclose_timeout, timewait_timeout]
-        ):
+        if protocol.lower() == "tcp" and any([timeout, halfclose_timeout, timewait_timeout]):
             override = {}
             if timeout is not None:
                 override["timeout"] = timeout
@@ -5527,13 +5115,9 @@ def show_service(
                         if "timeout" in override:
                             override_parts.append(f"timeout={override['timeout']}s")
                         if "halfclose_timeout" in override:
-                            override_parts.append(
-                                f"halfclose={override['halfclose_timeout']}s"
-                            )
+                            override_parts.append(f"halfclose={override['halfclose_timeout']}s")
                         if "timewait_timeout" in override:
-                            override_parts.append(
-                                f"timewait={override['timewait_timeout']}s"
-                            )
+                            override_parts.append(f"timewait={override['timewait_timeout']}s")
                         if override_parts:
                             typer.echo(f"    Overrides: {', '.join(override_parts)}")
                 elif "udp" in protocol:
@@ -5573,13 +5157,9 @@ def show_service(
                     if "timeout" in override:
                         typer.echo(f"    Timeout: {override['timeout']} seconds")
                     if "halfclose_timeout" in override:
-                        typer.echo(
-                            f"    Half-close Timeout: {override['halfclose_timeout']} seconds"
-                        )
+                        typer.echo(f"    Half-close Timeout: {override['halfclose_timeout']} seconds")
                     if "timewait_timeout" in override:
-                        typer.echo(
-                            f"    Time-wait Timeout: {override['timewait_timeout']} seconds"
-                        )
+                        typer.echo(f"    Time-wait Timeout: {override['timewait_timeout']} seconds")
             elif "udp" in protocol:
                 typer.echo("\nProtocol: UDP")
                 typer.echo(f"  Port: {protocol['udp']['port']}")
@@ -5632,9 +5212,7 @@ def backup_service_group(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all service groups in the location (exact match)
         kwargs = {location_type: location_value}
@@ -5664,17 +5242,13 @@ def backup_service_group(
         yaml_data = {"service_groups": groups_data}
 
         # Generate output filename if not provided
-        filename = file or get_default_backup_filename(
-            "service-group", location_type, location_value
-        )
+        filename = file or get_default_backup_filename("service-group", location_type, location_value)
 
         # Write to file
         with open(filename, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(groups_data)} service groups to {filename}"
-        )
+        typer.echo(f"Successfully backed up {len(groups_data)} service groups to {filename}")
 
     except Exception as e:
         typer.echo(f"Error backing up service groups: {str(e)}", err=True)
@@ -5683,9 +5257,7 @@ def backup_service_group(
 
 @delete_app.command("service-group")
 def delete_service_group(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder path for the service group"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
     name: str = typer.Option(..., "--name", help="Name of the service group to delete"),
 ) -> None:
     """Delete a service group."""
@@ -5717,9 +5289,7 @@ def load_service_group(
     """Load service groups from a YAML file."""
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Validate the file exists
         if not file.exists():
@@ -5761,23 +5331,14 @@ def load_service_group(
 
                 if dry_run:
                     typer.echo(f"\n[{idx}] Service Group: {service_group.name}")
-                    typer.echo(
-                        f"  Container: {getattr(service_group, location_type or 'folder')}"
-                    )
-                    typer.echo(
-                        f"  Members ({len(service_group.members)}): {', '.join(service_group.members)}"
-                    )
+                    typer.echo(f"  Container: {getattr(service_group, location_type or 'folder')}")
+                    typer.echo(f"  Members ({len(service_group.members)}): {', '.join(service_group.members)}")
                     if service_group.tag:
                         typer.echo(f"  Tags: {', '.join(service_group.tag)}")
-                    results.append(
-                        {"action": "would create/update", "name": service_group.name}
-                    )
+                    results.append({"action": "would create/update", "name": service_group.name})
                 else:
                     # Create the service group
-                    container_params = {
-                        location_type
-                        or "folder": getattr(service_group, location_type or "folder")
-                    }
+                    container_params = {location_type or "folder": getattr(service_group, location_type or "folder")}
                     result = scm_client.create_service_group(
                         **container_params,
                         name=service_group.name,
@@ -5811,13 +5372,9 @@ def load_service_group(
 
         # Summary
         if dry_run:
-            typer.echo(
-                f"\n[DRY RUN] Would load {len(service_groups)} service groups from '{file}'"
-            )
+            typer.echo(f"\n[DRY RUN] Would load {len(service_groups)} service groups from '{file}'")
         else:
-            typer.echo(
-                f"\nSuccessfully loaded {loaded_count} out of {len(service_groups)} service groups from '{file}'"
-            )
+            typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(service_groups)} service groups from '{file}'")
 
         return results
     except Exception as e:
@@ -5827,13 +5384,9 @@ def load_service_group(
 
 @set_app.command("service-group")
 def set_service_group(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder path for the service group"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
     name: str = typer.Option(..., "--name", help="Name of the service group"),
-    members: str = typer.Option(
-        ..., "--members", help="Comma-separated list of service or service group names"
-    ),
+    members: str = typer.Option(..., "--members", help="Comma-separated list of service or service group names"),
     tag: str = typer.Option(None, "--tag", help="Comma-separated list of tags"),
 ) -> None:
     """Create or update a service group."""
@@ -5885,15 +5438,9 @@ def set_service_group(
 
 @show_app.command("service-group")
 def show_service_group(
-    folder: str = typer.Option(
-        ..., "--folder", help="Folder path for the service group"
-    ),
-    name: str = typer.Option(
-        None, "--name", help="Name of specific service group to show"
-    ),
-    list: bool = typer.Option(
-        False, "--list", help="List all service groups in the folder"
-    ),
+    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
+    name: str = typer.Option(None, "--name", help="Name of specific service group to show"),
+    list: bool = typer.Option(False, "--list", help="List all service groups in the folder"),
 ) -> dict[str, Any] | None:
     """Show service group details or list all service groups in a folder.
 
@@ -5920,9 +5467,7 @@ def show_service_group(
             # Display in table format
             for group in service_groups:
                 typer.echo(f"Name: {group['name']}")
-                typer.echo(
-                    f"  Members ({len(group.get('members', []))}): {', '.join(group.get('members', []))}"
-                )
+                typer.echo(f"  Members ({len(group.get('members', []))}): {', '.join(group.get('members', []))}")
                 if group.get("tag"):
                     typer.echo(f"  Tags: {', '.join(group['tag'])}")
                 typer.echo("")
@@ -5968,9 +5513,7 @@ def show_service_group(
 # ========================================================================================================================================================================================
 
 
-@backup_app.command(
-    "syslog-server-profile", help="Export syslog server profiles to a YAML file."
-)
+@backup_app.command("syslog-server-profile", help="Export syslog server profiles to a YAML file.")
 def backup_syslog_server_profile(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
@@ -5990,14 +5533,10 @@ def backup_syslog_server_profile(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all syslog server profiles based on location type
-        typer.echo(
-            f"Retrieving syslog server profiles from {location_type} '{location_value}'..."
-        )
+        typer.echo(f"Retrieving syslog server profiles from {location_type} '{location_value}'...")
 
         # Build kwargs based on location type
         kwargs = {location_type: location_value}
@@ -6014,18 +5553,14 @@ def backup_syslog_server_profile(
         export_data = {"syslog_server_profiles": profiles}
 
         # Generate filename if not provided
-        filename = file or get_default_backup_filename(
-            "syslog-server-profile", location_type, location_value
-        )
+        filename = file or get_default_backup_filename("syslog-server-profile", location_type, location_value)
 
         # Write to file
         Path(filename).parent.mkdir(parents=True, exist_ok=True)
         with file.open() as f:
             yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(profiles)} syslog server profiles to {filename}"
-        )
+        typer.echo(f"Successfully backed up {len(profiles)} syslog server profiles to {filename}")
 
     except Exception as e:
         typer.echo(f"Error backing up syslog server profiles: {str(e)}", err=True)
@@ -6062,9 +5597,7 @@ def delete_syslog_server_profile(
 
         # Confirm deletion
         if not force:
-            confirm = typer.confirm(
-                f"Are you sure you want to delete syslog server profile '{name}'?"
-            )
+            confirm = typer.confirm(f"Are you sure you want to delete syslog server profile '{name}'?")
             if not confirm:
                 typer.echo("Deletion cancelled")
                 raise typer.Exit(code=0)
@@ -6085,9 +5618,7 @@ def delete_syslog_server_profile(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command(
-    "syslog-server-profile", help="Load syslog server profiles from a YAML file."
-)
+@load_app.command("syslog-server-profile", help="Load syslog server profiles from a YAML file.")
 def load_syslog_server_profile(
     file: Path = FILE_OPTION,
     folder: str = LOAD_FOLDER_OPTION,
@@ -6098,9 +5629,7 @@ def load_syslog_server_profile(
     """Load syslog server profiles from a YAML file."""
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # Validate the file exists
         if not file.exists():
@@ -6142,9 +5671,7 @@ def load_syslog_server_profile(
 
                 if dry_run:
                     typer.echo(f"\n[{idx}] Syslog Server Profile: {profile.name}")
-                    typer.echo(
-                        f"  Container: {getattr(profile, location_type or 'folder')}"
-                    )
+                    typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
                     if profile.description:
                         typer.echo(f"  Description: {profile.description}")
                     if profile.server:
@@ -6155,9 +5682,7 @@ def load_syslog_server_profile(
                             )
                     if profile.tag:
                         typer.echo(f"  Tags: {', '.join(profile.tag)}")
-                    results.append(
-                        {"action": "would create/update", "name": profile.name}
-                    )
+                    results.append({"action": "would create/update", "name": profile.name})
                 else:
                     # Convert to SDK format
                     sdk_data = profile.to_sdk_model()
@@ -6191,13 +5716,9 @@ def load_syslog_server_profile(
 
         # Summary
         if dry_run:
-            typer.echo(
-                f"\n[DRY RUN] Would load {len(syslog_server_profiles)} syslog server profiles from '{file}'"
-            )
+            typer.echo(f"\n[DRY RUN] Would load {len(syslog_server_profiles)} syslog server profiles from '{file}'")
         else:
-            typer.echo(
-                f"\nSuccessfully loaded {loaded_count} out of {len(syslog_server_profiles)} syslog server profiles from '{file}'"
-            )
+            typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(syslog_server_profiles)} syslog server profiles from '{file}'")
 
         return results
     except Exception as e:
@@ -6205,25 +5726,15 @@ def load_syslog_server_profile(
         raise typer.Exit(code=1) from e
 
 
-@set_app.command(
-    "syslog-server-profile", help="Create or update a syslog server profile."
-)
+@set_app.command("syslog-server-profile", help="Create or update a syslog server profile.")
 def set_syslog_server_profile(
     name: str = typer.Argument(..., help="Name of the syslog server profile"),
-    server_name: str = typer.Option(
-        ..., "--server-name", help="Name of the syslog server"
-    ),
-    server_address: str = typer.Option(
-        ..., "--server-address", help="IP address or hostname of syslog server"
-    ),
-    transport: str = typer.Option(
-        ..., "--transport", help="Transport protocol (UDP, TCP, SSL)"
-    ),
+    server_name: str = typer.Option(..., "--server-name", help="Name of the syslog server"),
+    server_address: str = typer.Option(..., "--server-address", help="IP address or hostname of syslog server"),
+    transport: str = typer.Option(..., "--transport", help="Transport protocol (UDP, TCP, SSL)"),
     port: int = typer.Option(..., "--port", help="Port number (1-65535)"),
     format: str = typer.Option(..., "--format", help="Log format (BSD, IETF)"),
-    facility: str = typer.Option(
-        ..., "--facility", help="Syslog facility (LOG_USER, LOG_LOCAL0-7)"
-    ),
+    facility: str = typer.Option(..., "--facility", help="Syslog facility (LOG_USER, LOG_LOCAL0-7)"),
     description: str = DESCRIPTION_OPTION,
     folder: str = FOLDER_OPTION,
     snippet: str = SNIPPET_OPTION,
@@ -6280,17 +5791,13 @@ def set_syslog_server_profile(
         typer.echo(f"Created syslog server profile: {name} in {container}")
 
     except Exception as e:
-        typer.echo(
-            f"❌ Error creating/updating syslog server profile: {str(e)}", err=True
-        )
+        typer.echo(f"❌ Error creating/updating syslog server profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
 @show_app.command("syslog-server-profile", help="Show syslog server profile details.")
 def show_syslog_server_profile(
-    name: str = typer.Option(
-        None, "--name", help="Name of specific syslog server profile to show"
-    ),
+    name: str = typer.Option(None, "--name", help="Name of specific syslog server profile to show"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
@@ -6330,11 +5837,7 @@ def show_syslog_server_profile(
             typer.echo(f"\nSyslog Server Profile: {profile['name']}")
             typer.echo("=" * 50)
 
-            location = (
-                profile.get("folder")
-                or profile.get("snippet")
-                or profile.get("device", "N/A")
-            )
+            location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
             typer.echo(f"Location: {location}")
 
             if profile.get("description"):
@@ -6383,11 +5886,7 @@ def show_syslog_server_profile(
             typer.echo("-" * 100)
 
             for profile in profiles:
-                location = (
-                    profile.get("folder")
-                    or profile.get("snippet")
-                    or profile.get("device", "N/A")
-                )
+                location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
                 servers = profile.get("server", [])
                 server_count = len(servers)
 
@@ -6399,9 +5898,7 @@ def show_syslog_server_profile(
 
                 # Show server details
                 for server in servers:
-                    typer.echo(
-                        f"  - {server['name']}: {server['server']}:{server['port']} ({server['transport']}) - {server['format']}/{server['facility']}"
-                    )
+                    typer.echo(f"  - {server['name']}: {server['server']}:{server['port']} ({server['transport']}) - {server['format']}/{server['facility']}")
 
                 if profile.get("tag"):
                     typer.echo(f"Tags: {', '.join(profile['tag'])}")
@@ -6438,9 +5935,7 @@ def backup_tag(
     """
     try:
         # Validate location parameters
-        location_type, location_value = validate_location_params(
-            folder, snippet, device
-        )
+        location_type, location_value = validate_location_params(folder, snippet, device)
 
         # List all tags based on location type
         typer.echo(f"Retrieving tags from {location_type} '{location_value}'...")
@@ -6457,9 +5952,7 @@ def backup_tag(
         export_data = {"tags": tags}
 
         # Generate filename if not provided
-        filename = file or get_default_backup_filename(
-            "tag", location_type, location_value
-        )
+        filename = file or get_default_backup_filename("tag", location_type, location_value)
 
         # Write to file
         Path(filename).parent.mkdir(parents=True, exist_ok=True)
@@ -6577,11 +6070,7 @@ def load_tag(
 
                 created_count += 1
 
-                container = (
-                    validated_tag.folder
-                    or validated_tag.snippet
-                    or validated_tag.device
-                )
+                container = validated_tag.folder or validated_tag.snippet or validated_tag.device
                 typer.echo(f"Created tag: {validated_tag.name} in {container}")
 
             except Exception as e:
@@ -6598,9 +6087,7 @@ def load_tag(
 @set_app.command("tag", help="Create or update a tag.")
 def set_tag(
     name: str = typer.Argument(..., help="Name of the tag"),
-    color: str = typer.Option(
-        None, "--color", help="Color for the tag (e.g., Red, Blue, Green)"
-    ),
+    color: str = typer.Option(None, "--color", help="Color for the tag (e.g., Red, Blue, Green)"),
     comments: str = typer.Option(None, "--comments", help="Comments for the tag"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
@@ -6688,9 +6175,7 @@ def show_tag(
             typer.echo(f"\nTag: {tag['name']}")
             typer.echo("=" * 40)
 
-            location = (
-                tag.get("folder") or tag.get("snippet") or tag.get("device", "N/A")
-            )
+            location = tag.get("folder") or tag.get("snippet") or tag.get("device", "N/A")
             typer.echo(f"Location: {location}")
 
             if tag.get("color"):
@@ -6722,9 +6207,7 @@ def show_tag(
             typer.echo("-" * 80)
 
             for tag in tags:
-                location = (
-                    tag.get("folder") or tag.get("snippet") or tag.get("device", "N/A")
-                )
+                location = tag.get("folder") or tag.get("snippet") or tag.get("device", "N/A")
                 color = tag.get("color", "No color")
 
                 typer.echo(f"\nName: {tag['name']}")
