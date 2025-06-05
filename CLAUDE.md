@@ -61,10 +61,29 @@ Commands are organized by resource type:
 
 ### Authentication Flow
 
-1. Check environment variables: `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`
-2. Fall back to home config: `~/.scm-cli/config.yaml`
-3. Fall back to local config: `.secrets.yaml` (development only)
-4. If no credentials found, automatically use mock mode
+The CLI uses a context-based authentication system that supports multiple SCM tenants:
+
+1. **Primary**: Active context (set via `scm context use <name>`)
+2. **Override**: Environment variables (`SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`) for CI/CD
+3. **Fallback**: Mock mode if no credentials found
+
+#### Context Management Commands
+
+```bash
+# Create a context
+scm context create production --client-id <id> --client-secret <secret> --tsg-id <tsg>
+
+# Switch contexts
+scm context use production
+
+# Test authentication
+scm context test
+
+# List all contexts
+scm context list
+```
+
+**Note**: Legacy config files (`~/.scm-cli/config.yaml` and `.secrets.yaml`) are no longer supported. Use contexts instead.
 
 ### Adding New Commands
 

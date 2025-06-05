@@ -191,9 +191,7 @@ def validate_location_params(
     location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
 
     if location_count == 0:
-        typer.echo(
-            "Error: One of --folder, --snippet, or --device must be specified", err=True
-        )
+        typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
         raise typer.Exit(code=1)
     elif location_count > 1:
         typer.echo(
@@ -231,9 +229,7 @@ def get_default_backup_filename(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_location = location_value.lower().replace(" ", "-").replace("/", "-")
     if rulebase:
-        return (
-            f"{object_type}_{location_type}_{safe_location}_{rulebase}_{timestamp}.yaml"
-        )
+        return f"{object_type}_{location_type}_{safe_location}_{rulebase}_{timestamp}.yaml"
     return f"{object_type}_{location_type}_{safe_location}_{timestamp}.yaml"
 
 
@@ -271,21 +267,15 @@ def backup_security_rule(
 
     # Set default filename if not provided
     if not file:
-        file = get_default_backup_filename(
-            "security-rules", location_type, location_value, rulebase
-        )
+        file = get_default_backup_filename("security-rules", location_type, location_value, rulebase)
 
     try:
         # List all security rules with exact_match=True using kwargs pattern
         kwargs = {location_type: location_value}
-        rules = scm_client.list_security_rules(
-            **kwargs, rulebase=rulebase, exact_match=True
-        )
+        rules = scm_client.list_security_rules(**kwargs, rulebase=rulebase, exact_match=True)
 
         if not rules:
-            typer.echo(
-                f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'"
-            )
+            typer.echo(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -325,9 +315,7 @@ def backup_security_rule(
         with open(file, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} security rules to {file}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} security rules to {file}")
         return file
 
     except NotImplementedError as e:
@@ -340,15 +328,9 @@ def backup_security_rule(
 
 @delete_app.command("rule")
 def delete_security_rule(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder containing the security rule"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet containing the security rule"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device containing the security rule"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder containing the security rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the security rule"),
+    device: str = typer.Option(None, "--device", help="Device containing the security rule"),
     name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
 ):
@@ -377,13 +359,9 @@ def delete_security_rule(
             )
             raise typer.Exit(code=1)
 
-        result = scm_client.delete_security_rule(
-            folder=location_value, name=name, rulebase=rulebase
-        )
+        result = scm_client.delete_security_rule(folder=location_value, name=name, rulebase=rulebase)
         if result:
-            typer.echo(
-                f"Deleted security rule: {name} from {location_type} {location_value} rulebase {rulebase}"
-            )
+            typer.echo(f"Deleted security rule: {name} from {location_type} {location_value} rulebase {rulebase}")
         else:
             typer.echo(
                 f"Security rule not found: {name} in {location_type} {location_value}",
@@ -449,9 +427,7 @@ def load_security_rule(
             typer.echo("Dry run mode: would apply the following configurations:")
             # Show override information if applicable
             if folder or snippet or device:
-                override_type = (
-                    "folder" if folder else ("snippet" if snippet else "device")
-                )
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
                 override_value = folder or snippet or device
                 typer.echo(f"Container override: {override_type} = '{override_value}'")
             typer.echo(yaml.dump(rules))
@@ -548,15 +524,9 @@ def load_security_rule(
 
 @set_app.command("rule")
 def set_security_rule(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder path for the security rule"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet path for the security rule"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device path for the security rule"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder path for the security rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the security rule"),
+    device: str = typer.Option(None, "--device", help="Device path for the security rule"),
     name: str = NAME_OPTION,
     source_zones: list[str] = SOURCE_ZONES_OPTION,
     destination_zones: list[str] = DESTINATION_ZONES_OPTION,
@@ -658,9 +628,7 @@ def set_security_rule(
         )
 
         # Format and display output
-        typer.echo(
-            f"Created security rule: {result['name']} in {location_type} {location_value}"
-        )
+        typer.echo(f"Created security rule: {result['name']} in {location_type} {location_value}")
 
     except Exception as e:
         typer.echo(f"Error creating security rule: {str(e)}", err=True)
@@ -669,19 +637,11 @@ def set_security_rule(
 
 @show_app.command("rule")
 def show_security_rule(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder containing the security rule"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet containing the security rule"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device containing the security rule"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder containing the security rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the security rule"),
+    device: str = typer.Option(None, "--device", help="Device containing the security rule"),
     rulebase: str = RULEBASE_OPTION,
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the security rule to show"
-    ),
+    name: str | None = typer.Option(None, "--name", help="Name of the security rule to show"),
 ):
     """Display security rules.
 
@@ -715,26 +675,18 @@ def show_security_rule(
                 raise typer.Exit(code=1)
 
             # Get a specific security rule by name
-            rule = scm_client.get_security_rule(
-                folder=location_value, name=name, rulebase=rulebase
-            )
+            rule = scm_client.get_security_rule(folder=location_value, name=name, rulebase=rulebase)
 
             typer.echo(f"\nSecurity Rule: {rule.get('name', 'N/A')}")
             typer.echo("=" * 80)
 
             # Display container location (folder, snippet, or device) and rulebase
             if rule.get("folder"):
-                typer.echo(
-                    f"Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'"
-                )
+                typer.echo(f"Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'")
             elif rule.get("snippet"):
-                typer.echo(
-                    f"Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'"
-                )
+                typer.echo(f"Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'")
             elif rule.get("device"):
-                typer.echo(
-                    f"Location: Device '{rule['device']}' / Rulebase '{rulebase}'"
-                )
+                typer.echo(f"Location: Device '{rule['device']}' / Rulebase '{rulebase}'")
             else:
                 typer.echo(f"Location: N/A / Rulebase '{rulebase}'")
 
@@ -742,27 +694,19 @@ def show_security_rule(
 
             # Display source zones
             source_zones = rule.get("from_", [])
-            typer.echo(
-                f"Source Zones: {', '.join(source_zones) if source_zones else 'any'}"
-            )
+            typer.echo(f"Source Zones: {', '.join(source_zones) if source_zones else 'any'}")
 
             # Display destination zones
             dest_zones = rule.get("to_", [])
-            typer.echo(
-                f"Destination Zones: {', '.join(dest_zones) if dest_zones else 'any'}"
-            )
+            typer.echo(f"Destination Zones: {', '.join(dest_zones) if dest_zones else 'any'}")
 
             # Display source addresses
             source_addrs = rule.get("source", [])
-            typer.echo(
-                f"Source Addresses: {', '.join(source_addrs) if source_addrs else 'any'}"
-            )
+            typer.echo(f"Source Addresses: {', '.join(source_addrs) if source_addrs else 'any'}")
 
             # Display destination addresses
             dest_addrs = rule.get("destination", [])
-            typer.echo(
-                f"Destination Addresses: {', '.join(dest_addrs) if dest_addrs else 'any'}"
-            )
+            typer.echo(f"Destination Addresses: {', '.join(dest_addrs) if dest_addrs else 'any'}")
 
             # Display applications
             apps = rule.get("application", [])
@@ -805,9 +749,7 @@ def show_security_rule(
             if profile_setting:
                 typer.echo("Security Profiles:")
                 if profile_setting.get("group"):
-                    typer.echo(
-                        f"  Profile Group: {', '.join(profile_setting['group'])}"
-                    )
+                    typer.echo(f"  Profile Group: {', '.join(profile_setting['group'])}")
                 else:
                     # Individual profiles
                     for profile_type in [
@@ -821,9 +763,7 @@ def show_security_rule(
                     ]:
                         if profile_setting.get(profile_type):
                             profile_name = profile_type.replace("_", " ").title()
-                            typer.echo(
-                                f"  {profile_name}: {profile_setting[profile_type]}"
-                            )
+                            typer.echo(f"  {profile_name}: {profile_setting[profile_type]}")
 
             # Display ID if present
             if rule.get("id"):
@@ -832,21 +772,16 @@ def show_security_rule(
             return rule
 
         else:
-
             # Default behavior: list all
             # List all security rules in the specified container and rulebase (default behavior)
             kwargs = {location_type: location_value}
             rules = scm_client.list_security_rules(**kwargs, rulebase=rulebase)
 
             if not rules:
-                typer.echo(
-                    f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'"
-                )
+                typer.echo(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
                 return
 
-            typer.echo(
-                f"\nSecurity Rules in {location_type} '{location_value}' rulebase '{rulebase}':"
-            )
+            typer.echo(f"\nSecurity Rules in {location_type} '{location_value}' rulebase '{rulebase}':")
             typer.echo("=" * 80)
 
             for rule in rules:
@@ -855,17 +790,11 @@ def show_security_rule(
 
                 # Display container location (folder, snippet, or device) and rulebase
                 if rule.get("folder"):
-                    typer.echo(
-                        f"  Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'"
-                    )
+                    typer.echo(f"  Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'")
                 elif rule.get("snippet"):
-                    typer.echo(
-                        f"  Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'"
-                    )
+                    typer.echo(f"  Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'")
                 elif rule.get("device"):
-                    typer.echo(
-                        f"  Location: Device '{rule['device']}' / Rulebase '{rulebase}'"
-                    )
+                    typer.echo(f"  Location: Device '{rule['device']}' / Rulebase '{rulebase}'")
                 else:
                     typer.echo(f"  Location: N/A / Rulebase '{rulebase}'")
 
@@ -873,27 +802,19 @@ def show_security_rule(
 
                 # Display source zones
                 source_zones = rule.get("from_", [])
-                typer.echo(
-                    f"  Source Zones: {', '.join(source_zones) if source_zones else 'any'}"
-                )
+                typer.echo(f"  Source Zones: {', '.join(source_zones) if source_zones else 'any'}")
 
                 # Display destination zones
                 dest_zones = rule.get("to_", [])
-                typer.echo(
-                    f"  Destination Zones: {', '.join(dest_zones) if dest_zones else 'any'}"
-                )
+                typer.echo(f"  Destination Zones: {', '.join(dest_zones) if dest_zones else 'any'}")
 
                 # Display source addresses
                 source_addrs = rule.get("source", [])
-                typer.echo(
-                    f"  Source Addresses: {', '.join(source_addrs) if source_addrs else 'any'}"
-                )
+                typer.echo(f"  Source Addresses: {', '.join(source_addrs) if source_addrs else 'any'}")
 
                 # Display destination addresses
                 dest_addrs = rule.get("destination", [])
-                typer.echo(
-                    f"  Destination Addresses: {', '.join(dest_addrs) if dest_addrs else 'any'}"
-                )
+                typer.echo(f"  Destination Addresses: {', '.join(dest_addrs) if dest_addrs else 'any'}")
 
                 # Display applications
                 apps = rule.get("application", [])
@@ -962,9 +883,7 @@ def backup_anti_spyware_profile(
 
     # Set default filename if not provided
     if not file:
-        file = get_default_backup_filename(
-            "anti-spyware-profiles", location_type, location_value
-        )
+        file = get_default_backup_filename("anti-spyware-profiles", location_type, location_value)
 
     try:
         # List all anti-spyware profiles with exact_match=True using kwargs pattern
@@ -972,9 +891,7 @@ def backup_anti_spyware_profile(
         profiles = scm_client.list_anti_spyware_profiles(**kwargs, exact_match=True)
 
         if not profiles:
-            typer.echo(
-                f"No anti-spyware profiles found in {location_type} '{location_value}'"
-            )
+            typer.echo(f"No anti-spyware profiles found in {location_type} '{location_value}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -994,9 +911,7 @@ def backup_anti_spyware_profile(
         with open(file, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} anti-spyware profiles to {file}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} anti-spyware profiles to {file}")
         return file
 
     except Exception as e:
@@ -1006,15 +921,9 @@ def backup_anti_spyware_profile(
 
 @delete_app.command("anti-spyware-profile")
 def delete_anti_spyware_profile(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder containing the anti-spyware profile"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet containing the anti-spyware profile"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device containing the anti-spyware profile"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder containing the anti-spyware profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the anti-spyware profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the anti-spyware profile"),
     name: str = NAME_OPTION,
 ):
     """Delete an anti-spyware profile.
@@ -1037,9 +946,7 @@ def delete_anti_spyware_profile(
         kwargs = {location_type: location_value}
         result = scm_client.delete_anti_spyware_profile(**kwargs, name=name)
         if result:
-            typer.echo(
-                f"Deleted anti-spyware profile: {name} from {location_type} {location_value}"
-            )
+            typer.echo(f"Deleted anti-spyware profile: {name} from {location_type} {location_value}")
         else:
             typer.echo(
                 f"Anti-spyware profile not found: {name} in {location_type} {location_value}",
@@ -1051,9 +958,7 @@ def delete_anti_spyware_profile(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command(
-    "anti-spyware-profile", help="Load anti-spyware profiles from a YAML file."
-)
+@load_app.command("anti-spyware-profile", help="Load anti-spyware profiles from a YAML file.")
 def load_anti_spyware_profile(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -1107,9 +1012,7 @@ def load_anti_spyware_profile(
             typer.echo("Dry run mode: would apply the following configurations:")
             # Show override information if applicable
             if folder or snippet or device:
-                override_type = (
-                    "folder" if folder else ("snippet" if snippet else "device")
-                )
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
                 override_value = folder or snippet or device
                 typer.echo(f"Container override: {override_type} = '{override_value}'")
             typer.echo(yaml.dump(profiles))
@@ -1151,9 +1054,7 @@ def load_anti_spyware_profile(
                 elif sdk_data.get("device"):
                     container_kwargs["device"] = sdk_data.pop("device")
 
-                result = scm_client.create_anti_spyware_profile(
-                    **container_kwargs, **sdk_data
-                )
+                result = scm_client.create_anti_spyware_profile(**container_kwargs, **sdk_data)
 
                 results.append(result)
 
@@ -1187,15 +1088,9 @@ def load_anti_spyware_profile(
 
 @set_app.command("anti-spyware-profile")
 def set_anti_spyware_profile(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder path for the anti-spyware profile"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet path for the anti-spyware profile"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device path for the anti-spyware profile"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder path for the anti-spyware profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the anti-spyware profile"),
+    device: str = typer.Option(None, "--device", help="Device path for the anti-spyware profile"),
     name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     cloud_inline_analysis: bool = typer.Option(
@@ -1282,9 +1177,7 @@ def set_anti_spyware_profile(
         result = scm_client.create_anti_spyware_profile(**container_kwargs, **sdk_data)
 
         # Format and display output
-        typer.echo(
-            f"Created anti-spyware profile: {result['name']} in {location_type} {location_value}"
-        )
+        typer.echo(f"Created anti-spyware profile: {result['name']} in {location_type} {location_value}")
 
     except Exception as e:
         typer.echo(f"Error creating anti-spyware profile: {str(e)}", err=True)
@@ -1293,18 +1186,10 @@ def set_anti_spyware_profile(
 
 @show_app.command("anti-spyware-profile")
 def show_anti_spyware_profile(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder containing the anti-spyware profile"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet containing the anti-spyware profile"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device containing the anti-spyware profile"
-    ),
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the anti-spyware profile to show"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder containing the anti-spyware profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the anti-spyware profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the anti-spyware profile"),
+    name: str | None = typer.Option(None, "--name", help="Name of the anti-spyware profile to show"),
 ):
     """Display anti-spyware profiles.
 
@@ -1349,11 +1234,7 @@ def show_anti_spyware_profile(
                 for idx, rule in enumerate(profile["rules"], 1):
                     typer.echo(f"  Rule {idx}: {rule.get('name', 'Unnamed')}")
                     if rule.get("severity"):
-                        severity = (
-                            rule["severity"]
-                            if isinstance(rule["severity"], list)
-                            else [rule["severity"]]
-                        )
+                        severity = rule["severity"] if isinstance(rule["severity"], list) else [rule["severity"]]
                         typer.echo(f"    Severity: {', '.join(severity)}")
                     typer.echo(f"    Action: {rule.get('action', 'N/A')}")
                     if rule.get("category"):
@@ -1365,9 +1246,7 @@ def show_anti_spyware_profile(
 
             # Display cloud inline analysis setting
             if "cloud_inline_analysis" in profile:
-                typer.echo(
-                    f"\nCloud Inline Analysis: {'Enabled' if profile['cloud_inline_analysis'] else 'Disabled'}"
-                )
+                typer.echo(f"\nCloud Inline Analysis: {'Enabled' if profile['cloud_inline_analysis'] else 'Disabled'}")
 
             # Display threat exceptions in detail
             if profile.get("threat_exception"):
@@ -1381,9 +1260,7 @@ def show_anti_spyware_profile(
                     if exception.get("action"):
                         typer.echo(f"    Action: {exception['action']}")
                     if exception.get("exempt_ip"):
-                        typer.echo(
-                            f"    Exempt IPs: {', '.join(exception['exempt_ip'])}"
-                        )
+                        typer.echo(f"    Exempt IPs: {', '.join(exception['exempt_ip'])}")
 
             # Display MICA engine settings if present
             if profile.get("mica_engine_spyware_enabled"):
@@ -1392,9 +1269,7 @@ def show_anti_spyware_profile(
                     if setting.get("name"):
                         typer.echo(f"  - {setting['name']}")
                         if setting.get("inline_policy_action"):
-                            typer.echo(
-                                f"    Inline Policy Action: {setting['inline_policy_action']}"
-                            )
+                            typer.echo(f"    Inline Policy Action: {setting['inline_policy_action']}")
 
             # Display ID if present
             if profile.get("id"):
@@ -1403,23 +1278,16 @@ def show_anti_spyware_profile(
             return profile
 
         else:
-
             # Default behavior: list all
             # List all anti-spyware profiles in the specified container (default behavior)
             kwargs = {location_type: location_value}
-            profiles = scm_client.list_anti_spyware_profiles(
-                **kwargs, exact_match=False
-            )
+            profiles = scm_client.list_anti_spyware_profiles(**kwargs, exact_match=False)
 
             if not profiles:
-                typer.echo(
-                    f"No anti-spyware profiles found in {location_type} '{location_value}'"
-                )
+                typer.echo(f"No anti-spyware profiles found in {location_type} '{location_value}'")
                 return
 
-            typer.echo(
-                f"\nAnti-Spyware Profiles in {location_type} '{location_value}':"
-            )
+            typer.echo(f"\nAnti-Spyware Profiles in {location_type} '{location_value}':")
             typer.echo("=" * 80)
 
             for profile in profiles:
@@ -1442,9 +1310,7 @@ def show_anti_spyware_profile(
                 if profile.get("rules"):
                     typer.echo(f"  Rules: {len(profile['rules'])} configured")
                     for rule in profile["rules"]:
-                        typer.echo(
-                            f"    - {rule.get('name', 'Unnamed')}: {rule.get('action', 'N/A')}"
-                        )
+                        typer.echo(f"    - {rule.get('name', 'Unnamed')}: {rule.get('action', 'N/A')}")
 
                 # Display cloud inline analysis setting
                 if profile.get("cloud_inline_analysis"):
@@ -1452,9 +1318,7 @@ def show_anti_spyware_profile(
 
                 # Display threat exceptions if present
                 if profile.get("threat_exception"):
-                    typer.echo(
-                        f"  Threat Exceptions: {len(profile['threat_exception'])}"
-                    )
+                    typer.echo(f"  Threat Exceptions: {len(profile['threat_exception'])}")
 
                 # Display MICA engine settings if present
                 if profile.get("mica_engine_spyware_enabled"):
@@ -1506,9 +1370,7 @@ def backup_decryption_profile(
 
     # Set default filename if not provided
     if not file:
-        file = get_default_backup_filename(
-            "decryption-profiles", location_type, location_value
-        )
+        file = get_default_backup_filename("decryption-profiles", location_type, location_value)
 
     try:
         # List all decryption profiles with exact_match=True using kwargs pattern
@@ -1516,9 +1378,7 @@ def backup_decryption_profile(
         profiles = scm_client.list_decryption_profiles(**kwargs, exact_match=True)
 
         if not profiles:
-            typer.echo(
-                f"No decryption profiles found in {location_type} '{location_value}'"
-            )
+            typer.echo(f"No decryption profiles found in {location_type} '{location_value}'")
             return
 
         # Convert SDK models to dictionaries, excluding unset values
@@ -1538,9 +1398,7 @@ def backup_decryption_profile(
         with open(file, "w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(
-            f"Successfully backed up {len(backup_data)} decryption profiles to {file}"
-        )
+        typer.echo(f"Successfully backed up {len(backup_data)} decryption profiles to {file}")
         return file
 
     except Exception as e:
@@ -1550,15 +1408,9 @@ def backup_decryption_profile(
 
 @delete_app.command("decryption-profile")
 def delete_decryption_profile(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder containing the decryption profile"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet containing the decryption profile"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device containing the decryption profile"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder containing the decryption profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the decryption profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the decryption profile"),
     name: str = NAME_OPTION,
 ):
     """Delete a decryption profile.
@@ -1581,9 +1433,7 @@ def delete_decryption_profile(
         kwargs = {location_type: location_value}
         result = scm_client.delete_decryption_profile(**kwargs, name=name)
         if result:
-            typer.echo(
-                f"Deleted decryption profile: {name} from {location_type} {location_value}"
-            )
+            typer.echo(f"Deleted decryption profile: {name} from {location_type} {location_value}")
         else:
             typer.echo(
                 f"Decryption profile not found: {name} in {location_type} {location_value}",
@@ -1595,9 +1445,7 @@ def delete_decryption_profile(
         raise typer.Exit(code=1) from e
 
 
-@load_app.command(
-    "decryption-profile", help="Load decryption profiles from a YAML file."
-)
+@load_app.command("decryption-profile", help="Load decryption profiles from a YAML file.")
 def load_decryption_profile(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -1651,9 +1499,7 @@ def load_decryption_profile(
             typer.echo("Dry run mode: would apply the following configurations:")
             # Show override information if applicable
             if folder or snippet or device:
-                override_type = (
-                    "folder" if folder else ("snippet" if snippet else "device")
-                )
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
                 override_value = folder or snippet or device
                 typer.echo(f"Container override: {override_type} = '{override_value}'")
             typer.echo(yaml.dump(profiles))
@@ -1695,9 +1541,7 @@ def load_decryption_profile(
                 elif sdk_data.get("device"):
                     container_kwargs["device"] = sdk_data.pop("device")
 
-                result = scm_client.create_decryption_profile(
-                    **container_kwargs, **sdk_data
-                )
+                result = scm_client.create_decryption_profile(**container_kwargs, **sdk_data)
 
                 results.append(result)
 
@@ -1731,15 +1575,9 @@ def load_decryption_profile(
 
 @set_app.command("decryption-profile")
 def set_decryption_profile(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder path for the decryption profile"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet path for the decryption profile"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device path for the decryption profile"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder path for the decryption profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the decryption profile"),
+    device: str = typer.Option(None, "--device", help="Device path for the decryption profile"),
     name: str = NAME_OPTION,
     description: str | None = typer.Option(
         None,
@@ -1830,9 +1668,7 @@ def set_decryption_profile(
         result = scm_client.create_decryption_profile(**container_kwargs, **sdk_data)
 
         # Format and display output
-        typer.echo(
-            f"Created decryption profile: {result['name']} in {location_type} {location_value}"
-        )
+        typer.echo(f"Created decryption profile: {result['name']} in {location_type} {location_value}")
 
     except json.JSONDecodeError as e:
         typer.echo(f"Error parsing JSON settings: {str(e)}", err=True)
@@ -1844,18 +1680,10 @@ def set_decryption_profile(
 
 @show_app.command("decryption-profile")
 def show_decryption_profile(
-    folder: str = typer.Option(
-        None, "--folder", help="Folder containing the decryption profile"
-    ),
-    snippet: str = typer.Option(
-        None, "--snippet", help="Snippet containing the decryption profile"
-    ),
-    device: str = typer.Option(
-        None, "--device", help="Device containing the decryption profile"
-    ),
-    name: str | None = typer.Option(
-        None, "--name", help="Name of the decryption profile to show"
-    ),
+    folder: str = typer.Option(None, "--folder", help="Folder containing the decryption profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the decryption profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the decryption profile"),
+    name: str | None = typer.Option(None, "--name", help="Name of the decryption profile to show"),
 ):
     """Display decryption profiles.
 
@@ -1933,16 +1761,13 @@ def show_decryption_profile(
             return profile
 
         else:
-
             # Default behavior: list all
             # List all decryption profiles in the specified container (default behavior)
             kwargs = {location_type: location_value}
             profiles = scm_client.list_decryption_profiles(**kwargs, exact_match=False)
 
             if not profiles:
-                typer.echo(
-                    f"No decryption profiles found in {location_type} '{location_value}'"
-                )
+                typer.echo(f"No decryption profiles found in {location_type} '{location_value}'")
                 return
 
             typer.echo(f"\nDecryption Profiles in {location_type} '{location_value}':")
@@ -1980,9 +1805,7 @@ def show_decryption_profile(
                 if profile.get("ssl_protocol_settings"):
                     settings = profile["ssl_protocol_settings"]
                     if "min_version" in settings or "max_version" in settings:
-                        typer.echo(
-                            f"  SSL Versions: {settings.get('min_version', 'N/A')} - {settings.get('max_version', 'N/A')}"
-                        )
+                        typer.echo(f"  SSL Versions: {settings.get('min_version', 'N/A')} - {settings.get('max_version', 'N/A')}")
 
                 # Display ID if present
                 if profile.get("id"):
