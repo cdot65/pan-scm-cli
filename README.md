@@ -441,6 +441,29 @@ docker exec scm-prod scm show objects address --folder Production
 docker exec scm-dev scm show objects address --folder Development
 ```
 
+#### Building Docker Images
+
+For developers who want to build their own images:
+
+```bash
+# Clone the repository
+git clone https://github.com/cdot65/pan-scm-cli.git
+cd pan-scm-cli
+
+# Build for your local platform
+./docker/docker-build.sh --local
+
+# Build AMD64 image (for Intel/AMD systems)
+./docker/docker-build.sh --amd64
+
+# Force rebuild without cache
+./docker/docker-build.sh --no-cache --local
+```
+
+Platform-specific images are available:
+- **AMD64**: `ghcr.io/cdot65/pan-scm-cli:latest`
+- **ARM64**: `ghcr.io/cdot65/pan-scm-cli:apple` (for Apple Silicon)
+
 ### Complete Workflow Example
 
 Here's a complete example of setting up a web application security policy:
