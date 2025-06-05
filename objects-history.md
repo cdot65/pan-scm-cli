@@ -301,7 +301,7 @@ scm backup objects application --folder Texas
 #### Test 1: Create Application Group
 
 ```bash
-scm set objects application-group --folder Texas --name test-business-apps --members "web-browsing,ssl" --description "Test business applications"
+scm set objects application-group --folder Texas --name test-business-apps --members "web-browsing"
 ```
 
 **Result:** ✅ SUCCESS - Created application group: test-business-apps in folder Texas

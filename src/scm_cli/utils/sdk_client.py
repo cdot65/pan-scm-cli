@@ -171,10 +171,12 @@ class SCMClient:
                 "description": description or "",
             }
 
+            # Add exactly one address type
             if tags:
-                allocation_data["tags"] = tags
+                # Convert a list of tags to a comma-separated string
+                allocation_data["tags"] = ",".join(tags)
 
-            # Note: bandwidth allocations don't have folder parameter in the SDK
+            # Note: bandwidth allocations don't have a folder parameter in the SDK
             # The folder parameter is kept in the method signature for CLI consistency
             result = self.client.bandwidth_allocation.create(allocation_data)
 
@@ -201,12 +203,12 @@ class SCMClient:
         self.logger.info(f"Deleting bandwidth allocation: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
             # Delete using the SDK bandwidth_allocation service (singular, not plural)
-            # Note: bandwidth allocations don't have folder parameter in the SDK
+            # Note: bandwidth allocations don't have a folder parameter in the SDK
             self.client.bandwidth_allocation.delete(name=name)
             return True
         except Exception as e:
@@ -288,7 +290,7 @@ class SCMClient:
             # List bandwidth allocations using the SDK
             results = self.client.bandwidth_allocation.list()
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", "N/A", "bandwidth allocations", e)
@@ -377,15 +379,15 @@ class SCMClient:
                 address_data["fqdn"] = fqdn
 
             if tags:
-                address_data["tag"] = tags
+                address_data["tag"] = tags  # SDK expects 'tag', not 'tags'
 
-            # If address exists, update it
+            # If an address exists, update it
             if existing_address:
-                # Check if address type is changing
+                # Check if an address type is changing
                 current_type = None
                 new_type = None
 
-                # Determine current address type
+                # Determine the current address type
                 if hasattr(existing_address, "ip_netmask") and existing_address.ip_netmask:
                     current_type = "ip_netmask"
                 elif hasattr(existing_address, "ip_range") and existing_address.ip_range:
@@ -395,7 +397,7 @@ class SCMClient:
                 elif hasattr(existing_address, "fqdn") and existing_address.fqdn:
                     current_type = "fqdn"
 
-                # Determine new address type
+                # Determine a new address type
                 if ip_netmask:
                     new_type = "ip_netmask"
                 elif ip_range:
@@ -419,7 +421,7 @@ class SCMClient:
                     if tags is not None:  # Only update tags if explicitly provided
                         existing_address.tag = tags
 
-                    # Update the address value if provided and same type
+                    # Update the address value if provided and the same type
                     if ip_netmask and current_type == "ip_netmask":
                         existing_address.ip_netmask = ip_netmask
                     elif ip_range and current_type == "ip_range":
@@ -433,7 +435,7 @@ class SCMClient:
                     result = self.client.address.update(existing_address)
                     self.logger.info(f"Successfully updated address '{name}'")
             else:
-                # Create new address
+                # Create a new address
                 result = self.client.address.create(address_data)
                 self.logger.info(f"Successfully created address '{name}'")
 
@@ -460,7 +462,7 @@ class SCMClient:
         self.logger.info(f"Deleting address: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -566,7 +568,7 @@ class SCMClient:
             # List addresses using the SDK
             results = self.client.address.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "addresses", e)
@@ -653,13 +655,13 @@ class SCMClient:
             if tags:
                 group_data["tag"] = tags  # SDK expects 'tag', not 'tags'
 
-            # If address group exists, update it
+            # If an address group exists, update it
             if existing_group:
-                # Check if group type is changing
+                # Check if a group type is changing
                 current_type = None
                 new_type = type.lower()
 
-                # Determine current group type
+                # Determine the current group type
                 if hasattr(existing_group, "static") and existing_group.static is not None:
                     current_type = "static"
                 elif hasattr(existing_group, "dynamic") and existing_group.dynamic is not None:
@@ -670,7 +672,7 @@ class SCMClient:
                     self.logger.info(f"Address group type changing from {current_type} to {new_type}, deleting and recreating...")
                     # Delete the existing group
                     self.client.address_group.delete(object_id=str(existing_group.id))
-                    # Create new group with new type
+                    # Create a new group with a new type
                     result = self.client.address_group.create(group_data)
                     self.logger.info(f"Successfully recreated address group '{name}' with new type")
                 else:
@@ -693,7 +695,7 @@ class SCMClient:
                     result = self.client.address_group.update(existing_group)
                     self.logger.info(f"Successfully updated address group '{name}'")
             else:
-                # Create new address group
+                # Create a new address group
                 result = self.client.address_group.create(group_data)
                 self.logger.info(f"Successfully created address group '{name}'")
 
@@ -720,7 +722,7 @@ class SCMClient:
         self.logger.info(f"Deleting address group: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -829,7 +831,7 @@ class SCMClient:
             # List address groups using the SDK
             results = self.client.address_group.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "address groups", e)
@@ -862,7 +864,7 @@ class SCMClient:
             folder: Folder to create the application in
             name: Name of the application
             category: High-level category
-            subcategory: Specific sub-category
+            subcategory: Specific subcategory
             technology: Underlying technology
             risk: Risk level (1-5)
             description: Optional description
@@ -946,7 +948,7 @@ class SCMClient:
             if no_certifications:
                 app_data["no_certifications"] = no_certifications
 
-            # If application exists, update it
+            # If an existing application exists, update it
             if existing_app:
                 # Update all fields
                 existing_app.category = category
@@ -972,7 +974,7 @@ class SCMClient:
                 result = self.client.application.update(existing_app)
                 self.logger.info(f"Successfully updated application '{name}'")
             else:
-                # Create new application
+                # Create a new application
                 result = self.client.application.create(app_data)
                 self.logger.info(f"Successfully created application '{name}'")
 
@@ -999,7 +1001,7 @@ class SCMClient:
         self.logger.info(f"Deleting application: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -1114,7 +1116,7 @@ class SCMClient:
             # List applications using the SDK
             results = self.client.application.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "applications", e)
@@ -1171,7 +1173,7 @@ class SCMClient:
                 "members": members,
             }
 
-            # If application group exists, update it
+            # If an existing application group exists, update it
             if existing_group:
                 # Update members
                 existing_group.members = members
@@ -1180,7 +1182,7 @@ class SCMClient:
                 result = self.client.application_group.update(existing_group)
                 self.logger.info(f"Successfully updated application group '{name}'")
             else:
-                # Create new application group
+                # Create a new application group
                 result = self.client.application_group.create(group_data)
                 self.logger.info(f"Successfully created application group '{name}'")
 
@@ -1207,7 +1209,7 @@ class SCMClient:
         self.logger.info(f"Deleting application group: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -1307,7 +1309,7 @@ class SCMClient:
             # List application groups using the SDK
             results = self.client.application_group.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "application groups", e)
@@ -1423,7 +1425,7 @@ class SCMClient:
             if no_certifications:
                 filter_data["no_certifications"] = no_certifications
 
-            # If application filter exists, update it
+            # If an application filter exists, update it
             if existing_filter:
                 # Update all fields
                 existing_filter.category = category
@@ -1444,7 +1446,7 @@ class SCMClient:
                 result = self.client.application_filter.update(existing_filter)
                 self.logger.info(f"Successfully updated application filter '{name}'")
             else:
-                # Create new application filter
+                # Create a new application filter
                 result = self.client.application_filter.create(filter_data)
                 self.logger.info(f"Successfully created application filter '{name}'")
 
@@ -1471,7 +1473,7 @@ class SCMClient:
         self.logger.info(f"Deleting application filter: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -1607,7 +1609,7 @@ class SCMClient:
             # List application filters using the SDK
             results = self.client.application_filter.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "application filters", e)
@@ -1675,7 +1677,7 @@ class SCMClient:
             if tags:
                 group_data["tag"] = tags  # SDK expects 'tag', not 'tags'
 
-            # If dynamic user group exists, update it
+            # If a dynamic user group exists, update it
             if existing_group:
                 # Update fields
                 existing_group.filter = filter
@@ -1687,7 +1689,7 @@ class SCMClient:
                 result = self.client.dynamic_user_group.update(existing_group)
                 self.logger.info(f"Successfully updated dynamic user group '{name}'")
             else:
-                # Create new dynamic user group
+                # Create a new dynamic user group
                 result = self.client.dynamic_user_group.create(group_data)
                 self.logger.info(f"Successfully created dynamic user group '{name}'")
 
@@ -1714,7 +1716,7 @@ class SCMClient:
         self.logger.info(f"Deleting dynamic user group: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -1820,7 +1822,7 @@ class SCMClient:
             # List dynamic user groups using the SDK
             results = self.client.dynamic_user_group.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "dynamic user groups", e)
@@ -1876,8 +1878,10 @@ class SCMClient:
                 # Update existing EDL
                 edl_data["id"] = str(existing_edl.id)
                 result = self.client.external_dynamic_list.update(edl_data)
-            except Exception:
-                # EDL doesn't exist, create new one
+            except Exception as e:
+                # If the HIP object doesn't exist, create a new one
+                self.logger.debug(f"EDL {name} not found, creating a new one", exc_info=e)
+                # EDL doesn't exist, create a new one
                 result = self.client.external_dynamic_list.create(edl_data)
 
             # Convert SDK response to dict for compatibility
@@ -1903,7 +1907,7 @@ class SCMClient:
         self.logger.info(f"Deleting external dynamic list: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -2034,7 +2038,7 @@ class SCMClient:
             # List EDLs using the SDK
             results = self.client.external_dynamic_list.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "external dynamic lists", e)
@@ -2116,11 +2120,13 @@ class SCMClient:
             # First, try to fetch the existing HIP object
             try:
                 existing_hip = self.client.hip_object.fetch(name=name, folder=folder)
-                # Update existing HIP object
+                # Update and return an existing HIP object
                 hip_data["id"] = str(existing_hip.id)
                 result = self.client.hip_object.update(hip_data)
-            except Exception:
-                # HIP object doesn't exist, create new one
+            except Exception as e:
+                # If the HIP object doesn't exist, create a new one
+                self.logger.debug(f"HIP object {name} not found, creating a new one", exc_info=e)
+                # HIP object doesn't exist, create a new one
                 result = self.client.hip_object.create(hip_data)
 
             # Convert SDK response to dict for compatibility
@@ -2146,7 +2152,7 @@ class SCMClient:
         self.logger.info(f"Deleting HIP object: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -2298,7 +2304,7 @@ class SCMClient:
             # List HIP objects using the SDK
             results = self.client.hip_object.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "HIP objects", e)
@@ -2327,7 +2333,7 @@ class SCMClient:
         self.logger.info(f"Creating/updating HIP profile '{name}' in folder: {folder}")
 
         if not self.client:
-            # Return mock response if no client is available
+            # Return a mock response if no client is available
             return {
                 "id": f"hip-profile-{name}",
                 "folder": folder,
@@ -2337,7 +2343,7 @@ class SCMClient:
             }
 
         try:
-            # Check if HIP profile already exists
+            # Check if a HIP profile already exists
             try:
                 existing = self.client.hip_profile.fetch(name=name, folder=folder)
                 if existing:
@@ -2348,7 +2354,7 @@ class SCMClient:
                     updated = self.client.hip_profile.update(existing)
                     return json.loads(updated.model_dump_json(exclude_unset=True))
             except Exception as fetch_error:
-                # HIP profile doesn't exist, create new one
+                # HIP profile doesn't exist, create a new one
                 self.logger.debug(f"HIP profile '{name}' not found, creating new: {fetch_error}")
 
             # Prepare the profile data
@@ -2386,7 +2392,7 @@ class SCMClient:
             return True
 
         try:
-            # First fetch the HIP profile to get its ID
+            # First, fetch the HIP profile to get its ID
             hip_profile = self.client.hip_profile.fetch(name=name, folder=folder)
             self.client.hip_profile.delete(str(hip_profile.id))
             self.logger.info(f"Successfully deleted HIP profile '{name}'")
@@ -2478,7 +2484,7 @@ class SCMClient:
             # List HIP profiles using the SDK
             results = self.client.hip_profile.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "HIP profiles", e)
@@ -2505,13 +2511,13 @@ class SCMClient:
             format_config: Optional format configuration for different log types
 
         Returns:
-            dict[str, Any]: Created HTTP server profile object
+            dict[str, Any]: Created an HTTP server profile object
 
         """
         self.logger.info(f"Creating/updating HTTP server profile '{name}' in folder: {folder}")
 
         if not self.client:
-            # Return mock response if no client is available
+            # Return a mock response if no client is available
             return {
                 "id": f"http-server-profile-{name}",
                 "folder": folder,
@@ -2522,11 +2528,11 @@ class SCMClient:
             }
 
         try:
-            # Check if HTTP server profile already exists
+            # Check if an HTTP server profile already exists
             try:
                 existing = self.client.http_server_profile.fetch(name=name, folder=folder)
                 if existing:
-                    # Update existing HTTP server profile
+                    # Update an existing HTTP server profile
                     self.logger.info(f"HTTP server profile '{name}' already exists, updating...")
                     existing.description = description if description is not None else existing.description
                     existing.server = servers
@@ -2536,7 +2542,7 @@ class SCMClient:
                     updated = self.client.http_server_profile.update(existing)
                     return json.loads(updated.model_dump_json(exclude_unset=True))
             except Exception as fetch_error:
-                # HTTP server profile doesn't exist, create new one
+                # HTTP server profile doesn't exist, create a new one
                 self.logger.debug(f"HTTP server profile '{name}' not found, creating new: {fetch_error}")
 
             # Prepare the profile data
@@ -2580,7 +2586,7 @@ class SCMClient:
             return True
 
         try:
-            # First fetch the HTTP server profile to get its ID
+            # First, fetch the HTTP server profile to get its ID
             http_server_profile = self.client.http_server_profile.fetch(name=name, folder=folder)
             self.client.http_server_profile.delete(str(http_server_profile.id))
             self.logger.info(f"Successfully deleted HTTP server profile '{name}'")
@@ -2699,12 +2705,12 @@ class SCMClient:
             # List HTTP server profiles using the SDK
             results = self.client.http_server_profile.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "HTTP server profiles", e)
 
-    # Log Forwarding Profiles --------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # log-forwarding Profiles --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_log_forwarding_profile(
         self,
@@ -2714,23 +2720,23 @@ class SCMClient:
         description: str | None = None,
         enhanced_application_logging: bool = False,
     ) -> dict[str, Any]:
-        """Create or update a log forwarding profile.
+        """Create or update a log-forwarding profile.
 
         Args:
-            folder: Folder where the log forwarding profile will be created
-            name: Name of the log forwarding profile
+            folder: Folder where the log-forwarding profile will be created
+            name: Name of the log-forwarding profile
             match_list: List of match profile configurations
-            description: Optional description of the log forwarding profile
+            description: Optional description of the log-forwarding profile
             enhanced_application_logging: Whether to enable enhanced application logging
 
         Returns:
-            dict[str, Any]: Created log forwarding profile object
+            dict[str, Any]: Created a log-forwarding profile object
 
         """
-        self.logger.info(f"Creating/updating log forwarding profile '{name}' in folder: {folder}")
+        self.logger.info(f"Creating/updating log-forwarding profile '{name}' in folder: {folder}")
 
         if not self.client:
-            # Return mock response if no client is available
+            # Return a mock response if no client is available
             return {
                 "id": f"log-forwarding-profile-{name}",
                 "folder": folder,
@@ -2743,17 +2749,17 @@ class SCMClient:
                         "send_to_panorama": True,
                     }
                 ],
-                "description": description or f"Mock log forwarding profile for {name}",
+                "description": description or f"Mock log-forwarding profile for {name}",
                 "enhanced_application_logging": enhanced_application_logging,
             }
 
         try:
-            # Check if log forwarding profile already exists
+            # Check if a log-forwarding profile already exists
             try:
                 existing = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
                 if existing:
-                    # Update existing log forwarding profile
-                    self.logger.info(f"Log forwarding profile '{name}' already exists, updating...")
+                    # Update the existing log-forwarding profile
+                    self.logger.info(f"log-forwarding profile '{name}' already exists, updating...")
                     existing.description = description if description is not None else existing.description
                     existing.enhanced_application_logging = enhanced_application_logging
                     if match_list:
@@ -2761,8 +2767,8 @@ class SCMClient:
                     updated = self.client.log_forwarding_profile.update(existing)
                     return json.loads(updated.model_dump_json(exclude_unset=True))
             except Exception as fetch_error:
-                # Log forwarding profile doesn't exist, create new one
-                self.logger.debug(f"Log forwarding profile '{name}' not found, creating new: {fetch_error}")
+                # log-forwarding profile doesn't exist, create a new one
+                self.logger.debug(f"log-forwarding profile '{name}' not found, creating new: {fetch_error}")
 
             # Prepare the profile data
             profile_data = {
@@ -2783,58 +2789,57 @@ class SCMClient:
                         match["filter"] = "All Logs"
                 profile_data["match_list"] = match_list
 
-            # Create the log forwarding profile
+            # Create the log-forwarding profile
             result = self.client.log_forwarding_profile.create(profile_data)
             return json.loads(result.model_dump_json(exclude_unset=True))
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "log forwarding profile", e)
+            self._handle_api_exception("creating/updating", name, "log-forwarding profile", e)
 
     def delete_log_forwarding_profile(self, folder: str, name: str) -> bool:
-        """Delete a log forwarding profile.
+        """Delete a log-forwarding profile.
 
         Args:
-            folder: Folder containing the log forwarding profile
-            name: Name of the log forwarding profile to delete
+            folder: Folder containing the log-forwarding profile
+            name: Name of the log-forwarding profile to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting log forwarding profile '{name}' from folder: {folder}")
+        self.logger.info(f"Deleting log-forwarding profile '{name}' from folder: {folder}")
 
         if not self.client:
             # Mock deletion
-            self.logger.info(f"Mock mode: Would delete log forwarding profile '{name}' from folder '{folder}'")
+            self.logger.info(f"Mock mode: Would delete log-forwarding profile '{name}' from folder '{folder}'")
             return True
 
         try:
-            # First, fetch the log forwarding profile to get its ID
+            # First, fetch the log-forwarding profile to get its ID
             profile = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
             if profile:
                 # Delete using the ID
                 self.client.log_forwarding_profile.delete(str(profile.id))
-                self.logger.info(f"Successfully deleted log forwarding profile '{name}'")
+                self.logger.info(f"Successfully deleted log-forwarding profile '{name}'")
                 return True
             else:
-                self.logger.warning(f"Log forwarding profile '{name}' not found in folder '{folder}'")
+                self.logger.warning(f"log-forwarding profile '{name}' not found in folder '{folder}'")
                 return False
         except Exception as e:
-            self._handle_api_exception("deleting", name, "log forwarding profile", e)
-            return False
+            self._handle_api_exception("deleting", name, "log-forwarding profile", e)
 
     def get_log_forwarding_profile(self, folder: str, name: str) -> dict[str, Any] | None:
-        """Get a specific log forwarding profile by name.
+        """Get a specific log-forwarding profile by name.
 
         Args:
-            folder: Folder containing the log forwarding profile
-            name: Name of the log forwarding profile
+            folder: Folder containing the log-forwarding profile
+            name: Name of the log-forwarding profile
 
         Returns:
-            dict[str, Any] | None: Log forwarding profile object if found, None otherwise
+            dict[str, Any] | None: Log a forwarding profile object if found, None otherwise
 
         """
-        self.logger.info(f"Getting log forwarding profile '{name}' from folder: {folder}")
+        self.logger.info(f"Getting log-forwarding profile '{name}' from folder: {folder}")
 
         if not self.client:
             # Return mock data if no client is available
@@ -2850,16 +2855,16 @@ class SCMClient:
                         "send_syslog": ["syslog-server-1"],
                     }
                 ],
-                "description": f"Mock log forwarding profile for {name}",
+                "description": f"Mock log-forwarding profile for {name}",
                 "enhanced_application_logging": True,
             }
 
         try:
-            # Fetch the log forwarding profile
+            # Fetch the log-forwarding profile
             profile = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
             return json.loads(profile.model_dump_json(exclude_unset=True)) if profile else None
         except Exception as e:
-            self.logger.error(f"Failed to get log forwarding profile '{name}': {str(e)}")
+            self.logger.error(f"Failed to get log-forwarding profile '{name}': {str(e)}")
             return None
 
     def list_log_forwarding_profiles(
@@ -2869,7 +2874,7 @@ class SCMClient:
         device: str | None = None,
         exact_match: bool = False,
     ) -> list[dict[str, Any]]:
-        """List all log forwarding profiles in a container.
+        """List all log-forwarding profiles in a container.
 
         Args:
             folder: Folder location
@@ -2878,11 +2883,11 @@ class SCMClient:
             exact_match: If True, only return profiles directly in the specified container
 
         Returns:
-            list[dict[str, Any]]: List of log forwarding profile objects
+            list[dict[str, Any]]: List of log-forwarding profile objects
 
         """
         container = folder or snippet or device or "Texas"
-        self.logger.info(f"Listing log forwarding profiles in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
+        self.logger.info(f"Listing log-forwarding profiles in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
 
         if not self.client:
             # Return mock data if no client is available
@@ -2904,7 +2909,7 @@ class SCMClient:
                             "send_syslog": ["syslog-server-1"],
                         },
                     ],
-                    "description": "Default log forwarding profile",
+                    "description": "Default log-forwarding profile",
                     "enhanced_application_logging": False,
                 },
                 {
@@ -2920,7 +2925,7 @@ class SCMClient:
                             "send_http": ["http-server-1"],
                         }
                     ],
-                    "description": "Security log forwarding profile",
+                    "description": "Security log-forwarding profile",
                     "enhanced_application_logging": True,
                 },
             ]
@@ -2935,13 +2940,13 @@ class SCMClient:
             container_kwargs["device"] = device
 
         try:
-            # List log forwarding profiles using the SDK
+            # List log-forwarding profiles using the SDK
             results = self.client.log_forwarding_profile.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to the list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
-            self._handle_api_exception("listing", container, "log forwarding profiles", e)
+            self._handle_api_exception("listing", container, "log-forwarding profiles", e)
 
     # Services -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -2969,7 +2974,7 @@ class SCMClient:
         self.logger.info(f"Creating/updating service '{name}' in folder: {folder}")
 
         if not self.client:
-            # Return mock response if no client is available
+            # Return a mock response if no client is available
             return {
                 "id": f"service-{name}",
                 "folder": folder,
@@ -2980,7 +2985,7 @@ class SCMClient:
             }
 
         try:
-            # Check if service already exists
+            # Check if the service already exists
             try:
                 existing = self.client.service.fetch(name=name, folder=folder)
                 if existing:
@@ -2994,7 +2999,7 @@ class SCMClient:
                     updated = self.client.service.update(existing)
                     return json.loads(updated.model_dump_json(exclude_unset=True))
             except Exception as fetch_error:
-                # Service doesn't exist, create new one
+                # Service doesn't exist, create a new one
                 self.logger.debug(f"Service '{name}' not found, creating new: {fetch_error}")
 
             # Prepare the service data
@@ -3035,14 +3040,13 @@ class SCMClient:
             return True
 
         try:
-            # First fetch the service to get its ID
+            # First, fetch the service to get its ID
             service = self.client.service.fetch(name=name, folder=folder)
             self.client.service.delete(str(service.id))
             self.logger.info(f"Successfully deleted service '{name}'")
             return True
         except Exception as e:
             self._handle_api_exception("deleting", name, "service", e)
-            return False
 
     def get_service(self, folder: str, name: str) -> dict[str, Any]:
         """Get a specific service by name.
@@ -3163,7 +3167,7 @@ class SCMClient:
             # List services using the SDK
             results = self.client.service.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to show the list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "services", e)
@@ -3186,13 +3190,13 @@ class SCMClient:
             tag: Optional list of tags
 
         Returns:
-            dict[str, Any]: Created service group object
+            dict[str, Any]: The created service group object
 
         """
         self.logger.info(f"Creating/updating service group '{name}' in folder: {folder}")
 
         if not self.client:
-            # Return mock response if no client is available
+            # Return a mock response if no client is available
             return {
                 "id": f"service-group-{name}",
                 "folder": folder,
@@ -3202,11 +3206,11 @@ class SCMClient:
             }
 
         try:
-            # Check if service group already exists
+            # Check if the service group already exists
             try:
                 existing = self.client.service_group.fetch(name=name, folder=folder)
                 if existing:
-                    # Update existing service group
+                    # Update the existing service group
                     self.logger.info(f"Service group '{name}' already exists, updating...")
                     existing.members = members
                     if tag is not None:
@@ -3214,7 +3218,7 @@ class SCMClient:
                     updated = self.client.service_group.update(existing)
                     return json.loads(updated.model_dump_json(exclude_unset=True))
             except Exception as fetch_error:
-                # Service group doesn't exist, create new one
+                # Service group doesn't exist, create a new one
                 self.logger.debug(f"Service group '{name}' not found, creating new: {fetch_error}")
 
             # Prepare the service group data
@@ -3252,14 +3256,13 @@ class SCMClient:
             return True
 
         try:
-            # First fetch the service group to get its ID
+            # First, fetch the service group to get its ID
             service_group = self.client.service_group.fetch(name=name, folder=folder)
             self.client.service_group.delete(str(service_group.id))
             self.logger.info(f"Successfully deleted service group '{name}'")
             return True
         except Exception as e:
             self._handle_api_exception("deleting", name, "service group", e)
-            return False
 
     def get_service_group(self, folder: str, name: str) -> dict[str, Any]:
         """Get a specific service group by name.
@@ -3352,7 +3355,7 @@ class SCMClient:
             # List service groups using the SDK
             results = self.client.service_group.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to show the list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "service groups", e)
@@ -3401,9 +3404,9 @@ class SCMClient:
             self.logger.info(f"Updated existing syslog server profile '{syslog_data['name']}' in {container_field} '{container_value}'")
             return json.loads(updated.model_dump_json(exclude_unset=True))
         except Exception as e:
-            # If profile doesn't exist, create new one
+            # If a profile doesn't exist, create a new one
             self.logger.debug(f"Syslog server profile '{syslog_data['name']}' not found, creating new: {e}")
-            # Create new syslog server profile
+            # Create a new syslog server profile
             try:
                 created = self.client.syslog_server_profile.create(syslog_data)
                 self.logger.info(f"Created new syslog server profile '{syslog_data['name']}' in {container_field} '{container_value}'")
@@ -3444,8 +3447,6 @@ class SCMClient:
             container_kwargs["snippet"] = snippet
         elif device:
             container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
 
         try:
             self.client.syslog_server_profile.delete(name, **container_kwargs)
@@ -3602,7 +3603,7 @@ class SCMClient:
             # List syslog server profiles using the SDK
             results = self.client.syslog_server_profile.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to show the list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception(
@@ -3645,7 +3646,7 @@ class SCMClient:
         if not self.client:
             return tag_data
 
-        # Check if tag already exists
+        # Check if the tag already exists
         try:
             existing = self.client.tag.fetch(name=tag_data["name"], **{container_field: container_value})
             # Update existing tag
@@ -3656,7 +3657,7 @@ class SCMClient:
             self.logger.info(f"Updated existing tag '{tag_data['name']}' in {container_field} '{container_value}'")
             return json.loads(updated.model_dump_json(exclude_unset=True))
         except Exception as e:
-            # If tag doesn't exist, create new one
+            # If the tag doesn't exist, create a new one
             self.logger.debug(f"Tag '{tag_data['name']}' not found, creating new: {e}")
             # Create new tag
             try:
@@ -3703,7 +3704,7 @@ class SCMClient:
             raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
 
         try:
-            # First fetch the tag to get its ID
+            # First, fetch the tag to get its ID
             tag = self.client.tag.fetch(name=name, **container_kwargs)
             self.client.tag.delete(str(tag.id))
             self.logger.info(f"Deleted tag: {name}")
@@ -3815,7 +3816,7 @@ class SCMClient:
             # List tags using the SDK
             results = self.client.tag.list(exact_match=exact_match, **container_kwargs)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to the list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "tags", e)
@@ -3875,7 +3876,7 @@ class SCMClient:
                 self.logger.info(f"Security zone '{name}' not found in folder '{folder}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
-                self.logger.debug(f"Error fetching security zone '{name}': {str(fetch_error)}")
+                self.logger.warning(f"Error fetching security zone '{name}': {str(fetch_error)}")
 
             # Prepare zone data
             zone_data = {
@@ -3884,7 +3885,7 @@ class SCMClient:
             }
 
             # Note: The zone mode is typically stored within the network configuration
-            # For the purpose of this method, we'll treat mode as a way to initialize the zone
+            # For this method, we'll treat mode as a way to initialize the zone,
             # but we can't change it after creation according to SDK constraints
 
             if interfaces:
@@ -3900,10 +3901,10 @@ class SCMClient:
             if existing_zone:
                 # Check if we need to recreate due to mode change
                 # Since the SDK model doesn't directly expose mode, we'll update other fields
-                # and log a warning if mode might have changed
+                # and log a warning if the mode might have changed
 
                 # Update only the fields that are changing
-                # Note: description field not supported by SDK security zone model
+                # Note: description field not supported by an SDK security zone model
 
                 # Update interfaces if provided
                 if interfaces is not None:
@@ -3920,7 +3921,7 @@ class SCMClient:
                 result = self.client.security_zone.update(existing_zone)
                 self.logger.info(f"Successfully updated security zone '{name}'")
             else:
-                # Create new zone - for new zones we need to include the mode in the network config
+                # Create the new zone - for new zones we need to include the mode in the network config
                 # The actual structure depends on the mode type
                 if mode:
                     # Initialize network configuration based on mode
@@ -3953,11 +3954,11 @@ class SCMClient:
         self.logger.info(f"Deleting zone: {name} from folder {folder}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
-            # First fetch the security zone to get its ID
+            # First, fetch the security zone to get its ID
             zone = self.client.security_zone.fetch(name=name, folder=folder)
             self.client.security_zone.delete(str(zone.id))
             self.logger.info(f"Successfully deleted security zone '{name}'")
@@ -4017,9 +4018,9 @@ class SCMClient:
         """List security zones from SCM.
 
         Args:
-            folder: The folder containing the zones
-            snippet: The snippet containing the zones
-            device: The device containing the zones
+            folder: The folder containing the zone
+            snippet: The snippet containing the zone
+            device: The device containing the zone
             exact_match: If True, only return exact name matches
 
         Returns:
@@ -4084,14 +4085,14 @@ class SCMClient:
             ]
 
         try:
-            # Check if snippet or device is supported
+            # Check if the snippet or device is supported
             if snippet or device:
                 raise NotImplementedError(f"Listing security zones by {'snippet' if snippet else 'device'} is not yet supported by the SDK")
 
             # List security zones using the SDK
             results = self.client.security_zone.list(**container_kwargs, exact_match=exact_match)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to show a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "security zones", e)
@@ -4139,7 +4140,7 @@ class SCMClient:
             rulebase: Rulebase to use (pre, post, or default)
             log_start: Log at session start
             log_end: Log at session end
-            log_setting: Log forwarding profile name
+            log_setting: log-forwarding profile name
 
         Returns:
             dict[str, Any]: The created security rule object
@@ -4196,7 +4197,7 @@ class SCMClient:
                 "folder": folder,
                 "from_": source_zones,  # SDK uses from_ instead of source_zones
                 "to_": destination_zones,  # SDK uses to_ instead of destination_zones
-                "source": source_addresses,  # SDK uses source instead of source_addresses
+                "source": source_addresses,  # SDK uses `source` for the source instead of source_addresses
                 "destination": destination_addresses,  # SDK uses destination instead of destination_addresses
                 "application": applications,  # SDK uses application instead of applications
                 "service": services,  # Use provided services or default to any
@@ -4218,7 +4219,7 @@ class SCMClient:
             if log_setting:
                 rule_data["log_setting"] = log_setting
 
-            # If rule exists, update it
+            # If the rule exists, update it
             if existing_rule:
                 # Update only the fields that are changing
                 existing_rule.from_ = source_zones
@@ -4249,7 +4250,7 @@ class SCMClient:
                 result = self.client.security_rule.update(existing_rule)
                 self.logger.info(f"Successfully updated security rule '{name}'")
             else:
-                # Create new rule - need to pass rulebase for creation
+                # Create a new rule - need to pass rulebase for creation
                 result = self.client.security_rule.create(data=rule_data, rulebase=rulebase)
                 self.logger.info(f"Successfully created security rule '{name}'")
 
@@ -4278,7 +4279,7 @@ class SCMClient:
         self.logger.info(f"Deleting security rule: {name} from folder {folder}, rulebase {rulebase}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
@@ -4349,8 +4350,8 @@ class SCMClient:
         """List security rules from SCM.
 
         Args:
-            folder: The folder containing the rules
-            snippet: The snippet containing the rules
+            folder: The folder containing the rule
+            snippet: The snippet containing the rule
             device: The device containing the rules
             rulebase: Rulebase to use (pre, post, or default)
             exact_match: If True, only return exact name matches
@@ -4417,14 +4418,14 @@ class SCMClient:
             ]
 
         try:
-            # Check if snippet or device is supported
+            # Check if a snippet or device is supported
             if snippet or device:
                 raise NotImplementedError(f"Listing security rules by {'snippet' if snippet else 'device'} is not yet supported by the SDK")
 
             # List security rules using the SDK
             results = self.client.security_rule.list(**container_kwargs, rulebase=rulebase, exact_match=exact_match)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "security rules", e)
@@ -4529,7 +4530,7 @@ class SCMClient:
                 update_model = AntiSpywareProfileUpdateModel(**profile_data)
                 result = self.client.anti_spyware_profile.update(update_model)
             else:
-                # Create new profile
+                # Create a new profile
                 result = self.client.anti_spyware_profile.create(profile_data)
 
             # Convert response to dict
@@ -4569,7 +4570,7 @@ class SCMClient:
             # Fetch the profile to get its ID
             profile = self.client.anti_spyware_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
 
-            # Delete the profile by ID
+            # Delete using the ID
             self.client.anti_spyware_profile.delete(profile.id)
             self.logger.info(f"Successfully deleted anti-spyware profile '{name}' from {container_type} '{container}'")
             return True
@@ -4641,9 +4642,9 @@ class SCMClient:
         """List anti-spyware profiles.
 
         Args:
-            folder: Folder to list from
-            snippet: Snippet to list from
-            device: Device to list from
+            folder: Folder to list out
+            snippet: Snippet to list out
+            device: Device to list out
             exact_match: If True, only return exact container matches
 
         Returns:
@@ -4700,7 +4701,7 @@ class SCMClient:
             # List profiles using the SDK
             results = self.client.anti_spyware_profile.list(**container_kwargs, exact_match=exact_match)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container or "", "anti-spyware profiles", e)
@@ -4723,7 +4724,7 @@ class SCMClient:
             **profile_data: Additional profile configuration data
 
         Returns:
-            dict[str, Any]: Created/updated decryption profile object
+            dict[str, Any]: Created/updated a decryption profile object
 
         """
         name = profile_data.get("name")
@@ -4768,8 +4769,9 @@ class SCMClient:
 
                 # Update the profile
                 result = self.client.decryption_profile.update(existing_profile)
+                self.logger.info(f"Successfully updated decryption profile '{name}'")
             else:
-                # Create new profile
+                # Create a new profile
                 profile_dict = {container_type: container}
                 profile_dict.update(profile_data)
 
@@ -4806,11 +4808,12 @@ class SCMClient:
         self.logger.info(f"Deleting decryption profile: {name} from {container_type} {container}")
 
         if not self.client:
-            # Return mock result if no client is available
+            # Return a mock result if no client is available
             return True
 
         try:
             # Get the profile first to get its ID
+            profile = None
             if folder:
                 profile = self.client.decryption_profile.fetch(name=name, folder=folder)
             elif snippet:
@@ -4869,6 +4872,7 @@ class SCMClient:
 
         try:
             # Fetch the profile using the SDK
+            result = None
             if folder:
                 result = self.client.decryption_profile.fetch(name=name, folder=folder)
             elif snippet:
@@ -4891,9 +4895,9 @@ class SCMClient:
         """List decryption profiles.
 
         Args:
-            folder: Folder to list from
-            snippet: Snippet to list from
-            device: Device to list from
+            folder: Folder to a list from
+            snippet: Snippet to a list from
+            device: Device to a list from
             exact_match: If True, only return exact container matches
 
         Returns:
@@ -4947,7 +4951,7 @@ class SCMClient:
             # List profiles using the SDK
             results = self.client.decryption_profile.list(**container_kwargs, exact_match=exact_match)
 
-            # Convert SDK response to list of dicts for compatibility
+            # Convert SDK response to a list of dicts for compatibility
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container or "", "decryption profiles", e)
