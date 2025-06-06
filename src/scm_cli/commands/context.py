@@ -276,6 +276,8 @@ def test_command(
     then restores the previous context.
     """
     from scm.client import Scm
+    from scm.exceptions import APIError
+    from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 
     # Save current context
     original_context = get_current_context()
@@ -341,6 +343,19 @@ def test_command(
                 console.print("[yellow]⚠ Authentication successful but could not verify API connectivity:[/yellow]")
                 console.print(f"  {str(conn_error)}")
 
+        except (APIError, InvalidClientError) as e:
+            error_msg = str(e)
+            if "invalid_client" in error_msg or "Client authentication failed" in error_msg:
+                console.print("[red]✗ Authentication failed: Invalid client credentials[/red]")
+                console.print("\n[yellow]Please verify your credentials:[/yellow]")
+                console.print(f"  • Client ID: {config.get('client_id')}")
+                console.print(f"  • TSG ID: {config.get('tsg_id')}")
+                console.print("  • Client Secret: ******* (hidden)")
+                console.print("\n[cyan]To update credentials:[/cyan]")
+                console.print(f"  scm context create {context_name} --client-id <id> --client-secret <secret> --tsg-id <tsg>")
+            else:
+                console.print(f"[red]✗ Authentication failed: {error_msg}[/red]")
+            raise typer.Exit(1) from e
         except Exception as e:
             console.print(f"[red]✗ Authentication failed: {str(e)}[/red]")
             raise typer.Exit(1) from e

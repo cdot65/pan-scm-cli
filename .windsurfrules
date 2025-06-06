@@ -44,3 +44,12 @@ Place test files in the `tests/` directory with names like `test_config.py`. Use
 
 **instruction 15: Avoid direct file system modifications outside config**  
 Limit file system interactions to reading `~/.scm-cli/config.yaml` for authentication. Avoid writing files or modifying system paths unless explicitly required by a command (e.g., loading a user-provided YAML file).
+
+**instruction 16: Use context-based authentication as primary method**  
+Implement and use the context management system for multi-tenant authentication. Context commands should include: `create`, `list`, `use`, `delete`, `show`, `current`, and `test`. Store contexts in `~/.scm-cli/contexts/` with secure permissions (600). The authentication precedence order is: 1) Active context (from `scm context use`), 2) Environment variables (SCM_CLIENT_ID, etc.), 3) Default configuration. Never use `~/.scm-cli/config.yaml` or `.secrets.yaml` for authentication as these are deprecated.
+
+**instruction 17: Handle Docker container integration**  
+Support volume mounting for contexts when running in Docker containers. The standard mount is `-v ~/.scm-cli:/home/scmuser/.scm-cli`. Ensure all context operations work identically in containers and on host systems. Docker images should never contain hardcoded credentials.
+
+**instruction 18: Log context usage information**  
+When log level is INFO or higher, display which authentication context is being used with `show_context_info()` helper. Include messages like "[INFO] Using authentication context: production" to provide clear visibility into which tenant is being accessed.

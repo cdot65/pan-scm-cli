@@ -103,14 +103,14 @@ echo -e "${GREEN}✓ AMD64 image built${NC}"
 # Step 3: Push to registry if requested
 if [ "$PUSH_TO_REGISTRY" = true ]; then
     echo -e "${BLUE}Step 3: Pushing images to GitHub Container Registry...${NC}"
-    
+
     # First, make sure we're logged in to ghcr.io
     echo -e "${YELLOW}Note: Make sure you're logged in to ghcr.io:${NC}"
     echo -e "${YELLOW}  docker login ghcr.io -u cdot65${NC}"
-    
+
     # Tag the local ARM64 image for registry
     docker tag "${IMAGE_NAME}:apple" "${REGISTRY}${IMAGE_NAME}:apple"
-    
+
     # Push ARM64 image
     echo -e "${BLUE}Pushing ARM64 image as :apple tag...${NC}"
     docker push "${REGISTRY}${IMAGE_NAME}:apple"
@@ -118,7 +118,7 @@ if [ "$PUSH_TO_REGISTRY" = true ]; then
         echo -e "${RED}✗ Failed to push ARM64 image!${NC}"
         exit 1
     fi
-    
+
     # Push AMD64 image (already tagged correctly)
     echo -e "${BLUE}Pushing AMD64 image as :latest tag...${NC}"
     docker buildx build \
@@ -131,7 +131,7 @@ if [ "$PUSH_TO_REGISTRY" = true ]; then
         echo -e "${RED}✗ Failed to push AMD64 image!${NC}"
         exit 1
     fi
-    
+
     echo -e "${GREEN}✓ Successfully pushed to GitHub Container Registry!${NC}"
     echo -e "${GREEN}  - ${REGISTRY}${IMAGE_NAME}:latest (AMD64)${NC}"
     echo -e "${GREEN}  - ${REGISTRY}${IMAGE_NAME}:apple (ARM64)${NC}"
