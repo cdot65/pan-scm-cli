@@ -2,6 +2,57 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 0.4.1 (Unreleased)
+
+**Released:** June 6, 2025
+
+### Added
+
+- **Lazy Client Initialization**: SDK client is now initialized only when needed
+  - Significantly faster CLI startup for commands that don't require API access (e.g., `--help`)
+  - Improved resource efficiency for scripting and automation
+  - Better error isolation - authentication errors only occur during actual API usage
+
+- **Enhanced Authentication Error Handling**: Graceful handling of authentication failures
+  - Specific detection for `InvalidClientError` from OAuth library
+  - Clear, actionable error messages with context information
+  - Shows current context, client ID, and TSG ID (with client secret masked)
+  - Provides exact command to fix credential issues
+
+### Improved
+
+- **Cleaner Output**: Suppressed verbose authentication logging from SDK and OAuth libraries
+  - Removed noisy debug messages during authentication
+  - Log levels set to CRITICAL for `scm.auth` and `oauthlib` loggers
+  - Cleaner, more professional output for end users
+
+- **Context Test Command**: Enhanced error handling and feedback
+  - Better detection of invalid credentials
+  - Clear success/failure indicators with emojis (✓/❌)
+  - Actionable guidance for troubleshooting
+
+### Technical Details
+
+- Implemented `LazyClient` wrapper class that delays SDK initialization
+- Enhanced `_handle_api_exception()` method with specific error detection
+- Improved logging configuration for cleaner output
+
+### Example
+
+When authentication fails, users now see:
+```
+❌ Authentication failed: Invalid client credentials
+
+Current context: production
+Client ID: abc123...
+TSG ID: 456789...
+Client Secret: ****
+
+Please check your credentials and try again.
+You can update the context with:
+  scm context create production --client-id <id> --client-secret <secret> --tsg-id <tsg>
+```
+
 ## Version 0.4.0 (Unreleased)
 
 **Released:** TBD
