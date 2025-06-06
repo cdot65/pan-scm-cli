@@ -2372,3 +2372,97 @@ REGISTRY="ghcr.io/cdot65/"
 3. **CI/CD Ready**: Script supports automated builds with proper exit codes
 4. **Clear Tagging**: Users know which image to pull for their platform
 5. **Cache Control**: `--no-cache` option ensures clean builds when needed
+
+## 35. Authentication Error Handling and Lazy Client Initialization
+
+### 35.1 Problem Statement
+
+The CLI needed better handling of authentication errors and performance optimization:
+- Authentication failures produced verbose, unhelpful error messages
+- SDK client initialization happened immediately, even for commands that didn't need it
+- No clear guidance when credentials were invalid
+- Noisy logging from authentication libraries cluttered the output
+
+### 35.2 Solution: Enhanced Error Handling and Lazy Loading
+
+Implemented comprehensive authentication error handling and lazy client initialization with the following features:
+
+#### 35.2.1 Specific Error Detection
+
+- **InvalidClientError**: Catches OAuth library errors for invalid credentials
+- **APIError**: Handles SDK-specific authentication failures
+- **Clear error messages**: Provides actionable feedback when authentication fails
+
+#### 35.2.2 Lazy Client Initialization
+
+```python
+class LazyClient:
+    """Lazy wrapper for SCMClient that delays initialization until first use."""
+    
+    def __init__(self):
+        self._client = None
+        
+    def __getattr__(self, name):
+        """Initialize client on first access."""
+        if self._client is None:
+            self._client = SCMClient()
+        return getattr(self._client, name)
+```
+
+Benefits:
+- **Resource efficiency**: SDK client only initialized when needed
+- **Faster CLI startup**: Commands like `--help` start instantly
+- **Better error isolation**: Authentication errors only occur during actual API usage
+
+#### 35.2.3 Enhanced Error Messages
+
+When authentication fails, users now see:
+```
+❌ Authentication failed: Invalid client credentials
+
+Current context: production
+Client ID: abc123...
+TSG ID: 456789...
+Client Secret: ****
+
+Please check your credentials and try again.
+You can update the context with:
+  scm context create production --client-id <id> --client-secret <secret> --tsg-id <tsg>
+```
+
+#### 35.2.4 Logging Improvements
+
+- Suppressed verbose SDK authentication logging
+- Added context-aware logging showing which tenant is being used
+- Cleaner output for better user experience
+
+### 35.3 Technical Implementation Details
+
+#### 35.3.1 SDK Client Updates
+
+Modified `sdk_client.py`:
+- Added lazy initialization wrapper class
+- Enhanced error handling in `_handle_api_exception()`
+- Added specific handling for `InvalidClientError`
+
+#### 35.3.2 Client Module Updates
+
+Modified `client.py`:
+- Changed to use `LazyClient` instead of direct `SCMClient`
+- Added authentication error detection and messaging
+- Improved logging configuration
+
+#### 35.3.3 Context Test Enhancements
+
+Enhanced `scm context test` command:
+- Better error handling for invalid credentials
+- Clear feedback with context information
+- Actionable steps for fixing issues
+
+### 35.4 Benefits
+
+1. **Better User Experience**: Clear, actionable error messages
+2. **Performance Optimization**: Faster CLI startup with lazy loading
+3. **Debugging Support**: Context information helps identify credential issues
+4. **Cleaner Output**: Suppressed noisy authentication library logging
+5. **Resource Efficiency**: SDK client only initialized when needed
