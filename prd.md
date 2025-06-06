@@ -2293,7 +2293,7 @@ The context management system integrates seamlessly with Docker containers:
 docker run -d \
   --name pan-scm \
   -v ~/.scm-cli:/home/scmuser/.scm-cli \
-  pan-scm-cli:latest
+  ghcr.io/cdot65/pan-scm-cli:latest
 
 # Now all your contexts are available in the container
 docker exec pan-scm scm context list
@@ -2307,3 +2307,68 @@ docker exec pan-scm scm context use production
 3. **Security**: Credentials stay on host, not baked into images
 4. **Portability**: Easy to share workflows without exposing credentials
 5. **Multi-tenant Testing**: Run multiple containers with different contexts
+
+## 34. Docker Build Script Enhancements
+
+### 34.1 Problem Statement
+
+The Docker build process needed improvements to support:
+- Multi-platform builds for both AMD64 and ARM64 architectures
+- Local development builds without requiring registry push
+- Clear separation between local testing and production deployment
+- Integration with GitHub Container Registry (ghcr.io)
+
+### 34.2 Solution: Enhanced Docker Build Script
+
+The `docker/docker-build.sh` script has been completely rewritten with the following features:
+
+#### 34.2.1 Multi-Platform Build Support
+
+```bash
+# Build both platforms and push to registry
+REGISTRY="ghcr.io/cdot65/" ./docker-build.sh
+
+# Build for local platform only
+./docker-build.sh --local
+
+# Build AMD64 and load locally
+./docker-build.sh --amd64
+```
+
+#### 34.2.2 Build Options
+
+- **--no-cache**: Force rebuild without using Docker cache
+- **--local**: Build and load for current platform only
+- **--push**: Push to configured registry after building
+
+#### 34.2.3 Platform-Specific Tags
+
+- **AMD64**: Tagged as `:latest` for broad compatibility
+- **ARM64**: Tagged as `:apple` for Apple Silicon users
+
+### 34.3 Technical Implementation
+
+#### 34.3.1 Build Process
+
+1. **Local ARM64 Build**: Always built first with `--load` flag for immediate local use
+2. **AMD64 Build**: Built for registry push with `:latest` tag
+3. **ARM64 Registry Build**: Pushed with `:apple` tag for specific platform support
+
+#### 34.3.2 Registry Configuration
+
+```bash
+IMAGE_NAME="pan-scm-cli"
+REGISTRY="ghcr.io/cdot65/"
+
+# Results in:
+# ghcr.io/cdot65/pan-scm-cli:latest (AMD64)
+# ghcr.io/cdot65/pan-scm-cli:apple (ARM64)
+```
+
+### 34.4 Benefits
+
+1. **Local Development**: Developers can build and test locally without registry access
+2. **Platform Optimization**: Native images for both Intel/AMD and Apple Silicon
+3. **CI/CD Ready**: Script supports automated builds with proper exit codes
+4. **Clear Tagging**: Users know which image to pull for their platform
+5. **Cache Control**: `--no-cache` option ensures clean builds when needed
