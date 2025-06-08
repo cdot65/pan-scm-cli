@@ -1071,7 +1071,16 @@ def set_address(
             fqdn=address.fqdn,
         )
 
-        typer.echo(f"Created address: {result['name']} in folder {result['folder']}")
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"✅ Created address: {result['name']} in folder {result['folder']}")
+        elif action == "updated":
+            typer.echo(f"✅ Updated address: {result['name']} in folder {result['folder']}")
+        elif action == "no_change":
+            typer.echo(f"ℹ️  No changes needed for address: {result['name']} in folder {result['folder']}")
+
         return result
     except Exception as e:
         typer.echo(f"Error creating address: {str(e)}", err=True)
@@ -5081,7 +5090,15 @@ def set_service(
         )
 
         if result:
-            typer.echo(f"Created service: {name} in folder {folder}")
+            # Get the action performed
+            action = result.pop("__action__", "created")
+
+            if action == "created":
+                typer.echo(f"✅ Created service: {name} in folder {folder}")
+            elif action == "updated":
+                typer.echo(f"✅ Updated service: {name} in folder {folder}")
+            elif action == "no_change":
+                typer.echo(f"ℹ️  No changes needed for service: {name} in folder {folder}")
         else:
             typer.echo(f"Failed to create/update service '{name}'", err=True)
             raise typer.Exit(code=1)
@@ -6149,10 +6166,18 @@ def set_tag(
         sdk_data = validated_tag.to_sdk_model()
 
         # Create/update the tag
-        scm_client.create_tag(sdk_data)
+        result = scm_client.create_tag(sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
 
         container = folder or snippet or device
-        typer.echo(f"Created tag: {name} in {container}")
+        if action == "created":
+            typer.echo(f"✅ Created tag: {name} in {container}")
+        elif action == "updated":
+            typer.echo(f"✅ Updated tag: {name} in {container}")
+        elif action == "no_change":
+            typer.echo(f"ℹ️  No changes needed for tag: {name} in {container}")
 
     except Exception as e:
         typer.echo(f"❌ Error creating/updating tag: {str(e)}", err=True)

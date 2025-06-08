@@ -451,40 +451,103 @@ class SCMClient:
                 elif fqdn:
                     new_type = "fqdn"
 
-                # If the address type is changing, we need to delete and recreate
+                # If the address type is changing, update the object in place
                 if current_type and new_type and current_type != new_type:
-                    self.logger.info(f"Address type changing from {current_type} to {new_type}, deleting and recreating...")
-                    # Delete the existing address
-                    self.client.address.delete(object_id=str(existing_address.id))
-                    # Create new address with new type
-                    result = self.client.address.create(address_data)
-                    self.logger.info(f"Successfully recreated address '{name}' with new type")
-                else:
-                    # Update only the fields that are changing
-                    existing_address.description = description or ""
-                    if tags is not None:  # Only update tags if explicitly provided
-                        existing_address.tag = tags
+                    self.logger.info(f"Address type changing from {current_type} to {new_type}, updating in place...")
+                    # Clear old type-specific fields
+                    if current_type == "ip_netmask":
+                        existing_address.ip_netmask = None
+                    elif current_type == "ip_range":
+                        existing_address.ip_range = None
+                    elif current_type == "ip_wildcard":
+                        existing_address.ip_wildcard = None
+                    elif current_type == "fqdn":
+                        existing_address.fqdn = None
 
-                    # Update the address value if provided and the same type
-                    if ip_netmask and current_type == "ip_netmask":
+                    # Set new type-specific field
+                    if new_type == "ip_netmask":
                         existing_address.ip_netmask = ip_netmask
-                    elif ip_range and current_type == "ip_range":
+                    elif new_type == "ip_range":
                         existing_address.ip_range = ip_range
-                    elif ip_wildcard and current_type == "ip_wildcard":
+                    elif new_type == "ip_wildcard":
                         existing_address.ip_wildcard = ip_wildcard
-                    elif fqdn and current_type == "fqdn":
+                    elif new_type == "fqdn":
                         existing_address.fqdn = fqdn
 
-                    # Perform update
+                    # Update description if provided
+                    if description is not None:
+                        existing_address.description = description
+                    # Update tags if provided
+                    if tags is not None:
+                        existing_address.tag = tags
+
+                    self.logger.info(f"Updating address '{name}' to new type '{new_type}' and values")
                     result = self.client.address.update(existing_address)
-                    self.logger.info(f"Successfully updated address '{name}'")
+                    self.logger.info(f"Successfully updated address '{name}' with new type")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    # Check what needs updating
+                    needs_update = False
+                    update_fields = []
+
+                    # Compare description
+                    current_desc = getattr(existing_address, "description", "")
+                    if description is not None and current_desc != description:
+                        existing_address.description = description
+                        update_fields.append("description")
+                        needs_update = True
+
+                    # Compare tags
+                    if tags is not None:
+                        current_tags = getattr(existing_address, "tag", []) or []
+                        if set(current_tags) != set(tags):
+                            existing_address.tag = tags
+                            update_fields.append("tags")
+                            needs_update = True
+
+                    # Compare address value if provided and same type
+                    if ip_netmask and current_type == "ip_netmask":
+                        if existing_address.ip_netmask != ip_netmask:
+                            existing_address.ip_netmask = ip_netmask
+                            update_fields.append("ip_netmask")
+                            needs_update = True
+                    elif ip_range and current_type == "ip_range":
+                        if existing_address.ip_range != ip_range:
+                            existing_address.ip_range = ip_range
+                            update_fields.append("ip_range")
+                            needs_update = True
+                    elif ip_wildcard and current_type == "ip_wildcard":
+                        if existing_address.ip_wildcard != ip_wildcard:
+                            existing_address.ip_wildcard = ip_wildcard
+                            update_fields.append("ip_wildcard")
+                            needs_update = True
+                    elif fqdn and current_type == "fqdn" and existing_address.fqdn != fqdn:
+                        existing_address.fqdn = fqdn
+                        update_fields.append("fqdn")
+                        needs_update = True
+
+                    # Only update if changes detected
+                    if needs_update:
+                        self.logger.info(f"Updating address fields: {', '.join(update_fields)}")
+                        result = self.client.address.update(existing_address)
+                        self.logger.info(f"Successfully updated address '{name}'")
+                        response = json.loads(result.model_dump_json(exclude_unset=True))
+                        response["__action__"] = "updated"
+                        return response
+                    else:
+                        self.logger.info(f"No changes detected for address '{name}', skipping update")
+                        response = json.loads(existing_address.model_dump_json(exclude_unset=True))
+                        response["__action__"] = "no_change"
+                        return response
             else:
                 # Create a new address
                 result = self.client.address.create(address_data)
                 self.logger.info(f"Successfully created address '{name}'")
-
-            # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -3071,11 +3134,15 @@ class SCMClient:
                 if needs_update:
                     self.logger.info(f"Updating service fields: {', '.join(update_fields)}")
                     updated = self.client.service.update(existing_service)
-                    self.logger.info(f"Successfully updated service '{name}'")
-                    return json.loads(updated.model_dump_json(exclude_unset=True))
+                    self.logger.info(f"Successfully updated service '{name}' in folder '{folder}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
                 else:
                     self.logger.info(f"No changes detected for service '{name}', skipping update")
-                    return json.loads(existing_service.model_dump_json(exclude_unset=True))
+                    result = json.loads(existing_service.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
             else:
                 # Step 4: Create new service
                 service_data = {
@@ -3091,8 +3158,10 @@ class SCMClient:
                     service_data["tag"] = tag
 
                 result = self.client.service.create(service_data)
-                self.logger.info(f"Successfully created service '{name}'")
-                return json.loads(result.model_dump_json(exclude_unset=True))
+                self.logger.info(f"Successfully created service '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
 
         except Exception as e:
             self._handle_api_exception("create/update", folder, name, e)
@@ -3755,19 +3824,25 @@ class SCMClient:
                 self.logger.info(f"Updating tag fields: {', '.join(update_fields)}")
                 try:
                     updated = existing_tag.update()
-                    self.logger.info(f"Successfully updated tag '{tag_data['name']}'")
-                    return json.loads(updated.model_dump_json(exclude_unset=True))
+                    self.logger.info(f"Successfully updated tag '{tag_data['name']}' in {container_field} '{container_value}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
                 except Exception as update_error:
                     self._handle_api_exception("update", container_value, f"tag '{tag_data['name']}'", update_error)
             else:
                 self.logger.info(f"No changes detected for tag '{tag_data['name']}', skipping update")
-                return json.loads(existing_tag.model_dump_json(exclude_unset=True))
+                result = json.loads(existing_tag.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
         else:
             # Create new tag
             try:
                 created = self.client.tag.create(tag_data)
                 self.logger.info(f"Created new tag '{tag_data['name']}' in {container_field} '{container_value}'")
-                return json.loads(created.model_dump_json(exclude_unset=True))
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
             except Exception as create_error:
                 self._handle_api_exception(
                     "creating",
