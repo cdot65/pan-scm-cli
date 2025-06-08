@@ -21,9 +21,8 @@ GREEN := \033[0;32m
 NC := \033[0m # No Color
 
 setup:
-	@echo "Installing dependencies and pre-commit hooks..."
+	@echo "Installing dependencies..."
 	$(POETRY) install
-	$(POETRY) run pre-commit install
 	@echo "Setup complete!"
 
 mypy:

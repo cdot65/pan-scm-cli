@@ -20,7 +20,7 @@ hip_objects:
     # Patch management requirement
     patch_management_enabled: true
     patch_management_missing_patches: has-none
-    patch_management_severity: 50 # Critical patches only
+    patch_management_severity: 50  # Critical patches only
     patch_management_vendors:
       - name: Microsoft
         product:
@@ -61,7 +61,7 @@ hip_objects:
     # Patch management
     patch_management_enabled: true
     patch_management_missing_patches: has-any
-    patch_management_severity: 30 # High and critical patches
+    patch_management_severity: 30  # High and critical patches
 
   # Certificate-based authentication
   - folder: Austin
@@ -161,6 +161,6 @@ hip_objects:
           is: encrypted
     patch_management_enabled: true
     patch_management_missing_patches: has-none
-    patch_management_severity: 1 # All patches
+    patch_management_severity: 1  # All patches
     # Certificate required
     certificate_profile: High-Security-Cert
