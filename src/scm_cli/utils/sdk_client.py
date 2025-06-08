@@ -9,10 +9,11 @@ import json
 import logging
 from typing import Any, NoReturn
 
+from oauthlib.oauth2.rfc6749.errors import InvalidClientError
+
 # Import the actual SDK client
 from scm.client import Scm
 from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
-from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 
 from .config import get_credentials, settings
 from .context import get_current_context
@@ -53,7 +54,7 @@ class SCMClient:
         # Configure logging based on settings
         logging_level = getattr(logging, settings.get("log_level", "INFO"))
         logging.basicConfig(level=logging_level, force=True)
-        
+
         # Suppress SDK auth logging for cleaner output
         logging.getLogger("scm.auth").setLevel(logging.CRITICAL)
         logging.getLogger("oauthlib").setLevel(logging.CRITICAL)
@@ -89,7 +90,7 @@ class SCMClient:
             self.logger.warning("Using mock mode with dummy credentials")
             # The following mock credentials are used only in mock mode for testing purposes and do not represent real secrets.
             self.client_id = "mock-client-id"
-            self.client_secret = "mock-client"  # noqa: B105
+            self.client_secret = "mock-client"  # noqa: S105
             self.tsg_id = "mock-tsg-id"
             # In mock mode, methods will return mock data instead of making API calls
         except (APIError, InvalidClientError) as e:
@@ -97,19 +98,39 @@ class SCMClient:
             error_msg = str(e)
             if "invalid_client" in error_msg or "Client authentication failed" in error_msg:
                 import sys
-                print("\n❌ Authentication failed: Invalid client credentials", file=sys.stderr)
-                print(f"\nCurrent context: {current_context or 'None set'}", file=sys.stderr)
-                print(f"Client ID: {credentials.get('client_id', 'Not set')}", file=sys.stderr)
+
+                print(
+                    "\n❌ Authentication failed: Invalid client credentials",
+                    file=sys.stderr,
+                )
+                print(
+                    f"\nCurrent context: {current_context or 'None set'}",
+                    file=sys.stderr,
+                )
+                print(
+                    f"Client ID: {credentials.get('client_id', 'Not set')}",
+                    file=sys.stderr,
+                )
                 print(f"TSG ID: {credentials.get('tsg_id', 'Not set')}", file=sys.stderr)
                 print("\nTo fix this issue:", file=sys.stderr)
-                print("  1. Update context: scm context create <name> --client-id <id> --client-secret <secret> --tsg-id <tsg>", file=sys.stderr)
+                print(
+                    "  1. Update context: scm context create <name> --client-id <id> --client-secret <secret> --tsg-id <tsg>",
+                    file=sys.stderr,
+                )
                 print("  2. Switch context: scm context use <name>", file=sys.stderr)
-                print("  3. Use environment variables: SCM_CLIENT_ID, SCM_CLIENT_SECRET, SCM_TSG_ID", file=sys.stderr)
-                raise SystemExit(1)
+                print(
+                    "  3. Use environment variables: SCM_CLIENT_ID, SCM_CLIENT_SECRET, SCM_TSG_ID",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1) from e
             else:
                 import sys
-                print(f"\n❌ Failed to initialize SDK client: {error_msg}", file=sys.stderr)
-                raise SystemExit(1)
+
+                print(
+                    f"\n❌ Failed to initialize SDK client: {error_msg}",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1) from e
 
     def _handle_api_exception(self, operation: str, folder: str, resource_name: str, exception: Exception) -> NoReturn:
         """Handle API exceptions with proper logging and error formatting.
@@ -2981,7 +3002,7 @@ class SCMClient:
         description: str | None = None,
         tag: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Create or update a service.
+        """Create or update a service using smart upsert logic.
 
         Args:
             folder: Folder where the service will be created
@@ -2991,11 +3012,9 @@ class SCMClient:
             tag: Optional list of tags
 
         Returns:
-            dict[str, Any]: Created service object
+            dict[str, Any]: Created/updated service object
 
         """
-        self.logger.info(f"Creating/updating service '{name}' in folder: {folder}")
-
         if not self.client:
             # Return a mock response if no client is available
             return {
@@ -3008,42 +3027,75 @@ class SCMClient:
             }
 
         try:
-            # Check if the service already exists
+            # Step 1: Try to fetch the existing service
+            existing_service = None
             try:
-                existing = self.client.service.fetch(name=name, folder=folder)
-                if existing:
-                    # Update existing service
-                    self.logger.info(f"Service '{name}' already exists, updating...")
-                    existing.protocol = protocol
-                    if description is not None:
-                        existing.description = description
-                    if tag is not None:
-                        existing.tag = tag
-                    updated = self.client.service.update(existing)
+                existing_service = self.client.service.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing service '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Service '{name}' not found in folder '{folder}', will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching service '{name}': {str(e)}")
+
+            if existing_service:
+                # Step 2: Check what needs updating
+                needs_update = False
+                update_fields = []
+
+                # Compare protocol - this is complex as it's a nested dict
+                if protocol and hasattr(existing_service, "protocol"):
+                    # Convert both to comparable format
+                    existing_protocol = existing_service.protocol.model_dump(exclude_unset=True) if hasattr(existing_service.protocol, "model_dump") else existing_service.protocol
+                    if existing_protocol != protocol:
+                        existing_service.protocol = protocol
+                        update_fields.append("protocol")
+                        needs_update = True
+
+                # Compare description
+                if description is not None:
+                    current_desc = getattr(existing_service, "description", "")
+                    if current_desc != description:
+                        existing_service.description = description
+                        update_fields.append("description")
+                        needs_update = True
+
+                # Compare tags (as sets to ignore order)
+                if tag is not None:
+                    current_tags = getattr(existing_service, "tag", []) or []
+                    if set(current_tags) != set(tag):
+                        existing_service.tag = tag
+                        update_fields.append("tags")
+                        needs_update = True
+
+                # Step 3: Only update if changes detected
+                if needs_update:
+                    self.logger.info(f"Updating service fields: {', '.join(update_fields)}")
+                    updated = self.client.service.update(existing_service)
+                    self.logger.info(f"Successfully updated service '{name}'")
                     return json.loads(updated.model_dump_json(exclude_unset=True))
-            except Exception as fetch_error:
-                # Service doesn't exist, create a new one
-                self.logger.debug(f"Service '{name}' not found, creating new: {fetch_error}")
+                else:
+                    self.logger.info(f"No changes detected for service '{name}', skipping update")
+                    return json.loads(existing_service.model_dump_json(exclude_unset=True))
+            else:
+                # Step 4: Create new service
+                service_data = {
+                    "folder": folder,
+                    "name": name,
+                    "protocol": protocol,
+                }
 
-            # Prepare the service data
-            service_data = {
-                "folder": folder,
-                "name": name,
-                "protocol": protocol,
-            }
+                if description:
+                    service_data["description"] = description
 
-            if description:
-                service_data["description"] = description
+                if tag:
+                    service_data["tag"] = tag
 
-            if tag:
-                service_data["tag"] = tag
-
-            # Create the service
-            result = self.client.service.create(service_data)
-            return json.loads(result.model_dump_json(exclude_unset=True))
+                result = self.client.service.create(service_data)
+                self.logger.info(f"Successfully created service '{name}'")
+                return json.loads(result.model_dump_json(exclude_unset=True))
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "service", e)
+            self._handle_api_exception("create/update", folder, name, e)
 
     def delete_service(self, folder: str, name: str) -> bool:
         """Delete a service.
@@ -3670,18 +3722,47 @@ class SCMClient:
             return tag_data
 
         # Check if the tag already exists
+        existing_tag = None
         try:
-            existing = self.client.tag.fetch(name=tag_data["name"], **{container_field: container_value})
-            # Update existing tag
-            for key, value in tag_data.items():
-                if key not in container_fields and value is not None:
-                    setattr(existing, key, value)
-            updated = existing.update()
-            self.logger.info(f"Updated existing tag '{tag_data['name']}' in {container_field} '{container_value}'")
-            return json.loads(updated.model_dump_json(exclude_unset=True))
+            existing_tag = self.client.tag.fetch(name=tag_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing tag '{tag_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Tag '{tag_data['name']}' not found in {container_field} '{container_value}', will create new")
         except Exception as e:
-            # If the tag doesn't exist, create a new one
-            self.logger.debug(f"Tag '{tag_data['name']}' not found, creating new: {e}")
+            self.logger.warning(f"Error fetching tag '{tag_data['name']}': {str(e)}")
+
+        if existing_tag:
+            # Check what needs updating
+            needs_update = False
+            update_fields = []
+
+            # Compare color (handle case differences)
+            if "color" in tag_data and tag_data["color"]:
+                # Normalize color for comparison (API uses Title case)
+                new_color = tag_data["color"].title()
+                if hasattr(existing_tag, "color") and existing_tag.color != new_color:
+                    existing_tag.color = new_color
+                    update_fields.append("color")
+                    needs_update = True
+
+            # Compare comments
+            if "comments" in tag_data and tag_data["comments"] is not None and hasattr(existing_tag, "comments") and existing_tag.comments != tag_data["comments"]:
+                existing_tag.comments = tag_data["comments"]
+                update_fields.append("comments")
+                needs_update = True
+
+            if needs_update:
+                self.logger.info(f"Updating tag fields: {', '.join(update_fields)}")
+                try:
+                    updated = existing_tag.update()
+                    self.logger.info(f"Successfully updated tag '{tag_data['name']}'")
+                    return json.loads(updated.model_dump_json(exclude_unset=True))
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value, f"tag '{tag_data['name']}'", update_error)
+            else:
+                self.logger.info(f"No changes detected for tag '{tag_data['name']}', skipping update")
+                return json.loads(existing_tag.model_dump_json(exclude_unset=True))
+        else:
             # Create new tag
             try:
                 created = self.client.tag.create(tag_data)
@@ -4904,7 +4985,10 @@ class SCMClient:
                 result = self.client.decryption_profile.fetch(name=name, device=device)
 
             # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                return None  # No profile found
         except Exception as e:
             self._handle_api_exception("getting", container or "", "decryption profile", e)
 
@@ -4982,10 +5066,11 @@ class SCMClient:
 
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
-    
+
     def __init__(self):
+        """Initialize the lazy client wrapper."""
         self._client = None
-        
+
     def __getattr__(self, name):
         """Initialize client on first access."""
         if self._client is None:

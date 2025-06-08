@@ -275,9 +275,9 @@ def test_command(
     Temporarily switches to the specified context, tests authentication,
     then restores the previous context.
     """
+    from oauthlib.oauth2.rfc6749.errors import InvalidClientError
     from scm.client import Scm
     from scm.exceptions import APIError
-    from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 
     # Save current context
     original_context = get_current_context()
@@ -310,7 +310,13 @@ def test_command(
         # Test with real API
         try:
             # Validate required fields
-            if not all([config.get("client_id"), config.get("client_secret"), config.get("tsg_id")]):
+            if not all(
+                [
+                    config.get("client_id"),
+                    config.get("client_secret"),
+                    config.get("tsg_id"),
+                ]
+            ):
                 missing = []
                 if not config.get("client_id"):
                     missing.append("client_id")

@@ -104,7 +104,7 @@ If you find a bug or have a feature request, please create an issue on the [GitH
 
 ## Code of Conduct
 
-Please note that this project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+Please note that this project adheres to a Code of Conduct. By participating, you are expected to uphold this code.
 
 ---
 

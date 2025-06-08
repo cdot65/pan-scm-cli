@@ -45,7 +45,10 @@ def show_context_info() -> None:
         if current_context:
             typer.echo(f"[INFO] Using authentication context: {current_context}", err=True)
         else:
-            typer.echo("[INFO] No context set, using environment variables or default settings", err=True)
+            typer.echo(
+                "[INFO] No context set, using environment variables or default settings",
+                err=True,
+            )
 
 
 # ========================================================================================================================================================================================

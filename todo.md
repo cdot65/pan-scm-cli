@@ -104,7 +104,26 @@ The project has successfully implemented:
 
 ## Current Work (In Progress)
 
-- [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
+### Smart Upsert Pattern Enhancement
+
+The project now implements an enhanced smart upsert pattern that:
+1. Fetches existing resources before create/update
+2. Compares fields to detect actual changes
+3. Only calls update() if fields have changed
+4. Logs appropriately (found existing, creating new, updating specific fields, no changes)
+5. Handles type changes with delete/recreate when necessary
+
+#### Completed Enhancements
+- [x] Enhanced `create_tag` method with proper change detection
+- [x] Enhanced `create_service` method with complex field comparison
+- [x] Created developer documentation at `docs/developer/smart-upsert-pattern.md`
+
+#### Remaining Work
+- [ ] Enhance remaining create methods to follow the improved pattern:
+  - [ ] `create_bandwidth_allocation` - Add change detection
+  - [ ] `create_security_rule` - Add change detection
+  - [ ] `create_zone` - Add change detection
+  - [ ] Review and update other create methods that blindly update
 
 ## Phase 1: Show Command Implementation (Completed ✅)
 
@@ -351,31 +370,35 @@ The project has successfully implemented:
 - [x] `load objects syslog-server-profile` - Standardized with all features
 - [x] `load objects tag` - Already had correct pattern
 
-## Phase 2: Update Command Implementation
+## Phase 2: Smart Upsert Logic for Remaining Resources
 
-### Address Objects
+### Note on Update Commands
 
-- [ ] Implement `update objects address` command
-- [ ] Add SDK client method: `update_address()`
-- [ ] Add tests and documentation
+The project uses a unified approach where `set` commands handle both create and update operations automatically. This eliminates the need for separate `update` commands. The smart upsert logic:
+- Detects if a resource exists
+- Updates it if found
+- Creates it if not found
+- Handles type changes by delete/recreate when necessary
 
-### Address Groups
+This pattern has been successfully implemented for most object types and should be extended to the remaining resources.
 
-- [ ] Implement `update objects address-group` command
-- [ ] Add SDK client method: `update_address_group()`
-- [ ] Add tests and documentation
+### Bandwidth Allocations (In Progress)
+
+- [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
+- [ ] Handle existing allocations gracefully (update instead of fail)
+- [ ] Add proper error handling for allocation conflicts
 
 ### Security Zones
 
-- [ ] Implement `update network security-zone` command
-- [ ] Add SDK client method: `update_zone()`
-- [ ] Add tests and documentation
+- [ ] Enhance `create_zone` method with smart upsert logic
+- [ ] Handle zone type changes if applicable
+- [ ] Add tests for update scenarios
 
 ### Security Rules
 
-- [ ] Implement `update security rule` command
-- [ ] Add SDK client method: `update_security_rule()`
-- [ ] Add tests and documentation
+- [ ] Enhance `create_security_rule` method with smart upsert logic
+- [ ] Handle rule modifications without errors
+- [ ] Add tests for update scenarios
 
 ## Phase 3: Advanced Features
 
