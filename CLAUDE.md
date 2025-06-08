@@ -138,7 +138,9 @@ The Docker image is available at `ghcr.io/cdot65/pan-scm-cli:latest` (AMD64) and
 **IMPORTANT**: All code in this project must follow the comprehensive style guides located in the `.claude/` directory:
 
 ### General Style Guide (`.claude/STYLE_GUIDE.md`)
+
 Covers patterns for command modules and general project standards:
+
 - Module structure and section organization with 191-character separators
 - Command architecture patterns for Typer apps
 - Documentation standards (Google format docstrings)
@@ -150,7 +152,9 @@ Covers patterns for command modules and general project standards:
 - Backup command patterns and implementation
 
 ### SDK Client Style Guide (`.claude/SDK_CLIENT_STYLE_GUIDE.md`)
+
 Specific patterns for `src/scm_cli/utils/sdk_client.py`:
+
 - SDK client class design and initialization
 - Method organization by configuration type
 - CRUD method patterns (create, get, list, delete)
@@ -161,7 +165,9 @@ Specific patterns for `src/scm_cli/utils/sdk_client.py`:
 - List methods with `exact_match` parameter support
 
 ### Validators Style Guide (`.claude/VALIDATORS_STYLE_GUIDE.md`)
+
 Specific patterns for `src/scm_cli/utils/validators.py`:
+
 - Pydantic model design patterns
 - Field definitions with proper constraints
 - Model validation patterns

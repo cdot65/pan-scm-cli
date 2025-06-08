@@ -44,8 +44,9 @@ hip_profiles:
   - name: remote-access-compliance
     folder: ngfw-shared
     description: Compliance requirements for remote access
-    match: |
-      domain-member and patch-management and disk-encryption and certificate-valid
+    match: >
+      domain-member and patch-management and disk-encryption and
+      certificate-valid
 
   # Contractor device profile
   - name: contractor-device-policy
@@ -69,8 +70,9 @@ hip_profiles:
   - name: high-security-compliance
     folder: Shared
     description: Maximum security requirements
-    match: |
-      domain-member and patch-management and disk-encryption and antivirus and certificate-valid and firewall-enabled
+    match: >
+      domain-member and patch-management and disk-encryption and
+      antivirus and certificate-valid and firewall-enabled
 
   # BYOD profile
   - name: byod-device-policy

@@ -9,10 +9,11 @@ import json
 import logging
 from typing import Any, NoReturn
 
+from oauthlib.oauth2.rfc6749.errors import InvalidClientError
+
 # Import the actual SDK client
 from scm.client import Scm
 from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
-from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 
 from .config import get_credentials, settings
 from .context import get_current_context
@@ -53,7 +54,7 @@ class SCMClient:
         # Configure logging based on settings
         logging_level = getattr(logging, settings.get("log_level", "INFO"))
         logging.basicConfig(level=logging_level, force=True)
-        
+
         # Suppress SDK auth logging for cleaner output
         logging.getLogger("scm.auth").setLevel(logging.CRITICAL)
         logging.getLogger("oauthlib").setLevel(logging.CRITICAL)
@@ -89,7 +90,7 @@ class SCMClient:
             self.logger.warning("Using mock mode with dummy credentials")
             # The following mock credentials are used only in mock mode for testing purposes and do not represent real secrets.
             self.client_id = "mock-client-id"
-            self.client_secret = "mock-client"  # noqa: B105
+            self.client_secret = "mock-client"  # noqa: S105
             self.tsg_id = "mock-tsg-id"
             # In mock mode, methods will return mock data instead of making API calls
         except (APIError, InvalidClientError) as e:
@@ -97,19 +98,39 @@ class SCMClient:
             error_msg = str(e)
             if "invalid_client" in error_msg or "Client authentication failed" in error_msg:
                 import sys
-                print("\n❌ Authentication failed: Invalid client credentials", file=sys.stderr)
-                print(f"\nCurrent context: {current_context or 'None set'}", file=sys.stderr)
-                print(f"Client ID: {credentials.get('client_id', 'Not set')}", file=sys.stderr)
+
+                print(
+                    "\n❌ Authentication failed: Invalid client credentials",
+                    file=sys.stderr,
+                )
+                print(
+                    f"\nCurrent context: {current_context or 'None set'}",
+                    file=sys.stderr,
+                )
+                print(
+                    f"Client ID: {credentials.get('client_id', 'Not set')}",
+                    file=sys.stderr,
+                )
                 print(f"TSG ID: {credentials.get('tsg_id', 'Not set')}", file=sys.stderr)
                 print("\nTo fix this issue:", file=sys.stderr)
-                print("  1. Update context: scm context create <name> --client-id <id> --client-secret <secret> --tsg-id <tsg>", file=sys.stderr)
+                print(
+                    "  1. Update context: scm context create <name> --client-id <id> --client-secret <secret> --tsg-id <tsg>",
+                    file=sys.stderr,
+                )
                 print("  2. Switch context: scm context use <name>", file=sys.stderr)
-                print("  3. Use environment variables: SCM_CLIENT_ID, SCM_CLIENT_SECRET, SCM_TSG_ID", file=sys.stderr)
-                raise SystemExit(1)
+                print(
+                    "  3. Use environment variables: SCM_CLIENT_ID, SCM_CLIENT_SECRET, SCM_TSG_ID",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1) from e
             else:
                 import sys
-                print(f"\n❌ Failed to initialize SDK client: {error_msg}", file=sys.stderr)
-                raise SystemExit(1)
+
+                print(
+                    f"\n❌ Failed to initialize SDK client: {error_msg}",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1) from e
 
     def _handle_api_exception(self, operation: str, folder: str, resource_name: str, exception: Exception) -> NoReturn:
         """Handle API exceptions with proper logging and error formatting.
@@ -4904,7 +4925,10 @@ class SCMClient:
                 result = self.client.decryption_profile.fetch(name=name, device=device)
 
             # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                return None  # No profile found
         except Exception as e:
             self._handle_api_exception("getting", container or "", "decryption profile", e)
 
@@ -4982,10 +5006,11 @@ class SCMClient:
 
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
-    
+
     def __init__(self):
+        """Initialize the lazy client wrapper."""
         self._client = None
-        
+
     def __getattr__(self, name):
         """Initialize client on first access."""
         if self._client is None:

@@ -11,8 +11,8 @@ external_dynamic_lists:
     url: https://saasedl.paloaltonetworks.com/feeds/BulletproofIPList
     description: Palo Alto Networks Bulletproof IP addresses
     exception_list:
-      - 192.168.1.0/24 # Local network exception
-      - 10.0.0.0/8 # Corporate network exception
+      - 192.168.1.0/24  # Local network exception
+      - 10.0.0.0/8      # Corporate network exception
 
   - folder: Texas
     name: paloalto-high-risk-ip-list
@@ -89,7 +89,7 @@ external_dynamic_lists:
     description: Known malicious domains
     recurring: daily
     hour: "04"
-    expand_domain: true # Also block subdomains
+    expand_domain: true  # Also block subdomains
     exception_list:
       - safe.example.com
       - trusted.partner.com
@@ -100,7 +100,7 @@ external_dynamic_lists:
     url: https://example.com/phishing-domains.txt
     description: Known phishing domains
     recurring: hourly
-    expand_domain: false # Only block exact matches
+    expand_domain: false  # Only block exact matches
 
   # URL Lists
   - folder: SanAntonio
