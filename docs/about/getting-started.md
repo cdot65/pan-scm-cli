@@ -136,8 +136,8 @@ Commands:
 Command-specific help:
 
 ```bash
-$ scm set objects address --help
-Usage: scm set objects address [OPTIONS]
+$ scm set object address --help
+Usage: scm set object address [OPTIONS]
 
   Create or update an address object in SCM.
 
@@ -158,7 +158,7 @@ Options:
 ### Creating an Address Object
 
 ```bash
-$ scm set objects address \
+$ scm set object address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
@@ -171,7 +171,7 @@ Created address: webserver in folder Texas
 ### Creating an Address with FQDN
 
 ```bash
-$ scm set objects address \
+$ scm set object address \
     --folder Texas \
     --name company-website \
     --fqdn example.com \
@@ -183,7 +183,7 @@ Created address: company-website in folder Texas
 ### Listing Address Objects
 
 ```bash
-$ scm list objects address --folder Texas
+$ scm show object address --folder Texas
 ---> 100%
 +----------------+---------------+------------------+
 | Name           | Type          | Value            |
@@ -197,7 +197,7 @@ $ scm list objects address --folder Texas
 ### Deleting an Address Object
 
 ```bash
-$ scm delete objects address --folder Texas --name webserver
+$ scm delete object address --folder Texas --name webserver
 ---> 100%
 Deleted address: webserver from folder Texas
 ```
@@ -237,7 +237,7 @@ EOF
 Then load the addresses from the file:
 
 ```bash
-$ scm load objects address --file addresses.yml
+$ scm load object address --file addresses.yml
 ---> 100%
 Loading addresses from addresses.yml
 Applied address: web-server-1 in folder Texas
@@ -253,7 +253,7 @@ Successfully applied 3 address objects
 Test changes without applying them:
 
 ```bash
-$ scm set objects address \
+$ scm set object address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
@@ -268,7 +268,7 @@ Run commands without connecting to the SCM API:
 
 ```bash
 $ export SCM_MOCK_MODE=true
-$ scm set objects address \
+$ scm set object address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32

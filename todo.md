@@ -132,14 +132,14 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Address Objects (Completed ✅)
 
-- [x] Implement `show objects address` command with `--list` and `--name` flags
+- [x] Implement `show object address` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_addresses()` and `get_address()`
 - [x] Add comprehensive tests for show address functionality
 - [x] Update README with show address examples
 
 ### Address Groups (Completed ✅)
 
-- [x] Implement `show objects address-group` command with `--list` and `--name` flags
+- [x] Implement `show object address-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_address_groups()` and `get_address_group()`
 - [x] Add comprehensive tests for show address-group functionality
 - [x] Update README with show address-group examples
@@ -158,7 +158,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Applications (Completed ✅)
 
-- [x] Implement `show objects application` command with `--list` and `--name` flags
+- [x] Implement `show object application` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_applications()` and `get_application()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add comprehensive attribute support (9 security flags)
@@ -166,7 +166,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Application Groups (Completed ✅)
 
-- [x] Implement `show objects application-group` command with `--list` and `--name` flags
+- [x] Implement `show object application-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_application_groups()` and `get_application_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add member management functionality
@@ -174,7 +174,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Application Filters (Completed ✅)
 
-- [x] Implement `show objects application-filter` command with `--list` and `--name` flags
+- [x] Implement `show object application-filter` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_application_filters()` and `get_application_filter()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add complex filter criteria support (lists and booleans)
@@ -184,7 +184,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Dynamic User Groups (Completed ✅)
 
-- [x] Implement `show objects dynamic-user-group` command with `--list` and `--name` flags
+- [x] Implement `show object dynamic-user-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_dynamic_user_groups()` and `get_dynamic_user_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add tag-based filter expression support
@@ -193,7 +193,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### External Dynamic Lists (Completed ✅)
 
-- [x] Implement `show objects external-dynamic-list` command with `--list` and `--name` flags
+- [x] Implement `show object external-dynamic-list` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_external_dynamic_lists()` and `get_external_dynamic_list()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for all EDL types with proper configuration
@@ -202,7 +202,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### HIP Objects (Completed ✅)
 
-- [x] Implement `show objects hip-object` command with `--list` and `--name` flags
+- [x] Implement `show object hip-object` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_hip_objects()` and `get_hip_object()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for all HIP criteria types (host info, network, patch mgmt, disk encryption, mobile, certificate)
@@ -211,7 +211,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### HIP Profiles (Completed ✅)
 
-- [x] Implement `show objects hip-profile` command with `--list` and `--name` flags
+- [x] Implement `show object hip-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_hip_profiles()` and `get_hip_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for complex match criteria with boolean operators
@@ -220,7 +220,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### HTTP Server Profiles (Completed ✅)
 
-- [x] Implement `show objects http-server-profile` command with `--list` and `--name` flags
+- [x] Implement `show object http-server-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_http_server_profiles()` and `get_http_server_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for complex server configurations with authentication and TLS
@@ -230,7 +230,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Log Forwarding Profiles (Completed ✅)
 
-- [x] Implement `show objects log-forwarding-profile` command with `--list` and `--name` flags
+- [x] Implement `show object log-forwarding-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_log_forwarding_profiles()` and `get_log_forwarding_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for match list configurations with multiple log types
@@ -240,7 +240,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Services (Completed ✅)
 
-- [x] Implement `show objects service` command with `--list` and `--name` flags
+- [x] Implement `show object service` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_services()` and `get_service()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for TCP/UDP protocols with port configurations
@@ -250,7 +250,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Service Groups (Completed ✅)
 
-- [x] Implement `show objects service-group` command with `--list` and `--name` flags
+- [x] Implement `show object service-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_service_groups()` and `get_service_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for organizing services and service groups
@@ -260,7 +260,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Syslog Server Profiles (Completed ✅)
 
-- [x] Implement `show objects syslog-server-profile` command with `--list` and `--name` flags
+- [x] Implement `show object syslog-server-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_syslog_server_profiles()` and `get_syslog_server_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for multiple syslog servers with transport configurations
@@ -270,7 +270,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Tags (Completed ✅)
 
-- [x] Implement `show objects tag` command with `--list` and `--name` flags
+- [x] Implement `show object tag` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_tags()` and `get_tag()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add color validation with all supported Palo Alto colors
@@ -304,21 +304,21 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### All Resource Types (Completed ✅)
 
-- [x] Implement `backup objects address` command
-- [x] Implement `backup objects address-group` command
-- [x] Implement `backup objects application` command
-- [x] Implement `backup objects application-group` command
-- [x] Implement `backup objects application-filter` command
-- [x] Implement `backup objects dynamic-user-group` command
-- [x] Implement `backup objects external-dynamic-list` command
-- [x] Implement `backup objects hip-object` command
-- [x] Implement `backup objects hip-profile` command
-- [x] Implement `backup objects http-server-profile` command
-- [x] Implement `backup objects log-forwarding-profile` command
-- [x] Implement `backup objects service` command
-- [x] Implement `backup objects service-group` command
-- [x] Implement `backup objects syslog-server-profile` command
-- [x] Implement `backup objects tag` command
+- [x] Implement `backup object address` command
+- [x] Implement `backup object address-group` command
+- [x] Implement `backup object application` command
+- [x] Implement `backup object application-group` command
+- [x] Implement `backup object application-filter` command
+- [x] Implement `backup object dynamic-user-group` command
+- [x] Implement `backup object external-dynamic-list` command
+- [x] Implement `backup object hip-object` command
+- [x] Implement `backup object hip-profile` command
+- [x] Implement `backup object http-server-profile` command
+- [x] Implement `backup object log-forwarding-profile` command
+- [x] Implement `backup object service` command
+- [x] Implement `backup object service-group` command
+- [x] Implement `backup object syslog-server-profile` command
+- [x] Implement `backup object tag` command
 - [x] Implement `backup network security-zone` command
 - [x] Implement `backup security rule` command
 - [x] Implement `backup security anti-spyware-profile` command
@@ -352,22 +352,22 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Commands Standardized (Completed ✅)
 
-- [x] `load objects address-group` - Standardized with all features
-- [x] `load objects application` - Standardized with all features
-- [x] `load objects application-group` - Standardized with all features
-- [x] `load objects application-filter` - Standardized with all features
-- [x] `load objects dynamic-user-group` - Standardized with all features
-- [x] `load objects external-dynamic-list` - Standardized with all features
-- [x] `load objects hip-object` - Standardized with all features
-- [x] `load objects hip-profile` - Standardized with all features
-- [x] `load objects http-server-profile` - Standardized with all features
-- [x] `load objects log-forwarding-profile` - Standardized with all features
-- [x] `load objects service` - Standardized with all features
-- [x] `load objects service-group` - Standardized with all features
-- [x] `load objects syslog-server-profile` - Standardized with all features
-- [x] `load objects tag` - Already had correct pattern
-- [ ] `set sase service-connection` - Implement full CRUD, list, load, and backup commands for service connections
-- [ ] `set sase remote-network` - Implement full CRUD, list, load, and backup commands for remote networks
+- [x] `load object address-group` - Standardized with all features
+- [x] `load object application` - Standardized with all features
+- [x] `load object application-group` - Standardized with all features
+- [x] `load object application-filter` - Standardized with all features
+- [x] `load object dynamic-user-group` - Standardized with all features
+- [x] `load object external-dynamic-list` - Standardized with all features
+- [x] `load object hip-object` - Standardized with all features
+- [x] `load object hip-profile` - Standardized with all features
+- [x] `load object http-server-profile` - Standardized with all features
+- [x] `load object log-forwarding-profile` - Standardized with all features
+- [x] `load object service` - Standardized with all features
+- [x] `load object service-group` - Standardized with all features
+- [x] `load object syslog-server-profile` - Standardized with all features
+- [x] `load object tag` - Already had correct pattern
+- [x] `set sase service-connection` - Implement full CRUD, list, load, and backup commands for service connections (Completed)
+- [x] `set sase remote-network` - Implement full CRUD, list, load, and backup commands for remote networks (Completed)
 - [ ] `set sase bandwidth-allocation` - Implement full CRUD, list, load, and backup commands for bandwidth allocations
 
 ## Phase 2: Smart Upsert Logic for Remaining Resources
