@@ -464,6 +464,62 @@ Platform-specific images are available:
 - **AMD64**: `ghcr.io/cdot65/pan-scm-cli:latest`
 - **ARM64**: `ghcr.io/cdot65/pan-scm-cli:apple` (for Apple Silicon)
 
+### SASE Deployment
+
+#### Service Connections
+
+Service connections establish secure tunnels between your branch locations and Prisma Access:
+
+```bash
+# Create a service connection
+scm set sase service-connection \
+  --name branch-primary \
+  --ipsec-tunnel ipsec-tunnel-1 \
+  --region us-east-1 \
+  --subnets "10.1.0.0/24,10.1.1.0/24"
+
+# Enable BGP for dynamic routing
+scm set sase service-connection \
+  --name datacenter-connection \
+  --ipsec-tunnel dc-tunnel \
+  --region us-west-2 \
+  --bgp-enable \
+  --bgp-peer-as 65000 \
+  --bgp-peer-ip 192.168.1.1 \
+  --bgp-local-ip 192.168.1.2
+
+# List all service connections
+scm show sase service-connection
+```
+
+#### Remote Networks
+
+Remote networks define your branch office or data center locations:
+
+```bash
+# Create a remote network
+scm set sase remote-network \
+  --name branch-office-1 \
+  --region us-east-1 \
+  --license-type FWAAS-AGGREGATE \
+  --spn-name us-east-spn \
+  --ipsec-tunnel branch-tunnel-1 \
+  --subnets "10.1.0.0/16"
+
+# Remote network with BGP
+scm set sase remote-network \
+  --name datacenter-west \
+  --region us-west-2 \
+  --spn-name us-west-spn \
+  --ipsec-tunnel dc-tunnel \
+  --bgp-enable \
+  --bgp-peer-as 65000 \
+  --bgp-peer-ip 192.168.1.1
+
+# List all remote networks
+scm show sase remote-network
+```
+
 ### Complete Workflow Example
 
 Here's a complete example of setting up a web application security policy:
@@ -532,7 +588,7 @@ scm <action> <object-type> <object> [options]
 - **objects**: Address, service, tag, application configurations
 - **network**: Security zones
 - **security**: Security rules and profiles
-- **deployment**: Bandwidth allocations
+- **sase**: Service connections, remote networks, bandwidth allocations
 
 ### Common Options
 
@@ -681,6 +737,7 @@ The `examples/` directory contains ready-to-use templates:
 - `tags.yml` - Tag organization system
 - `services.yml` - Custom service definitions
 - `hip-objects.yml` - HIP compliance configurations
+- `SASE_COMMANDS_EXAMPLES.md` - Service connection and remote network examples
 
 ## Contributing
 
