@@ -1,4 +1,4 @@
-"""Network module commands for scm-cli.
+"""Network module commands for scm.
 
 This module implements set, delete, and load commands for network-related
 configurations such as zones and interfaces.
@@ -155,16 +155,16 @@ def backup_security_zone(
     Examples
     --------
         # Backup from folder
-        scm-cli backup network zone --folder Austin
+        scm backup network zone --folder Austin
 
         # Backup from snippet
-        scm-cli backup network zone --snippet DNS-Best-Practice
+        scm backup network zone --snippet DNS-Best-Practice
 
         # Backup from device
-        scm-cli backup network zone --device austin-01
+        scm backup network zone --device austin-01
 
         # Backup to custom filename
-        scm-cli backup network zone --folder Austin --file my-zones.yaml
+        scm backup network zone --folder Austin --file my-zones.yaml
 
     """
     # Validate location parameters
@@ -217,7 +217,7 @@ def delete_zone(
 ):
     """Delete a security zone.
 
-    Example: scm-cli delete network zone --folder Texas --name trust
+    Example: scm delete network zone --folder Texas --name trust
     """
     try:
         # Call the SDK client to delete the zone
@@ -240,7 +240,7 @@ def load_security_zone(
 ):
     """Load security zones from a YAML file.
 
-    Example: scm-cli load network zone --file security-zone-austin.yaml
+    Example: scm load network zone --file security-zone-austin.yaml
     """
     try:
         # Load and parse the YAML file
@@ -290,7 +290,7 @@ def set_zone(
 
     Example:
     -------
-        scm-cli set network zone --folder Texas --name trust --mode layer3 \
+        scm set network zone --folder Texas --name trust --mode layer3 \
         --interfaces ["ethernet1/1"] --enable-user-id
 
     """
@@ -362,10 +362,10 @@ def show_zone(
     Example:
     -------
         # List all security zones in a folder (default behavior)
-        scm-cli show network zone --folder Texas
+        scm show network zone --folder Texas
 
         # Show a specific security zone by name
-        scm-cli show network zone --folder Texas --name trust
+        scm show network zone --folder Texas --name trust
 
     """
     try:

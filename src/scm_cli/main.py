@@ -81,7 +81,7 @@ backup_app.add_typer(
 )
 backup_app.add_typer(
     objects.backup_app,
-    name="objects",
+    name="object",
     help="Backup object configurations",
 )
 backup_app.add_typer(
@@ -103,7 +103,7 @@ delete_app.add_typer(
 )
 delete_app.add_typer(
     objects.delete_app,
-    name="objects",
+    name="object",
     help="Delete object configurations",
 )
 delete_app.add_typer(
@@ -125,7 +125,7 @@ load_app.add_typer(
 )
 load_app.add_typer(
     objects.load_app,
-    name="objects",
+    name="object",
     help="Load object configurations",
 )
 load_app.add_typer(
@@ -147,7 +147,7 @@ set_app.add_typer(
 )
 set_app.add_typer(
     objects.set_app,
-    name="objects",
+    name="object",
     help="Set object configurations",
 )
 set_app.add_typer(
@@ -169,7 +169,7 @@ show_app.add_typer(
 )
 show_app.add_typer(
     objects.show_app,
-    name="objects",
+    name="object",
     help="Show object configurations",
 )
 show_app.add_typer(
@@ -204,12 +204,12 @@ def callback():
 
     Examples
     --------
-      - scm-cli set objects address-group --folder Texas --name test123 --type static
-      - scm-cli delete security security-rule --folder Texas --name test123
-      - scm-cli load network zone --file config/security_zones.yml
-      - scm-cli show objects address --folder Texas --list
-      - scm-cli show objects address --folder Texas --name webserver
-      - scm-cli test-auth
+      - scm set object address-group --folder Texas --name test123 --type static
+      - scm delete security security-rule --folder Texas --name test123
+      - scm load network zone --file config/security_zones.yml
+      - scm show object address --folder Texas --list
+      - scm show object address --folder Texas --name webserver
+      - scm test-auth
 
     """
     pass
