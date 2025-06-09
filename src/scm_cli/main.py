@@ -75,11 +75,6 @@ app.add_typer(
 
 # Backup commands
 backup_app.add_typer(
-    deployment.backup_app,
-    name="sase",
-    help="Backup SASE configurations",
-)
-backup_app.add_typer(
     network.backup_app,
     name="network",
     help="Backup network configurations",
@@ -90,17 +85,17 @@ backup_app.add_typer(
     help="Backup object configurations",
 )
 backup_app.add_typer(
+    deployment.backup_app,
+    name="sase",
+    help="Backup SASE configurations",
+)
+backup_app.add_typer(
     security.backup_app,
     name="security",
     help="Backup security configurations",
 )
 
 # Delete commands
-delete_app.add_typer(
-    deployment.delete_app,
-    name="sase",
-    help="Delete SASE configurations",
-)
 delete_app.add_typer(
     network.delete_app,
     name="network",
@@ -112,17 +107,17 @@ delete_app.add_typer(
     help="Delete object configurations",
 )
 delete_app.add_typer(
+    deployment.delete_app,
+    name="sase",
+    help="Delete SASE configurations",
+)
+delete_app.add_typer(
     security.delete_app,
     name="security",
     help="Delete security configurations",
 )
 
 # Load commands
-load_app.add_typer(
-    deployment.load_app,
-    name="sase",
-    help="Load SASE configurations",
-)
 load_app.add_typer(
     network.load_app,
     name="network",
@@ -134,17 +129,17 @@ load_app.add_typer(
     help="Load object configurations",
 )
 load_app.add_typer(
+    deployment.load_app,
+    name="sase",
+    help="Load SASE configurations",
+)
+load_app.add_typer(
     security.load_app,
     name="security",
     help="Load security configurations",
 )
 
 # Set commands
-set_app.add_typer(
-    deployment.set_app,
-    name="sase",
-    help="Set SASE configurations",
-)
 set_app.add_typer(
     network.set_app,
     name="network",
@@ -156,17 +151,17 @@ set_app.add_typer(
     help="Set object configurations",
 )
 set_app.add_typer(
+    deployment.set_app,
+    name="sase",
+    help="Set SASE configurations",
+)
+set_app.add_typer(
     security.set_app,
     name="security",
     help="Set security configurations",
 )
 
 # Show commands
-show_app.add_typer(
-    deployment.show_app,
-    name="sase",
-    help="Show SASE configurations",
-)
 show_app.add_typer(
     network.show_app,
     name="network",
@@ -176,6 +171,11 @@ show_app.add_typer(
     objects.show_app,
     name="objects",
     help="Show object configurations",
+)
+show_app.add_typer(
+    deployment.show_app,
+    name="sase",
+    help="Show SASE configurations",
 )
 show_app.add_typer(
     security.show_app,
