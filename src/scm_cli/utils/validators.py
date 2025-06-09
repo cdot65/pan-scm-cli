@@ -40,6 +40,232 @@ class BandwidthAllocation(BaseModel):
         }
 
 
+class ServiceConnection(BaseModel):
+    """Model for service connection configurations."""
+
+    name: str = Field(..., max_length=63, pattern=r"^[0-9a-zA-Z._\- ]+$", description="Name of the service connection")
+    folder: str = Field("Service Connections", description="The folder containing the service connection")
+    ipsec_tunnel: str = Field(..., description="IPsec tunnel for the service connection")
+    region: str = Field(..., description="Region for the service connection")
+    onboarding_type: str = Field("classic", description="Onboarding type for the service connection")
+    backup_SC: str | None = Field(None, description="Backup service connection")
+    nat_pool: str | None = Field(None, description="NAT pool for the service connection")
+    no_export_community: str | None = Field(None, description="No export community configuration")
+    source_nat: bool | None = Field(None, description="Enable source NAT")
+    subnets: list[str] | None = Field(None, description="Subnets for the service connection")
+    secondary_ipsec_tunnel: str | None = Field(None, description="Secondary IPsec tunnel")
+
+    # BGP peer configuration
+    bgp_peer_local_ip_address: str | None = Field(None, description="Local IPv4 address for BGP peering")
+    bgp_peer_local_ipv6_address: str | None = Field(None, description="Local IPv6 address for BGP peering")
+    bgp_peer_peer_ip_address: str | None = Field(None, description="Peer IPv4 address for BGP peering")
+    bgp_peer_peer_ipv6_address: str | None = Field(None, description="Peer IPv6 address for BGP peering")
+    bgp_peer_secret: str | None = Field(None, description="BGP authentication secret")
+
+    # BGP protocol configuration
+    bgp_enable: bool | None = Field(None, description="Enable BGP")
+    bgp_do_not_export_routes: bool | None = Field(None, description="Do not export routes option")
+    bgp_fast_failover: bool | None = Field(None, description="Enable fast failover")
+    bgp_local_ip_address: str | None = Field(None, description="Local IPv4 address for BGP peering")
+    bgp_originate_default_route: bool | None = Field(None, description="Originate default route")
+    bgp_peer_as: str | None = Field(None, description="BGP peer AS number")
+    bgp_peer_ip_address: str | None = Field(None, description="Peer IPv4 address for BGP peering")
+    bgp_secret: str | None = Field(None, description="BGP authentication secret")
+    bgp_summarize_mobile_user_routes: bool | None = Field(None, description="Summarize mobile user routes")
+
+    # QoS configuration
+    qos_enable: bool | None = Field(None, description="Enable QoS")
+    qos_profile: str | None = Field(None, description="QoS profile name")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+            "folder": self.folder,
+            "ipsec_tunnel": self.ipsec_tunnel,
+            "region": self.region,
+            "onboarding_type": self.onboarding_type,
+        }
+
+        # Add optional fields if present
+        if self.backup_SC:
+            model_data["backup_SC"] = self.backup_SC
+        if self.nat_pool:
+            model_data["nat_pool"] = self.nat_pool
+        if self.no_export_community:
+            model_data["no_export_community"] = self.no_export_community
+        if self.source_nat is not None:
+            model_data["source_nat"] = self.source_nat
+        if self.subnets:
+            model_data["subnets"] = self.subnets
+        if self.secondary_ipsec_tunnel:
+            model_data["secondary_ipsec_tunnel"] = self.secondary_ipsec_tunnel
+
+        # Build BGP peer configuration if any field is set
+        if any([self.bgp_peer_local_ip_address, self.bgp_peer_local_ipv6_address, self.bgp_peer_peer_ip_address, self.bgp_peer_peer_ipv6_address, self.bgp_peer_secret]):
+            bgp_peer = {}
+            if self.bgp_peer_local_ip_address:
+                bgp_peer["local_ip_address"] = self.bgp_peer_local_ip_address
+            if self.bgp_peer_local_ipv6_address:
+                bgp_peer["local_ipv6_address"] = self.bgp_peer_local_ipv6_address
+            if self.bgp_peer_peer_ip_address:
+                bgp_peer["peer_ip_address"] = self.bgp_peer_peer_ip_address
+            if self.bgp_peer_peer_ipv6_address:
+                bgp_peer["peer_ipv6_address"] = self.bgp_peer_peer_ipv6_address
+            if self.bgp_peer_secret:
+                bgp_peer["secret"] = self.bgp_peer_secret
+            model_data["bgp_peer"] = bgp_peer
+
+        # Build BGP protocol configuration if any field is set
+        if any(
+            [
+                self.bgp_enable is not None,
+                self.bgp_do_not_export_routes is not None,
+                self.bgp_fast_failover is not None,
+                self.bgp_local_ip_address,
+                self.bgp_originate_default_route is not None,
+                self.bgp_peer_as,
+                self.bgp_peer_ip_address,
+                self.bgp_secret,
+                self.bgp_summarize_mobile_user_routes is not None,
+            ]
+        ):
+            bgp = {}
+            if self.bgp_enable is not None:
+                bgp["enable"] = self.bgp_enable
+            if self.bgp_do_not_export_routes is not None:
+                bgp["do_not_export_routes"] = self.bgp_do_not_export_routes
+            if self.bgp_fast_failover is not None:
+                bgp["fast_failover"] = self.bgp_fast_failover
+            if self.bgp_local_ip_address:
+                bgp["local_ip_address"] = self.bgp_local_ip_address
+            if self.bgp_originate_default_route is not None:
+                bgp["originate_default_route"] = self.bgp_originate_default_route
+            if self.bgp_peer_as:
+                bgp["peer_as"] = self.bgp_peer_as
+            if self.bgp_peer_ip_address:
+                bgp["peer_ip_address"] = self.bgp_peer_ip_address
+            if self.bgp_secret:
+                bgp["secret"] = self.bgp_secret
+            if self.bgp_summarize_mobile_user_routes is not None:
+                bgp["summarize_mobile_user_routes"] = self.bgp_summarize_mobile_user_routes
+            model_data["protocol"] = {"bgp": bgp}
+
+        # Build QoS configuration if any field is set
+        if self.qos_enable is not None or self.qos_profile:
+            qos = {}
+            if self.qos_enable is not None:
+                qos["enable"] = self.qos_enable
+            if self.qos_profile:
+                qos["qos_profile"] = self.qos_profile
+            model_data["qos"] = qos
+
+        return model_data
+
+
+class RemoteNetwork(BaseModel):
+    """Model for remote network configurations."""
+
+    name: str = Field(..., max_length=63, pattern=r"^[A-Za-z][0-9A-Za-z._-]*$", description="Name of the remote network")
+    folder: str = Field(..., description="Folder containing the remote network")
+    region: str = Field(..., description="Region for the remote network")
+    license_type: str = Field("FWAAS-AGGREGATE", description="License type")
+    description: str | None = Field(None, max_length=1023, description="Description of the remote network")
+    subnets: list[str] | None = Field(None, description="Subnets for the remote network")
+    spn_name: str | None = Field(None, description="SPN name (needed when license_type is FWAAS-AGGREGATE)")
+    ecmp_load_balancing: str = Field("disable", description="Enable or disable ECMP load balancing")
+    ecmp_tunnels: list[dict[str, Any]] | None = Field(None, max_length=4, description="ECMP tunnel configurations")
+    ipsec_tunnel: str | None = Field(None, description="IPsec tunnel (required when ecmp_load_balancing is disable)")
+    secondary_ipsec_tunnel: str | None = Field(None, description="Secondary IPsec tunnel")
+
+    # BGP configuration
+    bgp_enable: bool | None = Field(None, description="Enable BGP")
+    bgp_do_not_export_routes: bool | None = Field(None, description="Do not export routes")
+    bgp_local_ip_address: str | None = Field(None, description="Local IP address for BGP")
+    bgp_originate_default_route: bool | None = Field(None, description="Originate default route")
+    bgp_peer_as: str | None = Field(None, description="BGP peer AS number")
+    bgp_peer_ip_address: str | None = Field(None, description="Peer IP address for BGP")
+    bgp_peering_type: str | None = Field(None, description="BGP peering type")
+    bgp_secret: str | None = Field(None, description="BGP secret")
+    bgp_summarize_mobile_user_routes: bool | None = Field(None, description="Summarize mobile user routes")
+
+    @model_validator(mode="after")
+    def validate_ecmp_settings(self) -> "RemoteNetwork":
+        """Validate ECMP and tunnel settings."""
+        if self.ecmp_load_balancing == "enable":
+            if not self.ecmp_tunnels:
+                raise ValueError("ecmp_tunnels is required when ecmp_load_balancing is enable")
+        else:
+            if not self.ipsec_tunnel:
+                raise ValueError("ipsec_tunnel is required when ecmp_load_balancing is disable")
+
+        if self.license_type == "FWAAS-AGGREGATE" and not self.spn_name:
+            raise ValueError("spn_name is required when license_type is FWAAS-AGGREGATE")
+
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+            "folder": self.folder,
+            "region": self.region,
+            "license_type": self.license_type,
+            "ecmp_load_balancing": self.ecmp_load_balancing,
+        }
+
+        # Add optional fields if present
+        if self.description:
+            model_data["description"] = self.description
+        if self.subnets:
+            model_data["subnets"] = self.subnets
+        if self.spn_name:
+            model_data["spn_name"] = self.spn_name
+        if self.ecmp_tunnels:
+            model_data["ecmp_tunnels"] = self.ecmp_tunnels
+        if self.ipsec_tunnel:
+            model_data["ipsec_tunnel"] = self.ipsec_tunnel
+        if self.secondary_ipsec_tunnel:
+            model_data["secondary_ipsec_tunnel"] = self.secondary_ipsec_tunnel
+
+        # Build BGP protocol configuration if any field is set
+        if any(
+            [
+                self.bgp_enable is not None,
+                self.bgp_do_not_export_routes is not None,
+                self.bgp_local_ip_address,
+                self.bgp_originate_default_route is not None,
+                self.bgp_peer_as,
+                self.bgp_peer_ip_address,
+                self.bgp_peering_type,
+                self.bgp_secret,
+                self.bgp_summarize_mobile_user_routes is not None,
+            ]
+        ):
+            bgp = {}
+            if self.bgp_enable is not None:
+                bgp["enable"] = self.bgp_enable
+            if self.bgp_do_not_export_routes is not None:
+                bgp["do_not_export_routes"] = self.bgp_do_not_export_routes
+            if self.bgp_local_ip_address:
+                bgp["local_ip_address"] = self.bgp_local_ip_address
+            if self.bgp_originate_default_route is not None:
+                bgp["originate_default_route"] = self.bgp_originate_default_route
+            if self.bgp_peer_as:
+                bgp["peer_as"] = self.bgp_peer_as
+            if self.bgp_peer_ip_address:
+                bgp["peer_ip_address"] = self.bgp_peer_ip_address
+            if self.bgp_peering_type:
+                bgp["peering_type"] = self.bgp_peering_type
+            if self.bgp_secret:
+                bgp["secret"] = self.bgp_secret
+            if self.bgp_summarize_mobile_user_routes is not None:
+                bgp["summarize_mobile_user_routes"] = self.bgp_summarize_mobile_user_routes
+            model_data["protocol"] = {"bgp": bgp}
+
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # OBJECTS CONFIGURATION MODELS
 # ========================================================================================================================================================================================
