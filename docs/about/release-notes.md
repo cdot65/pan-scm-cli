@@ -2,22 +2,107 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
-## Version 0.4.1 (Unreleased)
+## Version 0.5.0
 
 **Released:** June 9, 2025
 
 ### Added
 
-- **SASE Deployment Commands**: Comprehensive support for SASE (Secure Access Service Edge) deployment configuration
-  - **Service Connections**: Full CRUD operations for Service Connection management
+- **Smart Upsert Functionality**: Comprehensive intelligent object management across all resources
+  - **Field-level Change Detection**: Only updates objects when actual changes are detected
+    - Compares existing object configuration with proposed changes
+    - Skips updates when objects are already up-to-date
+    - Logs specific fields being updated for transparency
+  - **Action Tracking**: Clear feedback on operations performed
+    - Returns `"created"` for new objects
+    - Returns `"updated"` for modified objects
+    - Returns `"no_change"` for objects already up-to-date
+  - **Unified Pattern**: Applied consistently across all object types including services, tags, addresses, security rules, and SASE resources
+
+- **Enhanced SASE Integration**: Merged comprehensive SASE deployment features from main branch
+  - **Service Connections**: Full CRUD operations with smart upsert support
     - Create/update with BGP peering, QoS, and NAT configurations
     - Automatic folder enforcement ("Service Connections" folder only)
     - List, show, delete, load, and backup operations
-  - **Remote Networks**: Complete management for Remote Network configurations
+  - **Remote Networks**: Complete management with intelligent updates
     - Support for ECMP load balancing and IPsec tunnel configurations
     - Automatic folder enforcement ("Remote Networks" folder only)
     - Full CRUD, list, show, load, and backup functionality
   - All SASE commands follow the pattern: `scm <action> sase <resource-type>`
+
+- **Improved Code Organization**: Applied formatting branch enhancements to merged codebase
+  - Consistent code formatting across all modules
+  - Enhanced import organization
+  - Standardized function and class structuring
+
+### Changed
+
+- **Update Logic**: All object creation methods now use smart upsert pattern
+  - `create_service()`, `create_tag()`, `create_address()` and others now check for existing objects
+  - Only performs API updates when changes are detected
+  - Provides clear feedback on actions taken
+
+- **CLI Output**: Enhanced user feedback with action-specific messages
+  - Shows "Created [object]: [name]" for new objects
+  - Shows "Updated [object]: [name]" with field details for modifications
+  - Shows "[Object] '[name]' already up to date" when no changes needed
+
+### Improved
+
+- **Performance**: Reduced unnecessary API calls through change detection
+  - Avoids redundant updates when objects haven't changed
+  - Faster execution for bulk operations on existing configurations
+
+- **User Experience**: Clear visibility into what operations are being performed
+  - Detailed logging of field-level changes
+  - Informative messages about actions taken or skipped
+
+### Technical Details
+
+- **SDK Client Enhancement**: Updated all CRUD methods to support smart upsert logic
+  - Enhanced `create_service_connection()` and `create_remote_network()` methods
+  - Consistent field comparison and change detection algorithms
+  - Robust error handling for edge cases
+
+- **Deployment Integration**: Successfully merged ~4785 insertions from main branch
+  - Preserved formatting branch improvements
+  - Applied smart upsert pattern to new SASE functionality
+  - Maintained backward compatibility
+
+### Examples
+
+#### Smart Upsert in Action
+```bash
+# First run - creates new service connection
+scm set sase service-connection --name test-sc --ipsec-tunnel tunnel-1 --region us-east-1
+# Output: Created service connection: test-sc
+
+# Second run with same parameters - no changes needed
+scm set sase service-connection --name test-sc --ipsec-tunnel tunnel-1 --region us-east-1
+# Output: Service connection 'test-sc' already up to date
+
+# Third run with different protocol - updates only changed field
+scm set sase service-connection --name test-sc --ipsec-tunnel tunnel-1 --region us-east-1 --bgp-enable
+# Output: Updated service connection: test-sc
+# Log: Updating service connection fields: protocol
+```
+
+#### Object Management
+```bash
+# Apply changes only when needed
+scm set object service --folder Texas --name web-service --protocol tcp --port 80
+# Output: Created service: web-service
+
+# Subsequent identical calls show no action taken
+scm set object service --folder Texas --name web-service --protocol tcp --port 80  
+# Output: Service 'web-service' already up to date
+```
+
+## Version 0.4.1 (Unreleased)
+
+**Released:** June 9, 2025
+
+### Added
 
 - **Lazy Client Initialization**: SDK client is now initialized only when needed
   - Significantly faster CLI startup for commands that don't require API access (e.g., `--help`)
