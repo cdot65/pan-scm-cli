@@ -447,7 +447,14 @@ def load_service_connection(
             result = scm_client.create_service_connection(**sdk_data)
 
             results.append(result)
-            typer.echo(f"Applied service connection: {result['name']}")
+            # Show appropriate message based on action taken
+            action = result.get("__action__", "created")
+            if action == "created":
+                typer.echo(f"Created service connection: {result['name']}")
+            elif action == "updated":
+                typer.echo(f"Updated service connection: {result['name']}")
+            else:  # no_change
+                typer.echo(f"Service connection '{result['name']}' already up to date")
 
         typer.echo(f"Loaded {len(results)} service connection(s)")
         return results
@@ -536,7 +543,14 @@ def set_service_connection(
         # Call the SDK client to create the service connection
         result = scm_client.create_service_connection(**sdk_data)
 
-        typer.echo(f"Created service connection: {result['name']}")
+        # Show appropriate message based on action taken
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created service connection: {result['name']}")
+        elif action == "updated":
+            typer.echo(f"Updated service connection: {result['name']}")
+        else:  # no_change
+            typer.echo(f"Service connection '{result['name']}' already up to date")
         return result
     except Exception as e:
         typer.echo(f"Error creating service connection: {str(e)}", err=True)
@@ -765,7 +779,14 @@ def load_remote_network(
             result = scm_client.create_remote_network(**sdk_data)
 
             results.append(result)
-            typer.echo(f"Applied remote network: {result['name']}")
+            # Show appropriate message based on action taken
+            action = result.get("__action__", "created")
+            if action == "created":
+                typer.echo(f"Created remote network: {result['name']}")
+            elif action == "updated":
+                typer.echo(f"Updated remote network: {result['name']}")
+            else:  # no_change
+                typer.echo(f"Remote network '{result['name']}' already up to date")
 
         typer.echo(f"Loaded {len(results)} remote network(s)")
         return results
@@ -851,7 +872,14 @@ def set_remote_network(
         # Call the SDK client to create the remote network
         result = scm_client.create_remote_network(**sdk_data)
 
-        typer.echo(f"Created remote network: {result['name']}")
+        # Show appropriate message based on action taken
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created remote network: {result['name']}")
+        elif action == "updated":
+            typer.echo(f"Updated remote network: {result['name']}")
+        else:  # no_change
+            typer.echo(f"Remote network '{result['name']}' already up to date")
         return result
     except Exception as e:
         typer.echo(f"Error creating remote network: {str(e)}", err=True)

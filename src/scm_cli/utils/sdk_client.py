@@ -360,7 +360,7 @@ class SCMClient:
         protocol: dict[str, Any] | None = None,
         qos: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create or update a service connection.
+        """Create or update a service connection using smart upsert logic.
 
         Args:
             name: Name of the service connection
@@ -394,54 +394,112 @@ class SCMClient:
                 "region": region,
                 "onboarding_type": onboarding_type,
                 "subnets": subnets or ["10.0.0.0/24"],
+                "__action__": "created",
             }
 
         try:
-            # Try to fetch existing service connection
+            # Step 1: Try to fetch the existing service connection
+            existing_connection = None
             try:
-                existing = self.client.service_connection.fetch(name=name)
-                self.logger.info(f"Found existing service connection '{name}', updating...")
-
-                # Update fields
-                updated = False
-                if existing.ipsec_tunnel != ipsec_tunnel:
-                    existing.ipsec_tunnel = ipsec_tunnel
-                    updated = True
-                if existing.region != region:
-                    existing.region = region
-                    updated = True
-                if backup_SC is not None and existing.backup_SC != backup_SC:
-                    existing.backup_SC = backup_SC
-                    updated = True
-                if nat_pool is not None and existing.nat_pool != nat_pool:
-                    existing.nat_pool = nat_pool
-                    updated = True
-                if no_export_community is not None and existing.no_export_community != no_export_community:
-                    existing.no_export_community = no_export_community
-                    updated = True
-                if source_nat is not None and existing.source_nat != source_nat:
-                    existing.source_nat = source_nat
-                    updated = True
-                if subnets is not None and existing.subnets != subnets:
-                    existing.subnets = subnets
-                    updated = True
-                if secondary_ipsec_tunnel is not None and existing.secondary_ipsec_tunnel != secondary_ipsec_tunnel:
-                    existing.secondary_ipsec_tunnel = secondary_ipsec_tunnel
-                    updated = True
-
-                if updated:
-                    result = self.client.service_connection.update(existing)
-                    self.logger.info(f"Updated service connection '{name}'")
-                else:
-                    self.logger.info(f"No changes needed for service connection '{name}'")
-                    result = existing
-
-                return json.loads(result.model_dump_json(exclude_unset=True))
-
+                existing_connection = self.client.service_connection.fetch(name=name)
+                self.logger.info(f"Found existing service connection '{name}'")
             except NotFoundError:
-                # Create new service connection
-                self.logger.info(f"Service connection '{name}' not found, creating new...")
+                self.logger.info(f"Service connection '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching service connection '{name}': {str(e)}")
 
+            if existing_connection:
+                # Step 2: Check what needs updating with field-level change detection
+                needs_update = False
+                update_fields = []
+
+                # Check required fields
+                if existing_connection.ipsec_tunnel != ipsec_tunnel:
+                    existing_connection.ipsec_tunnel = ipsec_tunnel
+                    update_fields.append("ipsec_tunnel")
+                    needs_update = True
+
+                if existing_connection.region != region:
+                    existing_connection.region = region
+                    update_fields.append("region")
+                    needs_update = True
+
+                if existing_connection.onboarding_type != onboarding_type:
+                    existing_connection.onboarding_type = onboarding_type
+                    update_fields.append("onboarding_type")
+                    needs_update = True
+
+                # Check optional fields
+                if backup_SC is not None and getattr(existing_connection, "backup_SC", None) != backup_SC:
+                    existing_connection.backup_SC = backup_SC
+                    update_fields.append("backup_SC")
+                    needs_update = True
+
+                if nat_pool is not None and getattr(existing_connection, "nat_pool", None) != nat_pool:
+                    existing_connection.nat_pool = nat_pool
+                    update_fields.append("nat_pool")
+                    needs_update = True
+
+                if no_export_community is not None and getattr(existing_connection, "no_export_community", None) != no_export_community:
+                    existing_connection.no_export_community = no_export_community
+                    update_fields.append("no_export_community")
+                    needs_update = True
+
+                if source_nat is not None and getattr(existing_connection, "source_nat", None) != source_nat:
+                    existing_connection.source_nat = source_nat
+                    update_fields.append("source_nat")
+                    needs_update = True
+
+                if subnets is not None:
+                    current_subnets = getattr(existing_connection, "subnets", []) or []
+                    if set(current_subnets) != set(subnets):
+                        existing_connection.subnets = subnets
+                        update_fields.append("subnets")
+                        needs_update = True
+
+                if secondary_ipsec_tunnel is not None and getattr(existing_connection, "secondary_ipsec_tunnel", None) != secondary_ipsec_tunnel:
+                    existing_connection.secondary_ipsec_tunnel = secondary_ipsec_tunnel
+                    update_fields.append("secondary_ipsec_tunnel")
+                    needs_update = True
+
+                # Check complex fields (BGP peer, protocol, QoS)
+                if bgp_peer is not None:
+                    existing_bgp_peer = getattr(existing_connection, "bgp_peer", None)
+                    if existing_bgp_peer != bgp_peer:
+                        existing_connection.bgp_peer = bgp_peer
+                        update_fields.append("bgp_peer")
+                        needs_update = True
+
+                if protocol is not None:
+                    existing_protocol = getattr(existing_connection, "protocol", None)
+                    if existing_protocol != protocol:
+                        existing_connection.protocol = protocol
+                        update_fields.append("protocol")
+                        needs_update = True
+
+                if qos is not None:
+                    existing_qos = getattr(existing_connection, "qos", None)
+                    if existing_qos != qos:
+                        existing_connection.qos = qos
+                        update_fields.append("qos")
+                        needs_update = True
+
+                # Step 3: Only update if changes detected
+                if needs_update:
+                    self.logger.info(f"Updating service connection fields: {', '.join(update_fields)}")
+                    updated = self.client.service_connection.update(existing_connection)
+                    self.logger.info(f"Successfully updated service connection '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for service connection '{name}', skipping update")
+                    result = json.loads(existing_connection.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+
+            else:
+                # Step 4: Create new service connection
                 data = {
                     "name": name,
                     "folder": folder,
@@ -470,9 +528,12 @@ class SCMClient:
                 if qos:
                     data["qos"] = qos
 
-                result = self.client.service_connection.create(data)
-                self.logger.info(f"Created service connection '{name}'")
-                return json.loads(result.model_dump_json(exclude_unset=True))
+                self.logger.info(f"Creating new service connection '{name}'")
+                created = self.client.service_connection.create(data)
+                self.logger.info(f"Successfully created service connection '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
 
         except Exception as e:
             self._handle_api_exception("creating/updating", name, "service connection", e)
@@ -589,7 +650,7 @@ class SCMClient:
         secondary_ipsec_tunnel: str | None = None,
         protocol: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create or update a remote network.
+        """Create or update a remote network using smart upsert logic.
 
         Args:
             name: Name of the remote network
@@ -623,54 +684,102 @@ class SCMClient:
                 "ecmp_load_balancing": ecmp_load_balancing,
                 "ipsec_tunnel": ipsec_tunnel or "ipsec-tunnel-1",
                 "subnets": subnets or ["192.168.0.0/24"],
+                "__action__": "created",
             }
 
         try:
-            # Try to fetch existing remote network
+            # Step 1: Try to fetch the existing remote network
+            existing_network = None
             try:
-                existing = self.client.remote_network.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing remote network '{name}', updating...")
-
-                # Update fields
-                updated = False
-                if existing.region != region:
-                    existing.region = region
-                    updated = True
-                if description is not None and existing.description != description:
-                    existing.description = description
-                    updated = True
-                if subnets is not None and existing.subnets != subnets:
-                    existing.subnets = subnets
-                    updated = True
-                if spn_name is not None and existing.spn_name != spn_name:
-                    existing.spn_name = spn_name
-                    updated = True
-                if ecmp_load_balancing != existing.ecmp_load_balancing:
-                    existing.ecmp_load_balancing = ecmp_load_balancing
-                    updated = True
-                if ecmp_tunnels is not None and existing.ecmp_tunnels != ecmp_tunnels:
-                    existing.ecmp_tunnels = ecmp_tunnels
-                    updated = True
-                if ipsec_tunnel is not None and existing.ipsec_tunnel != ipsec_tunnel:
-                    existing.ipsec_tunnel = ipsec_tunnel
-                    updated = True
-                if secondary_ipsec_tunnel is not None and existing.secondary_ipsec_tunnel != secondary_ipsec_tunnel:
-                    existing.secondary_ipsec_tunnel = secondary_ipsec_tunnel
-                    updated = True
-
-                if updated:
-                    result = self.client.remote_network.update(existing)
-                    self.logger.info(f"Updated remote network '{name}'")
-                else:
-                    self.logger.info(f"No changes needed for remote network '{name}'")
-                    result = existing
-
-                return json.loads(result.model_dump_json(exclude_unset=True))
-
+                existing_network = self.client.remote_network.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing remote network '{name}' in folder '{folder}'")
             except NotFoundError:
-                # Create new remote network
-                self.logger.info(f"Remote network '{name}' not found, creating new...")
+                self.logger.info(f"Remote network '{name}' not found in folder '{folder}', will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching remote network '{name}': {str(e)}")
 
+            if existing_network:
+                # Step 2: Check what needs updating with field-level change detection
+                needs_update = False
+                update_fields = []
+
+                # Check required fields
+                if existing_network.region != region:
+                    existing_network.region = region
+                    update_fields.append("region")
+                    needs_update = True
+
+                if existing_network.license_type != license_type:
+                    existing_network.license_type = license_type
+                    update_fields.append("license_type")
+                    needs_update = True
+
+                if existing_network.ecmp_load_balancing != ecmp_load_balancing:
+                    existing_network.ecmp_load_balancing = ecmp_load_balancing
+                    update_fields.append("ecmp_load_balancing")
+                    needs_update = True
+
+                # Check optional fields
+                if description is not None:
+                    current_desc = getattr(existing_network, "description", "")
+                    if current_desc != description:
+                        existing_network.description = description
+                        update_fields.append("description")
+                        needs_update = True
+
+                if subnets is not None:
+                    current_subnets = getattr(existing_network, "subnets", []) or []
+                    if set(current_subnets) != set(subnets):
+                        existing_network.subnets = subnets
+                        update_fields.append("subnets")
+                        needs_update = True
+
+                if spn_name is not None and getattr(existing_network, "spn_name", None) != spn_name:
+                    existing_network.spn_name = spn_name
+                    update_fields.append("spn_name")
+                    needs_update = True
+
+                if ecmp_tunnels is not None:
+                    current_ecmp_tunnels = getattr(existing_network, "ecmp_tunnels", []) or []
+                    if current_ecmp_tunnels != ecmp_tunnels:
+                        existing_network.ecmp_tunnels = ecmp_tunnels
+                        update_fields.append("ecmp_tunnels")
+                        needs_update = True
+
+                if ipsec_tunnel is not None and getattr(existing_network, "ipsec_tunnel", None) != ipsec_tunnel:
+                    existing_network.ipsec_tunnel = ipsec_tunnel
+                    update_fields.append("ipsec_tunnel")
+                    needs_update = True
+
+                if secondary_ipsec_tunnel is not None and getattr(existing_network, "secondary_ipsec_tunnel", None) != secondary_ipsec_tunnel:
+                    existing_network.secondary_ipsec_tunnel = secondary_ipsec_tunnel
+                    update_fields.append("secondary_ipsec_tunnel")
+                    needs_update = True
+
+                # Check protocol configuration
+                if protocol is not None:
+                    existing_protocol = getattr(existing_network, "protocol", None)
+                    if existing_protocol != protocol:
+                        existing_network.protocol = protocol
+                        update_fields.append("protocol")
+                        needs_update = True
+
+                # Step 3: Only update if changes detected
+                if needs_update:
+                    self.logger.info(f"Updating remote network fields: {', '.join(update_fields)}")
+                    updated = self.client.remote_network.update(existing_network)
+                    self.logger.info(f"Successfully updated remote network '{name}' in folder '{folder}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for remote network '{name}', skipping update")
+                    result = json.loads(existing_network.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+
+            else:
+                # Step 4: Create new remote network
                 data = {
                     "name": name,
                     "folder": folder,
@@ -695,9 +804,12 @@ class SCMClient:
                 if protocol:
                     data["protocol"] = protocol
 
-                result = self.client.remote_network.create(data)
-                self.logger.info(f"Created remote network '{name}'")
-                return json.loads(result.model_dump_json(exclude_unset=True))
+                self.logger.info(f"Creating new remote network '{name}' in folder '{folder}'")
+                created = self.client.remote_network.create(data)
+                self.logger.info(f"Successfully created remote network '{name}' in folder '{folder}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
 
         except Exception as e:
             self._handle_api_exception("creating/updating", name, "remote network", e)
@@ -920,40 +1032,103 @@ class SCMClient:
                 elif fqdn:
                     new_type = "fqdn"
 
-                # If the address type is changing, we need to delete and recreate
+                # If the address type is changing, update the object in place
                 if current_type and new_type and current_type != new_type:
-                    self.logger.info(f"Address type changing from {current_type} to {new_type}, deleting and recreating...")
-                    # Delete the existing address
-                    self.client.address.delete(object_id=str(existing_address.id))
-                    # Create new address with new type
-                    result = self.client.address.create(address_data)
-                    self.logger.info(f"Successfully recreated address '{name}' with new type")
-                else:
-                    # Update only the fields that are changing
-                    existing_address.description = description or ""
-                    if tags is not None:  # Only update tags if explicitly provided
-                        existing_address.tag = tags
+                    self.logger.info(f"Address type changing from {current_type} to {new_type}, updating in place...")
+                    # Clear old type-specific fields
+                    if current_type == "ip_netmask":
+                        existing_address.ip_netmask = None
+                    elif current_type == "ip_range":
+                        existing_address.ip_range = None
+                    elif current_type == "ip_wildcard":
+                        existing_address.ip_wildcard = None
+                    elif current_type == "fqdn":
+                        existing_address.fqdn = None
 
-                    # Update the address value if provided and the same type
-                    if ip_netmask and current_type == "ip_netmask":
+                    # Set new type-specific field
+                    if new_type == "ip_netmask":
                         existing_address.ip_netmask = ip_netmask
-                    elif ip_range and current_type == "ip_range":
+                    elif new_type == "ip_range":
                         existing_address.ip_range = ip_range
-                    elif ip_wildcard and current_type == "ip_wildcard":
+                    elif new_type == "ip_wildcard":
                         existing_address.ip_wildcard = ip_wildcard
-                    elif fqdn and current_type == "fqdn":
+                    elif new_type == "fqdn":
                         existing_address.fqdn = fqdn
 
-                    # Perform update
+                    # Update description if provided
+                    if description is not None:
+                        existing_address.description = description
+                    # Update tags if provided
+                    if tags is not None:
+                        existing_address.tag = tags
+
+                    self.logger.info(f"Updating address '{name}' to new type '{new_type}' and values")
                     result = self.client.address.update(existing_address)
-                    self.logger.info(f"Successfully updated address '{name}'")
+                    self.logger.info(f"Successfully updated address '{name}' with new type")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    # Check what needs updating
+                    needs_update = False
+                    update_fields = []
+
+                    # Compare description
+                    current_desc = getattr(existing_address, "description", "")
+                    if description is not None and current_desc != description:
+                        existing_address.description = description
+                        update_fields.append("description")
+                        needs_update = True
+
+                    # Compare tags
+                    if tags is not None:
+                        current_tags = getattr(existing_address, "tag", []) or []
+                        if set(current_tags) != set(tags):
+                            existing_address.tag = tags
+                            update_fields.append("tags")
+                            needs_update = True
+
+                    # Compare address value if provided and same type
+                    if ip_netmask and current_type == "ip_netmask":
+                        if existing_address.ip_netmask != ip_netmask:
+                            existing_address.ip_netmask = ip_netmask
+                            update_fields.append("ip_netmask")
+                            needs_update = True
+                    elif ip_range and current_type == "ip_range":
+                        if existing_address.ip_range != ip_range:
+                            existing_address.ip_range = ip_range
+                            update_fields.append("ip_range")
+                            needs_update = True
+                    elif ip_wildcard and current_type == "ip_wildcard":
+                        if existing_address.ip_wildcard != ip_wildcard:
+                            existing_address.ip_wildcard = ip_wildcard
+                            update_fields.append("ip_wildcard")
+                            needs_update = True
+                    elif fqdn and current_type == "fqdn" and existing_address.fqdn != fqdn:
+                        existing_address.fqdn = fqdn
+                        update_fields.append("fqdn")
+                        needs_update = True
+
+                    # Only update if changes detected
+                    if needs_update:
+                        self.logger.info(f"Updating address fields: {', '.join(update_fields)}")
+                        result = self.client.address.update(existing_address)
+                        self.logger.info(f"Successfully updated address '{name}'")
+                        response = json.loads(result.model_dump_json(exclude_unset=True))
+                        response["__action__"] = "updated"
+                        return response
+                    else:
+                        self.logger.info(f"No changes detected for address '{name}', skipping update")
+                        response = json.loads(existing_address.model_dump_json(exclude_unset=True))
+                        response["__action__"] = "no_change"
+                        return response
             else:
                 # Create a new address
                 result = self.client.address.create(address_data)
                 self.logger.info(f"Successfully created address '{name}'")
-
-            # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -3540,11 +3715,15 @@ class SCMClient:
                 if needs_update:
                     self.logger.info(f"Updating service fields: {', '.join(update_fields)}")
                     updated = self.client.service.update(existing_service)
-                    self.logger.info(f"Successfully updated service '{name}'")
-                    return json.loads(updated.model_dump_json(exclude_unset=True))
+                    self.logger.info(f"Successfully updated service '{name}' in folder '{folder}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
                 else:
                     self.logger.info(f"No changes detected for service '{name}', skipping update")
-                    return json.loads(existing_service.model_dump_json(exclude_unset=True))
+                    result = json.loads(existing_service.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
             else:
                 # Step 4: Create new service
                 service_data = {
@@ -3560,8 +3739,10 @@ class SCMClient:
                     service_data["tag"] = tag
 
                 result = self.client.service.create(service_data)
-                self.logger.info(f"Successfully created service '{name}'")
-                return json.loads(result.model_dump_json(exclude_unset=True))
+                self.logger.info(f"Successfully created service '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
 
         except Exception as e:
             self._handle_api_exception("create/update", folder, name, e)
@@ -4224,19 +4405,25 @@ class SCMClient:
                 self.logger.info(f"Updating tag fields: {', '.join(update_fields)}")
                 try:
                     updated = existing_tag.update()
-                    self.logger.info(f"Successfully updated tag '{tag_data['name']}'")
-                    return json.loads(updated.model_dump_json(exclude_unset=True))
+                    self.logger.info(f"Successfully updated tag '{tag_data['name']}' in {container_field} '{container_value}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
                 except Exception as update_error:
                     self._handle_api_exception("update", container_value, f"tag '{tag_data['name']}'", update_error)
             else:
                 self.logger.info(f"No changes detected for tag '{tag_data['name']}', skipping update")
-                return json.loads(existing_tag.model_dump_json(exclude_unset=True))
+                result = json.loads(existing_tag.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
         else:
             # Create new tag
             try:
                 created = self.client.tag.create(tag_data)
                 self.logger.info(f"Created new tag '{tag_data['name']}' in {container_field} '{container_value}'")
-                return json.loads(created.model_dump_json(exclude_unset=True))
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
             except Exception as create_error:
                 self._handle_api_exception(
                     "creating",
