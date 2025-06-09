@@ -76,8 +76,8 @@ app.add_typer(
 # Backup commands
 backup_app.add_typer(
     deployment.backup_app,
-    name="deployment",
-    help="Backup deployment configurations",
+    name="sase",
+    help="Backup SASE configurations",
 )
 backup_app.add_typer(
     network.backup_app,
@@ -98,8 +98,8 @@ backup_app.add_typer(
 # Delete commands
 delete_app.add_typer(
     deployment.delete_app,
-    name="deployment",
-    help="Delete deployment configurations",
+    name="sase",
+    help="Delete SASE configurations",
 )
 delete_app.add_typer(
     network.delete_app,
@@ -120,8 +120,8 @@ delete_app.add_typer(
 # Load commands
 load_app.add_typer(
     deployment.load_app,
-    name="deployment",
-    help="Load deployment configurations",
+    name="sase",
+    help="Load SASE configurations",
 )
 load_app.add_typer(
     network.load_app,
@@ -142,8 +142,8 @@ load_app.add_typer(
 # Set commands
 set_app.add_typer(
     deployment.set_app,
-    name="deployment",
-    help="Set deployment configurations",
+    name="sase",
+    help="Set SASE configurations",
 )
 set_app.add_typer(
     network.set_app,
@@ -164,8 +164,8 @@ set_app.add_typer(
 # Show commands
 show_app.add_typer(
     deployment.show_app,
-    name="deployment",
-    help="Show deployment configurations",
+    name="sase",
+    help="Show SASE configurations",
 )
 show_app.add_typer(
     network.show_app,
