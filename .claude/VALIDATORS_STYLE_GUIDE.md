@@ -99,7 +99,7 @@ name: str = Field(..., min_length=1, max_length=63, description="Name of the res
 description: str = Field("", description="Description of the resource")
 
 # Optional fields with None default
-ip_netmask: str | None = Field(None, description="IP address with CIDR notation")
+ip_netmask: str | None = None
 
 # List fields with factory
 tags: list[str] = Field(default_factory=list, description="List of tags")
@@ -107,12 +107,19 @@ tags: list[str] = Field(default_factory=list, description="List of tags")
 # List fields with specific defaults
 source_addresses: list[str] = Field(default_factory=lambda: ["any"], description="List of source addresses")
 
+services: list[str] = Field(default_factory=list, description="List of services")
+
 # Boolean fields with defaults
 enabled: bool = Field(True, description="Whether the rule is enabled")
 
 # Numeric fields
 bandwidth: int = Field(..., description="Bandwidth value in Mbps")
 ```
+
+**Guidance:**
+
+- Always use `default_factory=list` for all list fields, even if not required, for consistency and type safety.
+- For fields with a default value other than empty, use a lambda (e.g., `default_factory=lambda: ["any"]`).
 
 ### Field Constraints
 
@@ -130,7 +137,27 @@ ip_address: str = Field(..., pattern=r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
 # Enum constraints (using literal strings)
 mode: str = Field(..., description="Zone mode (L2, L3, external, virtual-wire, tunnel)")
 action: str = Field("allow", description="Action to take")
+
+# Container/context validation (exactly one of folder, snippet, device)
+@model_validator(mode="after")
+def validate_container(self) -> "ModelName":
+    """Validate that exactly one container context is provided (folder, snippet, or device).
+
+    Returns:
+        ModelName: The validated model instance
+    Raises:
+        ValueError: If zero or more than one container context is provided
+    """
+    locations = [self.folder, self.snippet, self.device]
+    if sum(x is not None for x in locations) != 1:
+        raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be specified.")
+    return self
 ```
+
+**Guidance:**
+
+- Always validate container context for all models representing containerized resources.
+- Use clear, actionable error messages for all field and context validations.
 
 ### Field Descriptions
 
@@ -149,16 +176,13 @@ def validate_resource(self) -> "ResourceModel":
     """Validate resource constraints.
 
     Returns:
-        The validated resource model
-
+        ResourceModel: The validated resource model
     Raises:
         ValueError: If validation fails
-
     """
     # Validation logic
     if some_condition:
         raise ValueError("Clear error message")
-
     return self
 ```
 
@@ -173,21 +197,23 @@ def validate_address_type(self) -> "Address":
 
     Returns:
         Address: The validated address object
-
     Raises:
         ValueError: If zero or multiple address types are provided
-
     """
     address_fields = ["ip_netmask", "ip_range", "ip_wildcard", "fqdn"]
     provided = [field for field in address_fields if getattr(self, field) is not None]
-
     if len(provided) == 0:
         raise ValueError("Exactly one of 'ip_netmask', 'ip_range', 'ip_wildcard', or 'fqdn' must be provided.")
     elif len(provided) > 1:
         raise ValueError("Only one of 'ip_netmask', 'ip_range', 'ip_wildcard', or 'fqdn' can be provided.")
-
     return self
 ```
+
+**Guidance:**
+
+- Use `@model_validator(mode="after")` for all complex field or context validations.
+- Always return `self` from validators.
+- Write clear, actionable error messages for all validation failures.
 
 #### Conditional Requirements
 
@@ -308,23 +334,18 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
         key: The key in the YAML data that contains the items to validate
 
     Returns:
-        A list of validated model instances
-
+        list[ModelT]: A list of validated model instances
     Raises:
         ValueError: If the key is not found in the data or the data is empty
         ValidationError: If any item fails validation
-
     """
     if not data:
         raise ValueError("YAML data is empty or could not be parsed")
-
     if key not in data:
         raise ValueError(f"Key '{key}' not found in YAML data")
-
     items = data[key]
     if not items or not isinstance(items, list):
         raise ValueError(f"'{key}' should be a non-empty list")
-
     validated_items = []
     for idx, item in enumerate(items):
         try:
@@ -332,9 +353,13 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
             validated_items.append(model)
         except Exception as e:
             raise ValueError(f"Validation error in item {idx}: {str(e)}") from e
-
     return validated_items
 ```
+
+**Guidance:**
+
+- Always validate YAML file structure and provide actionable error messages.
+- Use the same pattern for all bulk load commands.
 
 ## Documentation Standards
 

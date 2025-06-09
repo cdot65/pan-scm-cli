@@ -134,7 +134,7 @@ deployment_app.add_typer(load_app, name="load")
 
 ### Command Options Pattern
 
-Define all options as constants with descriptive names:
+Define all Typer options as constants with descriptive names and advanced defaults:
 
 ```python
 # ========================================================================================================================================================================================
@@ -142,19 +142,34 @@ Define all options as constants with descriptive names:
 # ========================================================================================================================================================================================
 
 # Required options
-FOLDER_OPTION = typer.Option(..., "--folder", "-f", help="Folder to place the resource in")
-NAME_OPTION = typer.Option(..., "--name", "-n", help="Name of the resource")
-FILE_OPTION = typer.Option(..., "--file", "-f", help="Path to YAML file")
+FOLDER_OPTION = typer.Option(..., "--folder", help="Folder to place the resource in")
+NAME_OPTION = typer.Option(..., "--name", help="Name of the resource")
+FILE_OPTION = typer.Option(..., "--file", help="Path to YAML file")
 
 # Optional options with defaults
-DESCRIPTION_OPTION = typer.Option(None, "--description", "-d", help="Description of the resource")
-TAGS_OPTION = typer.Option(None, "--tags", "-t", help="Tags to add to the resource")
+DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of the resource")
+TAGS_OPTION = typer.Option(default_factory=list, help="List of tags to add to the resource")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Show what would be loaded without making changes")
 
 # Type-specific options
-BANDWIDTH_OPTION = typer.Option(..., "--bandwidth", "-b", help="Bandwidth in Mbps")
-MODE_OPTION = typer.Option(..., "--mode", "-m", help="Zone mode (L2, L3, external, virtual-wire, tunnel)")
+BANDWIDTH_OPTION = typer.Option(..., "--bandwidth", help="Bandwidth in Mbps")
+MODE_OPTION = typer.Option(..., "--mode", help="Zone mode (L2, L3, external, virtual-wire, tunnel)")
+
+# Container/context options (always include all three for containerized resources)
+SNIPPET_OPTION = typer.Option(None, "--snippet", help="Snippet path for the resource")
+DEVICE_OPTION = typer.Option(None, "--device", help="Device path for the resource")
+
+# List options should use default_factory=list for correct type inference
+PORTS_OPTION = typer.Option(default_factory=list, help="List of TCP/UDP ports (e.g. tcp/80, udp/53)")
 ```
+
+**Guidance:**
+
+- Use `default_factory=list` for all list-type options to ensure correct defaulting and avoid mutable default arguments.
+- Always provide clear, actionable help text for each option.
+- For containerized resources, always provide `--folder`, `--snippet`, and `--device` options and validate that exactly one is provided (see validators).
+- Use consistent naming conventions for options across all modules (e.g., `--tags`, `--description`, `--file`).
+- For security and objects modules, follow the same option patterns for all CRUD/backup/load/show commands.
 
 ## Function Patterns
 
@@ -167,13 +182,14 @@ def set_resource_name(
     name: str = NAME_OPTION,
     specific_param: type = SPECIFIC_OPTION,
     description: str | None = DESCRIPTION_OPTION,
-    tags: list[str] | None = TAGS_OPTION,
+    tags: list[str] = TAGS_OPTION,
 ):
-    """Brief description of what the command does.
+    """Create or update a resource.
 
-    Example:
-    -------
+    Examples:
+    --------
     scm-cli set module resource-name --folder Texas --name example --param value
+    scm-cli set module resource-name --folder Texas --name example --param value --tags tag1 --tags tag2
 
     """
     try:
@@ -303,39 +319,39 @@ def show_resource_name(
 
 ### Command Docstrings
 
-Every command must have a docstring with:
+Every command must have a docstring using **Google-style** as the preferred format, with:
 
 1. Brief description (one line)
 2. Blank line
-3. Example(s) section with separator line
+3. Examples section ("Examples:", separator line, one or more CLI invocations)
+4. (Optional) Note/extra info section
 
 ```python
-"""Brief description of the command.
-
-Example:
--------
-scm-cli action module resource --param value
+"""Create or update a security rule.
 
 Examples:
 --------
-scm-cli action module resource --param1 value1
-scm-cli action module resource --param1 value1 --param2 value2
+scm-cli set security rule --folder Texas --name web-allow --source-zones trust --destination-zones untrust
+scm-cli set security rule --folder Texas --name cleanup --source-zones any --destination-zones any --action deny --log-start --log-end --rulebase post
 
 Note:
 ----
-Additional important information if needed.
-
+Security rules require both container and rulebase parameters.
 """
 ```
+
+**Guidance:**
+
+- Use "Examples:" (plural) and a separator line (`--------`) before listing CLI examples.
+- Prefer Google-style docstrings for all functions and commands for consistency.
+- Clearly indicate required and optional parameters in the docstring or help text.
+- For complex commands, add a "Note:" section for caveats or special behaviors.
 
 ### Function/Method Docstrings (Google Format)
 
 ```python
 def function_name(param1: type, param2: type | None = None) -> ReturnType:
     """Brief description of function.
-
-    Longer description if needed, explaining what the function
-    does in more detail.
 
     Args:
         param1: Description of param1
@@ -346,9 +362,14 @@ def function_name(param1: type, param2: type | None = None) -> ReturnType:
 
     Raises:
         ExceptionType: When this exception is raised
-
     """
 ```
+
+**Guidance:**
+
+- All public functions and methods should use Google-style docstrings as above.
+- For CLI commands, include an "Examples:" section as shown above.
+- For Pydantic model validators, include "Returns" and "Raises" for clarity.
 
 ## Error Handling
 
@@ -371,6 +392,12 @@ except Exception as e:
     typer.echo(f"Error [action] [resource]: {str(e)}", err=True)
     raise typer.Exit(code=1) from e
 ```
+
+**Mock Mode and Authentication Handling:**
+
+- Always handle mock mode by checking for the presence of a real SDK client (`if not self.client:`) and returning realistic mock data.
+- For authentication failures, provide user-friendly error messages and actionable remediation steps (see `sdk_client.py` for examples).
+- Use `typer.Exit(code=1)` for all fatal CLI errors to ensure consistent exit codes.
 
 ### SDK Client Error Handling
 
@@ -401,17 +428,23 @@ def _handle_api_exception(self, operation: str, folder: str, resource_name: str,
 
 ### Modern Python Type Hints
 
-Use Python 3.10+ union syntax:
+Use Python 3.10+ union syntax **exclusively**:
 
 ```python
 # Preferred
 param: str | None = None
-items: list[str] | None = None
+items: list[str] = []
 
 # Not preferred (old style)
 param: Optional[str] = None
 items: Optional[List[str]] = None
 ```
+
+**Guidance:**
+
+- Always use `str | None` instead of `Optional[str]`.
+- For list options, use `list[str] = []` or `default_factory=list` for Pydantic/typer.
+- Use explicit type hints for all function parameters and return types.
 
 ### Common Type Patterns
 
@@ -444,12 +477,20 @@ def function() -> NoReturn:  # For functions that always raise
 
 - Use kebab-case for command names
 - Be descriptive but concise
+- For security services, follow the pattern: `set security <service>`, `delete security <service>`, etc.
+- For objects, use: `set objects <type>`, `delete objects <type>`, etc.
 
 ```python
 @set_app.command("bandwidth-allocation")  # Good
+@set_app.command("anti-spyware-profile")  # Good
 @set_app.command("ba")  # Too short
 @set_app.command("create_bandwidth_allocation")  # Wrong style
 ```
+
+**Guidance:**
+
+- Always use descriptive, kebab-case command names matching the CLI structure in README and actual code.
+- Avoid abbreviations unless they are industry standard and unambiguous.
 
 ### Functions
 
