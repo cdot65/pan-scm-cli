@@ -19,7 +19,7 @@ Tags provide a flexible way to categorize and organize objects across Strata Clo
 Basic tag with color:
 
 ```bash
-$ scm set objects tag --folder Texas --name production \
+$ scm set object tag --folder Texas --name production \
   --color "Red" --comments "Production environment resources"
 <span style="color: green;">✓</span> Tag 'production' created successfully
 ```
@@ -27,9 +27,9 @@ $ scm set objects tag --folder Texas --name production \
 Multiple tags for categorization:
 
 ```bash
-$ scm set objects tag --folder Texas --name critical --color "Orange"
-$ scm set objects tag --folder Texas --name database --color "Blue"
-$ scm set objects tag --folder Texas --name web-tier --color "Green"
+$ scm set object tag --folder Texas --name critical --color "Orange"
+$ scm set object tag --folder Texas --name database --color "Blue"
+$ scm set object tag --folder Texas --name web-tier --color "Green"
 <span style="color: green;">✓</span> Tag 'critical' created successfully
 <span style="color: green;">✓</span> Tag 'database' created successfully
 <span style="color: green;">✓</span> Tag 'web-tier' created successfully
@@ -38,7 +38,7 @@ $ scm set objects tag --folder Texas --name web-tier --color "Green"
 ### Listing Tags (Default Behavior)
 
 ```bash
-$ scm show objects tag --folder Texas
+$ scm show object tag --folder Texas
 Tags in folder 'Texas':
 - production (Red)
 - development (Yellow)
@@ -53,7 +53,7 @@ When no --name is specified, all tags are listed by default.
 ### Showing Tag Details
 
 ```bash
-$ scm show objects tag --folder Texas --name production
+$ scm show object tag --folder Texas --name production
 Tag: production
   Color: Red
   Comments: Production environment resources
@@ -63,7 +63,7 @@ Tag: production
 ### Deleting Tags
 
 ```bash
-$ scm delete objects tag --folder Texas --name production
+$ scm delete object tag --folder Texas --name production
 <span style="color: green;">✓</span> Tag 'production' deleted successfully
 ```
 
@@ -74,7 +74,7 @@ Load multiple tags from a YAML file.
 #### Syntax
 
 ```bash
-scm load objects tag [OPTIONS]
+scm load object tag [OPTIONS]
 ```
 
 #### Options
@@ -92,7 +92,7 @@ scm load objects tag [OPTIONS]
 Load from file with original locations:
 
 ```bash
-$ scm load objects tag --file tags.yml
+$ scm load object tag --file tags.yml
 <span style="color: green;">✓</span> Created tag: production in Texas
 <span style="color: green;">✓</span> Created tag: staging in Texas
 <span style="color: green;">✓</span> Created tag: development in Texas
@@ -104,7 +104,7 @@ $ scm load objects tag --file tags.yml
 Load with folder override:
 
 ```bash
-$ scm load objects tag --file tags.yml --folder Austin
+$ scm load object tag --file tags.yml --folder Austin
 <span style="color: green;">✓</span> Created tag: production in Austin
 <span style="color: green;">✓</span> Created tag: staging in Austin
 <span style="color: green;">✓</span> Created tag: development in Austin
@@ -123,7 +123,7 @@ Backup all tag objects from a specified location to a YAML file.
 #### Syntax
 
 ```bash
-scm backup objects tag [OPTIONS]
+scm backup object tag [OPTIONS]
 ```
 
 #### Options
@@ -142,14 +142,14 @@ scm backup objects tag [OPTIONS]
 Backup from folder:
 
 ```bash
-$ scm backup objects tag --folder Texas
+$ scm backup object tag --folder Texas
 <span style="color: green;">✓</span> Successfully backed up 42 tags to tag_folder_texas_20240115_120530.yaml
 ```
 
 Backup with custom filename:
 
 ```bash
-$ scm backup objects tag --folder Texas --file texas-tags.yaml
+$ scm backup object tag --folder Texas --file texas-tags.yaml
 <span style="color: green;">✓</span> Successfully backed up 42 tags to texas-tags.yaml
 ```
 
@@ -264,15 +264,15 @@ The following 42 colors are supported:
 
 ```bash
 # Production environment
-scm set objects tag --folder Shared --name prod \
+scm set object tag --folder Shared --name prod \
   --color "Red" --comments "Production resources - handle with care"
 
 # Development environment
-scm set objects tag --folder Shared --name dev \
+scm set object tag --folder Shared --name dev \
   --color "Green" --comments "Development resources - safe to modify"
 
 # Test environment
-scm set objects tag --folder Shared --name test \
+scm set object tag --folder Shared --name test \
   --color "Yellow" --comments "Test resources - automated testing"
 ```
 
@@ -280,13 +280,13 @@ scm set objects tag --folder Shared --name test \
 
 ```bash
 # Create department tags with consistent color scheme
-scm set objects tag --folder Shared --name dept-finance \
+scm set object tag --folder Shared --name dept-finance \
   --color "Gold" --comments "Finance department"
 
-scm set objects tag --folder Shared --name dept-hr \
+scm set object tag --folder Shared --name dept-hr \
   --color "Purple" --comments "Human Resources"
 
-scm set objects tag --folder Shared --name dept-it \
+scm set object tag --folder Shared --name dept-it \
   --color "Blue" --comments "Information Technology"
 ```
 
@@ -294,13 +294,13 @@ scm set objects tag --folder Shared --name dept-it \
 
 ```bash
 # Security classification tags
-scm set objects tag --folder Shared --name confidential \
+scm set object tag --folder Shared --name confidential \
   --color "Red" --comments "Confidential data - restricted access"
 
-scm set objects tag --folder Shared --name internal \
+scm set object tag --folder Shared --name internal \
   --color "Orange" --comments "Internal use only"
 
-scm set objects tag --folder Shared --name public \
+scm set object tag --folder Shared --name public \
   --color "Green" --comments "Public information"
 ```
 
@@ -311,28 +311,28 @@ Tags can be applied to various objects:
 ### Apply Tags to Addresses
 
 ```bash
-scm set objects address --folder Shared --name web-server \
+scm set object address --folder Shared --name web-server \
   --ip-netmask 10.0.1.10/32 --tag "production,web-tier,critical"
 ```
 
 ### Apply Tags to Services
 
 ```bash
-scm set objects service --folder Shared --name custom-app \
+scm set object service --folder Shared --name custom-app \
   --protocol tcp --port 8080 --tag "production,tier1"
 ```
 
 ### Use Tags in Dynamic Groups
 
 ```bash
-scm set objects dynamic-user-group --folder Shared --name prod-admins \
+scm set object dynamic-user-group --folder Shared --name prod-admins \
   --filter "'production' and 'admin'"
 ```
 
 ### Use Tags in Dynamic Address Groups
 
 ```bash
-scm set objects address-group --folder Shared --name prod-servers \
+scm set object address-group --folder Shared --name prod-servers \
   --type dynamic --filter "'production' and 'server'"
 ```
 

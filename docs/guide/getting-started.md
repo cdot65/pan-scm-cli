@@ -92,28 +92,28 @@ Here are some examples to help you get started with common CLI operations:
 
 ```bash
 # List all address objects in the Shared folder
-scm set objects address --list --folder Shared
+scm set object address --list --folder Shared
 ```
 
 ### Creating an Address Object
 
 ```bash
 # Create a new address object
-scm set objects address --folder Shared --name example-server --ip-netmask 192.168.1.100/32 --description "Example server"
+scm set object address --folder Shared --name example-server --ip-netmask 192.168.1.100/32 --description "Example server"
 ```
 
 ### Updating an Address Object
 
 ```bash
 # Update an existing address object
-scm set objects address --folder Shared --name example-server --ip-netmask 192.168.1.200/32 --description "Updated example server"
+scm set object address --folder Shared --name example-server --ip-netmask 192.168.1.200/32 --description "Updated example server"
 ```
 
 ### Deleting an Address Object
 
 ```bash
 # Delete an address object
-scm delete objects address --folder Shared --name example-server
+scm delete object address --folder Shared --name example-server
 ```
 
 ### Bulk Operations with YAML
@@ -140,7 +140,7 @@ addresses:
 Then load these address objects:
 
 ```bash
-scm load objects address --folder Shared --file addresses.yaml
+scm load object address --folder Shared --file addresses.yaml
 ```
 
 ## Getting Help
@@ -152,7 +152,7 @@ The CLI includes comprehensive help information:
 scm --help
 
 # Show help for a specific command
-scm set objects address --help
+scm set object address --help
 ```
 
 ## Next Steps

@@ -115,29 +115,53 @@ class SCMClient:
             self.client_secret = "mock-client-secret"
             self.tsg_id = "mock-tsg-id"
             # In mock mode, methods will return mock data instead of making API calls
+
+        except (APIError, InvalidClientError) as e:
+            # Handle authentication failures gracefully
+            error_msg = str(e)
+            if "invalid_client" in error_msg or "Client authentication failed" in error_msg:
+                import sys
+                print("\n❌ Authentication failed: Invalid client credentials", file=sys.stderr)
+                print(f"\nCurrent context: {current_context or 'None set'}", file=sys.stderr)
+                print(f"Client ID: {credentials.get('client_id', 'Not set')}", file=sys.stderr)
+                print(f"TSG ID: {credentials.get('tsg_id', 'Not set')}", file=sys.stderr)
+                print("\nTo fix this issue:", file=sys.stderr)
+                print("  1. Update context: scm context create <name> --client-id <id> --client-secret <secret> --tsg-id <tsg>", file=sys.stderr)
+                print("  2. Switch context: scm context use <name>", file=sys.stderr)
+                print("  3. Use environment variables: SCM_CLIENT_ID, SCM_CLIENT_SECRET, SCM_TSG_ID", file=sys.stderr)
+                raise SystemExit(1) from e
+            else:
+                import sys
+                print(f"\n❌ Failed to initialize SDK client: {error_msg}", file=sys.stderr)
+                raise SystemExit(1) from e
 ```
 
 ## Method Organization
 
 ### Grouping by Configuration Type
 
-Methods should be organized into clear sections:
+Methods should be organized into clear sections using 191-character separators, matching the CLI and SDK structure:
 
 1. **Deployment Configuration Methods**
-
    - Bandwidth Allocation operations
-
 2. **Objects Configuration Methods**
-
-   - Address Groups subsection
-   - Address Objects subsection
-
+   - Address Groups
+   - Address Objects
+   - Application, Application Group, Application Filter
 3. **Network Configuration Methods**
-
-   - Security Zones operations
-
+   - Security Zones
+   - Other network resource types
 4. **Security Configuration Methods**
-   - Security Rules operations
+   - Security Rules
+   - Anti-Spyware Profile
+   - Decryption Profile
+   - [Add new security services as implemented]
+
+**Guidance:**
+
+- Use clear region comments and separators for navigation.
+- Keep CRUD patterns consistent for all resource types.
+- Document new resource types as they are added.
 
 ### Method Naming Convention
 
@@ -160,7 +184,7 @@ def create_resource(
     name: str,
     required_param: type,
     optional_param: str = "",
-    tags: list[str] | None = None,
+    tags: list[str] = [],
 ) -> dict[str, Any]:
     """Create a resource.
 
@@ -173,9 +197,7 @@ def create_resource(
 
     Returns:
         dict[str, Any]: The created resource object
-
     """
-    tags = tags or []
     self.logger.info(f"Creating resource: {name} in folder {folder}")
 
     if not self.client:
@@ -351,6 +373,7 @@ def _handle_api_exception(self, operation: str, folder: str, resource_name: str,
     """
     if isinstance(exception, AuthenticationError):
         self.logger.error(f"Authentication error during {operation} of {resource_name}: {str(exception)}")
+        self.logger.error("Please check your credentials and try again.")
     elif isinstance(exception, NotFoundError):
         self.logger.error(f"Resource not found: {resource_name} in folder {folder}")
     elif isinstance(exception, ClientError):
@@ -367,11 +390,12 @@ def _handle_api_exception(self, operation: str, folder: str, resource_name: str,
 
 ### Mock Data Guidelines
 
-- Always check `if not self.client:` before SDK operations
-- Return realistic mock data that matches the expected structure
-- Use consistent ID format: `f"{resource-type}-{name}"`
-- Include all required fields in mock responses
-- Make mock data identifiable with "mock" in descriptions/tags
+- Always check `if not self.client:` before any SDK operation.
+- Return realistic mock data matching the expected structure for each resource type.
+- Use consistent ID format: `f"{resource-type}-{name}"`.
+- Include all required fields and typical optional fields in mock responses.
+- Make mock data identifiable with "mock" in descriptions/tags.
+- Log a warning when falling back to mock mode.
 
 ### Mock Data Examples
 
@@ -409,13 +433,18 @@ return [
 ]
 ```
 
+**Guidance:**
+
+- Always provide mock data for new resource types as they are added.
+- Document mock mode behavior in CLI help and developer docs.
+
 ## Logging Standards
 
 ### Log Levels
 
 - `INFO`: Normal operations (creating, deleting, listing)
-- `WARNING`: Non-fatal issues (falling back to mock mode)
-- `ERROR`: Operation failures (caught exceptions)
+- `WARNING`: Non-fatal issues (falling back to mock mode, context fallback)
+- `ERROR`: Operation failures (caught exceptions, authentication failures)
 
 ### Log Message Format
 
@@ -432,10 +461,17 @@ self.logger.info(f"Successfully created {resource_type}: {name}")
 # Warnings
 self.logger.warning(f"Failed to initialize SDK client: {str(e)}")
 self.logger.warning("Using mock mode with dummy credentials")
+self.logger.warning("Falling back to context-based authentication")
 
 # Errors (in exception handler)
 self.logger.error(f"Authentication error during {operation} of {resource_name}: {str(exception)}")
+self.logger.error(f"Resource not found: {resource_name} in folder {folder}")
 ```
+
+**Guidance:**
+
+- Use clear, actionable log messages for all major operations and errors.
+- Always log the context (resource name, folder, etc.) for traceability.
 
 ## Type Annotations
 
@@ -452,7 +488,7 @@ from typing import Any, NoReturn
 def method(
     self,
     required: str,
-    optional: str = "",
+    optional: str | None = None,
     tags: list[str] | None = None,
 ) -> dict[str, Any]:
 

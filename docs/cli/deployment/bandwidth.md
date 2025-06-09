@@ -9,7 +9,7 @@ Create or update a bandwidth allocation.
 ### Syntax
 
 ```bash
-scm set deployment bandwidth [OPTIONS]
+scm set sase bandwidth [OPTIONS]
 ```
 
 ### Options
@@ -31,7 +31,7 @@ scm set deployment bandwidth [OPTIONS]
 #### Create a Bandwidth Allocation
 
 ```bash
-$ scm set deployment bandwidth --folder Shared --name "Standard-Branch" \
+$ scm set sase bandwidth --folder Shared --name "Standard-Branch" \
   --egress-guaranteed 50 --egress-max 100 \
   --ingress-guaranteed 75 --ingress-max 150 \
   --description "Standard bandwidth allocation for branch offices"
@@ -42,7 +42,7 @@ Bandwidth allocation created successfully.
 #### Create a Bandwidth Allocation with SPN Association
 
 ```bash
-$ scm set deployment bandwidth --folder Shared --name "HQ-Bandwidth" \
+$ scm set sase bandwidth --folder Shared --name "HQ-Bandwidth" \
   --egress-guaranteed 500 --egress-max 1000 \
   --ingress-guaranteed 750 --ingress-max 1500 \
   --spn-name-list "HQ-SPN-1,HQ-SPN-2" \
@@ -58,7 +58,7 @@ Delete a bandwidth allocation.
 ### Syntax
 
 ```bash
-scm delete deployment bandwidth [OPTIONS]
+scm delete sase bandwidth [OPTIONS]
 ```
 
 ### Options
@@ -71,7 +71,7 @@ scm delete deployment bandwidth [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete deployment bandwidth --folder Shared --name "Standard-Branch"
+$ scm delete sase bandwidth --folder Shared --name "Standard-Branch"
 Deleting bandwidth allocation 'Standard-Branch' from folder 'Shared'...
 Bandwidth allocation deleted successfully.
 ```
@@ -83,7 +83,7 @@ Create or update multiple bandwidth allocations from a YAML file.
 ### Syntax
 
 ```bash
-scm load deployment bandwidth [OPTIONS]
+scm load sase bandwidth [OPTIONS]
 ```
 
 ### Options
@@ -134,7 +134,7 @@ bandwidth_allocations:
 ### Example Command
 
 ```bash
-$ scm load deployment bandwidth --folder Shared --file bandwidth-allocations.yaml
+$ scm load sase bandwidth --folder Shared --file bandwidth-allocations.yaml
 Loading bandwidth allocations from 'bandwidth-allocations.yaml' into folder 'Shared'...
 Created 3 bandwidth allocations successfully.
 ```
@@ -146,7 +146,7 @@ List all bandwidth allocations in a folder.
 ### Syntax
 
 ```bash
-scm set deployment bandwidth --list [OPTIONS]
+scm set sase bandwidth --list [OPTIONS]
 ```
 
 ### Options
@@ -158,7 +158,7 @@ scm set deployment bandwidth --list [OPTIONS]
 ### Example
 
 ```bash
-$ scm set deployment bandwidth --list --folder Shared
+$ scm set sase bandwidth --list --folder Shared
 Listing bandwidth allocations in folder 'Shared'...
 
 | Name | Egress (Guaranteed/Max) | Ingress (Guaranteed/Max) | SPNs | Description |
@@ -175,7 +175,7 @@ Assign a bandwidth allocation to specific Service Provider Networks (SPNs).
 ### Syntax
 
 ```bash
-scm set deployment bandwidth --assign [OPTIONS]
+scm set sase bandwidth --assign [OPTIONS]
 ```
 
 ### Options
@@ -189,7 +189,7 @@ scm set deployment bandwidth --assign [OPTIONS]
 ### Example
 
 ```bash
-$ scm set deployment bandwidth --assign --folder Shared --name "Retail-Store" --spn-name-list "retail-spn-east,retail-spn-west"
+$ scm set sase bandwidth --assign --folder Shared --name "Retail-Store" --spn-name-list "retail-spn-east,retail-spn-west"
 Assigning bandwidth allocation 'Retail-Store' to SPNs 'retail-spn-east,retail-spn-west'...
 Bandwidth allocation assigned successfully.
 ```

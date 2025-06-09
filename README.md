@@ -18,10 +18,10 @@ export SCM_CLIENT_SECRET="your_client_secret"
 export SCM_TSG_ID="your_tsg_id"
 
 # Create an address object
-scm set objects address --folder Texas --name web-server --ip-netmask 10.1.1.100/32 --description "Web server"
+scm set object address --folder Texas --name web-server --ip-netmask 10.1.1.100/32 --description "Web server"
 
 # List all addresses
-scm show objects address --folder Texas
+scm show object address --folder Texas
 
 # Create a security rule
 scm set security rule --folder Texas --name allow-web \
@@ -89,7 +89,7 @@ $ scm context create development \
 
 # View all available contexts
 $ scm context list
-                       SCM Authentication Contexts                        
+                       SCM Authentication Contexts
 ┏━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Context     ┃ Current ┃ Client ID                                       ┃
 ┡━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -163,13 +163,13 @@ Testing authentication for context: development
 
 ```bash
 # Create a tag
-scm set objects tag --folder Texas --name production --color Red --comments "Production resources"
+scm set object tag --folder Texas --name production --color Red --comments "Production resources"
 
 # Create an address
-scm set objects address --folder Texas --name web-server --ip-netmask 10.1.1.100/32
+scm set object address --folder Texas --name web-server --ip-netmask 10.1.1.100/32
 
 # List all addresses
-scm show objects address --folder Texas
+scm show object address --folder Texas
 ```
 
 ## Common Use Cases
@@ -180,23 +180,23 @@ scm show objects address --folder Texas
 
 ```bash
 # Single IP address
-scm set objects address --folder Texas --name web-server-1 --ip-netmask 10.1.1.100/32 --description "Production web server"
+scm set object address --folder Texas --name web-server-1 --ip-netmask 10.1.1.100/32 --description "Production web server"
 
 # Subnet
-scm set objects address --folder Texas --name dmz-subnet --ip-netmask 10.0.0.0/24 --description "DMZ network"
+scm set object address --folder Texas --name dmz-subnet --ip-netmask 10.0.0.0/24 --description "DMZ network"
 
 # FQDN
-scm set objects address --folder Texas --name external-site --fqdn example.com --description "External website"
+scm set object address --folder Texas --name external-site --fqdn example.com --description "External website"
 ```
 
 #### Create Address Groups
 
 ```bash
 # Static group with multiple members
-scm set objects address-group --folder Texas --name web-servers --type static --members "web-server-1,web-server-2"
+scm set object address-group --folder Texas --name web-servers --type static --members "web-server-1,web-server-2"
 
 # Dynamic group based on tags
-scm set objects address-group --folder Texas --name dynamic-web-servers --type dynamic --filter "'web' and 'production'"
+scm set object address-group --folder Texas --name dynamic-web-servers --type dynamic --filter "'web' and 'production'"
 ```
 
 ### Security Policy Management
@@ -240,20 +240,20 @@ scm set security rule --folder Texas --name allow-database \
 
 ```bash
 # TCP service
-scm set objects service --folder Texas --name custom-web --protocol tcp --port "8080,8443" --description "Custom web ports"
+scm set object service --folder Texas --name custom-web --protocol tcp --port "8080,8443" --description "Custom web ports"
 
 # UDP service
-scm set objects service --folder Texas --name custom-dns --protocol udp --port 5353 --description "mDNS"
+scm set object service --folder Texas --name custom-dns --protocol udp --port 5353 --description "mDNS"
 
 # Service with timeout override
-scm set objects service --folder Texas --name long-running-db --protocol tcp --port 3306 --timeout 7200
+scm set object service --folder Texas --name long-running-db --protocol tcp --port 3306 --timeout 7200
 ```
 
 #### Service Groups
 
 ```bash
 # Group related services
-scm set objects service-group --folder Texas --name web-services --members "http,https,custom-web"
+scm set object service-group --folder Texas --name web-services --members "http,https,custom-web"
 ```
 
 ### Tag Management
@@ -262,13 +262,13 @@ Tags help organize and categorize your objects:
 
 ```bash
 # Environment tags
-scm set objects tag --folder Texas --name production --color Red --comments "Production environment"
-scm set objects tag --folder Texas --name development --color Green --comments "Development environment"
-scm set objects tag --folder Texas --name staging --color Blue --comments "Staging environment"
+scm set object tag --folder Texas --name production --color Red --comments "Production environment"
+scm set object tag --folder Texas --name development --color Green --comments "Development environment"
+scm set object tag --folder Texas --name staging --color Blue --comments "Staging environment"
 
 # Category tags
-scm set objects tag --folder Texas --name database --color Orange --comments "Database resources"
-scm set objects tag --folder Texas --name web --color Cyan --comments "Web resources"
+scm set object tag --folder Texas --name database --color Orange --comments "Database resources"
+scm set object tag --folder Texas --name web --color Cyan --comments "Web resources"
 ```
 
 ### Bulk Operations
@@ -279,15 +279,15 @@ Work with multiple objects at once using YAML files:
 
 ```bash
 # Export all addresses from a folder
-scm backup objects address --folder Texas
+scm backup object address --folder Texas
 # Creates: address_folder_texas_20250602_143000.yaml
 
 # Export with custom filename
-scm backup objects address-group --folder Texas --file my-groups.yaml
+scm backup object address-group --folder Texas --file my-groups.yaml
 
 # Export from different containers
-scm backup objects tag --snippet automation
-scm backup objects service --device austin-01
+scm backup object tag --snippet automation
+scm backup object service --device austin-01
 ```
 
 #### Import Configuration
@@ -304,7 +304,7 @@ addresses:
     tags:
       - web
       - production
-  
+
   - name: web-02
     description: "Production web server"
     ip_netmask: 10.1.1.11/32
@@ -312,7 +312,7 @@ addresses:
     tags:
       - web
       - production
-  
+
   - name: db-01
     description: "Database server"
     ip_netmask: 10.2.1.10/32
@@ -326,13 +326,13 @@ Import the configuration:
 
 ```bash
 # Preview changes
-scm load objects address --file addresses.yaml --dry-run
+scm load object address --file addresses.yaml --dry-run
 
 # Import to original locations
-scm load objects address --file addresses.yaml
+scm load object address --file addresses.yaml
 
 # Override location for all objects
-scm load objects address --file addresses.yaml --folder Production
+scm load object address --file addresses.yaml --folder Production
 ```
 
 ### Context Management Examples
@@ -357,7 +357,7 @@ $ scm context create prod-eu \
 
 # List all contexts
 $ scm context list
-                           SCM Authentication Contexts                            
+                           SCM Authentication Contexts
 ┏━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Context     ┃ Current ┃ Client ID                                       ┃
 ┡━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -371,7 +371,7 @@ $ scm context list
 $ scm context use prod-us
 ✓ Switched to context 'prod-us'
 
-$ scm show objects address --folder Texas
+$ scm show object address --folder Texas
 [INFO] Using authentication context: prod-us
 Addresses in folder 'Texas':
 ...
@@ -380,7 +380,7 @@ Addresses in folder 'Texas':
 $ scm context use prod-eu
 ✓ Switched to context 'prod-eu'
 
-$ scm show objects address --folder London
+$ scm show object address --folder London
 [INFO] Using authentication context: prod-eu
 Addresses in folder 'London':
 ...
@@ -414,7 +414,7 @@ docker exec pan-scm scm context list
 docker exec pan-scm scm context use production
 
 # Run commands with the active context
-docker exec pan-scm scm show objects address --folder Texas
+docker exec pan-scm scm show object address --folder Texas
 ```
 
 #### Benefits of Docker with Contexts
@@ -437,8 +437,8 @@ docker exec scm-prod scm context use production
 docker exec scm-dev scm context use development
 
 # Now each container operates on different tenants
-docker exec scm-prod scm show objects address --folder Production
-docker exec scm-dev scm show objects address --folder Development
+docker exec scm-prod scm show object address --folder Production
+docker exec scm-dev scm show object address --folder Development
 ```
 
 #### Building Docker Images
@@ -461,8 +461,65 @@ cd pan-scm-cli
 ```
 
 Platform-specific images are available:
+
 - **AMD64**: `ghcr.io/cdot65/pan-scm-cli:latest`
 - **ARM64**: `ghcr.io/cdot65/pan-scm-cli:apple` (for Apple Silicon)
+
+### SASE Deployment
+
+#### Service Connections
+
+Service connections establish secure tunnels between your branch locations and Prisma Access:
+
+```bash
+# Create a service connection
+scm set sase service-connection \
+  --name branch-primary \
+  --ipsec-tunnel ipsec-tunnel-1 \
+  --region us-east-1 \
+  --subnets "10.1.0.0/24,10.1.1.0/24"
+
+# Enable BGP for dynamic routing
+scm set sase service-connection \
+  --name datacenter-connection \
+  --ipsec-tunnel dc-tunnel \
+  --region us-west-2 \
+  --bgp-enable \
+  --bgp-peer-as 65000 \
+  --bgp-peer-ip 192.168.1.1 \
+  --bgp-local-ip 192.168.1.2
+
+# List all service connections
+scm show sase service-connection
+```
+
+#### Remote Networks
+
+Remote networks define your branch office or data center locations:
+
+```bash
+# Create a remote network
+scm set sase remote-network \
+  --name branch-office-1 \
+  --region us-east-1 \
+  --license-type FWAAS-AGGREGATE \
+  --spn-name us-east-spn \
+  --ipsec-tunnel branch-tunnel-1 \
+  --subnets "10.1.0.0/16"
+
+# Remote network with BGP
+scm set sase remote-network \
+  --name datacenter-west \
+  --region us-west-2 \
+  --spn-name us-west-spn \
+  --ipsec-tunnel dc-tunnel \
+  --bgp-enable \
+  --bgp-peer-as 65000 \
+  --bgp-peer-ip 192.168.1.1
+
+# List all remote networks
+scm show sase remote-network
+```
 
 ### Complete Workflow Example
 
@@ -470,25 +527,25 @@ Here's a complete example of setting up a web application security policy:
 
 ```bash
 # Step 1: Create tags
-scm set objects tag --folder Texas --name web --color Cyan --comments "Web resources"
-scm set objects tag --folder Texas --name database --color Orange --comments "Database resources"
-scm set objects tag --folder Texas --name production --color Red --comments "Production environment"
+scm set object tag --folder Texas --name web --color Cyan --comments "Web resources"
+scm set object tag --folder Texas --name database --color Orange --comments "Database resources"
+scm set object tag --folder Texas --name production --color Red --comments "Production environment"
 
 # Step 2: Create addresses
-scm set objects address --folder Texas --name web-01 --ip-netmask 10.1.1.10/32 --tag web,production
-scm set objects address --folder Texas --name web-02 --ip-netmask 10.1.1.11/32 --tag web,production
-scm set objects address --folder Texas --name db-01 --ip-netmask 10.2.1.10/32 --tag database,production
+scm set object address --folder Texas --name web-01 --ip-netmask 10.1.1.10/32 --tag web,production
+scm set object address --folder Texas --name web-02 --ip-netmask 10.1.1.11/32 --tag web,production
+scm set object address --folder Texas --name db-01 --ip-netmask 10.2.1.10/32 --tag database,production
 
 # Step 3: Create address groups
-scm set objects address-group --folder Texas --name web-servers-group --type static --members "web-01,web-02"
-scm set objects address-group --folder Texas --name database-servers --type static --members "db-01"
+scm set object address-group --folder Texas --name web-servers-group --type static --members "web-01,web-02"
+scm set object address-group --folder Texas --name database-servers --type static --members "db-01"
 
 # Step 4: Create custom services
-scm set objects service --folder Texas --name custom-web --protocol tcp --port 443
-scm set objects service --folder Texas --name custom-db --protocol tcp --port 3306
+scm set object service --folder Texas --name custom-web --protocol tcp --port 443
+scm set object service --folder Texas --name custom-db --protocol tcp --port 3306
 
 # Step 5: Create service group
-scm set objects service-group --folder Texas --name app-services --members "custom-web,custom-db"
+scm set object service-group --folder Texas --name app-services --members "custom-web,custom-db"
 
 # Step 6: Create security zones
 scm set network zone --folder Texas --name trust --mode layer3
@@ -532,7 +589,7 @@ scm <action> <object-type> <object> [options]
 - **objects**: Address, service, tag, application configurations
 - **network**: Security zones
 - **security**: Security rules and profiles
-- **deployment**: Bandwidth allocations
+- **sase**: Service connections, remote networks, bandwidth allocations
 
 ### Common Options
 
@@ -550,18 +607,18 @@ Integrate threat intelligence feeds:
 
 ```bash
 # Palo Alto Networks predefined lists
-scm set objects external-dynamic-list --folder Texas \
+scm set object external-dynamic-list --folder Texas \
   --name bulletproof-ips --type predefined_ip \
   --url "panw-bulletproof-ip-list"
 
 # Custom threat feed with hourly updates
-scm set objects external-dynamic-list --folder Texas \
+scm set object external-dynamic-list --folder Texas \
   --name threat-feed --type ip \
   --url "https://example.com/threats.txt" \
   --recurring hourly
 
 # Domain blocklist with authentication
-scm set objects external-dynamic-list --folder Texas \
+scm set object external-dynamic-list --folder Texas \
   --name malicious-domains --type domain \
   --url "https://secure.example.com/domains.txt" \
   --username api_user --password secure_pass \
@@ -574,13 +631,13 @@ Define custom applications:
 
 ```bash
 # Create custom application
-scm set objects application --folder Texas --name internal-portal \
+scm set object application --folder Texas --name internal-portal \
   --category business-systems --subcategory general-business \
   --technology browser-based --risk 2 \
   --ports "tcp/443" --description "Internal employee portal"
 
 # High-risk application filter
-scm set objects application-filter --folder Texas --name high-risk-apps \
+scm set object application-filter --folder Texas --name high-risk-apps \
   --category "file-sharing,peer-to-peer" --risk 4 --risk 5 \
   --has-known-vulnerabilities
 ```
@@ -591,7 +648,7 @@ Enforce endpoint compliance:
 
 ```bash
 # Windows compliance check
-scm set objects hip-object --folder Texas --name windows-compliance \
+scm set object hip-object --folder Texas --name windows-compliance \
   --description "Windows security requirements" \
   --host-info-os Microsoft --host-info-os-value All \
   --host-info-managed \
@@ -599,7 +656,7 @@ scm set objects hip-object --folder Texas --name windows-compliance \
   --patch-management-enabled
 
 # Create HIP profile
-scm set objects hip-profile --folder Texas --name secure-endpoints \
+scm set object hip-profile --folder Texas --name secure-endpoints \
   --match '{"windows-compliance": {"is": true}}' \
   --description "Require compliant Windows endpoints"
 ```
@@ -610,15 +667,15 @@ Configure log collection:
 
 ```bash
 # Syslog server profile
-scm set objects syslog-server-profile --folder Texas --name central-syslog \
+scm set object syslog-server-profile --folder Texas --name central-syslog \
   --servers '[{"name": "primary", "server": "10.0.1.50", "port": 514, "transport": "TCP", "format": "BSD", "facility": "LOG_USER"}]'
 
 # HTTP server profile for SIEM
-scm set objects http-server-profile --folder Texas --name splunk-hec \
+scm set object http-server-profile --folder Texas --name splunk-hec \
   --servers '[{"name": "splunk", "address": "10.0.1.100", "protocol": "HTTPS", "port": 8088, "http_method": "POST"}]'
 
 # Log forwarding profile
-scm set objects log-forwarding-profile --folder Texas --name security-logs \
+scm set object log-forwarding-profile --folder Texas --name security-logs \
   --match-list '[{"name": "threats", "log_type": "threat", "send_to_panorama": true}]'
 ```
 
@@ -644,7 +701,7 @@ The CLI handles existing objects gracefully:
 
 ```bash
 # This will update if exists, create if not
-scm set objects address --folder Texas --name server --ip-netmask 10.1.1.1/32
+scm set object address --folder Texas --name server --ip-netmask 10.1.1.1/32
 ```
 
 #### Rate Limiting
@@ -653,7 +710,7 @@ If you encounter rate limits:
 
 ```bash
 # Use mock mode for testing
-scm set objects address --folder Texas --name test --ip-netmask 10.1.1.1/32 --mock
+scm set object address --folder Texas --name test --ip-netmask 10.1.1.1/32 --mock
 
 # Or add delays in scripts
 sleep 1
@@ -668,7 +725,7 @@ For detailed logging:
 export SCM_LOG_LEVEL=DEBUG
 
 # Run command
-scm show objects address --folder Texas
+scm show object address --folder Texas
 ```
 
 ## Examples Directory
@@ -681,6 +738,7 @@ The `examples/` directory contains ready-to-use templates:
 - `tags.yml` - Tag organization system
 - `services.yml` - Custom service definitions
 - `hip-objects.yml` - HIP compliance configurations
+- `SASE_COMMANDS_EXAMPLES.md` - Service connection and remote network examples
 
 ## Contributing
 

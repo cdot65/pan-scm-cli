@@ -19,7 +19,7 @@ Create or update an application filter object.
 ### Syntax
 
 ```bash
-scm set objects application-filter [OPTIONS]
+scm set object application-filter [OPTIONS]
 ```
 
 ### Options
@@ -53,7 +53,7 @@ scm set objects application-filter [OPTIONS]
 #### Create Basic Filter by Category and Risk
 
 ```bash
-$ scm set objects application-filter \
+$ scm set object application-filter \
     --folder Texas \
     --name high-risk-apps \
     --category "file-sharing,peer-to-peer" \
@@ -66,7 +66,7 @@ Created application filter: high-risk-apps in folder Texas
 #### Create Filter with Security Characteristics
 
 ```bash
-$ scm set objects application-filter \
+$ scm set object application-filter \
     --folder Texas \
     --name malware-apps \
     --category "file-sharing" \
@@ -85,7 +85,7 @@ Delete an application filter object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects application-filter [OPTIONS]
+scm delete object application-filter [OPTIONS]
 ```
 
 ### Options
@@ -102,7 +102,7 @@ scm delete objects application-filter [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects application-filter --folder Texas --name high-risk-apps
+$ scm delete object application-filter --folder Texas --name high-risk-apps
 ---> 100%
 Deleted application filter: high-risk-apps from folder Texas
 ```
@@ -114,7 +114,7 @@ Load multiple application filter objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects application-filter [OPTIONS]
+scm load object application-filter [OPTIONS]
 ```
 
 ### Options
@@ -191,7 +191,7 @@ application_filters:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects application-filter --file app-filters.yml
+$ scm load object application-filter --file app-filters.yml
 ---> 100%
 ✓ Loaded application filter: high-risk-apps
 ✓ Loaded application filter: vulnerable-apps
@@ -205,7 +205,7 @@ Successfully loaded 5 out of 5 application filters from 'app-filters.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects application-filter --file app-filters.yml --folder Austin
+$ scm load object application-filter --file app-filters.yml --folder Austin
 ---> 100%
 ✓ Loaded application filter: high-risk-apps
 ✓ Loaded application filter: vulnerable-apps
@@ -226,7 +226,7 @@ Display application filter objects.
 ### Syntax
 
 ```bash
-scm show objects application-filter [OPTIONS]
+scm show object application-filter [OPTIONS]
 ```
 
 ### Options
@@ -247,7 +247,7 @@ scm show objects application-filter [OPTIONS]
 #### Show Specific Application Filter
 
 ```bash
-$ scm show objects application-filter --folder Texas --name high-risk-apps
+$ scm show object application-filter --folder Texas --name high-risk-apps
 ---> 100%
 Application Filter: high-risk-apps
 Location: Folder 'Texas'
@@ -260,7 +260,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All Application Filters (Default Behavior)
 
 ```bash
-$ scm show objects application-filter --folder Texas
+$ scm show object application-filter --folder Texas
 ---> 100%
 Application Filters in folder 'Texas':
 ------------------------------------------------------------
@@ -292,7 +292,7 @@ Backup all application filter objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects application-filter [OPTIONS]
+scm backup object application-filter [OPTIONS]
 ```
 
 ### Options
@@ -311,7 +311,7 @@ scm backup objects application-filter [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects application-filter --folder Texas
+$ scm backup object application-filter --folder Texas
 ---> 100%
 Successfully backed up 5 application filters to application-filter_folder_texas_20240115_120530.yaml
 ```
@@ -319,7 +319,7 @@ Successfully backed up 5 application filters to application-filter_folder_texas_
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects application-filter --folder Texas --file texas-app-filters.yaml
+$ scm backup object application-filter --folder Texas --file texas-app-filters.yaml
 ---> 100%
 Successfully backed up 5 application filters to texas-app-filters.yaml
 ```
@@ -339,7 +339,7 @@ Successfully backed up 5 application filters to texas-app-filters.yaml
 ### Create a Security-Focused Filter
 
 ```bash
-$ scm set objects application-filter \
+$ scm set object application-filter \
     --folder Shared \
     --name security-risk \
     --category "file-sharing,peer-to-peer,proxy" \
@@ -354,7 +354,7 @@ Created application filter: security-risk in folder Shared
 ### Create a Bandwidth Management Filter
 
 ```bash
-$ scm set objects application-filter \
+$ scm set object application-filter \
     --folder Shared \
     --name bandwidth-control \
     --category "media,file-sharing" \
@@ -368,7 +368,7 @@ Created application filter: bandwidth-control in folder Shared
 ### Create a Comprehensive Filter
 
 ```bash
-$ scm set objects application-filter \
+$ scm set object application-filter \
     --folder Texas \
     --name problematic-apps \
     --category "file-sharing,gaming,social-networking" \

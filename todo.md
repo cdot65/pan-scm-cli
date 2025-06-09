@@ -107,6 +107,7 @@ The project has successfully implemented:
 ### Smart Upsert Pattern Enhancement
 
 The project now implements an enhanced smart upsert pattern that:
+
 1. Fetches existing resources before create/update
 2. Compares fields to detect actual changes
 3. Only calls update() if fields have changed
@@ -114,11 +115,13 @@ The project now implements an enhanced smart upsert pattern that:
 5. Handles type changes with delete/recreate when necessary
 
 #### Completed Enhancements
+
 - [x] Enhanced `create_tag` method with proper change detection
 - [x] Enhanced `create_service` method with complex field comparison
 - [x] Created developer documentation at `docs/developer/smart-upsert-pattern.md`
 
 #### Remaining Work
+
 - [ ] Enhance remaining create methods to follow the improved pattern:
   - [ ] `create_bandwidth_allocation` - Add change detection
   - [ ] `create_security_rule` - Add change detection
@@ -129,14 +132,14 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Address Objects (Completed ✅)
 
-- [x] Implement `show objects address` command with `--list` and `--name` flags
+- [x] Implement `show object address` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_addresses()` and `get_address()`
 - [x] Add comprehensive tests for show address functionality
 - [x] Update README with show address examples
 
 ### Address Groups (Completed ✅)
 
-- [x] Implement `show objects address-group` command with `--list` and `--name` flags
+- [x] Implement `show object address-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_address_groups()` and `get_address_group()`
 - [x] Add comprehensive tests for show address-group functionality
 - [x] Update README with show address-group examples
@@ -153,15 +156,9 @@ The project now implements an enhanced smart upsert pattern that:
 - [x] Add SDK client methods for listing and fetching rules
 - [x] Add tests and documentation
 
-### Bandwidth Allocations (Completed ✅)
-
-- [x] Implement `show deployment bandwidth-allocation` command
-- [x] Add SDK client methods for listing and fetching allocations
-- [x] Add tests and documentation
-
 ### Applications (Completed ✅)
 
-- [x] Implement `show objects application` command with `--list` and `--name` flags
+- [x] Implement `show object application` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_applications()` and `get_application()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add comprehensive attribute support (9 security flags)
@@ -169,7 +166,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Application Groups (Completed ✅)
 
-- [x] Implement `show objects application-group` command with `--list` and `--name` flags
+- [x] Implement `show object application-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_application_groups()` and `get_application_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add member management functionality
@@ -177,7 +174,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Application Filters (Completed ✅)
 
-- [x] Implement `show objects application-filter` command with `--list` and `--name` flags
+- [x] Implement `show object application-filter` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_application_filters()` and `get_application_filter()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add complex filter criteria support (lists and booleans)
@@ -187,7 +184,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Dynamic User Groups (Completed ✅)
 
-- [x] Implement `show objects dynamic-user-group` command with `--list` and `--name` flags
+- [x] Implement `show object dynamic-user-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_dynamic_user_groups()` and `get_dynamic_user_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add tag-based filter expression support
@@ -196,7 +193,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### External Dynamic Lists (Completed ✅)
 
-- [x] Implement `show objects external-dynamic-list` command with `--list` and `--name` flags
+- [x] Implement `show object external-dynamic-list` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_external_dynamic_lists()` and `get_external_dynamic_list()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for all EDL types with proper configuration
@@ -205,7 +202,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### HIP Objects (Completed ✅)
 
-- [x] Implement `show objects hip-object` command with `--list` and `--name` flags
+- [x] Implement `show object hip-object` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_hip_objects()` and `get_hip_object()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for all HIP criteria types (host info, network, patch mgmt, disk encryption, mobile, certificate)
@@ -214,7 +211,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### HIP Profiles (Completed ✅)
 
-- [x] Implement `show objects hip-profile` command with `--list` and `--name` flags
+- [x] Implement `show object hip-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_hip_profiles()` and `get_hip_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for complex match criteria with boolean operators
@@ -223,7 +220,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### HTTP Server Profiles (Completed ✅)
 
-- [x] Implement `show objects http-server-profile` command with `--list` and `--name` flags
+- [x] Implement `show object http-server-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_http_server_profiles()` and `get_http_server_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for complex server configurations with authentication and TLS
@@ -233,7 +230,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Log Forwarding Profiles (Completed ✅)
 
-- [x] Implement `show objects log-forwarding-profile` command with `--list` and `--name` flags
+- [x] Implement `show object log-forwarding-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_log_forwarding_profiles()` and `get_log_forwarding_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for match list configurations with multiple log types
@@ -243,7 +240,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Services (Completed ✅)
 
-- [x] Implement `show objects service` command with `--list` and `--name` flags
+- [x] Implement `show object service` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_services()` and `get_service()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for TCP/UDP protocols with port configurations
@@ -253,7 +250,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Service Groups (Completed ✅)
 
-- [x] Implement `show objects service-group` command with `--list` and `--name` flags
+- [x] Implement `show object service-group` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_service_groups()` and `get_service_group()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for organizing services and service groups
@@ -263,7 +260,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Syslog Server Profiles (Completed ✅)
 
-- [x] Implement `show objects syslog-server-profile` command with `--list` and `--name` flags
+- [x] Implement `show object syslog-server-profile` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_syslog_server_profiles()` and `get_syslog_server_profile()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add support for multiple syslog servers with transport configurations
@@ -273,7 +270,7 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Tags (Completed ✅)
 
-- [x] Implement `show objects tag` command with `--list` and `--name` flags
+- [x] Implement `show object tag` command with `--list` and `--name` flags
 - [x] Add SDK client methods: `list_tags()` and `get_tag()`
 - [x] Implement all CRUD operations: set, load, delete, backup
 - [x] Add color validation with all supported Palo Alto colors
@@ -307,26 +304,26 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### All Resource Types (Completed ✅)
 
-- [x] Implement `backup objects address` command
-- [x] Implement `backup objects address-group` command
-- [x] Implement `backup objects application` command
-- [x] Implement `backup objects application-group` command
-- [x] Implement `backup objects application-filter` command
-- [x] Implement `backup objects dynamic-user-group` command
-- [x] Implement `backup objects external-dynamic-list` command
-- [x] Implement `backup objects hip-object` command
-- [x] Implement `backup objects hip-profile` command
-- [x] Implement `backup objects http-server-profile` command
-- [x] Implement `backup objects log-forwarding-profile` command
-- [x] Implement `backup objects service` command
-- [x] Implement `backup objects service-group` command
-- [x] Implement `backup objects syslog-server-profile` command
-- [x] Implement `backup objects tag` command
+- [x] Implement `backup object address` command
+- [x] Implement `backup object address-group` command
+- [x] Implement `backup object application` command
+- [x] Implement `backup object application-group` command
+- [x] Implement `backup object application-filter` command
+- [x] Implement `backup object dynamic-user-group` command
+- [x] Implement `backup object external-dynamic-list` command
+- [x] Implement `backup object hip-object` command
+- [x] Implement `backup object hip-profile` command
+- [x] Implement `backup object http-server-profile` command
+- [x] Implement `backup object log-forwarding-profile` command
+- [x] Implement `backup object service` command
+- [x] Implement `backup object service-group` command
+- [x] Implement `backup object syslog-server-profile` command
+- [x] Implement `backup object tag` command
 - [x] Implement `backup network security-zone` command
 - [x] Implement `backup security rule` command
 - [x] Implement `backup security anti-spyware-profile` command
 - [x] Implement `backup security decryption-profile` command
-- [x] Implement `backup deployment bandwidth` command
+- [x] Implement `backup sase bandwidth` command
 - [x] Update SDK client with `exact_match` parameter for list methods
 - [x] Add field mapping from SDK to CLI format
 - [x] Implement proper file naming conventions
@@ -355,26 +352,30 @@ The project now implements an enhanced smart upsert pattern that:
 
 ### Commands Standardized (Completed ✅)
 
-- [x] `load objects address-group` - Standardized with all features
-- [x] `load objects application` - Standardized with all features
-- [x] `load objects application-group` - Standardized with all features
-- [x] `load objects application-filter` - Standardized with all features
-- [x] `load objects dynamic-user-group` - Standardized with all features
-- [x] `load objects external-dynamic-list` - Standardized with all features
-- [x] `load objects hip-object` - Standardized with all features
-- [x] `load objects hip-profile` - Standardized with all features
-- [x] `load objects http-server-profile` - Standardized with all features
-- [x] `load objects log-forwarding-profile` - Standardized with all features
-- [x] `load objects service` - Standardized with all features
-- [x] `load objects service-group` - Standardized with all features
-- [x] `load objects syslog-server-profile` - Standardized with all features
-- [x] `load objects tag` - Already had correct pattern
+- [x] `load object address-group` - Standardized with all features
+- [x] `load object application` - Standardized with all features
+- [x] `load object application-group` - Standardized with all features
+- [x] `load object application-filter` - Standardized with all features
+- [x] `load object dynamic-user-group` - Standardized with all features
+- [x] `load object external-dynamic-list` - Standardized with all features
+- [x] `load object hip-object` - Standardized with all features
+- [x] `load object hip-profile` - Standardized with all features
+- [x] `load object http-server-profile` - Standardized with all features
+- [x] `load object log-forwarding-profile` - Standardized with all features
+- [x] `load object service` - Standardized with all features
+- [x] `load object service-group` - Standardized with all features
+- [x] `load object syslog-server-profile` - Standardized with all features
+- [x] `load object tag` - Already had correct pattern
+- [x] `set sase service-connection` - Implement full CRUD, list, load, and backup commands for service connections (Completed)
+- [x] `set sase remote-network` - Implement full CRUD, list, load, and backup commands for remote networks (Completed)
+- [ ] `set sase bandwidth-allocation` - Implement full CRUD, list, load, and backup commands for bandwidth allocations
 
 ## Phase 2: Smart Upsert Logic for Remaining Resources
 
 ### Note on Update Commands
 
 The project uses a unified approach where `set` commands handle both create and update operations automatically. This eliminates the need for separate `update` commands. The smart upsert logic:
+
 - Detects if a resource exists
 - Updates it if found
 - Creates it if not found
@@ -382,11 +383,13 @@ The project uses a unified approach where `set` commands handle both create and 
 
 This pattern has been successfully implemented for most object types and should be extended to the remaining resources.
 
-### Bandwidth Allocations (In Progress)
+### SASE Bandwidth Allocations (In Progress)
 
-- [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
+- [ ] Implement smart upsert logic for `create_sase_bandwidth_allocation` method
 - [ ] Handle existing allocations gracefully (update instead of fail)
 - [ ] Add proper error handling for allocation conflicts
+- [ ] Implement CLI commands: set sase bandwidth-allocation, delete sase bandwidth-allocation, show sase bandwidth-allocation, list sase bandwidth-allocations, load sase bandwidth-allocations, backup sase bandwidth-allocations
+- [ ] Add comprehensive tests and documentation for all sase bandwidth-allocation commands
 
 ### Security Zones
 
@@ -407,6 +410,14 @@ This pattern has been successfully implemented for most object types and should 
 - [ ] Add filter options to list commands (by tag, description, etc.)
 - [ ] Implement search functionality across object types
 - [ ] Add pagination support for large result sets
+
+### Security Service CLI Coverage
+
+- [ ] Implement CRUD/show/backup/load CLI commands for:
+  - DNS Security Profile
+  - URL Categories
+  - Vulnerability Protection Profile
+  - WildFire Antivirus Profile
 
 ### Output Formats
 

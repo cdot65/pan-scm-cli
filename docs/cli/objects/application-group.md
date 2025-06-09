@@ -18,7 +18,7 @@ Create or update an application group object.
 ### Syntax
 
 ```bash
-scm set objects application-group [OPTIONS]
+scm set object application-group [OPTIONS]
 ```
 
 ### Options
@@ -40,7 +40,7 @@ scm set objects application-group [OPTIONS]
 #### Create a Basic Application Group
 
 ```bash
-$ scm set objects application-group \
+$ scm set object application-group \
     --folder Texas \
     --name business-apps \
     --members "salesforce,office365,zoom,custom-crm" \
@@ -52,7 +52,7 @@ Created application group: business-apps in folder Texas
 #### Create an Application Group with Tags
 
 ```bash
-$ scm set objects application-group \
+$ scm set object application-group \
     --folder Texas \
     --name collaboration-tools \
     --members "slack,ms-teams,zoom,webex" \
@@ -69,7 +69,7 @@ Delete an application group object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects application-group [OPTIONS]
+scm delete object application-group [OPTIONS]
 ```
 
 ### Options
@@ -86,7 +86,7 @@ scm delete objects application-group [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects application-group --folder Texas --name business-apps
+$ scm delete object application-group --folder Texas --name business-apps
 ---> 100%
 Deleted application group: business-apps from folder Texas
 ```
@@ -98,7 +98,7 @@ Load multiple application group objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects application-group [OPTIONS]
+scm load object application-group [OPTIONS]
 ```
 
 ### Options
@@ -166,7 +166,7 @@ application_groups:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects application-group --file app-groups.yml
+$ scm load object application-group --file app-groups.yml
 ---> 100%
 ✓ Loaded application group: business-apps
 ✓ Loaded application group: collaboration-tools
@@ -179,7 +179,7 @@ Successfully loaded 4 out of 4 application groups from 'app-groups.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects application-group --file app-groups.yml --folder Austin
+$ scm load object application-group --file app-groups.yml --folder Austin
 ---> 100%
 ✓ Loaded application group: business-apps
 ✓ Loaded application group: collaboration-tools
@@ -199,7 +199,7 @@ Display application group objects.
 ### Syntax
 
 ```bash
-scm show objects application-group [OPTIONS]
+scm show object application-group [OPTIONS]
 ```
 
 ### Options
@@ -220,7 +220,7 @@ scm show objects application-group [OPTIONS]
 #### Show Specific Application Group
 
 ```bash
-$ scm show objects application-group --folder Texas --name business-apps
+$ scm show object application-group --folder Texas --name business-apps
 ---> 100%
 Application Group: business-apps
 Location: Folder 'Texas'
@@ -233,7 +233,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All Application Groups (Default Behavior)
 
 ```bash
-$ scm show objects application-group --folder Texas
+$ scm show object application-group --folder Texas
 ---> 100%
 Application Groups in folder 'Texas':
 ------------------------------------------------------------
@@ -263,7 +263,7 @@ Backup all application group objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects application-group [OPTIONS]
+scm backup object application-group [OPTIONS]
 ```
 
 ### Options
@@ -282,7 +282,7 @@ scm backup objects application-group [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects application-group --folder Texas
+$ scm backup object application-group --folder Texas
 ---> 100%
 Successfully backed up 10 application groups to application-group_folder_texas_20240115_120530.yaml
 ```
@@ -290,7 +290,7 @@ Successfully backed up 10 application groups to application-group_folder_texas_2
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects application-group --folder Texas --file texas-app-groups.yaml
+$ scm backup object application-group --folder Texas --file texas-app-groups.yaml
 ---> 100%
 Successfully backed up 10 application groups to texas-app-groups.yaml
 ```
@@ -310,7 +310,7 @@ Successfully backed up 10 application groups to texas-app-groups.yaml
 ### Create a Basic Application Group
 
 ```bash
-$ scm set objects application-group \
+$ scm set object application-group \
     --folder Shared \
     --name web-apps \
     --members "web-browsing,ssl,http,https"
@@ -321,7 +321,7 @@ Created application group: web-apps in folder Shared
 ### Create a Comprehensive Business Group
 
 ```bash
-$ scm set objects application-group \
+$ scm set object application-group \
     --folder Shared \
     --name critical-business \
     --members "salesforce,sap,oracle,custom-erp,custom-crm" \
@@ -334,7 +334,7 @@ Created application group: critical-business in folder Shared
 ### Create a Security-Focused Group
 
 ```bash
-$ scm set objects application-group \
+$ scm set object application-group \
     --folder Shared \
     --name high-risk-apps \
     --members "bittorrent,tor,psiphon,ultrasurf" \
