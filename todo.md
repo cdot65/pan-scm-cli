@@ -107,6 +107,7 @@ The project has successfully implemented:
 ### Smart Upsert Pattern Enhancement
 
 The project now implements an enhanced smart upsert pattern that:
+
 1. Fetches existing resources before create/update
 2. Compares fields to detect actual changes
 3. Only calls update() if fields have changed
@@ -114,11 +115,13 @@ The project now implements an enhanced smart upsert pattern that:
 5. Handles type changes with delete/recreate when necessary
 
 #### Completed Enhancements
+
 - [x] Enhanced `create_tag` method with proper change detection
 - [x] Enhanced `create_service` method with complex field comparison
 - [x] Created developer documentation at `docs/developer/smart-upsert-pattern.md`
 
 #### Remaining Work
+
 - [ ] Enhance remaining create methods to follow the improved pattern:
   - [ ] `create_bandwidth_allocation` - Add change detection
   - [ ] `create_security_rule` - Add change detection
@@ -151,12 +154,6 @@ The project now implements an enhanced smart upsert pattern that:
 
 - [x] Implement `show security rule` command
 - [x] Add SDK client methods for listing and fetching rules
-- [x] Add tests and documentation
-
-### Bandwidth Allocations (Completed ✅)
-
-- [x] Implement `show deployment bandwidth-allocation` command
-- [x] Add SDK client methods for listing and fetching allocations
 - [x] Add tests and documentation
 
 ### Applications (Completed ✅)
@@ -326,7 +323,7 @@ The project now implements an enhanced smart upsert pattern that:
 - [x] Implement `backup security rule` command
 - [x] Implement `backup security anti-spyware-profile` command
 - [x] Implement `backup security decryption-profile` command
-- [x] Implement `backup deployment bandwidth` command
+- [x] Implement `backup sase bandwidth` command
 - [x] Update SDK client with `exact_match` parameter for list methods
 - [x] Add field mapping from SDK to CLI format
 - [x] Implement proper file naming conventions
@@ -369,12 +366,16 @@ The project now implements an enhanced smart upsert pattern that:
 - [x] `load objects service-group` - Standardized with all features
 - [x] `load objects syslog-server-profile` - Standardized with all features
 - [x] `load objects tag` - Already had correct pattern
+- [ ] `set sase service-connection` - Implement full CRUD, list, load, and backup commands for service connections
+- [ ] `set sase remote-network` - Implement full CRUD, list, load, and backup commands for remote networks
+- [ ] `set sase bandwidth-allocation` - Implement full CRUD, list, load, and backup commands for bandwidth allocations
 
 ## Phase 2: Smart Upsert Logic for Remaining Resources
 
 ### Note on Update Commands
 
 The project uses a unified approach where `set` commands handle both create and update operations automatically. This eliminates the need for separate `update` commands. The smart upsert logic:
+
 - Detects if a resource exists
 - Updates it if found
 - Creates it if not found
@@ -382,11 +383,13 @@ The project uses a unified approach where `set` commands handle both create and 
 
 This pattern has been successfully implemented for most object types and should be extended to the remaining resources.
 
-### Bandwidth Allocations (In Progress)
+### SASE Bandwidth Allocations (In Progress)
 
-- [ ] Implement smart upsert logic for `create_bandwidth_allocation` method
+- [ ] Implement smart upsert logic for `create_sase_bandwidth_allocation` method
 - [ ] Handle existing allocations gracefully (update instead of fail)
 - [ ] Add proper error handling for allocation conflicts
+- [ ] Implement CLI commands: set sase bandwidth-allocation, delete sase bandwidth-allocation, show sase bandwidth-allocation, list sase bandwidth-allocations, load sase bandwidth-allocations, backup sase bandwidth-allocations
+- [ ] Add comprehensive tests and documentation for all sase bandwidth-allocation commands
 
 ### Security Zones
 
@@ -407,6 +410,14 @@ This pattern has been successfully implemented for most object types and should 
 - [ ] Add filter options to list commands (by tag, description, etc.)
 - [ ] Implement search functionality across object types
 - [ ] Add pagination support for large result sets
+
+### Security Service CLI Coverage
+
+- [ ] Implement CRUD/show/backup/load CLI commands for:
+  - DNS Security Profile
+  - URL Categories
+  - Vulnerability Protection Profile
+  - WildFire Antivirus Profile
 
 ### Output Formats
 

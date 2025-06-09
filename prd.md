@@ -19,11 +19,24 @@ This PRD covers multiple enhancements to the `pan-scm-cli` project:
 3. **Smart Upsert Logic**: Intelligent create/update handling for all object types
 4. **Backup Commands**: New backup functionality for exporting configurations to YAML files
 
+---
+
+### 1.3.1 Upcoming Feature: Full Security Service Coverage
+
+The following security services are supported in the SDK but are not yet available as CLI commands:
+
+- DNS Security Profile
+- URL Categories
+- Vulnerability Protection Profile
+- WildFire Antivirus Profile
+
+These will be added in a future release to ensure full CRUD/show/backup/load parity with the SDK for all security resources.
+
 ### 1.4 Latest Enhancement: Backup Commands
 
 The CLI now supports backing up configurations to YAML files with the following features:
 
-- `backup` command for all configuration types (objects, network, security, deployment)
+- `backup` command for all configuration types (objects, network, security, sase)
 - Uses `exact_match=True` to only backup objects from the specified folder
 - Generates YAML files with naming convention: `{configuration-item-type}-{location}.yaml`
 - Excludes system fields and converts SDK format to CLI format for consistency
@@ -101,6 +114,45 @@ Enable `pan-scm-cli` to fully support authentication via:
 - Add a `test-auth` command to verify authentication setup:
   - `scm-cli test-auth`: Confirms client initialization with real credentials.
   - `scm-cli test-auth --mock`: Simulates authentication without API calls.
+
+#### 3.1.5 SASE Resource Management
+
+Implement full CRUD, list, load, and backup command support for the following SASE resource types:
+
+- Service Connections
+- Remote Networks
+- Bandwidth Allocations
+
+Each SASE resource must support the following CLI commands:
+
+- `set sase service-connection` (create/update)
+- `delete sase service-connection`
+- `show sase service-connection` (get by name/id)
+- `list sase service-connections` (with filters)
+- `load sase service-connections` (bulk YAML load)
+- `backup sase service-connections` (YAML export)
+
+- `set sase remote-network` (create/update)
+- `delete sase remote-network`
+- `show sase remote-network` (get by name/id)
+- `list sase remote-networks` (with filters)
+- `load sase remote-networks` (bulk YAML load)
+- `backup sase remote-networks` (YAML export)
+
+- `set sase bandwidth-allocation` (create/update)
+- `delete sase bandwidth-allocation`
+- `show sase bandwidth-allocation` (get by name/id)
+- `list sase bandwidth-allocations` (with filters)
+- `load sase bandwidth-allocations` (bulk YAML load)
+- `backup sase bandwidth-allocations` (YAML export)
+
+All commands must:
+
+- Use Typer CLI patterns and container/context option validation as per the style guide
+- Perform input validation with Pydantic models
+- Support mock mode and context/container options
+- Provide YAML import/export for bulk operations
+- Use Google-style docstrings with canonical CLI usage examples
 
 ### 3.2 Non-Functional Requirements
 
@@ -548,7 +600,7 @@ scm-cli backup <object-type> <object> --folder <folder-name>
 - `scm-cli backup objects address-group --folder Austin`
 - `scm-cli backup network security-zone --folder Austin`
 - `scm-cli backup security rule --folder Austin --rulebase pre`
-- `scm-cli backup deployment bandwidth` (no folder needed)
+- `scm-cli backup sase bandwidth` (no folder needed)
 
 ### 15.3 Technical Implementation Details
 
@@ -726,23 +778,23 @@ Added the following methods to `sdk_client.py`:
 - `get_application_filter()`: Fetch specific filter with all criteria
 - `list_application_filters()`: List with exact_match support
 
-#### 18.3.2 Command Implementation
-
-In `objects.py`, added full command set:
-
-- `set`: Create/update with list and boolean options
-- `show`: Display with criteria formatting
-- `load`: Import from YAML with validation
-- `delete`: Remove filters
-- `backup`: Export to YAML format
-
-#### 18.3.3 Validation Model
+#### 18.3.2 Validator Model
 
 Extended `validators.py` with:
 
 - `ApplicationFilter` model with list and boolean fields
 - Risk value validation (1-5 range)
-- Proper `to_sdk_model()` with conditional field inclusion
+- Proper `to_sdk_model()` method
+
+#### 18.3.3 CLI Commands
+
+Implemented in `objects.py`:
+
+- `backup_application_filter()`: Export to YAML format
+- `delete_application_filter()`: Remove by name and folder
+- `load_application_filter()`: Import with validation
+- `set_application_filter()`: Create/update with list and boolean options
+- `show_application_filter()`: Display with formatted criteria sections
 
 ### 18.4 Benefits
 
@@ -777,8 +829,8 @@ scm-cli backup objects application-filter --folder Texas
 All commands have been tested and verified:
 
 - ✅ Set command creates filters with all criteria types
-- ✅ Show command displays detailed filter information
-- ✅ Load command imports from YAML files correctly
+- ✅ Show command displays filter expressions correctly
+- ✅ Load command imports from YAML files
 - ✅ Delete command removes filters cleanly
 - ✅ Backup command exports to properly formatted YAML
 - ✅ Boolean field handling works correctly (omits false values)
@@ -824,23 +876,23 @@ Added the following methods to `sdk_client.py`:
 - `get_dynamic_user_group()`: Fetch specific group with filter
 - `list_dynamic_user_groups()`: List with exact_match support
 
-#### 19.3.2 Command Implementation
-
-In `objects.py`, added full command set:
-
-- `set`: Create/update with filter expression
-- `show`: Display with filter formatting
-- `load`: Import from YAML with validation
-- `delete`: Remove groups
-- `backup`: Export to YAML format with tag field mapping
-
-#### 19.3.3 Validation Model
+#### 19.3.2 Validator Model
 
 Extended `validators.py` with:
 
 - `DynamicUserGroup` model with filter field
 - Tag field mapping (tags → tag for SDK)
 - Proper `to_sdk_model()` method
+
+#### 19.3.3 CLI Commands
+
+Implemented in `objects.py`:
+
+- `backup_dynamic_user_group()`: Export to YAML format
+- `delete_dynamic_user_group()`: Remove by name and folder
+- `load_dynamic_user_group()`: Import with validation
+- `set_dynamic_user_group()`: Create/update with filter expression
+- `show_dynamic_user_group()`: Display with filter formatting
 
 ### 19.4 Benefits
 
@@ -900,7 +952,7 @@ Implemented comprehensive support for all EDL types with complete CRUD operation
 - **Show**: List all or display specific EDLs with configuration details
 - **Load**: Bulk import from YAML files with validation
 - **Delete**: Remove EDLs by name and folder
-- **Backup**: Export EDLs to YAML with flattened structure
+- **Backup**: Export EDLs to YAML with proper formatting
 
 #### 20.2.2 Supported EDL Types
 
@@ -940,7 +992,7 @@ Implemented in `objects.py`:
 - `delete_external_dynamic_list()`: Remove by name and folder
 - `load_external_dynamic_list()`: Import with full validation
 - `set_external_dynamic_list()`: Create/update with all options
-- `show_external_dynamic_list()`: Display with configuration details
+- `show_external_dynamic_list()`: Display with formatted configuration details
 
 ### 20.4 Usage Examples
 
@@ -1051,7 +1103,7 @@ Implemented in `objects.py`:
 
 - `backup_hip_object()`: Export with flattened structure for easy editing
 - `delete_hip_object()`: Remove by name and folder
-- `load_hip_object()`: Import with full validation
+- `load_hip_object()`: Import with validation
 - `set_hip_object()`: Create/update with simplified CLI options
 - `show_hip_object()`: Display with formatted criteria sections
 
@@ -1099,7 +1151,7 @@ All commands have been tested and verified:
 
 - ✅ Set command creates HIP objects with all criteria types
 - ✅ Show command displays formatted criteria sections
-- ✅ Load command imports from YAML files with validation
+- ✅ Load command imports from YAML files
 - ✅ Delete command removes HIP objects cleanly
 - ✅ Backup command exports with flattened structure for easy editing
 - ✅ Comprehensive example YAML file created with 11 different HIP policies
@@ -1666,7 +1718,7 @@ All commands have been tested and verified:
 
 ### 28.1 Problem Statement
 
-Tags are fundamental for organizing and categorizing configuration objects across SCM. They enable administrators to apply consistent labeling, facilitate policy management, and improve visibility across large deployments. The CLI needed comprehensive tag management to support this critical organizational feature.
+Tags are fundamental for organizing and categorizing configuration objects across SCM. They enable administrators to apply consistent labeling, facilitate policy management, and improve visibility across large sases. The CLI needed comprehensive tag management to support this critical organizational feature.
 
 ### 28.2 Solution: Full Tag Management
 
@@ -2135,6 +2187,7 @@ Users need the ability to manage multiple SCM tenant configurations and switch b
 ### 33.2 Solution: Context-based Authentication Management
 
 Implemented a comprehensive context management system that allows users to:
+
 - Create named authentication contexts for different SCM tenants
 - Switch between contexts with a simple command
 - Test authentication for specific contexts without switching
@@ -2211,19 +2264,23 @@ The precedence order needs to be fixed so that contexts work as users expect:
 The following tasks are required to fix the authentication precedence order:
 
 1. **Remove ~/.scm-cli/config.yaml from dynaconf loading**
+
    - This legacy configuration method conflicts with the new context system
    - Users should migrate to contexts for better multi-tenant support
 
 2. **Remove .secrets.yaml from dynaconf loading**
+
    - Development credentials should be managed through contexts
    - This prevents accidental use of development credentials in production
 
 3. **Add informational logging for context usage**
+
    - When log level is set to INFO, display which context is being used
    - Example: "Using authentication context: production"
    - Helps users verify they're using the intended credentials
 
 4. **Update precedence logic in get_context_aware_settings()**
+
    - Ensure active context takes precedence over environment variables
    - Load context first, then allow env vars to override specific fields
    - Remove legacy config file loading
@@ -2247,7 +2304,7 @@ Users currently using ~/.scm-cli/config.yaml or environment variables should:
 
 1. Create a context for each tenant: `scm context create <name>`
 2. Remove ~/.scm-cli/config.yaml file
-3. Unset SCM_* environment variables (unless needed for automation)
+3. Unset SCM\_\* environment variables (unless needed for automation)
 4. Use `scm context use <name>` to switch between tenants
 
 ### 33.8 Implementation Status (Completed ✅)
@@ -2255,24 +2312,29 @@ Users currently using ~/.scm-cli/config.yaml or environment variables should:
 All authentication precedence issues have been successfully resolved:
 
 1. **✅ Removed ~/.scm-cli/config.yaml from dynaconf loading**
+
    - Updated `get_context_aware_settings()` to exclude legacy config files
    - Simplified configuration loading to only use contexts and environment variables
 
-2. **✅ Removed .secrets.yaml from dynaconf loading**  
+2. **✅ Removed .secrets.yaml from dynaconf loading**
+
    - Development credentials now managed through contexts
    - Prevents accidental credential leakage
 
 3. **✅ Added informational logging for context usage**
+
    - Both `client.py` and `sdk_client.py` log the current context when initialized
    - `show_context_info()` helper displays context information at INFO log level
    - Clear visibility into which tenant is being accessed
 
 4. **✅ Fixed precedence order**
+
    - Context settings now take priority as expected
    - Environment variables can still override for CI/CD scenarios
    - Removed manual config file loading from `get_auth_config()`
 
 5. **✅ Updated documentation**
+
    - README.md fully updated with context examples and real command output
    - All documentation files show context-based authentication
    - Migration guide included for users transitioning from legacy methods
@@ -2313,9 +2375,10 @@ docker exec pan-scm scm context use production
 ### 34.1 Problem Statement
 
 The Docker build process needed improvements to support:
+
 - Multi-platform builds for both AMD64 and ARM64 architectures
 - Local development builds without requiring registry push
-- Clear separation between local testing and production deployment
+- Clear separation between local testing and production sase
 - Integration with GitHub Container Registry (ghcr.io)
 
 ### 34.2 Solution: Enhanced Docker Build Script
@@ -2378,6 +2441,7 @@ REGISTRY="ghcr.io/cdot65/"
 ### 35.1 Problem Statement
 
 The CLI needed better handling of authentication errors and performance optimization:
+
 - Authentication failures produced verbose, unhelpful error messages
 - SDK client initialization happened immediately, even for commands that didn't need it
 - No clear guidance when credentials were invalid
@@ -2398,10 +2462,10 @@ Implemented comprehensive authentication error handling and lazy client initiali
 ```python
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
-    
+
     def __init__(self):
         self._client = None
-        
+
     def __getattr__(self, name):
         """Initialize client on first access."""
         if self._client is None:
@@ -2410,6 +2474,7 @@ class LazyClient:
 ```
 
 Benefits:
+
 - **Resource efficiency**: SDK client only initialized when needed
 - **Faster CLI startup**: Commands like `--help` start instantly
 - **Better error isolation**: Authentication errors only occur during actual API usage
@@ -2417,6 +2482,7 @@ Benefits:
 #### 35.2.3 Enhanced Error Messages
 
 When authentication fails, users now see:
+
 ```
 ❌ Authentication failed: Invalid client credentials
 
@@ -2441,6 +2507,7 @@ You can update the context with:
 #### 35.3.1 SDK Client Updates
 
 Modified `sdk_client.py`:
+
 - Added lazy initialization wrapper class
 - Enhanced error handling in `_handle_api_exception()`
 - Added specific handling for `InvalidClientError`
@@ -2448,6 +2515,7 @@ Modified `sdk_client.py`:
 #### 35.3.2 Client Module Updates
 
 Modified `client.py`:
+
 - Changed to use `LazyClient` instead of direct `SCMClient`
 - Added authentication error detection and messaging
 - Improved logging configuration
@@ -2455,6 +2523,7 @@ Modified `client.py`:
 #### 35.3.3 Context Test Enhancements
 
 Enhanced `scm context test` command:
+
 - Better error handling for invalid credentials
 - Clear feedback with context information
 - Actionable steps for fixing issues

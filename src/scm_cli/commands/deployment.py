@@ -50,7 +50,7 @@ def backup_bandwidth_allocation():
 
     Example:
     -------
-    scm-cli backup deployment bandwidth
+    scm-cli backup sase bandwidth
 
     Note: Bandwidth allocations are global and do not have a folder parameter.
 
@@ -104,7 +104,7 @@ def delete_bandwidth_allocation(
 
     Example:
     -------
-    scm-cli delete deployment bandwidth-allocation \
+    scm-cli delete sase bandwidth-allocation \
         --folder Texas \
         --name primary
 
@@ -128,7 +128,7 @@ def load_bandwidth_allocation(
 ):
     """Load bandwidth allocations from a YAML file.
 
-    Example: scm-cli load deployment bandwidth-allocation --file config/bandwidth_allocations.yml
+    Example: scm-cli load sase bandwidth-allocation --file config/bandwidth_allocations.yml
     """
     try:
         # Load and parse the YAML file - specifically catch ValueError
@@ -187,7 +187,7 @@ def set_bandwidth_allocation(
 
     Example:
     -------
-    scm-cli set deployment bandwidth-allocation \
+    scm-cli set sase bandwidth-allocation \
         --folder Texas \
         --name primary \
         --bandwidth 1000 \
@@ -229,10 +229,10 @@ def show_bandwidth_allocation(name: str | None = typer.Option(None, "--name", he
     Example:
     -------
         # List all bandwidth allocations (default behavior)
-        scm-cli show deployment bandwidth-allocation
+        scm-cli show sase bandwidth-allocation
 
         # Show a specific bandwidth allocation by name
-        scm-cli show deployment bandwidth-allocation --name primary
+        scm-cli show sase bandwidth-allocation --name primary
 
     Note: Bandwidth allocations do not have a folder parameter.
 
