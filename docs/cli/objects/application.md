@@ -19,7 +19,7 @@ Create or update an application object.
 ### Syntax
 
 ```bash
-scm set objects application [OPTIONS]
+scm set object application [OPTIONS]
 ```
 
 ### Options
@@ -59,7 +59,7 @@ scm set objects application [OPTIONS]
 #### Create a Basic Application
 
 ```bash
-$ scm set objects application \
+$ scm set object application \
     --folder Texas \
     --name custom-crm \
     --category business-systems \
@@ -75,7 +75,7 @@ Created application: custom-crm in folder Texas
 #### Create an Application with Security Attributes
 
 ```bash
-$ scm set objects application \
+$ scm set object application \
     --folder Texas \
     --name file-transfer-app \
     --category collaboration \
@@ -97,7 +97,7 @@ Delete an application object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects application [OPTIONS]
+scm delete object application [OPTIONS]
 ```
 
 ### Options
@@ -114,7 +114,7 @@ scm delete objects application [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects application --folder Texas --name custom-crm
+$ scm delete object application --folder Texas --name custom-crm
 ---> 100%
 Deleted application: custom-crm from folder Texas
 ```
@@ -126,7 +126,7 @@ Load multiple application objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects application [OPTIONS]
+scm load object application [OPTIONS]
 ```
 
 ### Options
@@ -186,7 +186,7 @@ applications:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects application --file applications.yml
+$ scm load object application --file applications.yml
 ---> 100%
 ✓ Loaded application: custom-crm
 ✓ Loaded application: file-transfer-app
@@ -198,7 +198,7 @@ Successfully loaded 3 out of 3 applications from 'applications.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects application --file applications.yml --folder Austin
+$ scm load object application --file applications.yml --folder Austin
 ---> 100%
 ✓ Loaded application: custom-crm
 ✓ Loaded application: file-transfer-app
@@ -217,7 +217,7 @@ Display application objects.
 ### Syntax
 
 ```bash
-scm show objects application [OPTIONS]
+scm show object application [OPTIONS]
 ```
 
 ### Options
@@ -238,7 +238,7 @@ scm show objects application [OPTIONS]
 #### Show Specific Application
 
 ```bash
-$ scm show objects application --folder Texas --name custom-crm
+$ scm show object application --folder Texas --name custom-crm
 ---> 100%
 Application: custom-crm
 Location: Folder 'Texas'
@@ -254,7 +254,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All Applications (Default Behavior)
 
 ```bash
-$ scm show objects application --folder Texas
+$ scm show object application --folder Texas
 ---> 100%
 Applications in folder 'Texas':
 ------------------------------------------------------------
@@ -286,7 +286,7 @@ Backup all application objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects application [OPTIONS]
+scm backup object application [OPTIONS]
 ```
 
 ### Options
@@ -305,7 +305,7 @@ scm backup objects application [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects application --folder Texas
+$ scm backup object application --folder Texas
 ---> 100%
 Successfully backed up 10 applications to application_folder_texas_20240115_120530.yaml
 ```
@@ -313,7 +313,7 @@ Successfully backed up 10 applications to application_folder_texas_20240115_1205
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects application --folder Texas --file texas-applications.yaml
+$ scm backup object application --folder Texas --file texas-applications.yaml
 ---> 100%
 Successfully backed up 10 applications to texas-applications.yaml
 ```
@@ -333,7 +333,7 @@ Successfully backed up 10 applications to texas-applications.yaml
 ### Create a Web Application
 
 ```bash
-$ scm set objects application \
+$ scm set object application \
     --folder Shared \
     --name custom-portal \
     --category collaboration \
@@ -350,7 +350,7 @@ Created application: custom-portal in folder Shared
 ### Create a High-Risk Application
 
 ```bash
-$ scm set objects application \
+$ scm set object application \
     --folder Shared \
     --name risky-app \
     --category networking \
@@ -370,7 +370,7 @@ Created application: risky-app in folder Shared
 ### Create Application with Timeouts
 
 ```bash
-$ scm set objects application \
+$ scm set object application \
     --folder Shared \
     --name database-app \
     --category business-systems \

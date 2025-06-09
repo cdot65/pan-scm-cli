@@ -20,7 +20,7 @@ Create or update a HIP object.
 ### Syntax
 
 ```bash
-scm set objects hip-object [OPTIONS]
+scm set object hip-object [OPTIONS]
 ```
 
 ### Options
@@ -45,7 +45,7 @@ scm set objects hip-object [OPTIONS]
 #### Create Basic Windows Patch Compliance
 
 ```bash
-$ scm set objects hip-object \
+$ scm set object hip-object \
     --folder Texas \
     --name windows-patches \
     --description "Windows security patch compliance" \
@@ -60,7 +60,7 @@ Created HIP object: windows-patches in folder Texas
 #### Create Disk Encryption Check
 
 ```bash
-$ scm set objects hip-object \
+$ scm set object hip-object \
     --folder Texas \
     --name disk-encryption \
     --description "Disk encryption requirement" \
@@ -79,7 +79,7 @@ Delete a HIP object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects hip-object [OPTIONS]
+scm delete object hip-object [OPTIONS]
 ```
 
 ### Options
@@ -96,7 +96,7 @@ scm delete objects hip-object [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects hip-object --folder Texas --name windows-patches
+$ scm delete object hip-object --folder Texas --name windows-patches
 ---> 100%
 Deleted HIP object: windows-patches from folder Texas
 ```
@@ -108,7 +108,7 @@ Load multiple HIP objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects hip-object [OPTIONS]
+scm load object hip-object [OPTIONS]
 ```
 
 ### Options
@@ -172,7 +172,7 @@ hip_objects:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects hip-object --file hip-objects.yml
+$ scm load object hip-object --file hip-objects.yml
 ---> 100%
 ✓ Loaded HIP object: windows-security
 ✓ Loaded HIP object: macos-security
@@ -185,7 +185,7 @@ Successfully loaded 4 out of 4 HIP objects from 'hip-objects.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects hip-object --file hip-objects.yml --folder Austin
+$ scm load object hip-object --file hip-objects.yml --folder Austin
 ---> 100%
 ✓ Loaded HIP object: windows-security
 ✓ Loaded HIP object: macos-security
@@ -205,7 +205,7 @@ Display HIP objects.
 ### Syntax
 
 ```bash
-scm show objects hip-object [OPTIONS]
+scm show object hip-object [OPTIONS]
 ```
 
 ### Options
@@ -226,7 +226,7 @@ scm show objects hip-object [OPTIONS]
 #### Show Specific HIP Object
 
 ```bash
-$ scm show objects hip-object --folder Texas --name windows-patches
+$ scm show object hip-object --folder Texas --name windows-patches
 ---> 100%
 HIP Object: windows-patches
 Location: Folder 'Texas'
@@ -242,7 +242,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All HIP Objects (Default Behavior)
 
 ```bash
-$ scm show objects hip-object --folder Texas
+$ scm show object hip-object --folder Texas
 ---> 100%
 HIP Objects in folder 'Texas':
 ------------------------------------------------------------
@@ -270,7 +270,7 @@ Backup all HIP objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects hip-object [OPTIONS]
+scm backup object hip-object [OPTIONS]
 ```
 
 ### Options
@@ -289,7 +289,7 @@ scm backup objects hip-object [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects hip-object --folder Texas
+$ scm backup object hip-object --folder Texas
 ---> 100%
 Successfully backed up 12 HIP objects to hip-object_folder_texas_20240115_120530.yaml
 ```
@@ -297,7 +297,7 @@ Successfully backed up 12 HIP objects to hip-object_folder_texas_20240115_120530
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects hip-object --folder Texas --file texas-hip-objects.yaml
+$ scm backup object hip-object --folder Texas --file texas-hip-objects.yaml
 ---> 100%
 Successfully backed up 12 HIP objects to texas-hip-objects.yaml
 ```
@@ -327,7 +327,7 @@ Successfully backed up 12 HIP objects to texas-hip-objects.yaml
 ### Windows Compliance Checks
 
 ```bash
-$ scm set objects hip-object \
+$ scm set object hip-object \
     --folder Shared \
     --name windows-full \
     --description "Full Windows compliance check" \
@@ -348,7 +348,7 @@ Created HIP object: windows-full in folder Shared
 ### Domain and OS Check
 
 ```bash
-$ scm set objects hip-object \
+$ scm set object hip-object \
     --folder Texas \
     --name corp-domain \
     --description "Corporate domain membership" \
@@ -363,7 +363,7 @@ Created HIP object: corp-domain in folder Texas
 ### Mobile Device Compliance
 
 ```bash
-$ scm set objects hip-object \
+$ scm set object hip-object \
     --folder Shared \
     --name mobile-secure \
     --description "Mobile device security" \
@@ -435,7 +435,7 @@ Created HIP object: mobile-secure in folder Shared
 HIP objects are used in HIP profiles for policy enforcement:
 
 ```bash
-$ scm set objects hip-profile \
+$ scm set object hip-profile \
     --folder Shared \
     --name secure-endpoints \
     --match '{"windows-patches": {"is": true}, "disk-encryption": {"is": true}}'

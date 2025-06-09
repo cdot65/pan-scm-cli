@@ -23,7 +23,7 @@ Create or update an address object.
 ### Syntax
 
 ```bash
-scm set objects address [OPTIONS]
+scm set object address [OPTIONS]
 ```
 
 ### Options
@@ -46,7 +46,7 @@ scm set objects address [OPTIONS]
 #### Create an IP Netmask Address
 
 ```bash
-$ scm set objects address \
+$ scm set object address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
@@ -59,7 +59,7 @@ Created address: webserver in folder Texas
 #### Create an FQDN Address
 
 ```bash
-$ scm set objects address \
+$ scm set object address \
     --folder Texas \
     --name company-website \
     --fqdn example.com \
@@ -71,7 +71,7 @@ Created address: company-website in folder Texas
 #### Create an IP Range Address
 
 ```bash
-$ scm set objects address \
+$ scm set object address \
     --folder Texas \
     --name dhcp-pool \
     --ip-range 192.168.1.100-192.168.1.200 \
@@ -87,7 +87,7 @@ Delete an address object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects address [OPTIONS]
+scm delete object address [OPTIONS]
 ```
 
 ### Options
@@ -100,7 +100,7 @@ scm delete objects address [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects address --folder Texas --name webserver
+$ scm delete object address --folder Texas --name webserver
 ---> 100%
 Deleted address: webserver from folder Texas
 ```
@@ -112,7 +112,7 @@ Load multiple address objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects address [OPTIONS]
+scm load object address [OPTIONS]
 ```
 
 ### Options
@@ -168,7 +168,7 @@ addresses:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects address --file addresses.yml
+$ scm load object address --file addresses.yml
 ---> 100%
 ✓ Loaded address: web-server-1
 ✓ Loaded address: web-server-2
@@ -181,7 +181,7 @@ Successfully loaded 4 out of 4 addresses from 'addresses.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects address --file addresses.yml --folder Austin
+$ scm load object address --file addresses.yml --folder Austin
 ---> 100%
 ✓ Loaded address: web-server-1
 ✓ Loaded address: web-server-2
@@ -201,7 +201,7 @@ Display address objects.
 ### Syntax
 
 ```bash
-scm show objects address [OPTIONS]
+scm show object address [OPTIONS]
 ```
 
 ### Options
@@ -218,7 +218,7 @@ scm show objects address [OPTIONS]
 #### Show Specific Address
 
 ```bash
-$ scm show objects address --folder Texas --name webserver
+$ scm show object address --folder Texas --name webserver
 ---> 100%
 Address: webserver
 Location: Folder 'Texas'
@@ -232,7 +232,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All Addresses (Default Behavior)
 
 ```bash
-$ scm show objects address --folder Texas
+$ scm show object address --folder Texas
 ---> 100%
 Addresses in folder 'Texas':
 ------------------------------------------------------------
@@ -265,7 +265,7 @@ Backup all address objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects address [OPTIONS]
+scm backup object address [OPTIONS]
 ```
 
 ### Options
@@ -284,7 +284,7 @@ scm backup objects address [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects address --folder Texas
+$ scm backup object address --folder Texas
 ---> 100%
 Successfully backed up 15 addresses to address_folder_texas_20240115_120530.yaml
 ```
@@ -292,7 +292,7 @@ Successfully backed up 15 addresses to address_folder_texas_20240115_120530.yaml
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects address --folder Texas --file texas-addresses.yaml
+$ scm backup object address --folder Texas --file texas-addresses.yaml
 ---> 100%
 Successfully backed up 15 addresses to texas-addresses.yaml
 ```

@@ -19,7 +19,7 @@ Service groups provide a way to logically group multiple services together for u
 Basic service group:
 
 ```bash
-$ scm set objects service-group --folder Texas --name web-services \
+$ scm set object service-group --folder Texas --name web-services \
   --members "http,https,ssl,web-browsing" \
   --description "Standard web services"
 <span style="color: green;">✓</span> Service group 'web-services' created successfully
@@ -28,7 +28,7 @@ $ scm set objects service-group --folder Texas --name web-services \
 Service group with custom services:
 
 ```bash
-$ scm set objects service-group --folder Texas --name database-services \
+$ scm set object service-group --folder Texas --name database-services \
   --members "mysql,ms-sql,oracle,postgresql,custom-db" \
   --tag "database,backend" \
   --description "Database service ports"
@@ -38,7 +38,7 @@ $ scm set objects service-group --folder Texas --name database-services \
 Nested service group:
 
 ```bash
-$ scm set objects service-group --folder Texas --name all-services \
+$ scm set object service-group --folder Texas --name all-services \
   --members "web-services,database-services,mail-services" \
   --description "All allowed services (nested groups)"
 <span style="color: green;">✓</span> Service group 'all-services' created successfully
@@ -47,7 +47,7 @@ $ scm set objects service-group --folder Texas --name all-services \
 ### Listing Service Groups (Default Behavior)
 
 ```bash
-$ scm show objects service-group --folder Texas
+$ scm show object service-group --folder Texas
 Service groups in folder 'Texas':
 - web-services
 - database-services
@@ -61,7 +61,7 @@ When no --name is specified, all service groups are listed by default.
 ### Showing Service Group Details
 
 ```bash
-$ scm show objects service-group --folder Texas --name web-services
+$ scm show object service-group --folder Texas --name web-services
 Service Group: web-services
   Members: http, https, ssl, web-browsing
   Description: Standard web services
@@ -72,7 +72,7 @@ Service Group: web-services
 ### Deleting Service Groups
 
 ```bash
-$ scm delete objects service-group --folder Texas --name web-services
+$ scm delete object service-group --folder Texas --name web-services
 <span style="color: green;">✓</span> Service group 'web-services' deleted successfully
 ```
 
@@ -83,7 +83,7 @@ Load multiple service groups from a YAML file.
 #### Syntax
 
 ```bash
-scm load objects service-group [OPTIONS]
+scm load object service-group [OPTIONS]
 ```
 
 #### Options
@@ -101,7 +101,7 @@ scm load objects service-group [OPTIONS]
 Load from file with original locations:
 
 ```bash
-$ scm load objects service-group --file service-groups.yml
+$ scm load object service-group --file service-groups.yml
 <span style="color: green;">✓</span> Loaded service group: web-services
 <span style="color: green;">✓</span> Loaded service group: database-services
 <span style="color: green;">✓</span> Loaded service group: mail-services
@@ -113,7 +113,7 @@ Successfully loaded 4 out of 4 service groups from 'service-groups.yml'
 Load with folder override:
 
 ```bash
-$ scm load objects service-group --file service-groups.yml --folder Austin
+$ scm load object service-group --file service-groups.yml --folder Austin
 <span style="color: green;">✓</span> Loaded service group: web-services
 <span style="color: green;">✓</span> Loaded service group: database-services
 <span style="color: green;">✓</span> Loaded service group: mail-services
@@ -132,7 +132,7 @@ Backup all service group objects from a specified location to a YAML file.
 #### Syntax
 
 ```bash
-scm backup objects service-group [OPTIONS]
+scm backup object service-group [OPTIONS]
 ```
 
 #### Options
@@ -151,14 +151,14 @@ scm backup objects service-group [OPTIONS]
 Backup from folder:
 
 ```bash
-$ scm backup objects service-group --folder Texas
+$ scm backup object service-group --folder Texas
 <span style="color: green;">✓</span> Successfully backed up 8 service groups to service-group_folder_texas_20240115_120530.yaml
 ```
 
 Backup with custom filename:
 
 ```bash
-$ scm backup objects service-group --folder Texas --file texas-service-groups.yaml
+$ scm backup object service-group --folder Texas --file texas-service-groups.yaml
 <span style="color: green;">✓</span> Successfully backed up 8 service groups to texas-service-groups.yaml
 ```
 
@@ -248,14 +248,14 @@ Exactly one context parameter must be specified:
 ### Create a Basic Service Group
 
 ```bash
-scm set objects service-group --folder Shared --name web-apps \
+scm set object service-group --folder Shared --name web-apps \
   --members "http,https,ssl"
 ```
 
 ### Create a Comprehensive Service Group
 
 ```bash
-scm set objects service-group --folder Shared --name enterprise-apps \
+scm set object service-group --folder Shared --name enterprise-apps \
   --members "ldap,ldaps,kerberos,radius,tacacs,custom-auth" \
   --tag "authentication,enterprise" \
   --description "Enterprise authentication services"
@@ -264,7 +264,7 @@ scm set objects service-group --folder Shared --name enterprise-apps \
 ### Create a Nested Service Group
 
 ```bash
-scm set objects service-group --folder Shared --name dmz-services \
+scm set object service-group --folder Shared --name dmz-services \
   --members "web-services,mail-services,dns,ntp" \
   --tag "dmz,public" \
   --description "Services allowed in DMZ"
@@ -306,14 +306,14 @@ Service groups can contain other service groups, allowing for hierarchical organ
 
 ```bash
 # Create base groups
-scm set objects service-group --folder Shared --name tcp-services \
+scm set object service-group --folder Shared --name tcp-services \
   --members "http,https,ssh,telnet"
 
-scm set objects service-group --folder Shared --name udp-services \
+scm set object service-group --folder Shared --name udp-services \
   --members "dns,ntp,snmp,syslog"
 
 # Create parent group
-scm set objects service-group --folder Shared --name all-protocols \
+scm set object service-group --folder Shared --name all-protocols \
   --members "tcp-services,udp-services"
 ```
 
@@ -323,7 +323,7 @@ While service group membership is static, you can use tags and scripts to manage
 
 ```bash
 # Tag services
-scm set objects service --folder Shared --name custom-app1 \
+scm set object service --folder Shared --name custom-app1 \
   --protocol tcp --port 9001 --tag "dynamic-group"
 
 # Use external tools to update groups based on tags

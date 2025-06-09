@@ -19,7 +19,7 @@ Create or update a dynamic user group object.
 ### Syntax
 
 ```bash
-scm set objects dynamic-user-group [OPTIONS]
+scm set object dynamic-user-group [OPTIONS]
 ```
 
 ### Options
@@ -41,7 +41,7 @@ scm set objects dynamic-user-group [OPTIONS]
 #### Create Basic Dynamic User Group
 
 ```bash
-$ scm set objects dynamic-user-group \
+$ scm set object dynamic-user-group \
     --folder Texas \
     --name it-admins \
     --filter "'IT' and 'Admin'" \
@@ -53,7 +53,7 @@ Created dynamic user group: it-admins in folder Texas
 #### Create with Complex Filter Expression
 
 ```bash
-$ scm set objects dynamic-user-group \
+$ scm set object dynamic-user-group \
     --folder Texas \
     --name remote-employees \
     --filter "'Remote' and ('Engineering' or 'Sales' or 'Support')" \
@@ -69,7 +69,7 @@ Delete a dynamic user group object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects dynamic-user-group [OPTIONS]
+scm delete object dynamic-user-group [OPTIONS]
 ```
 
 ### Options
@@ -86,7 +86,7 @@ scm delete objects dynamic-user-group [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects dynamic-user-group --folder Texas --name it-admins
+$ scm delete object dynamic-user-group --folder Texas --name it-admins
 ---> 100%
 Deleted dynamic user group: it-admins from folder Texas
 ```
@@ -98,7 +98,7 @@ Load multiple dynamic user group objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects dynamic-user-group [OPTIONS]
+scm load object dynamic-user-group [OPTIONS]
 ```
 
 ### Options
@@ -153,7 +153,7 @@ dynamic_user_groups:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects dynamic-user-group --file user-groups.yml
+$ scm load object dynamic-user-group --file user-groups.yml
 ---> 100%
 ✓ Loaded dynamic user group: it-admins
 ✓ Loaded dynamic user group: remote-employees
@@ -167,7 +167,7 @@ Successfully loaded 5 out of 5 dynamic user groups from 'user-groups.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects dynamic-user-group --file user-groups.yml --folder Austin
+$ scm load object dynamic-user-group --file user-groups.yml --folder Austin
 ---> 100%
 ✓ Loaded dynamic user group: it-admins
 ✓ Loaded dynamic user group: remote-employees
@@ -188,7 +188,7 @@ Display dynamic user group objects.
 ### Syntax
 
 ```bash
-scm show objects dynamic-user-group [OPTIONS]
+scm show object dynamic-user-group [OPTIONS]
 ```
 
 ### Options
@@ -209,7 +209,7 @@ scm show objects dynamic-user-group [OPTIONS]
 #### Show Specific Dynamic User Group
 
 ```bash
-$ scm show objects dynamic-user-group --folder Texas --name it-admins
+$ scm show object dynamic-user-group --folder Texas --name it-admins
 ---> 100%
 Dynamic User Group: it-admins
 Location: Folder 'Texas'
@@ -222,7 +222,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All Dynamic User Groups (Default Behavior)
 
 ```bash
-$ scm show objects dynamic-user-group --folder Texas
+$ scm show object dynamic-user-group --folder Texas
 ---> 100%
 Dynamic User Groups in folder 'Texas':
 ------------------------------------------------------------
@@ -251,7 +251,7 @@ Backup all dynamic user group objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects dynamic-user-group [OPTIONS]
+scm backup object dynamic-user-group [OPTIONS]
 ```
 
 ### Options
@@ -270,7 +270,7 @@ scm backup objects dynamic-user-group [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects dynamic-user-group --folder Texas
+$ scm backup object dynamic-user-group --folder Texas
 ---> 100%
 Successfully backed up 10 dynamic user groups to dynamic-user-group_folder_texas_20240115_120530.yaml
 ```
@@ -278,7 +278,7 @@ Successfully backed up 10 dynamic user groups to dynamic-user-group_folder_texas
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects dynamic-user-group --folder Texas --file texas-user-groups.yaml
+$ scm backup object dynamic-user-group --folder Texas --file texas-user-groups.yaml
 ---> 100%
 Successfully backed up 10 dynamic user groups to texas-user-groups.yaml
 ```
@@ -350,7 +350,7 @@ Examples of complex filter expressions:
 ### Create Department-Based Groups
 
 ```bash
-$ scm set objects dynamic-user-group \
+$ scm set object dynamic-user-group \
     --folder Shared \
     --name engineering \
     --filter "'Engineering' and 'Active'" \
@@ -362,7 +362,7 @@ Created dynamic user group: engineering in folder Shared
 ### Create Access-Based Groups
 
 ```bash
-$ scm set objects dynamic-user-group \
+$ scm set object dynamic-user-group \
     --folder Shared \
     --name remote-access \
     --filter "'VPN-Access' or 'Remote-Desktop'" \
@@ -375,7 +375,7 @@ Created dynamic user group: remote-access in folder Shared
 ### Create Groups with Complex Filters
 
 ```bash
-$ scm set objects dynamic-user-group \
+$ scm set object dynamic-user-group \
     --folder Texas \
     --name privileged-users \
     --filter "'Executive' or 'Admin' or 'Finance-Manager'" \

@@ -20,7 +20,7 @@ Create or update an HTTP server profile object.
 ### Syntax
 
 ```bash
-scm set objects http-server-profile [OPTIONS]
+scm set object http-server-profile [OPTIONS]
 ```
 
 ### Options
@@ -42,7 +42,7 @@ scm set objects http-server-profile [OPTIONS]
 #### Create Basic HTTP Server Profile
 
 ```bash
-$ scm set objects http-server-profile \
+$ scm set object http-server-profile \
     --folder Texas \
     --name syslog-http \
     --servers '[{"name": "primary", "address": "10.0.1.50", "protocol": "HTTP", "port": 8080, "http_method": "POST"}]' \
@@ -54,7 +54,7 @@ Created HTTP server profile: syslog-http in folder Texas
 #### Create HTTPS Profile with Authentication
 
 ```bash
-$ scm set objects http-server-profile \
+$ scm set object http-server-profile \
     --folder Texas \
     --name splunk-hec \
     --servers '[{"name": "splunk", "address": "splunk.company.com", "protocol": "HTTPS", "port": 8088, "http_method": "POST", "username": "hec_user", "password": "hec_token", "tls_version": "1.2"}]' \
@@ -70,7 +70,7 @@ Delete an HTTP server profile object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects http-server-profile [OPTIONS]
+scm delete object http-server-profile [OPTIONS]
 ```
 
 ### Options
@@ -87,7 +87,7 @@ scm delete objects http-server-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects http-server-profile --folder Texas --name syslog-http
+$ scm delete object http-server-profile --folder Texas --name syslog-http
 ---> 100%
 Deleted HTTP server profile: syslog-http from folder Texas
 ```
@@ -99,7 +99,7 @@ Load multiple HTTP server profile objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects http-server-profile [OPTIONS]
+scm load object http-server-profile [OPTIONS]
 ```
 
 ### Options
@@ -167,7 +167,7 @@ http_server_profiles:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects http-server-profile --file http-profiles.yml
+$ scm load object http-server-profile --file http-profiles.yml
 ---> 100%
 ✓ Loaded HTTP server profile: splunk-hec
 ✓ Loaded HTTP server profile: elastic-logs
@@ -179,7 +179,7 @@ Successfully loaded 3 out of 3 HTTP server profiles from 'http-profiles.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects http-server-profile --file http-profiles.yml --folder Austin
+$ scm load object http-server-profile --file http-profiles.yml --folder Austin
 ---> 100%
 ✓ Loaded HTTP server profile: splunk-hec
 ✓ Loaded HTTP server profile: elastic-logs
@@ -198,7 +198,7 @@ Display HTTP server profile objects.
 ### Syntax
 
 ```bash
-scm show objects http-server-profile [OPTIONS]
+scm show object http-server-profile [OPTIONS]
 ```
 
 ### Options
@@ -219,7 +219,7 @@ scm show objects http-server-profile [OPTIONS]
 #### Show Specific HTTP Server Profile
 
 ```bash
-$ scm show objects http-server-profile --folder Texas --name splunk-hec
+$ scm show object http-server-profile --folder Texas --name splunk-hec
 ---> 100%
 HTTP Server Profile: splunk-hec
 Location: Folder 'Texas'
@@ -238,7 +238,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All HTTP Server Profiles (Default Behavior)
 
 ```bash
-$ scm show objects http-server-profile --folder Texas
+$ scm show object http-server-profile --folder Texas
 ---> 100%
 HTTP Server Profiles in folder 'Texas':
 ------------------------------------------------------------
@@ -267,7 +267,7 @@ Backup all HTTP server profile objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects http-server-profile [OPTIONS]
+scm backup object http-server-profile [OPTIONS]
 ```
 
 ### Options
@@ -286,7 +286,7 @@ scm backup objects http-server-profile [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects http-server-profile --folder Texas
+$ scm backup object http-server-profile --folder Texas
 ---> 100%
 Successfully backed up 6 HTTP server profiles to http-server-profile_folder_texas_20240115_120530.yaml
 ```
@@ -294,7 +294,7 @@ Successfully backed up 6 HTTP server profiles to http-server-profile_folder_texa
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects http-server-profile --folder Texas --file texas-http-profiles.yaml
+$ scm backup object http-server-profile --folder Texas --file texas-http-profiles.yaml
 ---> 100%
 Successfully backed up 6 HTTP server profiles to texas-http-profiles.yaml
 ```
@@ -353,7 +353,7 @@ Successfully backed up 6 HTTP server profiles to texas-http-profiles.yaml
 ### Multiple Servers for Redundancy
 
 ```bash
-$ scm set objects http-server-profile \
+$ scm set object http-server-profile \
     --folder Texas \
     --name siem-collectors \
     --servers '[{"name": "primary", "address": "siem1.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}, {"name": "secondary", "address": "siem2.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' \
@@ -366,7 +366,7 @@ Created HTTP server profile: siem-collectors in folder Texas
 ### Splunk Integration
 
 ```bash
-$ scm set objects http-server-profile \
+$ scm set object http-server-profile \
     --folder Shared \
     --name splunk-integration \
     --servers '[{
@@ -388,7 +388,7 @@ Created HTTP server profile: splunk-integration in folder Shared
 ### Certificate-Based Authentication
 
 ```bash
-$ scm set objects http-server-profile \
+$ scm set object http-server-profile \
     --folder Shared \
     --name cert-auth \
     --servers '[{
@@ -410,7 +410,7 @@ Created HTTP server profile: cert-auth in folder Shared
 HTTP server profiles are referenced in log forwarding profiles:
 
 ```bash
-$ scm set objects log-forwarding-profile \
+$ scm set object log-forwarding-profile \
     --folder Shared \
     --name forward-to-http \
     --match-list '[{

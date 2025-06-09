@@ -88,7 +88,7 @@ Testing authentication for context: my-tenant
 ### Example: Creating an Address Object
 
 ```bash
-$ scm set objects address \
+$ scm set object address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
@@ -101,7 +101,7 @@ Created address: webserver in folder Texas
 ### Example: Deleting an Address Object
 
 ```bash
-$ scm delete objects address --folder Texas --name webserver
+$ scm delete object address --folder Texas --name webserver
 ---> 100%
 Deleted address: webserver from folder Texas
 ```
@@ -109,7 +109,7 @@ Deleted address: webserver from folder Texas
 ### Example: Loading Multiple Objects from YAML
 
 ```bash
-$ scm load objects address --file config/addresses.yml
+$ scm load object address --file config/addresses.yml
 ---> 100%
 Loading addresses from config/addresses.yml
 Applied address: webserver in folder Texas

@@ -20,13 +20,13 @@ Create all RFC 1918 private network address objects and groups:
 
 ```bash
 # Step 1: Create the RFC 1918 address objects
-scm-cli load objects address --file examples/rfc1918-addresses.yml
+scm load object address --file examples/rfc1918-addresses.yml
 
 # Step 2: Create the address groups containing these objects
-scm-cli load objects address-group --file examples/rfc1918-address-group.yml
+scm load object address-group --file examples/rfc1918-address-group.yml
 
 # Or use the complete file to create just the addresses
-scm-cli load objects address --file examples/rfc1918-complete.yml
+scm load object address --file examples/rfc1918-complete.yml
 ```
 
 The RFC 1918 examples create:
@@ -41,7 +41,7 @@ The RFC 1918 examples create:
 1. **Always use --dry-run first** to preview changes:
 
    ```bash
-   scm-cli load objects address --file examples/addresses.yml --dry-run
+   scm load object address --file examples/addresses.yml --dry-run
    ```
 
 2. **Check dependencies** - Some configurations depend on others:
@@ -58,7 +58,7 @@ The RFC 1918 examples create:
 4. **Backup before changes** - Export existing configurations:
 
    ```bash
-   scm-cli backup objects address --folder ngfw-shared
+   scm backup object address --folder ngfw-shared
    ```
 
 ## Customization
@@ -84,17 +84,17 @@ Example workflow:
 
 ```bash
 # Load all address objects
-scm-cli load objects address --file examples/addresses.yml
+scm load object address --file examples/addresses.yml
 
 # Load address groups (which reference the addresses)
-scm-cli load objects address-group --file examples/address-groups.yml
+scm load object address-group --file examples/address-groups.yml
 
 # Load security zones
-scm-cli load network security-zone --file examples/security-zones.yml
+scm load network security-zone --file examples/security-zones.yml
 
 # Load security rules (which reference zones and addresses)
-scm-cli load security rule --file examples/security-rules.yml
+scm load security rule --file examples/security-rules.yml
 
 # Load bandwidth allocations
-scm-cli load deployment bandwidth-allocation --file examples/bandwidth-allocations.yml
+scm load deployment bandwidth-allocation --file examples/bandwidth-allocations.yml
 ```

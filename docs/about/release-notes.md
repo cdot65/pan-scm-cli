@@ -4,9 +4,20 @@ This page contains the release history of the Strata Cloud Manager CLI, with the
 
 ## Version 0.4.1 (Unreleased)
 
-**Released:** June 6, 2025
+**Released:** June 9, 2025
 
 ### Added
+
+- **SASE Deployment Commands**: Comprehensive support for SASE (Secure Access Service Edge) deployment configuration
+  - **Service Connections**: Full CRUD operations for Service Connection management
+    - Create/update with BGP peering, QoS, and NAT configurations
+    - Automatic folder enforcement ("Service Connections" folder only)
+    - List, show, delete, load, and backup operations
+  - **Remote Networks**: Complete management for Remote Network configurations
+    - Support for ECMP load balancing and IPsec tunnel configurations
+    - Automatic folder enforcement ("Remote Networks" folder only)
+    - Full CRUD, list, show, load, and backup functionality
+  - All SASE commands follow the pattern: `scm <action> sase <resource-type>`
 
 - **Lazy Client Initialization**: SDK client is now initialized only when needed
   - Significantly faster CLI startup for commands that don't require API access (e.g., `--help`)
@@ -18,6 +29,19 @@ This page contains the release history of the Strata Cloud Manager CLI, with the
   - Clear, actionable error messages with context information
   - Shows current context, client ID, and TSG ID (with client secret masked)
   - Provides exact command to fix credential issues
+
+### Changed
+
+- **CLI Command Syntax**: Unified all object-related commands to use singular form
+  - Changed from `scm <action> objects <type>` to `scm <action> object <type>`
+  - Affects all object commands: address, address-group, application, service, tag, etc.
+  - **Migration**: Update scripts to use `object` instead of `objects`
+  - Example: `scm show objects address` → `scm show object address`
+
+- **Deployment Module Renamed**: Changed from "deployment" to "sase" for clarity
+  - All deployment commands now use `scm <action> sase <resource>`
+  - Better reflects the SASE-specific nature of these resources
+  - **Migration**: Update scripts using `deployment` to use `sase`
 
 ### Improved
 
@@ -36,10 +60,38 @@ This page contains the release history of the Strata Cloud Manager CLI, with the
 - Implemented `LazyClient` wrapper class that delays SDK initialization
 - Enhanced `_handle_api_exception()` method with specific error detection
 - Improved logging configuration for cleaner output
+- Added hardcoded folder constraints for Service Connections and Remote Networks
+- Updated all documentation to reflect new command syntax
 
-### Example
+### Examples
 
-When authentication fails, users now see:
+#### SASE Commands
+```bash
+# Service Connections
+scm set sase service-connection --name datacenter-1 --auto_vpn_monitor_enabled
+scm show sase service-connection --name datacenter-1
+scm list sase service-connections
+scm backup sase service-connections
+
+# Remote Networks
+scm set sase remote-network --name branch-1 --region us-east-1
+scm show sase remote-network --name branch-1
+scm list sase remote-networks
+scm backup sase remote-networks
+```
+
+#### Object Commands (New Syntax)
+```bash
+# Old syntax (no longer supported)
+scm show objects address --folder Texas
+
+# New syntax
+scm show object address --folder Texas
+scm set object tag --folder Texas --name production --color Red
+scm backup object service --folder Texas
+```
+
+#### Authentication Error
 ```
 ❌ Authentication failed: Invalid client credentials
 
@@ -111,13 +163,13 @@ docker run -d --name pan-scm \
 #### Show Commands
 ```bash
 # Old syntax (no longer supported)
-scm show objects address --folder Texas --list
+scm show object address --folder Texas --list
 
 # New syntax (lists all by default)
-scm show objects address --folder Texas
+scm show object address --folder Texas
 
 # Show specific item (unchanged)
-scm show objects address --folder Texas --name web-server
+scm show object address --folder Texas --name web-server
 ```
 
 ## Version 0.3.39

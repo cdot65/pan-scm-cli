@@ -162,6 +162,7 @@ scm backup security rule --folder Texas --rulebase post
 ```
 
 **Result:** ✅ SUCCESS - Backed up security rules
+
 - Pre rulebase: Successfully backed up 8 rules to security_rule_folder_texas_pre_20250602_151000.yaml
 - Post rulebase: Successfully backed up 1 rule to security_rule_folder_texas_post_20250602_151015.yaml
 
@@ -213,6 +214,7 @@ scm delete security rule --folder Texas --name test-rule-2 --rulebase pre
 ```
 
 **Result:** ✅ SUCCESS - Deleted all test security rules
+
 - Deleted test-allow-web from pre rulebase
 - Deleted test-log-all from pre rulebase
 - Deleted test-deny-malware from pre rulebase
@@ -322,6 +324,7 @@ scm delete security anti-spyware-profile --folder Texas --name test-strict-as
 ```
 
 **Result:** ✅ SUCCESS - Deleted all test anti-spyware profiles
+
 - Deleted test-basic-as from folder Texas
 - Deleted test-cloud-as from folder Texas
 - Deleted test-strict-as from folder Texas
@@ -438,6 +441,7 @@ scm delete security decryption-profile --folder Texas --name test-custom-decrypt
 ```
 
 **Result:** ✅ SUCCESS - Deleted all test decryption profiles
+
 - Deleted test-forward-proxy from folder Texas
 - Deleted test-inbound-proxy from folder Texas
 - Deleted test-no-decrypt from folder Texas
@@ -457,6 +461,7 @@ scm delete security rule --folder ngfw-shared --name test-shared-rule --rulebase
 ```
 
 **Result:** ✅ SUCCESS - All operations completed successfully
+
 - Created rule: test-shared-rule
 - Listed 4 rules in ngfw-shared folder
 - Backed up to security_rule_folder_ngfw-shared_pre_20250602_154000.yaml
@@ -471,6 +476,7 @@ scm delete security anti-spyware-profile --folder ngfw-shared --name test-shared
 ```
 
 **Result:** ✅ SUCCESS - All operations completed successfully
+
 - Created anti-spyware profile: test-shared-as
 - Listed 2 profiles in ngfw-shared folder
 - Deleted anti-spyware profile: test-shared-as
@@ -489,6 +495,7 @@ scm delete security rule --folder Austin --name test-austin-rule --rulebase pre
 ```
 
 **Result:** ✅ SUCCESS - All operations completed successfully
+
 - Created rule: test-austin-rule
 - Listed 5 rules in Austin folder (including inherited)
 - Backed up to security_rule_folder_austin_pre_20250602_154500.yaml
@@ -503,6 +510,7 @@ scm delete security decryption-profile --folder Austin --name test-austin-decryp
 ```
 
 **Result:** ✅ SUCCESS - All operations completed successfully
+
 - Created decryption profile: test-austin-decrypt
 - Listed 3 profiles in Austin folder (including inherited)
 - Deleted decryption profile: test-austin-decrypt
@@ -529,6 +537,7 @@ scm delete security anti-spyware-profile --snippet automation --name test-snippe
 ```
 
 **Result:** ✅ SUCCESS - All operations completed successfully
+
 - Created anti-spyware profile: test-snippet-as in snippet automation
 - Listed 1 profile in automation snippet
 - Backed up to anti_spyware_profile_snippet_automation_20250602_155000.yaml
@@ -565,6 +574,7 @@ scm load security rule --file test-override-rules.yaml --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Loaded 2 security rules with folder override to Texas
+
 - test-override-rule-1: Originally in ngfw-shared, now in Texas
 - test-override-rule-2: Originally in Austin, now in Texas
 
@@ -613,8 +623,8 @@ scm set security rule --folder Texas --name test-invalid-rulebase --source-zones
 
 ```bash
 # First create tags
-scm set objects tag --folder Texas --name test-critical --color "Red" --comments "Test critical tag"
-scm set objects tag --folder Texas --name test-logging --color "Blue" --comments "Test logging tag"
+scm set object tag --folder Texas --name test-critical --color "Red" --comments "Test critical tag"
+scm set object tag --folder Texas --name test-logging --color "Blue" --comments "Test logging tag"
 
 # Create rule with tags
 scm set security rule --folder Texas --name test-tagged-rule --source-zones trust --destination-zones untrust --tags test-critical --tags test-logging --action allow --description "Test rule with tags"
@@ -624,11 +634,12 @@ scm show security rule --folder Texas --name test-tagged-rule --rulebase pre
 
 # Cleanup
 scm delete security rule --folder Texas --name test-tagged-rule --rulebase pre
-scm delete objects tag --folder Texas --name test-critical
-scm delete objects tag --folder Texas --name test-logging
+scm delete object tag --folder Texas --name test-critical
+scm delete object tag --folder Texas --name test-logging
 ```
 
 **Result:** ✅ SUCCESS - All operations completed successfully
+
 - Created tags: test-critical (Red), test-logging (Blue)
 - Created rule with tags: test-tagged-rule
 - Displayed rule details showing tags: test-critical, test-logging

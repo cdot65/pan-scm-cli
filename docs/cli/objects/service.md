@@ -19,7 +19,7 @@ Service objects define network services by protocol and port combinations. The `
 Basic TCP service:
 
 ```bash
-$ scm set objects service --folder Texas --name custom-web \
+$ scm set object service --folder Texas --name custom-web \
   --protocol tcp --port "8080,8443" \
   --description "Custom web service ports"
 <span style="color: green;">✓</span> Service 'custom-web' created successfully
@@ -28,7 +28,7 @@ $ scm set objects service --folder Texas --name custom-web \
 UDP service with port range:
 
 ```bash
-$ scm set objects service --folder Texas --name custom-voip \
+$ scm set object service --folder Texas --name custom-voip \
   --protocol udp --port "5060-5070" \
   --description "VoIP signaling ports"
 <span style="color: green;">✓</span> Service 'custom-voip' created successfully
@@ -37,7 +37,7 @@ $ scm set objects service --folder Texas --name custom-voip \
 TCP service with timeout overrides:
 
 ```bash
-$ scm set objects service --folder Texas --name database-service \
+$ scm set object service --folder Texas --name database-service \
   --protocol tcp --port "3306" \
   --timeout 7200 --halfclose-timeout 120 --timewait-timeout 30 \
   --description "MySQL with extended timeouts"
@@ -47,7 +47,7 @@ $ scm set objects service --folder Texas --name database-service \
 ### Listing Services (Default Behavior)
 
 ```bash
-$ scm show objects service --folder Texas
+$ scm show object service --folder Texas
 Services in folder 'Texas':
 - custom-web
 - custom-voip
@@ -61,7 +61,7 @@ When no --name is specified, all services are listed by default.
 ### Showing Service Details
 
 ```bash
-$ scm show objects service --folder Texas --name custom-web
+$ scm show object service --folder Texas --name custom-web
 Service: custom-web
   Protocol: tcp
   Ports: 8080,8443
@@ -73,7 +73,7 @@ Service: custom-web
 ### Deleting Services
 
 ```bash
-$ scm delete objects service --folder Texas --name custom-web
+$ scm delete object service --folder Texas --name custom-web
 <span style="color: green;">✓</span> Service 'custom-web' deleted successfully
 ```
 
@@ -84,7 +84,7 @@ Load multiple services from a YAML file.
 #### Syntax
 
 ```bash
-scm load objects service [OPTIONS]
+scm load object service [OPTIONS]
 ```
 
 #### Options
@@ -102,7 +102,7 @@ scm load objects service [OPTIONS]
 Load from file with original locations:
 
 ```bash
-$ scm load objects service --file services.yml
+$ scm load object service --file services.yml
 <span style="color: green;">✓</span> Loaded service: custom-web
 <span style="color: green;">✓</span> Loaded service: database-cluster
 <span style="color: green;">✓</span> Loaded service: custom-dns
@@ -114,7 +114,7 @@ Successfully loaded 4 out of 4 services from 'services.yml'
 Load with folder override:
 
 ```bash
-$ scm load objects service --file services.yml --folder Austin
+$ scm load object service --file services.yml --folder Austin
 <span style="color: green;">✓</span> Loaded service: custom-web
 <span style="color: green;">✓</span> Loaded service: database-cluster
 <span style="color: green;">✓</span> Loaded service: custom-dns
@@ -133,7 +133,7 @@ Backup all service objects from a specified location to a YAML file.
 #### Syntax
 
 ```bash
-scm backup objects service [OPTIONS]
+scm backup object service [OPTIONS]
 ```
 
 #### Options
@@ -152,14 +152,14 @@ scm backup objects service [OPTIONS]
 Backup from folder:
 
 ```bash
-$ scm backup objects service --folder Texas
+$ scm backup object service --folder Texas
 <span style="color: green;">✓</span> Successfully backed up 15 services to service_folder_texas_20240115_120530.yaml
 ```
 
 Backup with custom filename:
 
 ```bash
-$ scm backup objects service --folder Texas --file texas-services.yaml
+$ scm backup object service --folder Texas --file texas-services.yaml
 <span style="color: green;">✓</span> Successfully backed up 15 services to texas-services.yaml
 ```
 
@@ -262,14 +262,14 @@ Exactly one context parameter must be specified:
 ### Create a Basic TCP Service
 
 ```bash
-scm set objects service --folder Shared --name web-app \
+scm set object service --folder Shared --name web-app \
   --protocol tcp --port "8080"
 ```
 
 ### Create a UDP Service Range
 
 ```bash
-scm set objects service --folder Shared --name voip-rtp \
+scm set object service --folder Shared --name voip-rtp \
   --protocol udp --port "10000-20000" \
   --description "RTP media ports for VoIP"
 ```
@@ -277,7 +277,7 @@ scm set objects service --folder Shared --name voip-rtp \
 ### Create a Service with Extended Timeouts
 
 ```bash
-scm set objects service --folder Shared --name long-running-job \
+scm set object service --folder Shared --name long-running-job \
   --protocol tcp --port "9999" \
   --timeout 14400 \
   --description "Service for long-running batch jobs (4 hour timeout)"
@@ -286,7 +286,7 @@ scm set objects service --folder Shared --name long-running-job \
 ### Create a Tagged Service
 
 ```bash
-scm set objects service --folder Shared --name critical-db \
+scm set object service --folder Shared --name critical-db \
   --protocol tcp --port "5432" \
   --tag "critical,database,postgresql" \
   --description "PostgreSQL database service"
