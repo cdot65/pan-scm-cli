@@ -98,7 +98,7 @@ scm set object service --folder Texas --name web-service --protocol tcp --port 8
 # Output: Service 'web-service' already up to date
 ```
 
-## Version 0.4.1 (Unreleased)
+## Version 0.4.1
 
 **Released:** June 9, 2025
 
@@ -140,6 +140,14 @@ scm set object service --folder Texas --name web-service --protocol tcp --port 8
   - Clear success/failure indicators with emojis (✓/❌)
   - Actionable guidance for troubleshooting
 
+### Fixed
+
+- **Address Creation Without Description**: Fixed validation error when creating addresses without providing a description
+  - API previously rejected empty strings for description field
+  - Now correctly handles None values and omits empty description fields from API requests
+  - Allows users to create objects without specifying description parameter
+  - Maintains backward compatibility for existing scripts
+
 ### Technical Details
 
 - Implemented `LazyClient` wrapper class that delays SDK initialization
@@ -147,6 +155,7 @@ scm set object service --folder Texas --name web-service --protocol tcp --port 8
 - Improved logging configuration for cleaner output
 - Added hardcoded folder constraints for Service Connections and Remote Networks
 - Updated all documentation to reflect new command syntax
+- Modified SDK client methods to properly handle None/empty description fields
 
 ### Examples
 
@@ -174,6 +183,21 @@ scm show objects address --folder Texas
 scm show object address --folder Texas
 scm set object tag --folder Texas --name production --color Red
 scm backup object service --folder Texas
+```
+
+#### Description Field Fix
+```bash
+# Previously this would fail with validation error
+scm set object address --folder Texas --name web-server --ip-netmask 10.1.1.1/32
+# Error: "description" is not allowed to be empty
+
+# Now works correctly without description
+scm set object address --folder Texas --name web-server --ip-netmask 10.1.1.1/32
+# ✅ Created address: web-server in folder Texas
+
+# Still works with description
+scm set object address --folder Texas --name web-server --ip-netmask 10.1.1.1/32 --description "Web server"
+# ✅ Created address: web-server in folder Texas
 ```
 
 #### Authentication Error
