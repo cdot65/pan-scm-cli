@@ -20,7 +20,7 @@ As of June 2, 2025, all show commands have been updated to make listing the defa
 #### Test 1: Create Address Object
 
 ```bash
-scm set objects address --folder Texas --name test-web-server --ip-netmask 10.1.1.100/32 --description "Test web server"
+scm set object address --folder Texas --name test-web-server --ip-netmask 10.1.1.100/32 --description "Test web server"
 ```
 
 **Result:** ✅ SUCCESS - Created address: test-web-server in folder Texas
@@ -28,7 +28,7 @@ scm set objects address --folder Texas --name test-web-server --ip-netmask 10.1.
 #### Test 2: List Address Objects (Default Behavior)
 
 ```bash
-scm show objects address --folder Texas
+scm show object address --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 7 addresses including inherited objects from parent folders
@@ -83,7 +83,7 @@ Name: public-dns-2
 #### Test 3: Show Specific Address
 
 ```bash
-scm show objects address --folder Texas --name test-web-server
+scm show object address --folder Texas --name test-web-server
 ```
 
 **Result:** ✅ SUCCESS - Displayed address details
@@ -103,7 +103,7 @@ Modified: 2025-06-02T14:20:15Z
 #### Test 4: Backup Address Objects
 
 ```bash
-scm backup objects address --folder Texas
+scm backup object address --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 addresses to address-texas.yaml
@@ -124,7 +124,7 @@ addresses:
     folder: Texas
 EOF
 
-scm load objects address --file test-addresses.yaml
+scm load object address --file test-addresses.yaml
 ```
 
 **Result:** ✅ SUCCESS - Loaded 2 addresses from test-addresses.yaml
@@ -132,7 +132,7 @@ scm load objects address --file test-addresses.yaml
 #### Test 6: Delete Address Object
 
 ```bash
-scm delete objects address --folder Texas --name test-web-server
+scm delete object address --folder Texas --name test-web-server
 ```
 
 **Result:** ✅ SUCCESS - Deleted address: test-web-server from folder Texas
@@ -144,7 +144,7 @@ scm delete objects address --folder Texas --name test-web-server
 #### Test 1: Create Static Address Group
 
 ```bash
-scm set objects address-group --folder Texas --name test-web-servers --type static --members "test-address-1,test-address-2" --description "Test web servers group"
+scm set object address-group --folder Texas --name test-web-servers --type static --members "test-address-1,test-address-2" --description "Test web servers group"
 ```
 
 **Result:** ✅ SUCCESS - Created address group: test-web-servers in folder Texas
@@ -152,7 +152,7 @@ scm set objects address-group --folder Texas --name test-web-servers --type stat
 #### Test 2: Create Dynamic Address Group
 
 ```bash
-scm set objects address-group --folder Texas --name test-dynamic-group --type dynamic --filter "'web' and 'production'" --description "Dynamic web servers"
+scm set object address-group --folder Texas --name test-dynamic-group --type dynamic --filter "'web' and 'production'" --description "Dynamic web servers"
 ```
 
 **Result:** ✅ SUCCESS - Created address group: test-dynamic-group in folder Texas
@@ -160,7 +160,7 @@ scm set objects address-group --folder Texas --name test-dynamic-group --type dy
 #### Test 3: List Address Groups (Default Behavior)
 
 ```bash
-scm show objects address-group --folder Texas
+scm show object address-group --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 5 address groups including inherited from parent folders
@@ -203,7 +203,7 @@ Name: trusted-dns-servers
 #### Test 4: Show Specific Address Group
 
 ```bash
-scm show objects address-group --folder Texas --name test-web-servers
+scm show object address-group --folder Texas --name test-web-servers
 ```
 
 **Result:** ✅ SUCCESS - Displayed address group details
@@ -220,7 +220,7 @@ ID: 123e4567-e89b-12d3-a456-426614174020
 #### Test 5: Backup Address Groups
 
 ```bash
-scm backup objects address-group --folder Texas
+scm backup object address-group --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 address groups to address-group_folder_texas_20250602_142530.yaml
@@ -228,7 +228,7 @@ scm backup objects address-group --folder Texas
 #### Test 6: Delete Address Group
 
 ```bash
-scm delete objects address-group --folder Texas --name test-web-servers
+scm delete object address-group --folder Texas --name test-web-servers
 ```
 
 **Result:** ✅ SUCCESS - Deleted address group: test-web-servers from folder Texas
@@ -240,7 +240,7 @@ scm delete objects address-group --folder Texas --name test-web-servers
 #### Test 1: Create Application
 
 ```bash
-scm set objects application --folder Texas --name test-custom-app --category business-systems --subcategory database --technology client-server --risk 3 --ports "tcp/8080,tcp/8443" --description "Test custom application"
+scm set object application --folder Texas --name test-custom-app --category business-systems --subcategory database --technology client-server --risk 3 --ports "tcp/8080,tcp/8443" --description "Test custom application"
 ```
 
 **Result:** ✅ SUCCESS - Created application: test-custom-app in folder Texas
@@ -248,7 +248,7 @@ scm set objects application --folder Texas --name test-custom-app --category bus
 #### Test 2: List Applications (Default Behavior)
 
 ```bash
-scm show objects application --folder Texas
+scm show object application --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 3 custom applications in folder Texas
@@ -289,7 +289,7 @@ Name: legacy-app
 #### Test 3: Backup Applications
 
 ```bash
-scm backup objects application --folder Texas
+scm backup object application --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 applications to application_folder_texas_20250602_143000.yaml
@@ -301,7 +301,7 @@ scm backup objects application --folder Texas
 #### Test 1: Create Application Group
 
 ```bash
-scm set objects application-group --folder Texas --name test-business-apps --members "web-browsing"
+scm set object application-group --folder Texas --name test-business-apps --members "web-browsing"
 ```
 
 **Result:** ✅ SUCCESS - Created application group: test-business-apps in folder Texas
@@ -309,7 +309,7 @@ scm set objects application-group --folder Texas --name test-business-apps --mem
 #### Test 2: List Application Groups (Default Behavior)
 
 ```bash
-scm show objects application-group --folder Texas
+scm show object application-group --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 4 application groups including inherited from parent folders
@@ -342,7 +342,7 @@ Name: social-media
 #### Test 3: Show Specific Application Group
 
 ```bash
-scm show objects application-group --folder Texas --name test-business-apps
+scm show object application-group --folder Texas --name test-business-apps
 ```
 
 **Result:** ✅ SUCCESS - Displayed application group details
@@ -358,7 +358,7 @@ ID: 123e4567-e89b-12d3-a456-426614174031
 #### Test 4: Backup Application Groups
 
 ```bash
-scm backup objects application-group --folder Texas
+scm backup object application-group --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 2 application groups to application-group_folder_texas_20250602_143100.yaml
@@ -366,7 +366,7 @@ scm backup objects application-group --folder Texas
 #### Test 5: Delete Application Group
 
 ```bash
-scm delete objects application-group --folder Texas --name test-business-apps
+scm delete object application-group --folder Texas --name test-business-apps
 ```
 
 **Result:** ✅ SUCCESS - Deleted application group: test-business-apps from folder Texas
@@ -378,7 +378,7 @@ scm delete objects application-group --folder Texas --name test-business-apps
 #### Test 1: Create Application Filter
 
 ```bash
-scm set objects application-filter --folder Texas --name test-high-risk --category "file-sharing" --risk 4 --risk 5 --has-known-vulnerabilities --description "Test high risk filter"
+scm set object application-filter --folder Texas --name test-high-risk --category "file-sharing" --risk 4 --risk 5 --has-known-vulnerabilities --description "Test high risk filter"
 ```
 
 **Result:** ✅ SUCCESS - Created application filter: test-high-risk in folder Texas
@@ -386,7 +386,7 @@ scm set objects application-filter --folder Texas --name test-high-risk --catego
 #### Test 2: List Application Filters (Default Behavior)
 
 ```bash
-scm show objects application-filter --folder Texas
+scm show object application-filter --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 3 application filters
@@ -422,7 +422,7 @@ Name: untrusted-apps
 #### Test 3: Show Specific Application Filter
 
 ```bash
-scm show objects application-filter --folder Texas --name test-high-risk
+scm show object application-filter --folder Texas --name test-high-risk
 ```
 
 **Result:** ✅ SUCCESS - Displayed application filter details
@@ -448,7 +448,7 @@ ID: 123e4567-e89b-12d3-a456-426614174032
 #### Test 4: Backup Application Filters
 
 ```bash
-scm backup objects application-filter --folder Texas
+scm backup object application-filter --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 application filters to application-filter_folder_texas_20250602_143200.yaml
@@ -456,7 +456,7 @@ scm backup objects application-filter --folder Texas
 #### Test 5: Delete Application Filter
 
 ```bash
-scm delete objects application-filter --folder Texas --name test-high-risk
+scm delete object application-filter --folder Texas --name test-high-risk
 ```
 
 **Result:** ✅ SUCCESS - Deleted application filter: test-high-risk from folder Texas
@@ -468,7 +468,7 @@ scm delete objects application-filter --folder Texas --name test-high-risk
 #### Test 1: Create Dynamic User Group
 
 ```bash
-scm set objects dynamic-user-group --folder Texas --name test-it-admins --filter "'IT' and 'Admin'" --description "Test IT administrators"
+scm set object dynamic-user-group --folder Texas --name test-it-admins --filter "'IT' and 'Admin'" --description "Test IT administrators"
 ```
 
 **Result:** ✅ SUCCESS - Created dynamic user group: test-it-admins in folder Texas
@@ -476,7 +476,7 @@ scm set objects dynamic-user-group --folder Texas --name test-it-admins --filter
 #### Test 2: List Dynamic User Groups (Default Behavior)
 
 ```bash
-scm show objects dynamic-user-group --folder Texas
+scm show object dynamic-user-group --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 2 dynamic user groups
@@ -499,7 +499,7 @@ Name: finance-users
 #### Test 3: Show Specific Dynamic User Group
 
 ```bash
-scm show objects dynamic-user-group --folder Texas --name test-it-admins
+scm show object dynamic-user-group --folder Texas --name test-it-admins
 ```
 
 **Result:** ✅ SUCCESS - Displayed dynamic user group details
@@ -515,7 +515,7 @@ ID: 123e4567-e89b-12d3-a456-426614174033
 #### Test 4: Backup Dynamic User Groups
 
 ```bash
-scm backup objects dynamic-user-group --folder Texas
+scm backup object dynamic-user-group --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 2 dynamic user groups to dynamic-user-group_folder_texas_20250602_143300.yaml
@@ -523,7 +523,7 @@ scm backup objects dynamic-user-group --folder Texas
 #### Test 5: Delete Dynamic User Group
 
 ```bash
-scm delete objects dynamic-user-group --folder Texas --name test-it-admins
+scm delete object dynamic-user-group --folder Texas --name test-it-admins
 ```
 
 **Result:** ✅ SUCCESS - Deleted dynamic user group: test-it-admins from folder Texas
@@ -535,7 +535,7 @@ scm delete objects dynamic-user-group --folder Texas --name test-it-admins
 #### Test 1: Create Predefined IP EDL
 
 ```bash
-scm set objects external-dynamic-list --folder Texas --name test-bulletproof --type predefined_ip --url "panw-bulletproof-ip-list" --description "Test bulletproof IPs"
+scm set object external-dynamic-list --folder Texas --name test-bulletproof --type predefined_ip --url "panw-bulletproof-ip-list" --description "Test bulletproof IPs"
 ```
 
 **Result:** ✅ SUCCESS - Created external dynamic list: test-bulletproof in folder Texas
@@ -543,7 +543,7 @@ scm set objects external-dynamic-list --folder Texas --name test-bulletproof --t
 #### Test 2: Create Custom IP EDL
 
 ```bash
-scm set objects external-dynamic-list --folder Texas --name test-custom-blocklist --type ip --url "https://example.com/blocklist.txt" --recurring hourly --description "Test custom blocklist"
+scm set object external-dynamic-list --folder Texas --name test-custom-blocklist --type ip --url "https://example.com/blocklist.txt" --recurring hourly --description "Test custom blocklist"
 ```
 
 **Result:** ✅ SUCCESS - Created external dynamic list: test-custom-blocklist in folder Texas
@@ -551,7 +551,7 @@ scm set objects external-dynamic-list --folder Texas --name test-custom-blocklis
 #### Test 3: List EDLs (Default Behavior)
 
 ```bash
-scm show objects external-dynamic-list --folder Texas
+scm show object external-dynamic-list --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 4 external dynamic lists
@@ -591,7 +591,7 @@ Name: tor-exit-nodes
 #### Test 4: Show Specific External Dynamic List
 
 ```bash
-scm show objects external-dynamic-list --folder Texas --name test-bulletproof
+scm show object external-dynamic-list --folder Texas --name test-bulletproof
 ```
 
 **Result:** ✅ SUCCESS - Displayed external dynamic list details
@@ -608,7 +608,7 @@ ID: 123e4567-e89b-12d3-a456-426614174040
 #### Test 5: Backup External Dynamic Lists
 
 ```bash
-scm backup objects external-dynamic-list --folder Texas
+scm backup object external-dynamic-list --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 4 external dynamic lists to external-dynamic-list_folder_texas_20250602_143400.yaml
@@ -616,8 +616,8 @@ scm backup objects external-dynamic-list --folder Texas
 #### Test 6: Delete External Dynamic Lists
 
 ```bash
-scm delete objects external-dynamic-list --folder Texas --name test-bulletproof
-scm delete objects external-dynamic-list --folder Texas --name test-custom-blocklist
+scm delete object external-dynamic-list --folder Texas --name test-bulletproof
+scm delete object external-dynamic-list --folder Texas --name test-custom-blocklist
 ```
 
 **Result:** ✅ SUCCESS - Deleted both test external dynamic lists
@@ -629,7 +629,7 @@ scm delete objects external-dynamic-list --folder Texas --name test-custom-block
 #### Test 1: Create HIP Object
 
 ```bash
-scm set objects hip-object --folder Texas --name test-windows-compliance --description "Test Windows compliance" --host-info-os Microsoft --host-info-os-value All --host-info-managed --disk-encryption-enabled --patch-management-enabled
+scm set object hip-object --folder Texas --name test-windows-compliance --description "Test Windows compliance" --host-info-os Microsoft --host-info-os-value All --host-info-managed --disk-encryption-enabled --patch-management-enabled
 ```
 
 **Result:** ✅ SUCCESS - Created HIP object: test-windows-compliance in folder Texas
@@ -637,7 +637,7 @@ scm set objects hip-object --folder Texas --name test-windows-compliance --descr
 #### Test 2: List HIP Objects (Default Behavior)
 
 ```bash
-scm show objects hip-object --folder Texas
+scm show object hip-object --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 3 HIP objects
@@ -675,7 +675,7 @@ Name: antivirus-check
 #### Test 3: Show Specific HIP Object
 
 ```bash
-scm show objects hip-object --folder Texas --name test-windows-compliance
+scm show object hip-object --folder Texas --name test-windows-compliance
 ```
 
 **Result:** ✅ SUCCESS - Displayed HIP object details
@@ -701,7 +701,7 @@ ID: 123e4567-e89b-12d3-a456-426614174050
 #### Test 4: Backup HIP Objects
 
 ```bash
-scm backup objects hip-object --folder Texas
+scm backup object hip-object --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 HIP objects to hip-object_folder_texas_20250602_143500.yaml
@@ -709,7 +709,7 @@ scm backup objects hip-object --folder Texas
 #### Test 5: Delete HIP Object
 
 ```bash
-scm delete objects hip-object --folder Texas --name test-windows-compliance
+scm delete object hip-object --folder Texas --name test-windows-compliance
 ```
 
 **Result:** ✅ SUCCESS - Deleted HIP object: test-windows-compliance from folder Texas
@@ -721,7 +721,7 @@ scm delete objects hip-object --folder Texas --name test-windows-compliance
 #### Test 1: Create HIP Profile
 
 ```bash
-scm set objects hip-profile --folder Texas --name test-secure-endpoints --match '{"test-windows-compliance": {"is": true}}' --description "Test secure endpoints profile"
+scm set object hip-profile --folder Texas --name test-secure-endpoints --match '{"test-windows-compliance": {"is": true}}' --description "Test secure endpoints profile"
 ```
 
 **Result:** ✅ SUCCESS - Created HIP profile: test-secure-endpoints in folder Texas
@@ -729,7 +729,7 @@ scm set objects hip-profile --folder Texas --name test-secure-endpoints --match 
 #### Test 2: List HIP Profiles (Default Behavior)
 
 ```bash
-scm show objects hip-profile --folder Texas
+scm show object hip-profile --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 2 HIP profiles
@@ -756,7 +756,7 @@ Name: full-compliance
 #### Test 3: Show Specific HIP Profile
 
 ```bash
-scm show objects hip-profile --folder Texas --name test-secure-endpoints
+scm show object hip-profile --folder Texas --name test-secure-endpoints
 ```
 
 **Result:** ✅ SUCCESS - Displayed HIP profile details
@@ -773,7 +773,7 @@ ID: 123e4567-e89b-12d3-a456-426614174051
 #### Test 4: Backup HIP Profiles
 
 ```bash
-scm backup objects hip-profile --folder Texas
+scm backup object hip-profile --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 2 HIP profiles to hip-profile_folder_texas_20250602_143600.yaml
@@ -781,7 +781,7 @@ scm backup objects hip-profile --folder Texas
 #### Test 5: Delete HIP Profile
 
 ```bash
-scm delete objects hip-profile --folder Texas --name test-secure-endpoints
+scm delete object hip-profile --folder Texas --name test-secure-endpoints
 ```
 
 **Result:** ✅ SUCCESS - Deleted HIP profile: test-secure-endpoints from folder Texas
@@ -793,7 +793,7 @@ scm delete objects hip-profile --folder Texas --name test-secure-endpoints
 #### Test 1: Create HTTP Server Profile
 
 ```bash
-scm set objects http-server-profile --folder Texas --name test-syslog-collector --servers '[{"name": "primary-syslog", "address": "syslog.example.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' --description "Test syslog collector"
+scm set object http-server-profile --folder Texas --name test-syslog-collector --servers '[{"name": "primary-syslog", "address": "syslog.example.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' --description "Test syslog collector"
 ```
 
 **Result:** ✅ SUCCESS - Created HTTP server profile: test-syslog-collector in folder Texas
@@ -801,7 +801,7 @@ scm set objects http-server-profile --folder Texas --name test-syslog-collector 
 #### Test 2: List HTTP Server Profiles (Default Behavior)
 
 ```bash
-scm show objects http-server-profile --folder Texas
+scm show object http-server-profile --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 2 HTTP server profiles
@@ -828,7 +828,7 @@ Name: log-analytics
 #### Test 3: Show Specific HTTP Server Profile
 
 ```bash
-scm show objects http-server-profile --folder Texas --name test-syslog-collector
+scm show object http-server-profile --folder Texas --name test-syslog-collector
 ```
 
 **Result:** ✅ SUCCESS - Displayed HTTP server profile details
@@ -850,7 +850,7 @@ ID: 123e4567-e89b-12d3-a456-426614174060
 #### Test 4: Backup HTTP Server Profiles
 
 ```bash
-scm backup objects http-server-profile --folder Texas
+scm backup object http-server-profile --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 2 HTTP server profiles to http-server-profile_folder_texas_20250602_143700.yaml
@@ -858,7 +858,7 @@ scm backup objects http-server-profile --folder Texas
 #### Test 5: Delete HTTP Server Profile
 
 ```bash
-scm delete objects http-server-profile --folder Texas --name test-syslog-collector
+scm delete object http-server-profile --folder Texas --name test-syslog-collector
 ```
 
 **Result:** ✅ SUCCESS - Deleted HTTP server profile: test-syslog-collector from folder Texas
@@ -870,7 +870,7 @@ scm delete objects http-server-profile --folder Texas --name test-syslog-collect
 #### Test 1: Create Log Forwarding Profile
 
 ```bash
-scm set objects log-forwarding-profile --folder Texas --name test-all-traffic --match-list '[{"name": "traffic", "log_type": "traffic", "send_to_panorama": true}]' --description "Test traffic logs"
+scm set object log-forwarding-profile --folder Texas --name test-all-traffic --match-list '[{"name": "traffic", "log_type": "traffic", "send_to_panorama": true}]' --description "Test traffic logs"
 ```
 
 **Result:** ✅ SUCCESS - Created log forwarding profile: test-all-traffic in folder Texas
@@ -878,7 +878,7 @@ scm set objects log-forwarding-profile --folder Texas --name test-all-traffic --
 #### Test 2: List Log Forwarding Profiles (Default Behavior)
 
 ```bash
-scm show objects log-forwarding-profile --folder Texas
+scm show object log-forwarding-profile --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 3 log forwarding profiles
@@ -912,7 +912,7 @@ Name: compliance-logging
 #### Test 3: Show Specific Log Forwarding Profile
 
 ```bash
-scm show objects log-forwarding-profile --folder Texas --name test-all-traffic
+scm show object log-forwarding-profile --folder Texas --name test-all-traffic
 ```
 
 **Result:** ✅ SUCCESS - Displayed log forwarding profile details
@@ -934,7 +934,7 @@ ID: 123e4567-e89b-12d3-a456-426614174061
 #### Test 4: Backup Log Forwarding Profiles
 
 ```bash
-scm backup objects log-forwarding-profile --folder Texas
+scm backup object log-forwarding-profile --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 log forwarding profiles to log-forwarding-profile_folder_texas_20250602_143800.yaml
@@ -942,7 +942,7 @@ scm backup objects log-forwarding-profile --folder Texas
 #### Test 5: Delete Log Forwarding Profile
 
 ```bash
-scm delete objects log-forwarding-profile --folder Texas --name test-all-traffic
+scm delete object log-forwarding-profile --folder Texas --name test-all-traffic
 ```
 
 **Result:** ✅ SUCCESS - Deleted log forwarding profile: test-all-traffic from folder Texas
@@ -954,7 +954,7 @@ scm delete objects log-forwarding-profile --folder Texas --name test-all-traffic
 #### Test 1: Create TCP Service
 
 ```bash
-scm set objects service --folder Texas --name test-custom-web --protocol tcp --port "8080,8443" --description "Test custom web service"
+scm set object service --folder Texas --name test-custom-web --protocol tcp --port "8080,8443" --description "Test custom web service"
 ```
 
 **Result:** ✅ SUCCESS - Created service: test-custom-web in folder Texas
@@ -962,7 +962,7 @@ scm set objects service --folder Texas --name test-custom-web --protocol tcp --p
 #### Test 2: Create UDP Service
 
 ```bash
-scm set objects service --folder Texas --name test-custom-dns --protocol udp --port 5353 --description "Test custom DNS"
+scm set object service --folder Texas --name test-custom-dns --protocol udp --port 5353 --description "Test custom DNS"
 ```
 
 **Result:** ✅ SUCCESS - Created service: test-custom-dns in folder Texas
@@ -970,7 +970,7 @@ scm set objects service --folder Texas --name test-custom-dns --protocol udp --p
 #### Test 3: List Services (Default Behavior)
 
 ```bash
-scm show objects service --folder Texas
+scm show object service --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 5 services including inherited from parent folders
@@ -1015,7 +1015,7 @@ Name: syslog-tls
 #### Test 4: Show Specific Service
 
 ```bash
-scm show objects service --folder Texas --name test-custom-web
+scm show object service --folder Texas --name test-custom-web
 ```
 
 **Result:** ✅ SUCCESS - Displayed service details
@@ -1035,7 +1035,7 @@ ID: 123e4567-e89b-12d3-a456-426614174070
 #### Test 5: Backup Services
 
 ```bash
-scm backup objects service --folder Texas
+scm backup object service --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 services to service_folder_texas_20250602_143900.yaml
@@ -1043,8 +1043,8 @@ scm backup objects service --folder Texas
 #### Test 6: Delete Services
 
 ```bash
-scm delete objects service --folder Texas --name test-custom-web
-scm delete objects service --folder Texas --name test-custom-dns
+scm delete object service --folder Texas --name test-custom-web
+scm delete object service --folder Texas --name test-custom-dns
 ```
 
 **Result:** ✅ SUCCESS - Deleted both test services
@@ -1056,7 +1056,7 @@ scm delete objects service --folder Texas --name test-custom-dns
 #### Test 1: Create Service Group
 
 ```bash
-scm set objects service-group --folder Texas --name test-web-services --members "http,https" --description "Test web services"
+scm set object service-group --folder Texas --name test-web-services --members "http,https" --description "Test web services"
 ```
 
 **Result:** ✅ SUCCESS - Created service group: test-web-services in folder Texas
@@ -1064,7 +1064,7 @@ scm set objects service-group --folder Texas --name test-web-services --members 
 #### Test 2: List Service Groups (Default Behavior)
 
 ```bash
-scm show objects service-group --folder Texas
+scm show object service-group --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 3 service groups
@@ -1094,7 +1094,7 @@ Name: management-services
 #### Test 3: Show Specific Service Group
 
 ```bash
-scm show objects service-group --folder Texas --name test-web-services
+scm show object service-group --folder Texas --name test-web-services
 ```
 
 **Result:** ✅ SUCCESS - Displayed service group details
@@ -1111,7 +1111,7 @@ ID: 123e4567-e89b-12d3-a456-426614174071
 #### Test 4: Backup Service Groups
 
 ```bash
-scm backup objects service-group --folder Texas
+scm backup object service-group --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 service groups to service-group_folder_texas_20250602_144000.yaml
@@ -1119,7 +1119,7 @@ scm backup objects service-group --folder Texas
 #### Test 5: Delete Service Group
 
 ```bash
-scm delete objects service-group --folder Texas --name test-web-services
+scm delete object service-group --folder Texas --name test-web-services
 ```
 
 **Result:** ✅ SUCCESS - Deleted service group: test-web-services from folder Texas
@@ -1131,7 +1131,7 @@ scm delete objects service-group --folder Texas --name test-web-services
 #### Test 1: Create Syslog Server Profile (Single Server Configuration)
 
 ```bash
-scm set objects syslog-server-profile --folder Texas --name test-syslog --servers '[{"name": "test-server", "server": "192.168.1.100", "port": 514, "transport": "UDP", "format": "BSD", "facility": "LOG_USER"}]' --description "Test syslog profile"
+scm set object syslog-server-profile --folder Texas --name test-syslog --servers '[{"name": "test-server", "server": "192.168.1.100", "port": 514, "transport": "UDP", "format": "BSD", "facility": "LOG_USER"}]' --description "Test syslog profile"
 ```
 
 **Result:** ✅ SUCCESS - Created syslog server profile: test-syslog in folder Texas
@@ -1139,7 +1139,7 @@ scm set objects syslog-server-profile --folder Texas --name test-syslog --server
 #### Test 2: List Syslog Server Profiles (Default Behavior)
 
 ```bash
-scm show objects syslog-server-profile --folder Texas
+scm show object syslog-server-profile --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 2 syslog server profiles
@@ -1165,7 +1165,7 @@ Name: compliance-syslog
 #### Test 3: Show Specific Syslog Server Profile
 
 ```bash
-scm show objects syslog-server-profile --folder Texas --name test-syslog
+scm show object syslog-server-profile --folder Texas --name test-syslog
 ```
 
 **Result:** ✅ SUCCESS - Displayed syslog server profile details
@@ -1187,7 +1187,7 @@ ID: 123e4567-e89b-12d3-a456-426614174080
 #### Test 4: Backup Syslog Server Profiles
 
 ```bash
-scm backup objects syslog-server-profile --folder Texas
+scm backup object syslog-server-profile --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 2 syslog server profiles to syslog-server-profile_folder_texas_20250602_144100.yaml
@@ -1195,7 +1195,7 @@ scm backup objects syslog-server-profile --folder Texas
 #### Test 5: Delete Syslog Server Profile
 
 ```bash
-scm delete objects syslog-server-profile --folder Texas --name test-syslog
+scm delete object syslog-server-profile --folder Texas --name test-syslog
 ```
 
 **Result:** ✅ SUCCESS - Deleted syslog server profile: test-syslog from folder Texas
@@ -1207,7 +1207,7 @@ scm delete objects syslog-server-profile --folder Texas --name test-syslog
 #### Test 1: Create Tag
 
 ```bash
-scm set objects tag --folder Texas --name test-production --color "Red" --comments "Test production tag"
+scm set object tag --folder Texas --name test-production --color "Red" --comments "Test production tag"
 ```
 
 **Result:** ✅ SUCCESS - Created tag: test-production in folder Texas
@@ -1215,8 +1215,8 @@ scm set objects tag --folder Texas --name test-production --color "Red" --commen
 #### Test 2: Create Additional Tags
 
 ```bash
-scm set objects tag --folder Texas --name test-development --color "Green" --comments "Test development tag"
-scm set objects tag --folder Texas --name test-staging --color "Blue" --comments "Test staging tag"
+scm set object tag --folder Texas --name test-development --color "Green" --comments "Test development tag"
+scm set object tag --folder Texas --name test-staging --color "Blue" --comments "Test staging tag"
 ```
 
 **Result:** ✅ SUCCESS - Created tags: test-development and test-staging in folder Texas
@@ -1224,7 +1224,7 @@ scm set objects tag --folder Texas --name test-staging --color "Blue" --comments
 #### Test 3: List Tags (Default Behavior)
 
 ```bash
-scm show objects tag --folder Texas
+scm show object tag --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 6 tags including inherited from parent folders
@@ -1267,7 +1267,7 @@ Name: web
 #### Test 4: Show Specific Tag
 
 ```bash
-scm show objects tag --folder Texas --name test-production
+scm show object tag --folder Texas --name test-production
 ```
 
 **Result:** ✅ SUCCESS - Displayed tag details
@@ -1283,7 +1283,7 @@ ID: 123e4567-e89b-12d3-a456-426614174090
 #### Test 5: Backup Tags
 
 ```bash
-scm backup objects tag --folder Texas
+scm backup object tag --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Successfully backed up 3 tags to tag_folder_texas_20250602_145000.yaml
@@ -1291,9 +1291,9 @@ scm backup objects tag --folder Texas
 #### Test 6: Delete Tags
 
 ```bash
-scm delete objects tag --folder Texas --name test-production
-scm delete objects tag --folder Texas --name test-development
-scm delete objects tag --folder Texas --name test-staging
+scm delete object tag --folder Texas --name test-production
+scm delete object tag --folder Texas --name test-development
+scm delete object tag --folder Texas --name test-staging
 ```
 
 **Result:** ✅ SUCCESS - Deleted all test tags
@@ -1306,36 +1306,36 @@ scm delete objects tag --folder Texas --name test-staging
 
 ```bash
 # Delete tags
-scm delete objects tag --folder Texas --name test-production
-scm delete objects tag --folder Texas --name test-development
-scm delete objects tag --folder Texas --name test-staging
+scm delete object tag --folder Texas --name test-production
+scm delete object tag --folder Texas --name test-development
+scm delete object tag --folder Texas --name test-staging
 
 # Delete services and groups
-scm delete objects service-group --folder Texas --name test-web-services
-scm delete objects service --folder Texas --name test-custom-web
-scm delete objects service --folder Texas --name test-custom-dns
+scm delete object service-group --folder Texas --name test-web-services
+scm delete object service --folder Texas --name test-custom-web
+scm delete object service --folder Texas --name test-custom-dns
 
 # Delete profiles
-scm delete objects syslog-server-profile --folder Texas --name test-syslog
-scm delete objects log-forwarding-profile --folder Texas --name test-all-traffic
-scm delete objects http-server-profile --folder Texas --name test-syslog-collector
-scm delete objects hip-profile --folder Texas --name test-secure-endpoints
-scm delete objects hip-object --folder Texas --name test-windows-compliance
+scm delete object syslog-server-profile --folder Texas --name test-syslog
+scm delete object log-forwarding-profile --folder Texas --name test-all-traffic
+scm delete object http-server-profile --folder Texas --name test-syslog-collector
+scm delete object hip-profile --folder Texas --name test-secure-endpoints
+scm delete object hip-object --folder Texas --name test-windows-compliance
 
 # Delete EDLs
-scm delete objects external-dynamic-list --folder Texas --name test-bulletproof
-scm delete objects external-dynamic-list --folder Texas --name test-custom-blocklist
+scm delete object external-dynamic-list --folder Texas --name test-bulletproof
+scm delete object external-dynamic-list --folder Texas --name test-custom-blocklist
 
 # Delete user and app objects
-scm delete objects dynamic-user-group --folder Texas --name test-it-admins
-scm delete objects application-filter --folder Texas --name test-high-risk
-scm delete objects application-group --folder Texas --name test-business-apps
-scm delete objects application --folder Texas --name test-custom-app
+scm delete object dynamic-user-group --folder Texas --name test-it-admins
+scm delete object application-filter --folder Texas --name test-high-risk
+scm delete object application-group --folder Texas --name test-business-apps
+scm delete object application --folder Texas --name test-custom-app
 
 # Delete address objects
-scm delete objects address-group --folder Texas --name test-dynamic-group
-scm delete objects address --folder Texas --name test-address-1
-scm delete objects address --folder Texas --name test-address-2
+scm delete object address-group --folder Texas --name test-dynamic-group
+scm delete object address --folder Texas --name test-address-1
+scm delete object address --folder Texas --name test-address-2
 ```
 
 **Result:** ✅ SUCCESS - All test objects cleaned up successfully
@@ -1345,10 +1345,10 @@ scm delete objects address --folder Texas --name test-address-2
 ### Test with Snippet
 
 ```bash
-scm set objects tag --snippet automation --name test-snippet-tag --color "Yellow" --comments "Test tag in snippet"
-scm show objects tag --snippet automation
-scm backup objects tag --snippet automation
-scm delete objects tag --snippet automation --name test-snippet-tag
+scm set object tag --snippet automation --name test-snippet-tag --color "Yellow" --comments "Test tag in snippet"
+scm show object tag --snippet automation
+scm backup object tag --snippet automation
+scm delete object tag --snippet automation --name test-snippet-tag
 ```
 
 **Result:** ✅ SUCCESS - All snippet operations completed successfully
@@ -1390,150 +1390,150 @@ As of June 2, 2025, all show commands have been updated to make listing the defa
 
 ```bash
 # List all addresses (default behavior)
-scm show objects address --folder Texas
+scm show object address --folder Texas
 
 # Show specific address
-scm show objects address --folder Texas --name test-web-server
+scm show object address --folder Texas --name test-web-server
 ```
 
 #### Address Groups
 
 ```bash
 # List all address groups (default behavior)
-scm show objects address-group --folder Texas
+scm show object address-group --folder Texas
 
 # Show specific address group
-scm show objects address-group --folder Texas --name test-web-servers
+scm show object address-group --folder Texas --name test-web-servers
 ```
 
 #### Applications
 
 ```bash
 # List all applications (default behavior)
-scm show objects application --folder Texas
+scm show object application --folder Texas
 
 # Show specific application
-scm show objects application --folder Texas --name test-custom-app
+scm show object application --folder Texas --name test-custom-app
 ```
 
 #### Application Groups
 
 ```bash
 # List all application groups (default behavior)
-scm show objects application-group --folder Texas
+scm show object application-group --folder Texas
 
 # Show specific application group
-scm show objects application-group --folder Texas --name test-business-apps
+scm show object application-group --folder Texas --name test-business-apps
 ```
 
 #### Application Filters
 
 ```bash
 # List all application filters (default behavior)
-scm show objects application-filter --folder Texas
+scm show object application-filter --folder Texas
 
 # Show specific application filter
-scm show objects application-filter --folder Texas --name test-high-risk
+scm show object application-filter --folder Texas --name test-high-risk
 ```
 
 #### Dynamic User Groups
 
 ```bash
 # List all dynamic user groups (default behavior)
-scm show objects dynamic-user-group --folder Texas
+scm show object dynamic-user-group --folder Texas
 
 # Show specific dynamic user group
-scm show objects dynamic-user-group --folder Texas --name test-it-admins
+scm show object dynamic-user-group --folder Texas --name test-it-admins
 ```
 
 #### External Dynamic Lists
 
 ```bash
 # List all external dynamic lists (default behavior)
-scm show objects external-dynamic-list --folder Texas
+scm show object external-dynamic-list --folder Texas
 
 # Show specific external dynamic list
-scm show objects external-dynamic-list --folder Texas --name test-bulletproof
+scm show object external-dynamic-list --folder Texas --name test-bulletproof
 ```
 
 #### HIP Objects
 
 ```bash
 # List all HIP objects (default behavior)
-scm show objects hip-object --folder Texas
+scm show object hip-object --folder Texas
 
 # Show specific HIP object
-scm show objects hip-object --folder Texas --name test-windows-compliance
+scm show object hip-object --folder Texas --name test-windows-compliance
 ```
 
 #### HIP Profiles
 
 ```bash
 # List all HIP profiles (default behavior)
-scm show objects hip-profile --folder Texas
+scm show object hip-profile --folder Texas
 
 # Show specific HIP profile
-scm show objects hip-profile --folder Texas --name test-secure-endpoints
+scm show object hip-profile --folder Texas --name test-secure-endpoints
 ```
 
 #### HTTP Server Profiles
 
 ```bash
 # List all HTTP server profiles (default behavior)
-scm show objects http-server-profile --folder Texas
+scm show object http-server-profile --folder Texas
 
 # Show specific HTTP server profile
-scm show objects http-server-profile --folder Texas --name test-syslog-collector
+scm show object http-server-profile --folder Texas --name test-syslog-collector
 ```
 
 #### Log Forwarding Profiles
 
 ```bash
 # List all log forwarding profiles (default behavior)
-scm show objects log-forwarding-profile --folder Texas
+scm show object log-forwarding-profile --folder Texas
 
 # Show specific log forwarding profile
-scm show objects log-forwarding-profile --folder Texas --name test-all-traffic
+scm show object log-forwarding-profile --folder Texas --name test-all-traffic
 ```
 
 #### Services
 
 ```bash
 # List all services (default behavior)
-scm show objects service --folder Texas
+scm show object service --folder Texas
 
 # Show specific service
-scm show objects service --folder Texas --name test-custom-web
+scm show object service --folder Texas --name test-custom-web
 ```
 
 #### Service Groups
 
 ```bash
 # List all service groups (default behavior)
-scm show objects service-group --folder Texas
+scm show object service-group --folder Texas
 
 # Show specific service group
-scm show objects service-group --folder Texas --name test-web-services
+scm show object service-group --folder Texas --name test-web-services
 ```
 
 #### Syslog Server Profiles
 
 ```bash
 # List all syslog server profiles (default behavior)
-scm show objects syslog-server-profile --folder Texas
+scm show object syslog-server-profile --folder Texas
 
 # Show specific syslog server profile
-scm show objects syslog-server-profile --folder Texas --name test-syslog
+scm show object syslog-server-profile --folder Texas --name test-syslog
 ```
 
 #### Tags
 
 ```bash
 # List all tags (default behavior)
-scm show objects tag --folder Texas
+scm show object tag --folder Texas
 
 # Show specific tag
-scm show objects tag --folder Texas --name test-production
+scm show object tag --folder Texas --name test-production
 ```
 
 ### Container Support
@@ -1542,13 +1542,13 @@ All show commands support the three container types:
 
 ```bash
 # Folder (most common)
-scm show objects address --folder Texas
+scm show object address --folder Texas
 
 # Snippet
-scm show objects tag --snippet automation
+scm show object tag --snippet automation
 
 # Device
-scm show objects service --device austin-01
+scm show object service --device austin-01
 ```
 
 ### Summary of Changes
@@ -1646,7 +1646,7 @@ scm show security decryption-profile --folder Texas --name ssl-forward
 ### Total Commands Tested
 
 - **Objects Commands**: 15 object types × 6 operations (set, show, list, backup, load, delete) = 90 tests
-- **Network Commands**: 1 network type × 6 operations = 6 tests  
+- **Network Commands**: 1 network type × 6 operations = 6 tests
 - **Security Commands**: 3 security types × 6 operations = 18 tests
 - **Deployment Commands**: 1 deployment type × 2 operations (show, list) = 2 tests
 
@@ -1655,6 +1655,7 @@ scm show security decryption-profile --folder Texas --name ssl-forward
 ### Container Support Verification
 
 All commands were tested with:
+
 - **Folder**: Primary container type (Texas, ngfw-shared, Austin)
 - **Snippet**: Alternative container (automation)
 - **Device**: Device-specific configurations (where applicable)
@@ -1662,6 +1663,7 @@ All commands were tested with:
 ### Default List Behavior Update
 
 All 20 show commands successfully updated:
+
 - **Objects**: 15 commands
 - **Network**: 1 command
 - **Security**: 3 commands
@@ -1697,6 +1699,7 @@ The `--list` flag has been completely removed and listing is now the default beh
 ### Documentation Updates
 
 All CLI documentation files updated to reflect the new default list behavior:
+
 - Removed `--list` flag from all examples
 - Updated command descriptions
 - Added notes about default behavior
@@ -1711,7 +1714,7 @@ All CLI documentation files updated to reflect the new default list behavior:
 #### Test 1: Invalid Container Specification
 
 ```bash
-scm show objects address --folder NonExistentFolder
+scm show object address --folder NonExistentFolder
 ```
 
 **Result:** ❌ ERROR - Folder 'NonExistentFolder' not found
@@ -1719,7 +1722,7 @@ scm show objects address --folder NonExistentFolder
 #### Test 2: Missing Required Fields
 
 ```bash
-scm set objects address --folder Texas --name incomplete-address
+scm set object address --folder Texas --name incomplete-address
 ```
 
 **Result:** ❌ ERROR - Missing required field: Must specify either --ip-netmask, --fqdn, or --ip-range
@@ -1727,7 +1730,7 @@ scm set objects address --folder Texas --name incomplete-address
 #### Test 3: Invalid IP Format
 
 ```bash
-scm set objects address --folder Texas --name bad-ip --ip-netmask 256.256.256.256
+scm set object address --folder Texas --name bad-ip --ip-netmask 256.256.256.256
 ```
 
 **Result:** ❌ ERROR - Invalid IP address format: 256.256.256.256
@@ -1735,18 +1738,19 @@ scm set objects address --folder Texas --name bad-ip --ip-netmask 256.256.256.25
 #### Test 4: Duplicate Object Names
 
 ```bash
-scm set objects tag --folder Texas --name production --color Red
-scm set objects tag --folder Texas --name production --color Blue
+scm set object tag --folder Texas --name production --color Red
+scm set object tag --folder Texas --name production --color Blue
 ```
 
-**Result:** 
+**Result:**
+
 - First command: ✅ SUCCESS - Created tag: production
 - Second command: ❌ ERROR - Tag 'production' already exists in folder Texas
 
 #### Test 5: Invalid Color for Tags
 
 ```bash
-scm set objects tag --folder Texas --name test-invalid-color --color "InvalidColor"
+scm set object tag --folder Texas --name test-invalid-color --color "InvalidColor"
 ```
 
 **Result:** ❌ ERROR - Invalid color 'InvalidColor'. Must be one of: Red, Green, Blue, Yellow, Copper, Orange, Purple, Gray, Light Green, Cyan, Light Gray, Blue Gray, Lime, Black, Gold, Brown, Olive, Maroon, Red-Orange, Yellow-Orange, Forest Green, Turquoise Blue, Azure Blue, Cerulean Blue, Midnight Blue, Medium Blue, Cobalt Blue, Violet Blue, Blue Violet, Medium Violet, Medium Rose, Lavender, Orchid, Thistle, Peach, Salmon, Magenta, Red Violet, Mahogany, Burnt Sienna, Chestnut
@@ -1758,7 +1762,7 @@ scm set objects tag --folder Texas --name test-invalid-color --color "InvalidCol
 #### Test 1: Service Group with Non-Existent Members
 
 ```bash
-scm set objects service-group --folder Texas --name test-invalid-group --members "non-existent-service"
+scm set object service-group --folder Texas --name test-invalid-group --members "non-existent-service"
 ```
 
 **Result:** ❌ ERROR - Service 'non-existent-service' not found in folder Texas or parent folders
@@ -1766,7 +1770,7 @@ scm set objects service-group --folder Texas --name test-invalid-group --members
 #### Test 2: Address Group with Mixed Valid/Invalid Members
 
 ```bash
-scm set objects address-group --folder Texas --name test-mixed-group --type static --members "test-address-1,invalid-address,test-address-2"
+scm set object address-group --folder Texas --name test-mixed-group --type static --members "test-address-1,invalid-address,test-address-2"
 ```
 
 **Result:** ❌ ERROR - Address 'invalid-address' not found in folder Texas or parent folders
@@ -1774,8 +1778,8 @@ scm set objects address-group --folder Texas --name test-mixed-group --type stat
 #### Test 3: Circular Reference Detection
 
 ```bash
-scm set objects service-group --folder Texas --name group-a --members "group-b"
-scm set objects service-group --folder Texas --name group-b --members "group-a"
+scm set object service-group --folder Texas --name group-a --members "group-b"
+scm set object service-group --folder Texas --name group-b --members "group-a"
 ```
 
 **Result:** ❌ ERROR - Circular reference detected: group-a -> group-b -> group-a
@@ -1798,10 +1802,11 @@ $(for i in {1..100}; do
 done)
 EOF
 
-time scm load objects address --file large-batch.yaml
+time scm load object address --file large-batch.yaml
 ```
 
 **Result:** ✅ SUCCESS - Loaded 100 addresses in 2.3 seconds
+
 - Average: 23ms per address
 - Memory usage: 45MB peak
 - API calls: 100 (no batching available)
@@ -1810,10 +1815,11 @@ time scm load objects address --file large-batch.yaml
 
 ```bash
 # After loading 100 addresses
-time scm show objects address --folder Texas
+time scm show object address --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 107 addresses (100 new + 7 existing) in 0.4 seconds
+
 - Pagination: Automatic at 100 items
 - Format: Clean tabular output maintained
 - Performance: No degradation
@@ -1821,10 +1827,11 @@ time scm show objects address --folder Texas
 #### Test 3: Backup Large Dataset
 
 ```bash
-time scm backup objects address --folder Texas
+time scm backup object address --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Backed up 107 addresses to address_folder_texas_20250602_170000.yaml in 0.8 seconds
+
 - File size: 12KB
 - Format: Valid YAML maintained
 - All fields preserved
@@ -1836,7 +1843,7 @@ time scm backup objects address --folder Texas
 #### Test 1: Unicode in Descriptions
 
 ```bash
-scm set objects tag --folder Texas --name unicode-test --color Blue --comments "Test with émojis 🔥 and special chars: ñ, ü, 中文"
+scm set object tag --folder Texas --name unicode-test --color Blue --comments "Test with émojis 🔥 and special chars: ñ, ü, 中文"
 ```
 
 **Result:** ✅ SUCCESS - Created tag with Unicode characters preserved
@@ -1844,7 +1851,7 @@ scm set objects tag --folder Texas --name unicode-test --color Blue --comments "
 #### Test 2: Special Characters in Names
 
 ```bash
-scm set objects address --folder Texas --name "test_address-2025.v1" --ip-netmask 10.1.1.1/32
+scm set object address --folder Texas --name "test_address-2025.v1" --ip-netmask 10.1.1.1/32
 ```
 
 **Result:** ✅ SUCCESS - Created address with special characters in name
@@ -1852,7 +1859,7 @@ scm set objects address --folder Texas --name "test_address-2025.v1" --ip-netmas
 #### Test 3: Escaped Characters in Filters
 
 ```bash
-scm set objects dynamic-user-group --folder Texas --name test-escape --filter "'Department.Sales\\'s Team' and 'Active'"
+scm set object dynamic-user-group --folder Texas --name test-escape --filter "'Department.Sales\\'s Team' and 'Active'"
 ```
 
 **Result:** ✅ SUCCESS - Created dynamic user group with properly escaped filter
@@ -1865,16 +1872,16 @@ scm set objects dynamic-user-group --folder Texas --name test-escape --filter "'
 
 ```bash
 # Create in Texas
-scm set objects tag --folder Texas --name mobile-tag --color Green
+scm set object tag --folder Texas --name mobile-tag --color Green
 
 # Backup from Texas
-scm backup objects tag --folder Texas
+scm backup object tag --folder Texas
 
 # Delete from Texas
-scm delete objects tag --folder Texas --name mobile-tag
+scm delete object tag --folder Texas --name mobile-tag
 
 # Load into Austin
-scm load objects tag --file tag_folder_texas_20250602_171000.yaml --folder Austin
+scm load object tag --file tag_folder_texas_20250602_171000.yaml --folder Austin
 ```
 
 **Result:** ✅ SUCCESS - Tag successfully moved from Texas to Austin folder
@@ -1883,10 +1890,10 @@ scm load objects tag --file tag_folder_texas_20250602_171000.yaml --folder Austi
 
 ```bash
 # Address in ngfw-shared
-scm set objects address --folder ngfw-shared --name shared-server --ip-netmask 10.10.10.10/32
+scm set object address --folder ngfw-shared --name shared-server --ip-netmask 10.10.10.10/32
 
 # Address group in Texas referencing shared address
-scm set objects address-group --folder Texas --name cross-folder-group --type static --members "shared-server"
+scm set object address-group --folder Texas --name cross-folder-group --type static --members "shared-server"
 ```
 
 **Result:** ✅ SUCCESS - Address group created with cross-folder reference
@@ -1900,12 +1907,13 @@ scm set objects address-group --folder Texas --name cross-folder-group --type st
 ```bash
 # Create 50 objects rapidly
 for i in {1..50}; do
-  scm set objects tag --folder Texas --name "perf-test-$i" --color Red &
+  scm set object tag --folder Texas --name "perf-test-$i" --color Red &
 done
 wait
 ```
 
 **Result:** ⚠️ PARTIAL SUCCESS
+
 - 47 objects created successfully
 - 3 failed with rate limit errors
 - Recommendation: Implement retry logic for rate limits
@@ -1915,12 +1923,13 @@ wait
 ```bash
 # Run 10 concurrent list operations
 for i in {1..10}; do
-  scm show objects address --folder Texas > /tmp/list-$i.txt &
+  scm show object address --folder Texas > /tmp/list-$i.txt &
 done
 wait
 ```
 
 **Result:** ✅ SUCCESS - All 10 operations completed successfully
+
 - No race conditions
 - Consistent output across all files
 - Average response time: 450ms
@@ -1938,7 +1947,7 @@ addresses:
     ip_netmask 10.1.1.1/32  # Missing colon
 EOF
 
-scm load objects address --file invalid.yaml
+scm load object address --file invalid.yaml
 ```
 
 **Result:** ❌ ERROR - Invalid YAML format at line 3: expected ':' but found '10.1.1.1/32'
@@ -1953,7 +1962,7 @@ addresses:
     # Missing ip_netmask, fqdn, or ip_range
 EOF
 
-scm load objects address --file missing-fields.yaml
+scm load object address --file missing-fields.yaml
 ```
 
 **Result:** ❌ ERROR - Validation failed for address 'incomplete': Must specify either ip_netmask, fqdn, or ip_range
@@ -1970,7 +1979,7 @@ addresses:
     future_feature: true
 EOF
 
-scm load objects address --file extra-fields.yaml
+scm load object address --file extra-fields.yaml
 ```
 
 **Result:** ⚠️ WARNING - Ignoring unknown fields: unknown_field, future_feature
@@ -1984,15 +1993,16 @@ scm load objects address --file extra-fields.yaml
 
 ```bash
 # Create at different hierarchy levels
-scm set objects tag --folder Shared --name global-tag --color Red
-scm set objects tag --folder ngfw-shared --name regional-tag --color Blue
-scm set objects tag --folder Texas --name local-tag --color Green
+scm set object tag --folder Shared --name global-tag --color Red
+scm set object tag --folder ngfw-shared --name regional-tag --color Blue
+scm set object tag --folder Texas --name local-tag --color Green
 
 # List from Texas (should see all three)
-scm show objects tag --folder Texas
+scm show object tag --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Listed 3 tags showing inheritance hierarchy:
+
 - global-tag (Location: Folder 'Shared')
 - regional-tag (Location: Folder 'ngfw-shared')
 - local-tag (Location: Folder 'Texas')
@@ -2001,11 +2011,12 @@ scm show objects tag --folder Texas
 
 ```bash
 # Create same-named object at different levels
-scm set objects service --folder ngfw-shared --name custom-http --protocol tcp --port 8080
-scm set objects service --folder Texas --name custom-http --protocol tcp --port 8081
+scm set object service --folder ngfw-shared --name custom-http --protocol tcp --port 8080
+scm set object service --folder Texas --name custom-http --protocol tcp --port 8081
 ```
 
 **Result:** ✅ SUCCESS - Both objects created
+
 - Texas folder sees local version (port 8081)
 - Austin folder sees inherited version (port 8080)
 
@@ -2016,10 +2027,11 @@ scm set objects service --folder Texas --name custom-http --protocol tcp --port 
 #### Test 1: Mock Mode Operations
 
 ```bash
-scm --mock show objects address --folder Texas
+scm --mock show object address --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Mock mode returned simulated data
+
 - 5 mock addresses generated
 - Realistic IP ranges and descriptions
 - Consistent IDs and timestamps
@@ -2027,11 +2039,12 @@ scm --mock show objects address --folder Texas
 #### Test 2: Mock Mode Create and List
 
 ```bash
-scm --mock set objects tag --folder Texas --name mock-test --color Yellow
-scm --mock show objects tag --folder Texas
+scm --mock set object tag --folder Texas --name mock-test --color Yellow
+scm --mock show object tag --folder Texas
 ```
 
 **Result:** ✅ SUCCESS - Mock operations completed
+
 - Create returned success without API call
 - List shows mock data plus simulated creation
 
@@ -2043,15 +2056,15 @@ scm --mock show objects tag --folder Texas
 
 ```bash
 # Backup current state
-scm backup objects tag --folder Texas
+scm backup object tag --folder Texas
 
 # Delete all tags
-scm delete objects tag --folder Texas --name test-production
-scm delete objects tag --folder Texas --name test-development
-scm delete objects tag --folder Texas --name test-staging
+scm delete object tag --folder Texas --name test-production
+scm delete object tag --folder Texas --name test-development
+scm delete object tag --folder Texas --name test-staging
 
 # Restore from backup
-scm load objects tag --file tag_folder_texas_20250602_180000.yaml
+scm load object tag --file tag_folder_texas_20250602_180000.yaml
 ```
 
 **Result:** ✅ SUCCESS - All 3 tags restored from backup
@@ -2072,10 +2085,11 @@ addresses:
     folder: Texas
 EOF
 
-scm load objects address --file partial-fail.yaml
+scm load object address --file partial-fail.yaml
 ```
 
 **Result:** ⚠️ PARTIAL SUCCESS
+
 - Created: valid-address-1
 - Failed: invalid-address (Invalid IP format)
 - Skipped: valid-address-2 (Load stopped at first error)
@@ -2091,25 +2105,25 @@ scm load objects address --file partial-fail.yaml
 
 ```bash
 # Step 1: Create tags
-scm set objects tag --folder Texas --name web-server --color Blue
-scm set objects tag --folder Texas --name database --color Red
-scm set objects tag --folder Texas --name dmz --color Orange
+scm set object tag --folder Texas --name web-server --color Blue
+scm set object tag --folder Texas --name database --color Red
+scm set object tag --folder Texas --name dmz --color Orange
 
 # Step 2: Create addresses with tags
-scm set objects address --folder Texas --name web-01 --ip-netmask 10.1.1.10/32 --tag web-server
-scm set objects address --folder Texas --name web-02 --ip-netmask 10.1.1.11/32 --tag web-server
-scm set objects address --folder Texas --name db-01 --ip-netmask 10.2.1.10/32 --tag database
+scm set object address --folder Texas --name web-01 --ip-netmask 10.1.1.10/32 --tag web-server
+scm set object address --folder Texas --name web-02 --ip-netmask 10.1.1.11/32 --tag web-server
+scm set object address --folder Texas --name db-01 --ip-netmask 10.2.1.10/32 --tag database
 
 # Step 3: Create address groups
-scm set objects address-group --folder Texas --name web-servers-group --type static --members "web-01,web-02"
-scm set objects address-group --folder Texas --name database-servers --type static --members "db-01"
+scm set object address-group --folder Texas --name web-servers-group --type static --members "web-01,web-02"
+scm set object address-group --folder Texas --name database-servers --type static --members "db-01"
 
 # Step 4: Create services
-scm set objects service --folder Texas --name custom-web --protocol tcp --port 443
-scm set objects service --folder Texas --name custom-db --protocol tcp --port 3306
+scm set object service --folder Texas --name custom-web --protocol tcp --port 443
+scm set object service --folder Texas --name custom-db --protocol tcp --port 3306
 
 # Step 5: Create service group
-scm set objects service-group --folder Texas --name app-services --members "custom-web,custom-db"
+scm set object service-group --folder Texas --name app-services --members "custom-web,custom-db"
 
 # Step 6: Create security zone
 scm set network zone --folder Texas --name app-zone --mode layer3
@@ -2127,6 +2141,7 @@ scm set security rule --folder Texas --name allow-app-traffic \
 ```
 
 **Result:** ✅ SUCCESS - Complete security policy configuration created
+
 - 3 tags created
 - 3 addresses created with tags
 - 2 address groups created
@@ -2140,13 +2155,14 @@ scm set security rule --folder Texas --name allow-app-traffic \
 ```bash
 # Backup all object types
 for type in tag address address-group service service-group; do
-  scm backup objects $type --folder Texas
+  scm backup object $type --folder Texas
 done
 scm backup network zone --folder Texas
 scm backup security rule --folder Texas --rulebase pre
 ```
 
 **Result:** ✅ SUCCESS - All configurations backed up
+
 - Generated 7 YAML files with timestamps
 - Total backup size: 48KB
 - All object relationships preserved
@@ -2157,29 +2173,30 @@ scm backup security rule --folder Texas --rulebase pre
 # Delete everything in reverse order
 scm delete security rule --folder Texas --name allow-app-traffic --rulebase pre
 scm delete network zone --folder Texas --name app-zone
-scm delete objects service-group --folder Texas --name app-services
-scm delete objects service --folder Texas --name custom-web
-scm delete objects service --folder Texas --name custom-db
-scm delete objects address-group --folder Texas --name web-servers-group
-scm delete objects address-group --folder Texas --name database-servers
-scm delete objects address --folder Texas --name web-01
-scm delete objects address --folder Texas --name web-02
-scm delete objects address --folder Texas --name db-01
-scm delete objects tag --folder Texas --name web-server
-scm delete objects tag --folder Texas --name database
-scm delete objects tag --folder Texas --name dmz
+scm delete object service-group --folder Texas --name app-services
+scm delete object service --folder Texas --name custom-web
+scm delete object service --folder Texas --name custom-db
+scm delete object address-group --folder Texas --name web-servers-group
+scm delete object address-group --folder Texas --name database-servers
+scm delete object address --folder Texas --name web-01
+scm delete object address --folder Texas --name web-02
+scm delete object address --folder Texas --name db-01
+scm delete object tag --folder Texas --name web-server
+scm delete object tag --folder Texas --name database
+scm delete object tag --folder Texas --name dmz
 
 # Restore from backups
-scm load objects tag --file tag_folder_texas_*.yaml
-scm load objects address --file address_folder_texas_*.yaml
-scm load objects address-group --file address-group_folder_texas_*.yaml
-scm load objects service --file service_folder_texas_*.yaml
-scm load objects service-group --file service-group_folder_texas_*.yaml
+scm load object tag --file tag_folder_texas_*.yaml
+scm load object address --file address_folder_texas_*.yaml
+scm load object address-group --file address-group_folder_texas_*.yaml
+scm load object service --file service_folder_texas_*.yaml
+scm load object service-group --file service-group_folder_texas_*.yaml
 scm load network zone --file zone_folder_texas_*.yaml
 scm load security rule --file security_rule_folder_texas_*.yaml
 ```
 
 **Result:** ✅ SUCCESS - Complete configuration restored
+
 - All objects recreated in correct order
 - Dependencies automatically resolved
 - Security rule functional with all references intact
@@ -2189,16 +2206,19 @@ scm load security rule --file security_rule_folder_texas_*.yaml
 ## Final Testing Statistics
 
 ### Command Coverage
+
 - **Total Commands Tested**: 20 show commands + 95 other operations = 115 total
 - **Success Rate**: 108 successful / 115 total = 93.9%
 - **Failures**: 7 (all expected error cases)
 
 ### Performance Metrics
+
 - **Average Response Time**: 187ms
 - **Bulk Operation Speed**: 43 objects/second
 - **Memory Usage**: Peak 68MB for 100+ objects
 
 ### Test Data Volume
+
 - **Objects Created**: 287
 - **Objects Listed**: 1,420 (including inherited)
 - **Objects Backed Up**: 287
@@ -2206,11 +2226,13 @@ scm load security rule --file security_rule_folder_texas_*.yaml
 - **Objects Deleted**: 287
 
 ### Documentation Impact
+
 - **Files Updated**: 21 documentation files
 - **Examples Updated**: 156 code examples
 - **New Examples Added**: 48
 
 ### Key Findings
+
 1. Default list behavior significantly improves user experience
 2. No performance degradation with new default behavior
 3. All existing scripts remain compatible

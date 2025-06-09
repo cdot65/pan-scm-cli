@@ -12,7 +12,7 @@ Most simple parameters are provided as strings:
 
 ```bash
 # Name, description, and folder are string parameters
-scm set objects address --name "web-server" --description "Web server in DMZ" --folder "Shared"
+scm set object address --name "web-server" --description "Web server in DMZ" --folder "Shared"
 ```
 
 ### Boolean Parameters
@@ -30,7 +30,7 @@ Lists can be provided as comma-separated values:
 
 ```bash
 # Tags is a list parameter
-scm set objects address --name "web-server" --folder "Shared" --tags "web,dmz,production"
+scm set object address --name "web-server" --folder "Shared" --tags "web,dmz,production"
 ```
 
 ### Object Parameters

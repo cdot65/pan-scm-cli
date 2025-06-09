@@ -18,7 +18,7 @@ Create or update an address group.
 ### Syntax
 
 ```bash
-scm set objects address-group [OPTIONS]
+scm set object address-group [OPTIONS]
 ```
 
 ### Options
@@ -41,7 +41,7 @@ scm set objects address-group [OPTIONS]
 #### Create a Static Address Group
 
 ```bash
-$ scm set objects address-group --folder Shared --name web-servers --static --members "web-server-1,web-server-2"
+$ scm set object address-group --folder Shared --name web-servers --static --members "web-server-1,web-server-2"
 Creating address group 'web-servers' in folder 'Shared'...
 Address group created successfully.
 ```
@@ -49,7 +49,7 @@ Address group created successfully.
 #### Create a Dynamic Address Group
 
 ```bash
-$ scm set objects address-group --folder Shared --name trusted-endpoints --dynamic --filter "'trusted-endpoint' and 'corporate-asset'"
+$ scm set object address-group --folder Shared --name trusted-endpoints --dynamic --filter "'trusted-endpoint' and 'corporate-asset'"
 Creating address group 'trusted-endpoints' in folder 'Shared'...
 Address group created successfully.
 ```
@@ -61,7 +61,7 @@ Delete an address group.
 ### Syntax
 
 ```bash
-scm delete objects address-group [OPTIONS]
+scm delete object address-group [OPTIONS]
 ```
 
 ### Options
@@ -74,7 +74,7 @@ scm delete objects address-group [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects address-group --folder Shared --name web-servers
+$ scm delete object address-group --folder Shared --name web-servers
 Deleting address group 'web-servers' from folder 'Shared'...
 Address group deleted successfully.
 ```
@@ -86,7 +86,7 @@ Create or update multiple address groups from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects address-group [OPTIONS]
+scm load object address-group [OPTIONS]
 ```
 
 ### Options
@@ -122,7 +122,7 @@ address_groups:
 ### Example Command
 
 ```bash
-$ scm load objects address-group --folder Shared --file address-groups.yaml
+$ scm load object address-group --folder Shared --file address-groups.yaml
 Loading address groups from 'address-groups.yaml' into folder 'Shared'...
 Created 2 address groups successfully.
 ```
@@ -134,7 +134,7 @@ Display address group objects.
 ### Syntax
 
 ```bash
-scm show objects address-group [OPTIONS]
+scm show object address-group [OPTIONS]
 ```
 
 ### Options
@@ -151,7 +151,7 @@ scm show objects address-group [OPTIONS]
 #### Show Specific Address Group
 
 ```bash
-$ scm show objects address-group --folder Texas --name web-servers
+$ scm show object address-group --folder Texas --name web-servers
 Address Group: web-servers
 Location: Folder 'Texas'
 Type: static
@@ -166,7 +166,7 @@ ID: 123e4567-e89b-12d3-a456-426614174001
 #### List All Address Groups (Default Behavior)
 
 ```bash
-$ scm show objects address-group --folder Texas
+$ scm show object address-group --folder Texas
 Address Groups in folder 'Texas':
 ------------------------------------------------------------
 Name: web-servers
@@ -192,7 +192,7 @@ Backup all address groups from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects address-group [OPTIONS]
+scm backup object address-group [OPTIONS]
 ```
 
 ### Options
@@ -211,13 +211,13 @@ scm backup objects address-group [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects address-group --folder Texas
+$ scm backup object address-group --folder Texas
 Successfully backed up 12 address groups to address-group_folder_texas_20240115_120530.yaml
 ```
 
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects address-group --folder Texas --file texas-groups.yaml
+$ scm backup object address-group --folder Texas --file texas-groups.yaml
 Successfully backed up 12 address groups to texas-groups.yaml
 ```

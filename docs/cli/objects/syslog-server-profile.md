@@ -19,7 +19,7 @@ Syslog server profiles define external syslog servers for log forwarding. The `s
 Basic syslog profile with TCP:
 
 ```bash
-$ scm set objects syslog-server-profile --folder Texas --name central-syslog \
+$ scm set object syslog-server-profile --folder Texas --name central-syslog \
   --servers '[{"name": "primary", "server": "10.0.1.50", "port": 514, "transport": "TCP", "format": "BSD", "facility": "LOG_USER"}]' \
   --description "Central syslog collection"
 <span style="color: green;">✓</span> Syslog server profile 'central-syslog' created successfully
@@ -28,7 +28,7 @@ $ scm set objects syslog-server-profile --folder Texas --name central-syslog \
 Profile with multiple servers:
 
 ```bash
-$ scm set objects syslog-server-profile --folder Texas --name redundant-syslog \
+$ scm set object syslog-server-profile --folder Texas --name redundant-syslog \
   --servers '[{"name": "primary", "server": "syslog1.company.com", "port": 514, "transport": "UDP", "format": "BSD", "facility": "LOG_USER"}, {"name": "secondary", "server": "syslog2.company.com", "port": 514, "transport": "UDP", "format": "BSD", "facility": "LOG_USER"}]' \
   --description "Redundant syslog servers"
 <span style="color: green;">✓</span> Syslog server profile 'redundant-syslog' created successfully
@@ -37,7 +37,7 @@ $ scm set objects syslog-server-profile --folder Texas --name redundant-syslog \
 ### Listing Syslog Server Profiles (Default Behavior)
 
 ```bash
-$ scm show objects syslog-server-profile --folder Texas
+$ scm show object syslog-server-profile --folder Texas
 Syslog server profiles in folder 'Texas':
 - central-syslog
 - redundant-syslog
@@ -51,7 +51,7 @@ When no --name is specified, all syslog server profiles are listed by default.
 ### Showing Syslog Server Profile Details
 
 ```bash
-$ scm show objects syslog-server-profile --folder Texas --name central-syslog
+$ scm show object syslog-server-profile --folder Texas --name central-syslog
 Syslog Server Profile: central-syslog
   Servers:
     - Name: primary
@@ -67,7 +67,7 @@ Syslog Server Profile: central-syslog
 ### Deleting Syslog Server Profiles
 
 ```bash
-$ scm delete objects syslog-server-profile --folder Texas --name central-syslog
+$ scm delete object syslog-server-profile --folder Texas --name central-syslog
 <span style="color: green;">✓</span> Syslog server profile 'central-syslog' deleted successfully
 ```
 
@@ -78,7 +78,7 @@ Load multiple syslog server profiles from a YAML file.
 #### Syntax
 
 ```bash
-scm load objects syslog-server-profile [OPTIONS]
+scm load object syslog-server-profile [OPTIONS]
 ```
 
 #### Options
@@ -96,7 +96,7 @@ scm load objects syslog-server-profile [OPTIONS]
 Load from file with original locations:
 
 ```bash
-$ scm load objects syslog-server-profile --file syslog-profiles.yml
+$ scm load object syslog-server-profile --file syslog-profiles.yml
 <span style="color: green;">✓</span> Loaded syslog server profile: central-syslog
 <span style="color: green;">✓</span> Loaded syslog server profile: redundant-syslog
 <span style="color: green;">✓</span> Loaded syslog server profile: compliance-syslog
@@ -108,7 +108,7 @@ Successfully loaded 4 out of 4 syslog server profiles from 'syslog-profiles.yml'
 Load with folder override:
 
 ```bash
-$ scm load objects syslog-server-profile --file syslog-profiles.yml --folder Austin
+$ scm load object syslog-server-profile --file syslog-profiles.yml --folder Austin
 <span style="color: green;">✓</span> Loaded syslog server profile: central-syslog
 <span style="color: green;">✓</span> Loaded syslog server profile: redundant-syslog
 <span style="color: green;">✓</span> Loaded syslog server profile: compliance-syslog
@@ -127,7 +127,7 @@ Backup all syslog server profile objects from a specified location to a YAML fil
 #### Syntax
 
 ```bash
-scm backup objects syslog-server-profile [OPTIONS]
+scm backup object syslog-server-profile [OPTIONS]
 ```
 
 #### Options
@@ -146,14 +146,14 @@ scm backup objects syslog-server-profile [OPTIONS]
 Backup from folder:
 
 ```bash
-$ scm backup objects syslog-server-profile --folder Texas
+$ scm backup object syslog-server-profile --folder Texas
 <span style="color: green;">✓</span> Successfully backed up 10 syslog server profiles to syslog-server-profile_folder_texas_20240115_120530.yaml
 ```
 
 Backup with custom filename:
 
 ```bash
-$ scm backup objects syslog-server-profile --folder Texas --file texas-syslog-profiles.yaml
+$ scm backup object syslog-server-profile --folder Texas --file texas-syslog-profiles.yaml
 <span style="color: green;">✓</span> Successfully backed up 10 syslog server profiles to texas-syslog-profiles.yaml
 ```
 
@@ -270,14 +270,14 @@ The following syslog facilities are supported:
 ### Create a Basic Syslog Profile
 
 ```bash
-scm set objects syslog-server-profile --folder Shared --name simple-syslog \
+scm set object syslog-server-profile --folder Shared --name simple-syslog \
   --servers '[{"name": "main", "server": "192.168.1.100", "port": 514, "transport": "UDP", "format": "BSD", "facility": "LOG_USER"}]'
 ```
 
 ### Create a High-Availability Syslog Profile
 
 ```bash
-scm set objects syslog-server-profile --folder Shared --name ha-syslog \
+scm set object syslog-server-profile --folder Shared --name ha-syslog \
   --servers '[
     {"name": "primary", "server": "syslog-primary.local", "port": 514, "transport": "TCP", "format": "BSD", "facility": "LOG_LOCAL0"},
     {"name": "secondary", "server": "syslog-secondary.local", "port": 514, "transport": "TCP", "format": "BSD", "facility": "LOG_LOCAL0"}
@@ -288,7 +288,7 @@ scm set objects syslog-server-profile --folder Shared --name ha-syslog \
 ### Create a Compliance Syslog Profile
 
 ```bash
-scm set objects syslog-server-profile --folder Shared --name compliance \
+scm set object syslog-server-profile --folder Shared --name compliance \
   --servers '[{"name": "compliance-srv", "server": "10.10.10.50", "port": 6514, "transport": "TCP", "format": "IETF", "facility": "LOG_LOCAL7"}]' \
   --tag "compliance,audit" \
   --description "Compliance logging with IETF format"
@@ -300,7 +300,7 @@ Syslog server profiles are referenced in log forwarding profiles:
 
 ```bash
 # Create log forwarding profile using syslog servers
-scm set objects log-forwarding-profile --folder Shared --name forward-to-syslog \
+scm set object log-forwarding-profile --folder Shared --name forward-to-syslog \
   --match-list '[{
     "name": "traffic-logs",
     "log_type": "traffic",
@@ -340,7 +340,7 @@ scm set objects log-forwarding-profile --folder Shared --name forward-to-syslog 
 
 ```bash
 # Test in mock mode first
-scm set objects syslog-server-profile --folder Shared --name test-syslog \
+scm set object syslog-server-profile --folder Shared --name test-syslog \
   --servers '[{"name": "test", "server": "10.0.0.1", "port": 514, "transport": "UDP", "format": "BSD", "facility": "LOG_USER"}]' \
   --mock
 ```

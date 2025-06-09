@@ -19,11 +19,24 @@ This PRD covers multiple enhancements to the `pan-scm-cli` project:
 3. **Smart Upsert Logic**: Intelligent create/update handling for all object types
 4. **Backup Commands**: New backup functionality for exporting configurations to YAML files
 
+---
+
+### 1.3.1 Upcoming Feature: Full Security Service Coverage
+
+The following security services are supported in the SDK but are not yet available as CLI commands:
+
+- DNS Security Profile
+- URL Categories
+- Vulnerability Protection Profile
+- WildFire Antivirus Profile
+
+These will be added in a future release to ensure full CRUD/show/backup/load parity with the SDK for all security resources.
+
 ### 1.4 Latest Enhancement: Backup Commands
 
 The CLI now supports backing up configurations to YAML files with the following features:
 
-- `backup` command for all configuration types (objects, network, security, deployment)
+- `backup` command for all configuration types (objects, network, security, sase)
 - Uses `exact_match=True` to only backup objects from the specified folder
 - Generates YAML files with naming convention: `{configuration-item-type}-{location}.yaml`
 - Excludes system fields and converts SDK format to CLI format for consistency
@@ -99,8 +112,47 @@ Enable `pan-scm-cli` to fully support authentication via:
 #### 3.1.4 Verification Command
 
 - Add a `test-auth` command to verify authentication setup:
-  - `scm-cli test-auth`: Confirms client initialization with real credentials.
-  - `scm-cli test-auth --mock`: Simulates authentication without API calls.
+  - `scm test-auth`: Confirms client initialization with real credentials.
+  - `scm test-auth --mock`: Simulates authentication without API calls.
+
+#### 3.1.5 SASE Resource Management
+
+Implement full CRUD, list, load, and backup command support for the following SASE resource types:
+
+- Service Connections
+- Remote Networks
+- Bandwidth Allocations
+
+Each SASE resource must support the following CLI commands:
+
+- `set sase service-connection` (create/update)
+- `delete sase service-connection`
+- `show sase service-connection` (get by name/id)
+- `list sase service-connections` (with filters)
+- `load sase service-connections` (bulk YAML load)
+- `backup sase service-connections` (YAML export)
+
+- `set sase remote-network` (create/update)
+- `delete sase remote-network`
+- `show sase remote-network` (get by name/id)
+- `list sase remote-networks` (with filters)
+- `load sase remote-networks` (bulk YAML load)
+- `backup sase remote-networks` (YAML export)
+
+- `set sase bandwidth-allocation` (create/update)
+- `delete sase bandwidth-allocation`
+- `show sase bandwidth-allocation` (get by name/id)
+- `list sase bandwidth-allocations` (with filters)
+- `load sase bandwidth-allocations` (bulk YAML load)
+- `backup sase bandwidth-allocations` (YAML export)
+
+All commands must:
+
+- Use Typer CLI patterns and container/context option validation as per the style guide
+- Perform input validation with Pydantic models
+- Support mock mode and context/container options
+- Provide YAML import/export for bulk operations
+- Use Google-style docstrings with canonical CLI usage examples
 
 ### 3.2 Non-Functional Requirements
 
@@ -199,7 +251,7 @@ class MockSCMClient:
 import typer
 from .client import get_scm_client
 
-app = typer.Typer(name="scm-cli", help="CLI for Palo Alto Networks Strata Cloud Manager")
+app = typer.Typer(name="scm", help="CLI for Palo Alto Networks Strata Cloud Manager")
 
 @app.command()
 def test_auth(mock: bool = typer.Option(False, "--mock")):
@@ -219,8 +271,7 @@ def test_auth(mock: bool = typer.Option(False, "--mock")):
 
 ### 5.1 As a Network Engineer, I Want To
 
-- Authenticate using `~/.scm-cli/config.yaml` when environment variables aren’t set, so I can avoid repetitive shell configuration.
-- Verify my authentication setup with `scm-cli test-auth`, so I can troubleshoot issues easily.
+- Authenticate using contexts stored in `~/.scm-cli` when environment variables aren’t set, so I can avoid repetitive shell configuration.
 - Use environment variables when available, overriding `config.yaml`, for scripting flexibility.
 
 ## 6. Milestones and Timeline
@@ -228,7 +279,7 @@ def test_auth(mock: bool = typer.Option(False, "--mock")):
 ### 6.1 Milestone 1: Implementation (1 week)
 
 - Add `config.py` and `client.py`.
-- Update `main.py` with `test-auth`.
+- Update `main.py`
 - Modify existing commands to use `get_scm_client`.
 
 ### 6.2 Milestone 2: Testing and Documentation (1 week)
@@ -258,7 +309,7 @@ def test_auth(mock: bool = typer.Option(False, "--mock")):
 
 - CLI authenticates successfully with `config.yaml` when environment variables are unset.
 - CLI prioritizes environment variables over `config.yaml` when both are present.
-- `scm-cli test-auth` confirms authentication setup (real and mock modes).
+- `scm test-auth` confirms authentication setup (real and mock modes).
 - All tests pass with 100% coverage for new code.
 - Updated README accurately reflects behavior and is validated by sample usage.
 
@@ -285,32 +336,6 @@ export SCM_CLIENT_SECRET="your_client_secret"
 export SCM_TSG_ID="your_tenant_service_group_id"
 ```
 ````
-
-#### Configuration File
-
-Create `~/.scm-cli/config.yaml`:
-
-```yaml
-client_id: "your_client_id"
-client_secret: "your_client_secret"
-tsg_id: "your_tenant_service_group_id"
-```
-
-Ensure file permissions are secure (e.g., `chmod 600 ~/.scm-cli/config.yaml`).
-
-#### Verification
-
-Test your setup with:
-
-```bash
-scm-cli test-auth
-```
-
-Use `--mock` for simulation:
-
-```bash
-scm-cli test-auth --mock
-```
 
 ### 10.2 Test Scenarios
 
@@ -539,16 +564,16 @@ New `backup` command added to the CLI with the following capabilities:
 #### 15.2.1 Command Structure
 
 ```bash
-scm-cli backup <object-type> <object> --folder <folder-name>
+scm backup <object-type> <object> --folder <folder-name>
 ```
 
 #### 15.2.2 Supported Commands
 
-- `scm-cli backup objects address --folder Austin`
-- `scm-cli backup objects address-group --folder Austin`
-- `scm-cli backup network security-zone --folder Austin`
-- `scm-cli backup security rule --folder Austin --rulebase pre`
-- `scm-cli backup deployment bandwidth` (no folder needed)
+- `scm backup object address --folder Austin`
+- `scm backup object address-group --folder Austin`
+- `scm backup network security-zone --folder Austin`
+- `scm backup security rule --folder Austin --rulebase pre`
+- `scm backup sase bandwidth` (no folder needed)
 
 ### 15.3 Technical Implementation Details
 
@@ -726,23 +751,23 @@ Added the following methods to `sdk_client.py`:
 - `get_application_filter()`: Fetch specific filter with all criteria
 - `list_application_filters()`: List with exact_match support
 
-#### 18.3.2 Command Implementation
-
-In `objects.py`, added full command set:
-
-- `set`: Create/update with list and boolean options
-- `show`: Display with criteria formatting
-- `load`: Import from YAML with validation
-- `delete`: Remove filters
-- `backup`: Export to YAML format
-
-#### 18.3.3 Validation Model
+#### 18.3.2 Validator Model
 
 Extended `validators.py` with:
 
 - `ApplicationFilter` model with list and boolean fields
 - Risk value validation (1-5 range)
-- Proper `to_sdk_model()` with conditional field inclusion
+- Proper `to_sdk_model()` method
+
+#### 18.3.3 CLI Commands
+
+Implemented in `objects.py`:
+
+- `backup_application_filter()`: Export to YAML format
+- `delete_application_filter()`: Remove by name and folder
+- `load_application_filter()`: Import with validation
+- `set_application_filter()`: Create/update with list and boolean options
+- `show_application_filter()`: Display with formatted criteria sections
 
 ### 18.4 Benefits
 
@@ -756,7 +781,7 @@ Extended `validators.py` with:
 
 ```bash
 # Create a high-risk application filter
-scm-cli set objects application-filter \
+scm set object application-filter \
   --folder Texas \
   --name high-risk-apps \
   --category business-systems \
@@ -766,10 +791,10 @@ scm-cli set objects application-filter \
   --has-known-vulnerabilities
 
 # List all filters
-scm-cli show objects application-filter --folder Texas --list
+scm show object application-filter --folder Texas
 
 # Backup filters
-scm-cli backup objects application-filter --folder Texas
+scm backup object application-filter --folder Texas
 ```
 
 ### 18.6 Testing Results
@@ -777,8 +802,8 @@ scm-cli backup objects application-filter --folder Texas
 All commands have been tested and verified:
 
 - ✅ Set command creates filters with all criteria types
-- ✅ Show command displays detailed filter information
-- ✅ Load command imports from YAML files correctly
+- ✅ Show command displays filter expressions correctly
+- ✅ Load command imports from YAML files
 - ✅ Delete command removes filters cleanly
 - ✅ Backup command exports to properly formatted YAML
 - ✅ Boolean field handling works correctly (omits false values)
@@ -824,23 +849,23 @@ Added the following methods to `sdk_client.py`:
 - `get_dynamic_user_group()`: Fetch specific group with filter
 - `list_dynamic_user_groups()`: List with exact_match support
 
-#### 19.3.2 Command Implementation
-
-In `objects.py`, added full command set:
-
-- `set`: Create/update with filter expression
-- `show`: Display with filter formatting
-- `load`: Import from YAML with validation
-- `delete`: Remove groups
-- `backup`: Export to YAML format with tag field mapping
-
-#### 19.3.3 Validation Model
+#### 19.3.2 Validator Model
 
 Extended `validators.py` with:
 
 - `DynamicUserGroup` model with filter field
 - Tag field mapping (tags → tag for SDK)
 - Proper `to_sdk_model()` method
+
+#### 19.3.3 CLI Commands
+
+Implemented in `objects.py`:
+
+- `backup_dynamic_user_group()`: Export to YAML format
+- `delete_dynamic_user_group()`: Remove by name and folder
+- `load_dynamic_user_group()`: Import with validation
+- `set_dynamic_user_group()`: Create/update with filter expression
+- `show_dynamic_user_group()`: Display with filter formatting
 
 ### 19.4 Benefits
 
@@ -854,17 +879,17 @@ Extended `validators.py` with:
 
 ```bash
 # Create a dynamic user group
-scm-cli set objects dynamic-user-group \
+scm set object dynamic-user-group \
   --folder Texas \
   --name it-admins \
   --filter "'IT' and 'Admin'" \
   --description "IT administrators"
 
 # List all groups
-scm-cli show objects dynamic-user-group --folder Texas --list
+scm show object dynamic-user-group --folder Texas
 
 # Backup groups
-scm-cli backup objects dynamic-user-group --folder Texas
+scm backup object dynamic-user-group --folder Texas
 ```
 
 ### 19.6 Testing Results
@@ -900,7 +925,7 @@ Implemented comprehensive support for all EDL types with complete CRUD operation
 - **Show**: List all or display specific EDLs with configuration details
 - **Load**: Bulk import from YAML files with validation
 - **Delete**: Remove EDLs by name and folder
-- **Backup**: Export EDLs to YAML with flattened structure
+- **Backup**: Export EDLs to YAML with proper formatting
 
 #### 20.2.2 Supported EDL Types
 
@@ -940,20 +965,20 @@ Implemented in `objects.py`:
 - `delete_external_dynamic_list()`: Remove by name and folder
 - `load_external_dynamic_list()`: Import with full validation
 - `set_external_dynamic_list()`: Create/update with all options
-- `show_external_dynamic_list()`: Display with configuration details
+- `show_external_dynamic_list()`: Display with formatted configuration details
 
 ### 20.4 Usage Examples
 
 ```bash
 # Create a predefined IP list
-scm-cli set objects external-dynamic-list \
+scm set object external-dynamic-list \
   --folder Texas \
   --name paloalto-bulletproof \
   --type predefined_ip \
   --url "panw-bulletproof-ip-list"
 
 # Create a custom IP list with hourly updates
-scm-cli set objects external-dynamic-list \
+scm set object external-dynamic-list \
   --folder Texas \
   --name custom-blocklist \
   --type ip \
@@ -961,7 +986,7 @@ scm-cli set objects external-dynamic-list \
   --recurring hourly
 
 # Create a domain list with authentication
-scm-cli set objects external-dynamic-list \
+scm set object external-dynamic-list \
   --folder Texas \
   --name malicious-domains \
   --type domain \
@@ -973,10 +998,10 @@ scm-cli set objects external-dynamic-list \
   --expand-domain
 
 # List all EDLs
-scm-cli show objects external-dynamic-list --folder Texas --list
+scm show object external-dynamic-list --folder Texas
 
 # Backup EDLs
-scm-cli backup objects external-dynamic-list --folder Texas
+scm backup object external-dynamic-list --folder Texas
 ```
 
 ### 20.5 Testing Results
@@ -1051,7 +1076,7 @@ Implemented in `objects.py`:
 
 - `backup_hip_object()`: Export with flattened structure for easy editing
 - `delete_hip_object()`: Remove by name and folder
-- `load_hip_object()`: Import with full validation
+- `load_hip_object()`: Import with validation
 - `set_hip_object()`: Create/update with simplified CLI options
 - `show_hip_object()`: Display with formatted criteria sections
 
@@ -1059,7 +1084,7 @@ Implemented in `objects.py`:
 
 ```bash
 # Create a Windows workstation compliance policy
-scm-cli set objects hip-object \
+scm set object hip-object \
   --folder Texas \
   --name windows-compliance \
   --description "Windows workstation compliance" \
@@ -1070,7 +1095,7 @@ scm-cli set objects hip-object \
   --patch-management-enabled
 
 # Create a mobile device policy
-scm-cli set objects hip-object \
+scm set object hip-object \
   --folder Texas \
   --name mobile-secure \
   --description "Mobile device security" \
@@ -1079,7 +1104,7 @@ scm-cli set objects hip-object \
   --mobile-device-passcode-set
 
 # Create a network-based restriction
-scm-cli set objects hip-object \
+scm set object hip-object \
   --folder Texas \
   --name wifi-only \
   --description "WiFi network only" \
@@ -1087,10 +1112,10 @@ scm-cli set objects hip-object \
   --network-info-value wifi
 
 # List all HIP objects
-scm-cli show objects hip-object --folder Texas --list
+scm show object hip-object --folder Texas
 
 # Backup HIP objects
-scm-cli backup objects hip-object --folder Texas
+scm backup object hip-object --folder Texas
 ```
 
 ### 21.5 Testing Results
@@ -1099,7 +1124,7 @@ All commands have been tested and verified:
 
 - ✅ Set command creates HIP objects with all criteria types
 - ✅ Show command displays formatted criteria sections
-- ✅ Load command imports from YAML files with validation
+- ✅ Load command imports from YAML files
 - ✅ Delete command removes HIP objects cleanly
 - ✅ Backup command exports with flattened structure for easy editing
 - ✅ Comprehensive example YAML file created with 11 different HIP policies
@@ -1237,23 +1262,23 @@ Implemented in `objects.py`:
 
 ```bash
 # Create an HTTP server profile for syslog forwarding
-scm-cli set objects http-server-profile \
+scm set object http-server-profile \
   --folder Texas \
   --name syslog-collector \
   --servers '[{"name": "primary-syslog", "address": "syslog.example.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' \
   --description "Primary syslog collector"
 
 # Create a profile with authentication
-scm-cli set objects http-server-profile \
+scm set object http-server-profile \
   --folder Texas \
   --name splunk-hec \
   --servers '[{"name": "splunk-server", "address": "10.0.1.100", "protocol": "HTTPS", "port": 8088, "http_method": "POST", "username": "hec_user", "password": "secure_token"}]'
 
 # List all profiles
-scm-cli show objects http-server-profile --folder Texas --list
+scm show object http-server-profile --folder Texas
 
 # Backup profiles
-scm-cli backup objects http-server-profile --folder Texas
+scm backup object http-server-profile --folder Texas
 ```
 
 ### 23.5 Testing Results
@@ -1332,24 +1357,24 @@ Implemented in `objects.py`:
 
 ```bash
 # Create a log forwarding profile for all traffic logs
-scm-cli set objects log-forwarding-profile \
+scm set object log-forwarding-profile \
   --folder Texas \
   --name all-traffic-logs \
   --match-list '[{"name": "traffic", "log_type": "traffic", "send_to_panorama": true}]' \
   --description "Forward all traffic logs to Panorama"
 
 # Create a profile with multiple destinations
-scm-cli set objects log-forwarding-profile \
+scm set object log-forwarding-profile \
   --folder Texas \
   --name security-logs \
   --match-list '[{"name": "threats", "log_type": "threat", "send_to_panorama": true, "send_syslog": ["syslog-server-1"], "filter": "severity eq high"}]' \
   --enhanced-application-logging
 
 # List all profiles
-scm-cli show objects log-forwarding-profile --folder Texas --list
+scm show object log-forwarding-profile --folder Texas
 
 # Backup profiles
-scm-cli backup objects log-forwarding-profile --folder Texas
+scm backup object log-forwarding-profile --folder Texas
 ```
 
 ### 24.5 Testing Results
@@ -1428,7 +1453,7 @@ Implemented in `objects.py`:
 
 ```bash
 # Create a basic TCP service
-scm-cli set objects service \
+scm set object service \
   --folder Texas \
   --name custom-web \
   --protocol tcp \
@@ -1436,7 +1461,7 @@ scm-cli set objects service \
   --description "Custom web service"
 
 # Create a TCP service with timeout overrides
-scm-cli set objects service \
+scm set object service \
   --folder Texas \
   --name database-service \
   --protocol tcp \
@@ -1446,7 +1471,7 @@ scm-cli set objects service \
   --description "Database cluster with extended timeout"
 
 # Create a UDP service
-scm-cli set objects service \
+scm set object service \
   --folder Texas \
   --name custom-dns \
   --protocol udp \
@@ -1454,10 +1479,10 @@ scm-cli set objects service \
   --description "Custom DNS service"
 
 # List all services
-scm-cli show objects service --folder Texas --list
+scm show object service --folder Texas
 
 # Backup services
-scm-cli backup objects service --folder Texas
+scm backup object service --folder Texas
 ```
 
 ### 25.5 Testing Results
@@ -1536,23 +1561,23 @@ Implemented in `objects.py`:
 
 ```bash
 # Create a service group
-scm-cli set objects service-group \
+scm set object service-group \
   --folder Texas \
   --name web-services \
   --members "http,https,web-browsing,ssl"
 
 # Create a nested service group
-scm-cli set objects service-group \
+scm set object service-group \
   --folder Texas \
   --name all-critical-services \
   --members "database-services,infrastructure-mgmt,monitoring-services,dns,ntp" \
   --tag "critical,production"
 
 # List all service groups
-scm-cli show objects service-group --folder Texas --list
+scm show object service-group --folder Texas
 
 # Backup service groups
-scm-cli backup objects service-group --folder Texas
+scm backup object service-group --folder Texas
 ```
 
 ### 26.5 Testing Results
@@ -1633,7 +1658,7 @@ Implemented in `objects.py`:
 
 ```bash
 # Create a basic syslog server profile
-scm-cli set objects syslog-server-profile test-syslog \
+scm set object syslog-server-profile test-syslog \
   --server-name test-server \
   --server-address 192.168.1.100 \
   --transport UDP \
@@ -1643,10 +1668,10 @@ scm-cli set objects syslog-server-profile test-syslog \
   --description "Test syslog profile"
 
 # List all profiles
-scm-cli show objects syslog-server-profile --list
+scm show object syslog-server-profile
 
 # Backup profiles
-scm-cli backup objects syslog-server-profile --file /tmp/syslog-backup.yml
+scm backup object syslog-server-profile --file /tmp/syslog-backup.yml
 ```
 
 ### 27.5 Testing Results
@@ -1666,7 +1691,7 @@ All commands have been tested and verified:
 
 ### 28.1 Problem Statement
 
-Tags are fundamental for organizing and categorizing configuration objects across SCM. They enable administrators to apply consistent labeling, facilitate policy management, and improve visibility across large deployments. The CLI needed comprehensive tag management to support this critical organizational feature.
+Tags are fundamental for organizing and categorizing configuration objects across SCM. They enable administrators to apply consistent labeling, facilitate policy management, and improve visibility across large sases. The CLI needed comprehensive tag management to support this critical organizational feature.
 
 ### 28.2 Solution: Full Tag Management
 
@@ -1724,17 +1749,17 @@ Implemented in `objects.py`:
 
 ```bash
 # Create a tag with color
-scm-cli set objects tag test-tag --color Blue --comments "Test tag for CLI"
+scm set object tag test-tag --color Blue --comments "Test tag for CLI"
 
 # Create environment tags
-scm-cli set objects tag Production --color Red --comments "Production environment"
-scm-cli set objects tag Development --color Green --comments "Development environment"
+scm set object tag Production --color Red --comments "Production environment"
+scm set object tag Development --color Green --comments "Development environment"
 
 # List all tags
-scm-cli show objects tag --list
+scm show object tag
 
 # Backup tags
-scm-cli backup objects tag --file /tmp/tags-backup.yml
+scm backup object tag --file /tmp/tags-backup.yml
 ```
 
 ### 28.5 Testing Results
@@ -1859,16 +1884,16 @@ items = scm_client.list_items(**kwargs, exact_match=True)
 
 ```bash
 # Backup from different container types
-scm-cli backup objects address --folder Austin
-scm-cli backup objects tag --snippet DNS-Best-Practice
-scm-cli backup objects service --device austin-01
+scm backup object address --folder Austin
+scm backup object tag --snippet DNS-Best-Practice
+scm backup object service --device austin-01
 
 # Custom output filename
-scm-cli backup objects address-group --folder Texas --file my-groups.yaml
+scm backup object address-group --folder Texas --file my-groups.yaml
 
 # Automatic filename generation
 # Creates: address_folder_austin_20240115_143022.yaml
-scm-cli backup objects address --folder Austin
+scm backup object address --folder Austin
 ```
 
 ## 31. Load Command Standardization
@@ -1989,19 +2014,19 @@ All 14 load commands have been standardized:
 
 ```bash
 # Load with original locations from file
-scm-cli load objects address --file addresses.yml
+scm load object address --file addresses.yml
 
 # Override all objects to a specific folder
-scm-cli load objects address --file addresses.yml --folder Production
+scm load object address --file addresses.yml --folder Production
 
 # Override to snippet location
-scm-cli load objects service --file services.yml --snippet DNS-Best-Practice
+scm load object service --file services.yml --snippet DNS-Best-Practice
 
 # Dry run to preview changes
-scm-cli load objects tag --file tags.yml --dry-run
+scm load object tag --file tags.yml --dry-run
 
 # Container override with dry run
-scm-cli load objects application --file apps.yml --folder Texas --dry-run
+scm load object application --file apps.yml --folder Texas --dry-run
 ```
 
 ## 32. Decryption Profile Support
@@ -2086,33 +2111,33 @@ Implemented in `security.py`:
 
 ```bash
 # Create SSL forward proxy profile
-scm-cli set security decryption-profile --folder Texas --name ssl-forward \
+scm set security decryption-profile --folder Texas --name ssl-forward \
   --ssl-forward-proxy '{"block_expired_certificate": true, "block_untrusted_issuer": true}'
 
 # Create SSL inbound inspection profile
-scm-cli set security decryption-profile --folder Texas --name ssl-inbound \
+scm set security decryption-profile --folder Texas --name ssl-inbound \
   --ssl-inbound-proxy '{"block_if_no_resource": true, "block_unsupported_cipher": true}'
 
 # Create no-decrypt profile for sensitive traffic
-scm-cli set security decryption-profile --folder Texas --name no-decrypt-medical \
+scm set security decryption-profile --folder Texas --name no-decrypt-medical \
   --ssl-no-proxy '{"block_expired_certificate": false, "block_untrusted_issuer": false}'
 
 # Create profile with custom protocol settings
-scm-cli set security decryption-profile --folder Texas --name secure-decrypt \
+scm set security decryption-profile --folder Texas --name secure-decrypt \
   --ssl-forward-proxy '{"block_expired_certificate": true}' \
   --ssl-protocol-settings '{"min_version": "tls1-2", "max_version": "tls1-3", "enc_algo_rc4": false}'
 
 # List all profiles
-scm-cli show security decryption-profile --folder Texas --list
+scm show security decryption-profile --folder Texas
 
 # Show specific profile details
-scm-cli show security decryption-profile --folder Texas --name ssl-forward
+scm show security decryption-profile --folder Texas --name ssl-forward
 
 # Backup profiles
-scm-cli backup security decryption-profile --folder Texas
+scm backup security decryption-profile --folder Texas
 
 # Load profiles from YAML
-scm-cli load security decryption-profile --file decryption-profiles.yml
+scm load security decryption-profile --file decryption-profiles.yml
 ```
 
 ### 32.5 Testing Results
@@ -2135,6 +2160,7 @@ Users need the ability to manage multiple SCM tenant configurations and switch b
 ### 33.2 Solution: Context-based Authentication Management
 
 Implemented a comprehensive context management system that allows users to:
+
 - Create named authentication contexts for different SCM tenants
 - Switch between contexts with a simple command
 - Test authentication for specific contexts without switching
@@ -2211,19 +2237,23 @@ The precedence order needs to be fixed so that contexts work as users expect:
 The following tasks are required to fix the authentication precedence order:
 
 1. **Remove ~/.scm-cli/config.yaml from dynaconf loading**
+
    - This legacy configuration method conflicts with the new context system
    - Users should migrate to contexts for better multi-tenant support
 
 2. **Remove .secrets.yaml from dynaconf loading**
+
    - Development credentials should be managed through contexts
    - This prevents accidental use of development credentials in production
 
 3. **Add informational logging for context usage**
+
    - When log level is set to INFO, display which context is being used
    - Example: "Using authentication context: production"
    - Helps users verify they're using the intended credentials
 
 4. **Update precedence logic in get_context_aware_settings()**
+
    - Ensure active context takes precedence over environment variables
    - Load context first, then allow env vars to override specific fields
    - Remove legacy config file loading
@@ -2247,7 +2277,7 @@ Users currently using ~/.scm-cli/config.yaml or environment variables should:
 
 1. Create a context for each tenant: `scm context create <name>`
 2. Remove ~/.scm-cli/config.yaml file
-3. Unset SCM_* environment variables (unless needed for automation)
+3. Unset SCM\_\* environment variables (unless needed for automation)
 4. Use `scm context use <name>` to switch between tenants
 
 ### 33.8 Implementation Status (Completed ✅)
@@ -2255,24 +2285,29 @@ Users currently using ~/.scm-cli/config.yaml or environment variables should:
 All authentication precedence issues have been successfully resolved:
 
 1. **✅ Removed ~/.scm-cli/config.yaml from dynaconf loading**
+
    - Updated `get_context_aware_settings()` to exclude legacy config files
    - Simplified configuration loading to only use contexts and environment variables
 
-2. **✅ Removed .secrets.yaml from dynaconf loading**  
+2. **✅ Removed .secrets.yaml from dynaconf loading**
+
    - Development credentials now managed through contexts
    - Prevents accidental credential leakage
 
 3. **✅ Added informational logging for context usage**
+
    - Both `client.py` and `sdk_client.py` log the current context when initialized
    - `show_context_info()` helper displays context information at INFO log level
    - Clear visibility into which tenant is being accessed
 
 4. **✅ Fixed precedence order**
+
    - Context settings now take priority as expected
    - Environment variables can still override for CI/CD scenarios
    - Removed manual config file loading from `get_auth_config()`
 
 5. **✅ Updated documentation**
+
    - README.md fully updated with context examples and real command output
    - All documentation files show context-based authentication
    - Migration guide included for users transitioning from legacy methods
@@ -2313,9 +2348,10 @@ docker exec pan-scm scm context use production
 ### 34.1 Problem Statement
 
 The Docker build process needed improvements to support:
+
 - Multi-platform builds for both AMD64 and ARM64 architectures
 - Local development builds without requiring registry push
-- Clear separation between local testing and production deployment
+- Clear separation between local testing and production sase
 - Integration with GitHub Container Registry (ghcr.io)
 
 ### 34.2 Solution: Enhanced Docker Build Script
@@ -2378,6 +2414,7 @@ REGISTRY="ghcr.io/cdot65/"
 ### 35.1 Problem Statement
 
 The CLI needed better handling of authentication errors and performance optimization:
+
 - Authentication failures produced verbose, unhelpful error messages
 - SDK client initialization happened immediately, even for commands that didn't need it
 - No clear guidance when credentials were invalid
@@ -2398,10 +2435,10 @@ Implemented comprehensive authentication error handling and lazy client initiali
 ```python
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
-    
+
     def __init__(self):
         self._client = None
-        
+
     def __getattr__(self, name):
         """Initialize client on first access."""
         if self._client is None:
@@ -2410,6 +2447,7 @@ class LazyClient:
 ```
 
 Benefits:
+
 - **Resource efficiency**: SDK client only initialized when needed
 - **Faster CLI startup**: Commands like `--help` start instantly
 - **Better error isolation**: Authentication errors only occur during actual API usage
@@ -2417,6 +2455,7 @@ Benefits:
 #### 35.2.3 Enhanced Error Messages
 
 When authentication fails, users now see:
+
 ```
 ❌ Authentication failed: Invalid client credentials
 
@@ -2441,6 +2480,7 @@ You can update the context with:
 #### 35.3.1 SDK Client Updates
 
 Modified `sdk_client.py`:
+
 - Added lazy initialization wrapper class
 - Enhanced error handling in `_handle_api_exception()`
 - Added specific handling for `InvalidClientError`
@@ -2448,6 +2488,7 @@ Modified `sdk_client.py`:
 #### 35.3.2 Client Module Updates
 
 Modified `client.py`:
+
 - Changed to use `LazyClient` instead of direct `SCMClient`
 - Added authentication error detection and messaging
 - Improved logging configuration
@@ -2455,6 +2496,7 @@ Modified `client.py`:
 #### 35.3.3 Context Test Enhancements
 
 Enhanced `scm context test` command:
+
 - Better error handling for invalid credentials
 - Clear feedback with context information
 - Actionable steps for fixing issues

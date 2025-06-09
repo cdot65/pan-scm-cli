@@ -28,36 +28,36 @@ This document provides comprehensive examples for all load and backup commands i
 
 ```bash
 # Backup all addresses from a folder (auto-generated filename)
-scm backup objects address --folder Texas
+scm backup object address --folder Texas
 # Creates: address-texas.yaml
 
 # Backup from a folder with custom output file
-scm backup objects address --folder "Production/US-East" --file backups/prod-addresses.yaml
+scm backup object address --folder "Production/US-East" --file backups/prod-addresses.yaml
 
 # Backup from a snippet
-scm backup objects address --snippet "Shared Config" --file shared-addresses.yaml
+scm backup object address --snippet "Shared Config" --file shared-addresses.yaml
 
 # Backup from a device
-scm backup objects address --device "fw-datacenter-01" --file device-addresses.yaml
+scm backup object address --device "fw-datacenter-01" --file device-addresses.yaml
 ```
 
 ### Load Address Objects
 
 ```bash
 # Load addresses from a file
-scm load objects address --file examples/addresses.yml
+scm load object address --file examples/addresses.yml
 
 # Load with dry-run to preview changes
-scm load objects address --file examples/addresses.yml --dry-run
+scm load object address --file examples/addresses.yml --dry-run
 
 # Load with container override (all addresses go to specified folder)
-scm load objects address --file examples/addresses.yml --folder "Texas/Dallas"
+scm load object address --file examples/addresses.yml --folder "Texas/Dallas"
 
 # Load with snippet override
-scm load objects address --file examples/addresses.yml --snippet "Branch Template"
+scm load object address --file examples/addresses.yml --snippet "Branch Template"
 
 # Load with device override
-scm load objects address --file examples/addresses.yml --device "fw-branch-01"
+scm load object address --file examples/addresses.yml --device "fw-branch-01"
 ```
 
 ---
@@ -68,36 +68,36 @@ scm load objects address --file examples/addresses.yml --device "fw-branch-01"
 
 ```bash
 # Backup all address groups from a folder
-scm backup objects address-group --folder Texas
+scm backup object address-group --folder Texas
 # Creates: address-group-texas.yaml
 
 # Backup with custom output file
-scm backup objects address-group --folder Production --file backups/prod-addr-groups.yaml
+scm backup object address-group --folder Production --file backups/prod-addr-groups.yaml
 
 # Backup from a snippet
-scm backup objects address-group --snippet "Security Best Practices"
+scm backup object address-group --snippet "Security Best Practices"
 
 # Backup from a device
-scm backup objects address-group --device "fw-hq-01" --file device-groups.yaml
+scm backup object address-group --device "fw-hq-01" --file device-groups.yaml
 ```
 
 ### Load Address Group Objects
 
 ```bash
 # Load address groups from a file
-scm load objects address-group --file examples/address-groups.yml
+scm load object address-group --file examples/address-groups.yml
 
 # Preview changes without applying
-scm load objects address-group --file examples/address-groups.yml --dry-run
+scm load object address-group --file examples/address-groups.yml --dry-run
 
 # Load with folder override
-scm load objects address-group --file examples/address-groups.yml --folder Production
+scm load object address-group --file examples/address-groups.yml --folder Production
 
 # Load with snippet override
-scm load objects address-group --file examples/address-groups.yml --snippet "DMZ Config"
+scm load object address-group --file examples/address-groups.yml --snippet "DMZ Config"
 
 # Load with device override
-scm load objects address-group --file examples/address-groups.yml --device "fw-dmz-01"
+scm load object address-group --file examples/address-groups.yml --device "fw-dmz-01"
 ```
 
 ---
@@ -108,36 +108,36 @@ scm load objects address-group --file examples/address-groups.yml --device "fw-d
 
 ```bash
 # Backup all applications from a folder
-scm backup objects application --folder "Custom Apps"
+scm backup object application --folder "Custom Apps"
 # Creates: application-custom-apps.yaml
 
 # Backup with custom filename
-scm backup objects application --folder Production --file backups/prod-apps.yaml
+scm backup object application --folder Production --file backups/prod-apps.yaml
 
 # Backup from a snippet
-scm backup objects application --snippet "App Definitions" --file snippet-apps.yaml
+scm backup object application --snippet "App Definitions" --file snippet-apps.yaml
 
 # Backup from a device
-scm backup objects application --device "fw-edge-01"
+scm backup object application --device "fw-edge-01"
 ```
 
 ### Load Application Objects
 
 ```bash
 # Load applications from a file
-scm load objects application --file examples/applications.yml
+scm load object application --file examples/applications.yml
 
 # Preview without applying
-scm load objects application --file examples/applications.yml --dry-run
+scm load object application --file examples/applications.yml --dry-run
 
 # Load with folder override
-scm load objects application --file examples/applications.yml --folder "Custom Apps"
+scm load object application --file examples/applications.yml --folder "Custom Apps"
 
 # Load with snippet override
-scm load objects application --file examples/applications.yml --snippet "Standard Apps"
+scm load object application --file examples/applications.yml --snippet "Standard Apps"
 
 # Load with device override
-scm load objects application --file examples/applications.yml --device "fw-branch-02"
+scm load object application --file examples/applications.yml --device "fw-branch-02"
 ```
 
 ---
@@ -148,36 +148,36 @@ scm load objects application --file examples/applications.yml --device "fw-branc
 
 ```bash
 # Backup all application groups from a folder
-scm backup objects application-group --folder Production
+scm backup object application-group --folder Production
 # Creates: application-group-production.yaml
 
 # Backup with custom file
-scm backup objects application-group --folder Texas --file texas-app-groups.yaml
+scm backup object application-group --folder Texas --file texas-app-groups.yaml
 
 # Backup from a snippet
-scm backup objects application-group --snippet "App Categories"
+scm backup object application-group --snippet "App Categories"
 
 # Backup from a device
-scm backup objects application-group --device "fw-main-01" --file device-app-groups.yaml
+scm backup object application-group --device "fw-main-01" --file device-app-groups.yaml
 ```
 
 ### Load Application Group Objects
 
 ```bash
 # Load application groups from a file
-scm load objects application-group --file examples/application-groups.yml
+scm load object application-group --file examples/application-groups.yml
 
 # Preview changes
-scm load objects application-group --file examples/application-groups.yml --dry-run
+scm load object application-group --file examples/application-groups.yml --dry-run
 
 # Load with folder override
-scm load objects application-group --file examples/application-groups.yml --folder Production
+scm load object application-group --file examples/application-groups.yml --folder Production
 
 # Load with snippet override
-scm load objects application-group --file examples/application-groups.yml --snippet "App Policies"
+scm load object application-group --file examples/application-groups.yml --snippet "App Policies"
 
 # Load with device override
-scm load objects application-group --file examples/application-groups.yml --device "fw-edge-02"
+scm load object application-group --file examples/application-groups.yml --device "fw-edge-02"
 ```
 
 ---
@@ -188,36 +188,36 @@ scm load objects application-group --file examples/application-groups.yml --devi
 
 ```bash
 # Backup all application filters from a folder
-scm backup objects application-filter --folder Security
+scm backup object application-filter --folder Security
 # Creates: application-filter-security.yaml
 
 # Backup with custom filename
-scm backup objects application-filter --folder Production --file prod-app-filters.yaml
+scm backup object application-filter --folder Production --file prod-app-filters.yaml
 
 # Backup from a snippet
-scm backup objects application-filter --snippet "Risk Filters"
+scm backup object application-filter --snippet "Risk Filters"
 
 # Backup from a device
-scm backup objects application-filter --device "fw-inspection-01"
+scm backup object application-filter --device "fw-inspection-01"
 ```
 
 ### Load Application Filter Objects
 
 ```bash
 # Load application filters from a file
-scm load objects application-filter --file examples/application-filters.yml
+scm load object application-filter --file examples/application-filters.yml
 
 # Preview without applying
-scm load objects application-filter --file examples/application-filters.yml --dry-run
+scm load object application-filter --file examples/application-filters.yml --dry-run
 
 # Load with folder override
-scm load objects application-filter --file examples/application-filters.yml --folder Security
+scm load object application-filter --file examples/application-filters.yml --folder Security
 
 # Load with snippet override
-scm load objects application-filter --file examples/application-filters.yml --snippet "High Risk Apps"
+scm load object application-filter --file examples/application-filters.yml --snippet "High Risk Apps"
 
 # Load with device override
-scm load objects application-filter --file examples/application-filters.yml --device "fw-dmz-02"
+scm load object application-filter --file examples/application-filters.yml --device "fw-dmz-02"
 ```
 
 ---
@@ -228,36 +228,36 @@ scm load objects application-filter --file examples/application-filters.yml --de
 
 ```bash
 # Backup all dynamic user groups from a folder
-scm backup objects dynamic-user-group --folder "User Groups"
+scm backup object dynamic-user-group --folder "User Groups"
 # Creates: dynamic-user-group-user-groups.yaml
 
 # Backup with custom file
-scm backup objects dynamic-user-group --folder Production --file prod-user-groups.yaml
+scm backup object dynamic-user-group --folder Production --file prod-user-groups.yaml
 
 # Backup from a snippet
-scm backup objects dynamic-user-group --snippet "AD Integration"
+scm backup object dynamic-user-group --snippet "AD Integration"
 
 # Backup from a device
-scm backup objects dynamic-user-group --device "fw-corp-01"
+scm backup object dynamic-user-group --device "fw-corp-01"
 ```
 
 ### Load Dynamic User Group Objects
 
 ```bash
 # Load dynamic user groups from a file
-scm load objects dynamic-user-group --file examples/dynamic-user-groups.yml
+scm load object dynamic-user-group --file examples/dynamic-user-groups.yml
 
 # Preview changes
-scm load objects dynamic-user-group --file examples/dynamic-user-groups.yml --dry-run
+scm load object dynamic-user-group --file examples/dynamic-user-groups.yml --dry-run
 
 # Load with folder override
-scm load objects dynamic-user-group --file examples/dynamic-user-groups.yml --folder "User Groups"
+scm load object dynamic-user-group --file examples/dynamic-user-groups.yml --folder "User Groups"
 
 # Load with snippet override
-scm load objects dynamic-user-group --file examples/dynamic-user-groups.yml --snippet "LDAP Groups"
+scm load object dynamic-user-group --file examples/dynamic-user-groups.yml --snippet "LDAP Groups"
 
 # Load with device override
-scm load objects dynamic-user-group --file examples/dynamic-user-groups.yml --device "fw-campus-01"
+scm load object dynamic-user-group --file examples/dynamic-user-groups.yml --device "fw-campus-01"
 ```
 
 ---
@@ -268,36 +268,36 @@ scm load objects dynamic-user-group --file examples/dynamic-user-groups.yml --de
 
 ```bash
 # Backup all external dynamic lists from a folder
-scm backup objects external-dynamic-list --folder Security
+scm backup object external-dynamic-list --folder Security
 # Creates: external-dynamic-list-security.yaml
 
 # Backup with custom file
-scm backup objects external-dynamic-list --folder Production --file prod-edl.yaml
+scm backup object external-dynamic-list --folder Production --file prod-edl.yaml
 
 # Backup from a snippet
-scm backup objects external-dynamic-list --snippet "Threat Intel"
+scm backup object external-dynamic-list --snippet "Threat Intel"
 
 # Backup from a device
-scm backup objects external-dynamic-list --device "fw-perimeter-01"
+scm backup object external-dynamic-list --device "fw-perimeter-01"
 ```
 
 ### Load External Dynamic List Objects
 
 ```bash
 # Load external dynamic lists from a file
-scm load objects external-dynamic-list --file examples/external-dynamic-lists.yml
+scm load object external-dynamic-list --file examples/external-dynamic-lists.yml
 
 # Preview without applying
-scm load objects external-dynamic-list --file examples/external-dynamic-lists.yml --dry-run
+scm load object external-dynamic-list --file examples/external-dynamic-lists.yml --dry-run
 
 # Load with folder override
-scm load objects external-dynamic-list --file examples/external-dynamic-lists.yml --folder Security
+scm load object external-dynamic-list --file examples/external-dynamic-lists.yml --folder Security
 
 # Load with snippet override
-scm load objects external-dynamic-list --file examples/external-dynamic-lists.yml --snippet "Block Lists"
+scm load object external-dynamic-list --file examples/external-dynamic-lists.yml --snippet "Block Lists"
 
 # Load with device override
-scm load objects external-dynamic-list --file examples/external-dynamic-lists.yml --device "fw-edge-03"
+scm load object external-dynamic-list --file examples/external-dynamic-lists.yml --device "fw-edge-03"
 ```
 
 ---
@@ -308,36 +308,36 @@ scm load objects external-dynamic-list --file examples/external-dynamic-lists.ym
 
 ```bash
 # Backup all HIP objects from a folder
-scm backup objects hip-object --folder Compliance
+scm backup object hip-object --folder Compliance
 # Creates: hip-object-compliance.yaml
 
 # Backup with custom file
-scm backup objects hip-object --folder Production --file prod-hip-objects.yaml
+scm backup object hip-object --folder Production --file prod-hip-objects.yaml
 
 # Backup from a snippet
-scm backup objects hip-object --snippet "Endpoint Security"
+scm backup object hip-object --snippet "Endpoint Security"
 
 # Backup from a device
-scm backup objects hip-object --device "fw-vpn-01"
+scm backup object hip-object --device "fw-vpn-01"
 ```
 
 ### Load HIP Object Objects
 
 ```bash
 # Load HIP objects from a file
-scm load objects hip-object --file examples/hip-objects.yml
+scm load object hip-object --file examples/hip-objects.yml
 
 # Preview changes
-scm load objects hip-object --file examples/hip-objects.yml --dry-run
+scm load object hip-object --file examples/hip-objects.yml --dry-run
 
 # Load with folder override
-scm load objects hip-object --file examples/hip-objects.yml --folder Compliance
+scm load object hip-object --file examples/hip-objects.yml --folder Compliance
 
 # Load with snippet override
-scm load objects hip-object --file examples/hip-objects.yml --snippet "HIP Policies"
+scm load object hip-object --file examples/hip-objects.yml --snippet "HIP Policies"
 
 # Load with device override
-scm load objects hip-object --file examples/hip-objects.yml --device "fw-remote-01"
+scm load object hip-object --file examples/hip-objects.yml --device "fw-remote-01"
 ```
 
 ---
@@ -348,36 +348,36 @@ scm load objects hip-object --file examples/hip-objects.yml --device "fw-remote-
 
 ```bash
 # Backup all HIP profiles from a folder
-scm backup objects hip-profile --folder Compliance
+scm backup object hip-profile --folder Compliance
 # Creates: hip-profile-compliance.yaml
 
 # Backup with custom file
-scm backup objects hip-profile --folder Production --file prod-hip-profiles.yaml
+scm backup object hip-profile --folder Production --file prod-hip-profiles.yaml
 
 # Backup from a snippet
-scm backup objects hip-profile --snippet "VPN Profiles"
+scm backup object hip-profile --snippet "VPN Profiles"
 
 # Backup from a device
-scm backup objects hip-profile --device "fw-gateway-01"
+scm backup object hip-profile --device "fw-gateway-01"
 ```
 
 ### Load HIP Profile Objects
 
 ```bash
 # Load HIP profiles from a file
-scm load objects hip-profile --file examples/hip-profiles.yml
+scm load object hip-profile --file examples/hip-profiles.yml
 
 # Preview changes
-scm load objects hip-profile --file examples/hip-profiles.yml --dry-run
+scm load object hip-profile --file examples/hip-profiles.yml --dry-run
 
 # Load with folder override
-scm load objects hip-profile --file examples/hip-profiles.yml --folder Compliance
+scm load object hip-profile --file examples/hip-profiles.yml --folder Compliance
 
 # Load with snippet override
-scm load objects hip-profile --file examples/hip-profiles.yml --snippet "Remote Access"
+scm load object hip-profile --file examples/hip-profiles.yml --snippet "Remote Access"
 
 # Load with device override
-scm load objects hip-profile --file examples/hip-profiles.yml --device "fw-vpn-02"
+scm load object hip-profile --file examples/hip-profiles.yml --device "fw-vpn-02"
 ```
 
 ---
@@ -388,36 +388,36 @@ scm load objects hip-profile --file examples/hip-profiles.yml --device "fw-vpn-0
 
 ```bash
 # Backup all HTTP server profiles from a folder
-scm backup objects http-server-profile --folder Logging
+scm backup object http-server-profile --folder Logging
 # Creates: http-server-profile-logging.yaml
 
 # Backup with custom file
-scm backup objects http-server-profile --folder Production --file prod-http-profiles.yaml
+scm backup object http-server-profile --folder Production --file prod-http-profiles.yaml
 
 # Backup from a snippet
-scm backup objects http-server-profile --snippet "Log Collectors"
+scm backup object http-server-profile --snippet "Log Collectors"
 
 # Backup from a device
-scm backup objects http-server-profile --device "fw-log-01"
+scm backup object http-server-profile --device "fw-log-01"
 ```
 
 ### Load HTTP Server Profile Objects
 
 ```bash
 # Load HTTP server profiles from a file
-scm load objects http-server-profile --file examples/http-server-profiles.yml
+scm load object http-server-profile --file examples/http-server-profiles.yml
 
 # Preview changes
-scm load objects http-server-profile --file examples/http-server-profiles.yml --dry-run
+scm load object http-server-profile --file examples/http-server-profiles.yml --dry-run
 
 # Load with folder override
-scm load objects http-server-profile --file examples/http-server-profiles.yml --folder Logging
+scm load object http-server-profile --file examples/http-server-profiles.yml --folder Logging
 
 # Load with snippet override
-scm load objects http-server-profile --file examples/http-server-profiles.yml --snippet "SIEM Integration"
+scm load object http-server-profile --file examples/http-server-profiles.yml --snippet "SIEM Integration"
 
 # Load with device override
-scm load objects http-server-profile --file examples/http-server-profiles.yml --device "fw-collector-01"
+scm load object http-server-profile --file examples/http-server-profiles.yml --device "fw-collector-01"
 ```
 
 ---
@@ -428,36 +428,36 @@ scm load objects http-server-profile --file examples/http-server-profiles.yml --
 
 ```bash
 # Backup all log forwarding profiles from a folder
-scm backup objects log-forwarding-profile --folder Logging
+scm backup object log-forwarding-profile --folder Logging
 # Creates: log-forwarding-profile-logging.yaml
 
 # Backup with custom file
-scm backup objects log-forwarding-profile --folder Production --file prod-log-profiles.yaml
+scm backup object log-forwarding-profile --folder Production --file prod-log-profiles.yaml
 
 # Backup from a snippet
-scm backup objects log-forwarding-profile --snippet "SIEM Forward"
+scm backup object log-forwarding-profile --snippet "SIEM Forward"
 
 # Backup from a device
-scm backup objects log-forwarding-profile --device "fw-core-01"
+scm backup object log-forwarding-profile --device "fw-core-01"
 ```
 
 ### Load Log Forwarding Profile Objects
 
 ```bash
 # Load log forwarding profiles from a file
-scm load objects log-forwarding-profile --file examples/log-forwarding-profiles.yml
+scm load object log-forwarding-profile --file examples/log-forwarding-profiles.yml
 
 # Preview changes
-scm load objects log-forwarding-profile --file examples/log-forwarding-profiles.yml --dry-run
+scm load object log-forwarding-profile --file examples/log-forwarding-profiles.yml --dry-run
 
 # Load with folder override
-scm load objects log-forwarding-profile --file examples/log-forwarding-profiles.yml --folder Logging
+scm load object log-forwarding-profile --file examples/log-forwarding-profiles.yml --folder Logging
 
 # Load with snippet override
-scm load objects log-forwarding-profile --file examples/log-forwarding-profiles.yml --snippet "Compliance Logs"
+scm load object log-forwarding-profile --file examples/log-forwarding-profiles.yml --snippet "Compliance Logs"
 
 # Load with device override
-scm load objects log-forwarding-profile --file examples/log-forwarding-profiles.yml --device "fw-audit-01"
+scm load object log-forwarding-profile --file examples/log-forwarding-profiles.yml --device "fw-audit-01"
 ```
 
 ---
@@ -468,36 +468,36 @@ scm load objects log-forwarding-profile --file examples/log-forwarding-profiles.
 
 ```bash
 # Backup all services from a folder
-scm backup objects service --folder Applications
+scm backup object service --folder Applications
 # Creates: service-applications.yaml
 
 # Backup with custom file
-scm backup objects service --folder Production --file prod-services.yaml
+scm backup object service --folder Production --file prod-services.yaml
 
 # Backup from a snippet
-scm backup objects service --snippet "Custom Services"
+scm backup object service --snippet "Custom Services"
 
 # Backup from a device
-scm backup objects service --device "fw-app-01"
+scm backup object service --device "fw-app-01"
 ```
 
 ### Load Service Objects
 
 ```bash
 # Load services from a file
-scm load objects service --file examples/services.yml
+scm load object service --file examples/services.yml
 
 # Preview changes
-scm load objects service --file examples/services.yml --dry-run
+scm load object service --file examples/services.yml --dry-run
 
 # Load with folder override
-scm load objects service --file examples/services.yml --folder Applications
+scm load object service --file examples/services.yml --folder Applications
 
 # Load with snippet override
-scm load objects service --file examples/services.yml --snippet "App Services"
+scm load object service --file examples/services.yml --snippet "App Services"
 
 # Load with device override
-scm load objects service --file examples/services.yml --device "fw-web-01"
+scm load object service --file examples/services.yml --device "fw-web-01"
 ```
 
 ---
@@ -508,36 +508,36 @@ scm load objects service --file examples/services.yml --device "fw-web-01"
 
 ```bash
 # Backup all service groups from a folder
-scm backup objects service-group --folder Applications
+scm backup object service-group --folder Applications
 # Creates: service-group-applications.yaml
 
 # Backup with custom file
-scm backup objects service-group --folder Production --file prod-service-groups.yaml
+scm backup object service-group --folder Production --file prod-service-groups.yaml
 
 # Backup from a snippet
-scm backup objects service-group --snippet "Service Categories"
+scm backup object service-group --snippet "Service Categories"
 
 # Backup from a device
-scm backup objects service-group --device "fw-services-01"
+scm backup object service-group --device "fw-services-01"
 ```
 
 ### Load Service Group Objects
 
 ```bash
 # Load service groups from a file
-scm load objects service-group --file examples/service-groups.yml
+scm load object service-group --file examples/service-groups.yml
 
 # Preview changes
-scm load objects service-group --file examples/service-groups.yml --dry-run
+scm load object service-group --file examples/service-groups.yml --dry-run
 
 # Load with folder override
-scm load objects service-group --file examples/service-groups.yml --folder Applications
+scm load object service-group --file examples/service-groups.yml --folder Applications
 
 # Load with snippet override
-scm load objects service-group --file examples/service-groups.yml --snippet "Web Services"
+scm load object service-group --file examples/service-groups.yml --snippet "Web Services"
 
 # Load with device override
-scm load objects service-group --file examples/service-groups.yml --device "fw-lb-01"
+scm load object service-group --file examples/service-groups.yml --device "fw-lb-01"
 ```
 
 ---
@@ -548,36 +548,36 @@ scm load objects service-group --file examples/service-groups.yml --device "fw-l
 
 ```bash
 # Backup all syslog server profiles from a folder
-scm backup objects syslog-server-profile --folder Logging
+scm backup object syslog-server-profile --folder Logging
 # Creates: syslog-server-profile-logging.yaml
 
 # Backup with custom file
-scm backup objects syslog-server-profile --folder Production --file prod-syslog.yaml
+scm backup object syslog-server-profile --folder Production --file prod-syslog.yaml
 
 # Backup from a snippet
-scm backup objects syslog-server-profile --snippet "Log Servers"
+scm backup object syslog-server-profile --snippet "Log Servers"
 
 # Backup from a device
-scm backup objects syslog-server-profile --device "fw-syslog-01"
+scm backup object syslog-server-profile --device "fw-syslog-01"
 ```
 
 ### Load Syslog Server Profile Objects
 
 ```bash
 # Load syslog server profiles from a file
-scm load objects syslog-server-profile --file examples/syslog-server-profiles.yml
+scm load object syslog-server-profile --file examples/syslog-server-profiles.yml
 
 # Preview changes
-scm load objects syslog-server-profile --file examples/syslog-server-profiles.yml --dry-run
+scm load object syslog-server-profile --file examples/syslog-server-profiles.yml --dry-run
 
 # Load with folder override
-scm load objects syslog-server-profile --file examples/syslog-server-profiles.yml --folder Logging
+scm load object syslog-server-profile --file examples/syslog-server-profiles.yml --folder Logging
 
 # Load with snippet override
-scm load objects syslog-server-profile --file examples/syslog-server-profiles.yml --snippet "Central Logging"
+scm load object syslog-server-profile --file examples/syslog-server-profiles.yml --snippet "Central Logging"
 
 # Load with device override
-scm load objects syslog-server-profile --file examples/syslog-server-profiles.yml --device "fw-central-01"
+scm load object syslog-server-profile --file examples/syslog-server-profiles.yml --device "fw-central-01"
 ```
 
 ---
@@ -588,36 +588,36 @@ scm load objects syslog-server-profile --file examples/syslog-server-profiles.ym
 
 ```bash
 # Backup all tags from a folder
-scm backup objects tag --folder Organization
+scm backup object tag --folder Organization
 # Creates: tag-organization.yaml
 
 # Backup with custom file
-scm backup objects tag --folder Production --file prod-tags.yaml
+scm backup object tag --folder Production --file prod-tags.yaml
 
 # Backup from a snippet
-scm backup objects tag --snippet "Metadata Tags"
+scm backup object tag --snippet "Metadata Tags"
 
 # Backup from a device
-scm backup objects tag --device "fw-master-01"
+scm backup object tag --device "fw-master-01"
 ```
 
 ### Load Tag Objects
 
 ```bash
 # Load tags from a file
-scm load objects tag --file examples/tags.yml
+scm load object tag --file examples/tags.yml
 
 # Preview changes
-scm load objects tag --file examples/tags.yml --dry-run
+scm load object tag --file examples/tags.yml --dry-run
 
 # Load with folder override
-scm load objects tag --file examples/tags.yml --folder Organization
+scm load object tag --file examples/tags.yml --folder Organization
 
 # Load with snippet override
-scm load objects tag --file examples/tags.yml --snippet "Classification"
+scm load object tag --file examples/tags.yml --snippet "Classification"
 
 # Load with device override
-scm load objects tag --file examples/tags.yml --device "fw-tag-01"
+scm load object tag --file examples/tags.yml --device "fw-tag-01"
 ```
 
 ---
@@ -629,21 +629,21 @@ scm load objects tag --file examples/tags.yml --device "fw-tag-01"
 1. **Auto-generated filenames**: When no `--file` is specified, filenames follow the pattern: `{object-type}-{location}.yaml`
 
    ```bash
-   scm backup objects address --folder Texas
+   scm backup object address --folder Texas
    # Creates: address-texas.yaml
    ```
 
 2. **Hierarchical folders**: Folder names with slashes are converted to hyphens
 
    ```bash
-   scm backup objects address --folder "Production/US-East"
+   scm backup object address --folder "Production/US-East"
    # Creates: address-production-us-east.yaml
    ```
 
 3. **Custom output paths**: Use `--file` for specific locations
 
    ```bash
-   scm backup objects address --folder Production --file /backups/$(date +%Y%m%d)-prod-addresses.yaml
+   scm backup object address --folder Production --file /backups/$(date +%Y%m%d)-prod-addresses.yaml
    ```
 
 ### Load Patterns
@@ -651,23 +651,23 @@ scm load objects tag --file examples/tags.yml --device "fw-tag-01"
 1. **Dry run first**: Always preview changes before applying
 
    ```bash
-   scm load objects address --file config.yml --dry-run
+   scm load object address --file config.yml --dry-run
    ```
 
 2. **Container overrides**: Override all object locations in one command
 
    ```bash
    # Move all objects to a different folder
-   scm load objects address --file config.yml --folder "New Location"
+   scm load object address --file config.yml --folder "New Location"
    ```
 
 3. **Bulk operations**: Load multiple object types in sequence
 
    ```bash
    # Load in dependency order
-   scm load objects tag --file tags.yml
-   scm load objects address --file addresses.yml
-   scm load objects address-group --file address-groups.yml
+   scm load object tag --file tags.yml
+   scm load object address --file addresses.yml
+   scm load object address-group --file address-groups.yml
    ```
 
 ### Best Practices
@@ -675,7 +675,7 @@ scm load objects tag --file examples/tags.yml --device "fw-tag-01"
 1. **Backup before changes**: Always backup existing configurations
 
    ```bash
-   scm backup objects address --folder Production --file backup-$(date +%Y%m%d).yaml
+   scm backup object address --folder Production --file backup-$(date +%Y%m%d).yaml
    ```
 
 2. **Use version control**: Store YAML files in git
