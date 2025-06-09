@@ -111,13 +111,13 @@ docker run -d --name pan-scm \
 #### Show Commands
 ```bash
 # Old syntax (no longer supported)
-scm show objects address --folder Texas --list
+scm show object address --folder Texas --list
 
 # New syntax (lists all by default)
-scm show objects address --folder Texas
+scm show object address --folder Texas
 
 # Show specific item (unchanged)
-scm show objects address --folder Texas --name web-server
+scm show object address --folder Texas --name web-server
 ```
 
 ## Version 0.3.39

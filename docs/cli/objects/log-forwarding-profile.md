@@ -19,7 +19,7 @@ Create or update a log forwarding profile object.
 ### Syntax
 
 ```bash
-scm set objects log-forwarding-profile [OPTIONS]
+scm set object log-forwarding-profile [OPTIONS]
 ```
 
 ### Options
@@ -41,7 +41,7 @@ scm set objects log-forwarding-profile [OPTIONS]
 #### Create Basic Traffic Log Forwarding
 
 ```bash
-$ scm set objects log-forwarding-profile \
+$ scm set object log-forwarding-profile \
     --folder Texas \
     --name traffic-logs \
     --match-list '[{"name": "all-traffic", "log_type": "traffic", "filter": "All Logs", "syslog_profiles": ["central-syslog"]}]' \
@@ -53,7 +53,7 @@ Created log forwarding profile: traffic-logs in folder Texas
 #### Create Threat Log Forwarding with HTTP
 
 ```bash
-$ scm set objects log-forwarding-profile \
+$ scm set object log-forwarding-profile \
     --folder Texas \
     --name threat-logs \
     --match-list '[{"name": "threats", "log_type": "threat", "filter": "All Logs", "http_profiles": ["splunk-hec"], "syslog_profiles": ["security-syslog"]}]' \
@@ -70,7 +70,7 @@ Delete a log forwarding profile object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects log-forwarding-profile [OPTIONS]
+scm delete object log-forwarding-profile [OPTIONS]
 ```
 
 ### Options
@@ -87,7 +87,7 @@ scm delete objects log-forwarding-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects log-forwarding-profile --folder Texas --name traffic-logs
+$ scm delete object log-forwarding-profile --folder Texas --name traffic-logs
 ---> 100%
 Deleted log forwarding profile: traffic-logs from folder Texas
 ```
@@ -99,7 +99,7 @@ Load multiple log forwarding profile objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects log-forwarding-profile [OPTIONS]
+scm load object log-forwarding-profile [OPTIONS]
 ```
 
 ### Options
@@ -166,7 +166,7 @@ log_forwarding_profiles:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects log-forwarding-profile --file log-profiles.yml
+$ scm load object log-forwarding-profile --file log-profiles.yml
 ---> 100%
 ✓ Loaded log forwarding profile: basic-forwarding
 ✓ Loaded log forwarding profile: security-monitoring
@@ -178,7 +178,7 @@ Successfully loaded 3 out of 3 log forwarding profiles from 'log-profiles.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects log-forwarding-profile --file log-profiles.yml --folder Austin
+$ scm load object log-forwarding-profile --file log-profiles.yml --folder Austin
 ---> 100%
 ✓ Loaded log forwarding profile: basic-forwarding
 ✓ Loaded log forwarding profile: security-monitoring
@@ -197,7 +197,7 @@ Display log forwarding profile objects.
 ### Syntax
 
 ```bash
-scm show objects log-forwarding-profile [OPTIONS]
+scm show object log-forwarding-profile [OPTIONS]
 ```
 
 ### Options
@@ -218,7 +218,7 @@ scm show objects log-forwarding-profile [OPTIONS]
 #### Show Specific Log Forwarding Profile
 
 ```bash
-$ scm show objects log-forwarding-profile --folder Texas --name threat-logs
+$ scm show object log-forwarding-profile --folder Texas --name threat-logs
 ---> 100%
 Log Forwarding Profile: threat-logs
 Location: Folder 'Texas'
@@ -236,7 +236,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All Log Forwarding Profiles (Default Behavior)
 
 ```bash
-$ scm show objects log-forwarding-profile --folder Texas
+$ scm show object log-forwarding-profile --folder Texas
 ---> 100%
 Log Forwarding Profiles in folder 'Texas':
 ------------------------------------------------------------
@@ -265,7 +265,7 @@ Backup all log forwarding profile objects from a specified location to a YAML fi
 ### Syntax
 
 ```bash
-scm backup objects log-forwarding-profile [OPTIONS]
+scm backup object log-forwarding-profile [OPTIONS]
 ```
 
 ### Options
@@ -284,7 +284,7 @@ scm backup objects log-forwarding-profile [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects log-forwarding-profile --folder Texas
+$ scm backup object log-forwarding-profile --folder Texas
 ---> 100%
 Successfully backed up 10 log forwarding profiles to log-forwarding-profile_folder_texas_20240115_120530.yaml
 ```
@@ -292,7 +292,7 @@ Successfully backed up 10 log forwarding profiles to log-forwarding-profile_fold
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects log-forwarding-profile --folder Texas --file texas-log-profiles.yaml
+$ scm backup object log-forwarding-profile --folder Texas --file texas-log-profiles.yaml
 ---> 100%
 Successfully backed up 10 log forwarding profiles to texas-log-profiles.yaml
 ```
@@ -404,7 +404,7 @@ Exactly one context parameter must be specified:
 
 ```bash
 # Forward all traffic logs
-scm set objects log-forwarding-profile --folder Shared --name all-traffic \
+scm set object log-forwarding-profile --folder Shared --name all-traffic \
   --match-list '[{"name": "traffic", "log_type": "traffic", "filter": "All Logs", "syslog_profiles": ["central-syslog"]}]'
 ```
 
@@ -412,7 +412,7 @@ scm set objects log-forwarding-profile --folder Shared --name all-traffic \
 
 ```bash
 # Forward threats and malware
-scm set objects log-forwarding-profile --folder Shared --name security \
+scm set object log-forwarding-profile --folder Shared --name security \
   --match-list '[
     {"name": "threats", "log_type": "threat", "filter": "All Logs", "http_profiles": ["siem"]},
     {"name": "malware", "log_type": "wildfire", "filter": "All Logs", "http_profiles": ["siem"]}
@@ -424,7 +424,7 @@ scm set objects log-forwarding-profile --folder Shared --name security \
 
 ```bash
 # Forward specific traffic
-scm set objects log-forwarding-profile --folder Shared --name filtered \
+scm set object log-forwarding-profile --folder Shared --name filtered \
   --match-list '[{
     "name": "internet-traffic",
     "log_type": "traffic",
@@ -437,7 +437,7 @@ scm set objects log-forwarding-profile --folder Shared --name filtered \
 
 ```bash
 # Forward to multiple destinations
-scm set objects log-forwarding-profile --folder Shared --name multi-dest \
+scm set object log-forwarding-profile --folder Shared --name multi-dest \
   --match-list '[{
     "name": "all-threats",
     "log_type": "threat",

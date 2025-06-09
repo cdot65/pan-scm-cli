@@ -12,14 +12,14 @@ Commands for managing network objects:
 
 ```bash
 # Address Objects
-scm set objects address --folder Shared --name web-server --ip-netmask 10.1.1.10/32
-scm delete objects address --folder Shared --name web-server
-scm load objects address --folder Shared --file addresses.yaml
+scm set object address --folder Shared --name web-server --ip-netmask 10.1.1.10/32
+scm delete object address --folder Shared --name web-server
+scm load object address --folder Shared --file addresses.yaml
 
 # Address Groups
-scm set objects address-group --folder Shared --name web-servers --static --members "web-server-1,web-server-2"
-scm delete objects address-group --folder Shared --name web-servers
-scm load objects address-group --folder Shared --file address-groups.yaml
+scm set object address-group --folder Shared --name web-servers --static --members "web-server-1,web-server-2"
+scm delete object address-group --folder Shared --name web-servers
+scm load object address-group --folder Shared --file address-groups.yaml
 ```
 
 ### Network
@@ -62,7 +62,7 @@ scm load deployment bandwidth --folder Shared --file bandwidth-allocations.yaml
 Every object type has a specific `set` command with required and optional parameters:
 
 ```bash
-scm set objects address --folder Shared --name web-server --ip-netmask 10.1.1.10/32 --description "Web server" --tags "web,production"
+scm set object address --folder Shared --name web-server --ip-netmask 10.1.1.10/32 --description "Web server" --tags "web,production"
 ```
 
 ### Updating Objects
@@ -71,7 +71,7 @@ Updating uses the same `set` command as creating. The CLI will update the object
 
 ```bash
 # Update an existing address object
-scm set objects address --folder Shared --name web-server --ip-netmask 10.1.1.20/32 --description "Updated web server"
+scm set object address --folder Shared --name web-server --ip-netmask 10.1.1.20/32 --description "Updated web server"
 ```
 
 ### Deleting Objects
@@ -79,7 +79,7 @@ scm set objects address --folder Shared --name web-server --ip-netmask 10.1.1.20
 Delete objects using the `delete` command:
 
 ```bash
-scm delete objects address --folder Shared --name web-server
+scm delete object address --folder Shared --name web-server
 ```
 
 ### Listing Objects
@@ -87,7 +87,7 @@ scm delete objects address --folder Shared --name web-server
 List objects using the `--list` option with the `set` command:
 
 ```bash
-scm set objects address --list --folder Shared
+scm set object address --list --folder Shared
 ```
 
 ### Bulk Operations
@@ -95,7 +95,7 @@ scm set objects address --list --folder Shared
 Load multiple objects from YAML files:
 
 ```bash
-scm load objects address --folder Shared --file addresses.yaml
+scm load object address --folder Shared --file addresses.yaml
 ```
 
 ## Understanding Object Relationships
@@ -109,11 +109,11 @@ When creating objects, ensure that any referenced objects already exist:
 
 ```bash
 # First create the address objects
-scm set objects address --folder Shared --name web-server-1 --ip-netmask 10.1.1.10/32
-scm set objects address --folder Shared --name web-server-2 --ip-netmask 10.1.1.11/32
+scm set object address --folder Shared --name web-server-1 --ip-netmask 10.1.1.10/32
+scm set object address --folder Shared --name web-server-2 --ip-netmask 10.1.1.11/32
 
 # Then create an address group that references them
-scm set objects address-group --folder Shared --name web-servers --static --members "web-server-1,web-server-2"
+scm set object address-group --folder Shared --name web-servers --static --members "web-server-1,web-server-2"
 ```
 
 ## Next Steps

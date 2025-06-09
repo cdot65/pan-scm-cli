@@ -108,7 +108,7 @@ $ scm context use debug-env
 ### Method 2: Use environment variable (overrides context setting)
 ```bash
 export SCM_LOG_LEVEL=DEBUG
-scm show objects address --folder Texas
+scm show object address --folder Texas
 ```
 
 This will produce verbose output showing each API call, request payloads, and response details.

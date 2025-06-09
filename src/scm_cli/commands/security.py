@@ -1,4 +1,4 @@
-"""Security module commands for scm-cli.
+"""Security module commands for scm.
 
 This module implements set, delete, and load commands for security-related
 configurations such as security rules, profiles, etc.
@@ -250,16 +250,16 @@ def backup_security_rule(
 
     Examples:
         # Backup from folder
-        scm-cli backup security rule --folder Austin --rulebase pre
+        scm backup security rule --folder Austin --rulebase pre
 
         # Backup from snippet
-        scm-cli backup security rule --snippet DNS-Best-Practice --rulebase post
+        scm backup security rule --snippet DNS-Best-Practice --rulebase post
 
         # Backup from device
-        scm-cli backup security rule --device austin-01 --rulebase default
+        scm backup security rule --device austin-01 --rulebase default
 
         # Backup to custom filename
-        scm-cli backup security rule --folder Austin --file my-rules.yaml
+        scm backup security rule --folder Austin --file my-rules.yaml
 
     """
     # Validate location parameters
@@ -338,13 +338,13 @@ def delete_security_rule(
 
     Examples:
         # Delete from folder
-        scm-cli delete security rule --folder Texas --name test
+        scm delete security rule --folder Texas --name test
 
         # Delete from snippet
-        scm-cli delete security rule --snippet DNS-Best-Practice --name block-dns
+        scm delete security rule --snippet DNS-Best-Practice --name block-dns
 
         # Delete from device
-        scm-cli delete security rule --device austin-01 --name local-rule
+        scm delete security rule --device austin-01 --name local-rule
 
     """
     # Validate location parameters
@@ -385,16 +385,16 @@ def load_security_rule(
 
     Examples:
         # Load from file with original locations
-        scm-cli load security rule --file config/security_rules.yml
+        scm load security rule --file config/security_rules.yml
 
         # Load with folder override
-        scm-cli load security rule --file config/security_rules.yml --folder Production
+        scm load security rule --file config/security_rules.yml --folder Production
 
         # Load with snippet override
-        scm-cli load security rule --file config/security_rules.yml --snippet DNS-Rules
+        scm load security rule --file config/security_rules.yml --snippet DNS-Rules
 
         # Dry run to preview changes
-        scm-cli load security rule --file config/security_rules.yml --dry-run
+        scm load security rule --file config/security_rules.yml --dry-run
 
     """
     try:
@@ -547,11 +547,11 @@ def set_security_rule(
 
     Examples:
         # Create basic rule
-        scm-cli set security rule --folder Texas --name test \\
+        scm set security rule --folder Texas --name test \\
             --source-zones trust --destination-zones untrust
 
         # Create rule with full options
-        scm-cli set security rule --folder Texas --name web-allow \\
+        scm set security rule --folder Texas --name web-allow \\
             --source-zones trust --destination-zones untrust \\
             --source-addresses internal-net --destination-addresses any \\
             --applications web-browsing --applications ssl \\
@@ -561,7 +561,7 @@ def set_security_rule(
             --tags web --tags production
 
         # Create rule in post rulebase
-        scm-cli set security rule --folder Texas --name cleanup \\
+        scm set security rule --folder Texas --name cleanup \\
             --source-zones any --destination-zones any \\
             --action deny --log-start --log-end \\
             --rulebase post
@@ -648,13 +648,13 @@ def show_security_rule(
     Examples:
     --------
         # List all security rules in a folder and rulebase (default behavior)
-        scm-cli show security rule --folder Texas
+        scm show security rule --folder Texas
 
         # List rules in post rulebase
-        scm-cli show security rule --folder Texas --rulebase post
+        scm show security rule --folder Texas --rulebase post
 
         # Show a specific security rule by name
-        scm-cli show security rule --folder Texas --name "Allow Web Traffic"
+        scm show security rule --folder Texas --name "Allow Web Traffic"
 
     Note:
     ----
@@ -866,16 +866,16 @@ def backup_anti_spyware_profile(
 
     Examples:
         # Backup from folder
-        scm-cli backup security anti-spyware-profile --folder Austin
+        scm backup security anti-spyware-profile --folder Austin
 
         # Backup from snippet
-        scm-cli backup security anti-spyware-profile --snippet DNS-Best-Practice
+        scm backup security anti-spyware-profile --snippet DNS-Best-Practice
 
         # Backup from device
-        scm-cli backup security anti-spyware-profile --device austin-01
+        scm backup security anti-spyware-profile --device austin-01
 
         # Backup to custom filename
-        scm-cli backup security anti-spyware-profile --folder Austin --file my-profiles.yaml
+        scm backup security anti-spyware-profile --folder Austin --file my-profiles.yaml
 
     """
     # Validate location parameters
@@ -930,13 +930,13 @@ def delete_anti_spyware_profile(
 
     Examples:
         # Delete from folder
-        scm-cli delete security anti-spyware-profile --folder Texas --name strict-security
+        scm delete security anti-spyware-profile --folder Texas --name strict-security
 
         # Delete from snippet
-        scm-cli delete security anti-spyware-profile --snippet DNS-Best-Practice --name dns-protection
+        scm delete security anti-spyware-profile --snippet DNS-Best-Practice --name dns-protection
 
         # Delete from device
-        scm-cli delete security anti-spyware-profile --device austin-01 --name local-profile
+        scm delete security anti-spyware-profile --device austin-01 --name local-profile
 
     """
     # Validate location parameters
@@ -970,16 +970,16 @@ def load_anti_spyware_profile(
 
     Examples:
         # Load from file with original locations
-        scm-cli load security anti-spyware-profile --file config/anti_spyware_profiles.yml
+        scm load security anti-spyware-profile --file config/anti_spyware_profiles.yml
 
         # Load with folder override
-        scm-cli load security anti-spyware-profile --file config/anti_spyware_profiles.yml --folder Production
+        scm load security anti-spyware-profile --file config/anti_spyware_profiles.yml --folder Production
 
         # Load with snippet override
-        scm-cli load security anti-spyware-profile --file config/anti_spyware_profiles.yml --snippet Security-Best-Practice
+        scm load security anti-spyware-profile --file config/anti_spyware_profiles.yml --snippet Security-Best-Practice
 
         # Dry run to preview changes
-        scm-cli load security anti-spyware-profile --file config/anti_spyware_profiles.yml --dry-run
+        scm load security anti-spyware-profile --file config/anti_spyware_profiles.yml --dry-run
 
     """
     try:
@@ -1108,15 +1108,15 @@ def set_anti_spyware_profile(
 
     Examples:
         # Create basic profile in folder
-        scm-cli set security anti-spyware-profile --folder Texas --name strict-security \
+        scm set security anti-spyware-profile --folder Texas --name strict-security \
             --description "Block critical threats"
 
         # Create profile with cloud inline analysis
-        scm-cli set security anti-spyware-profile --folder Texas --name cloud-protection \
+        scm set security anti-spyware-profile --folder Texas --name cloud-protection \
             --cloud-inline-analysis
 
         # Create profile in snippet
-        scm-cli set security anti-spyware-profile --snippet Security-Best-Practice \
+        scm set security anti-spyware-profile --snippet Security-Best-Practice \
             --name standard-protection
 
     """
@@ -1195,13 +1195,13 @@ def show_anti_spyware_profile(
 
     Examples:
         # List all anti-spyware profiles in a folder (default behavior)
-        scm-cli show security anti-spyware-profile --folder Texas
+        scm show security anti-spyware-profile --folder Texas
 
         # Show a specific anti-spyware profile by name
-        scm-cli show security anti-spyware-profile --folder Texas --name strict-security
+        scm show security anti-spyware-profile --folder Texas --name strict-security
 
         # List profiles in snippet
-        scm-cli show security anti-spyware-profile --snippet Security-Best-Practice
+        scm show security anti-spyware-profile --snippet Security-Best-Practice
 
     """
     # Validate location parameters
@@ -1353,16 +1353,16 @@ def backup_decryption_profile(
 
     Examples:
         # Backup from folder
-        scm-cli backup security decryption-profile --folder Austin
+        scm backup security decryption-profile --folder Austin
 
         # Backup from snippet
-        scm-cli backup security decryption-profile --snippet DNS-Best-Practice
+        scm backup security decryption-profile --snippet DNS-Best-Practice
 
         # Backup from device
-        scm-cli backup security decryption-profile --device austin-01
+        scm backup security decryption-profile --device austin-01
 
         # Backup to custom filename
-        scm-cli backup security decryption-profile --folder Austin --file my-profiles.yaml
+        scm backup security decryption-profile --folder Austin --file my-profiles.yaml
 
     """
     # Validate location parameters
@@ -1417,13 +1417,13 @@ def delete_decryption_profile(
 
     Examples:
         # Delete from folder
-        scm-cli delete security decryption-profile --folder Texas --name ssl-forward-proxy
+        scm delete security decryption-profile --folder Texas --name ssl-forward-proxy
 
         # Delete from snippet
-        scm-cli delete security decryption-profile --snippet DNS-Best-Practice --name ssl-inbound
+        scm delete security decryption-profile --snippet DNS-Best-Practice --name ssl-inbound
 
         # Delete from device
-        scm-cli delete security decryption-profile --device austin-01 --name no-decrypt
+        scm delete security decryption-profile --device austin-01 --name no-decrypt
 
     """
     # Validate location parameters
@@ -1457,16 +1457,16 @@ def load_decryption_profile(
 
     Examples:
         # Load from file with original locations
-        scm-cli load security decryption-profile --file config/decryption_profiles.yml
+        scm load security decryption-profile --file config/decryption_profiles.yml
 
         # Load with folder override
-        scm-cli load security decryption-profile --file config/decryption_profiles.yml --folder Production
+        scm load security decryption-profile --file config/decryption_profiles.yml --folder Production
 
         # Load with snippet override
-        scm-cli load security decryption-profile --file config/decryption_profiles.yml --snippet Security-Best-Practice
+        scm load security decryption-profile --file config/decryption_profiles.yml --snippet Security-Best-Practice
 
         # Dry run to preview changes
-        scm-cli load security decryption-profile --file config/decryption_profiles.yml --dry-run
+        scm load security decryption-profile --file config/decryption_profiles.yml --dry-run
 
     """
     try:
@@ -1609,19 +1609,19 @@ def set_decryption_profile(
 
     Examples:
         # Create basic SSL forward proxy profile
-        scm-cli set security decryption-profile --folder Texas --name ssl-forward \
+        scm set security decryption-profile --folder Texas --name ssl-forward \
             --ssl-forward-proxy '{"block_expired_certificate": true, "block_untrusted_issuer": true}'
 
         # Create SSL inbound inspection profile
-        scm-cli set security decryption-profile --folder Texas --name ssl-inbound \
+        scm set security decryption-profile --folder Texas --name ssl-inbound \
             --ssl-inbound-proxy '{"block_if_no_resource": true, "block_unsupported_cipher": true}'
 
         # Create no-decrypt profile
-        scm-cli set security decryption-profile --folder Texas --name no-decrypt \
+        scm set security decryption-profile --folder Texas --name no-decrypt \
             --ssl-no-proxy '{"block_expired_certificate": false, "block_untrusted_issuer": false}'
 
         # Create profile with protocol settings
-        scm-cli set security decryption-profile --folder Texas --name custom-decrypt \
+        scm set security decryption-profile --folder Texas --name custom-decrypt \
             --ssl-forward-proxy '{"block_expired_certificate": true}' \
             --ssl-protocol-settings '{"min_version": "tls1-2", "max_version": "tls1-3"}'
 
@@ -1689,13 +1689,13 @@ def show_decryption_profile(
 
     Examples:
         # List all decryption profiles in a folder (default behavior)
-        scm-cli show security decryption-profile --folder Texas
+        scm show security decryption-profile --folder Texas
 
         # Show a specific decryption profile by name
-        scm-cli show security decryption-profile --folder Texas --name ssl-forward
+        scm show security decryption-profile --folder Texas --name ssl-forward
 
         # List profiles in snippet
-        scm-cli show security decryption-profile --snippet Security-Best-Practice
+        scm show security decryption-profile --snippet Security-Best-Practice
 
     """
     # Validate location parameters

@@ -19,7 +19,7 @@ Create or update a HIP profile object.
 ### Syntax
 
 ```bash
-scm set objects hip-profile [OPTIONS]
+scm set object hip-profile [OPTIONS]
 ```
 
 ### Options
@@ -40,7 +40,7 @@ scm set objects hip-profile [OPTIONS]
 #### Create Basic HIP Profile
 
 ```bash
-$ scm set objects hip-profile \
+$ scm set object hip-profile \
     --folder Texas \
     --name basic-compliance \
     --match '{"windows-patches": {"is": true}}' \
@@ -52,7 +52,7 @@ Created HIP profile: basic-compliance in folder Texas
 #### Create Multi-Object Compliance Profile
 
 ```bash
-$ scm set objects hip-profile \
+$ scm set object hip-profile \
     --folder Texas \
     --name secure-endpoints \
     --match '{"windows-patches": {"is": true}, "disk-encryption": {"is": true}, "antivirus": {"is": true}}' \
@@ -68,7 +68,7 @@ Delete a HIP profile object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects hip-profile [OPTIONS]
+scm delete object hip-profile [OPTIONS]
 ```
 
 ### Options
@@ -85,7 +85,7 @@ scm delete objects hip-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects hip-profile --folder Texas --name secure-endpoints
+$ scm delete object hip-profile --folder Texas --name secure-endpoints
 ---> 100%
 Deleted HIP profile: secure-endpoints from folder Texas
 ```
@@ -97,7 +97,7 @@ Load multiple HIP profile objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects hip-profile [OPTIONS]
+scm load object hip-profile [OPTIONS]
 ```
 
 ### Options
@@ -146,7 +146,7 @@ hip_profiles:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects hip-profile --file hip-profiles.yml
+$ scm load object hip-profile --file hip-profiles.yml
 ---> 100%
 ✓ Loaded HIP profile: basic-windows
 ✓ Loaded HIP profile: secure-windows
@@ -160,7 +160,7 @@ Successfully loaded 5 out of 5 HIP profiles from 'hip-profiles.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects hip-profile --file hip-profiles.yml --folder Austin
+$ scm load object hip-profile --file hip-profiles.yml --folder Austin
 ---> 100%
 ✓ Loaded HIP profile: basic-windows
 ✓ Loaded HIP profile: secure-windows
@@ -181,7 +181,7 @@ Display HIP profile objects.
 ### Syntax
 
 ```bash
-scm show objects hip-profile [OPTIONS]
+scm show object hip-profile [OPTIONS]
 ```
 
 ### Options
@@ -202,7 +202,7 @@ scm show objects hip-profile [OPTIONS]
 #### Show Specific HIP Profile
 
 ```bash
-$ scm show objects hip-profile --folder Texas --name secure-endpoints
+$ scm show object hip-profile --folder Texas --name secure-endpoints
 ---> 100%
 HIP Profile: secure-endpoints
 Location: Folder 'Texas'
@@ -214,7 +214,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All HIP Profiles (Default Behavior)
 
 ```bash
-$ scm show objects hip-profile --folder Texas
+$ scm show object hip-profile --folder Texas
 ---> 100%
 HIP Profiles in folder 'Texas':
 ------------------------------------------------------------
@@ -242,7 +242,7 @@ Backup all HIP profile objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup objects hip-profile [OPTIONS]
+scm backup object hip-profile [OPTIONS]
 ```
 
 ### Options
@@ -261,7 +261,7 @@ scm backup objects hip-profile [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects hip-profile --folder Texas
+$ scm backup object hip-profile --folder Texas
 ---> 100%
 Successfully backed up 8 HIP profiles to hip-profile_folder_texas_20240115_120530.yaml
 ```
@@ -269,7 +269,7 @@ Successfully backed up 8 HIP profiles to hip-profile_folder_texas_20240115_12053
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects hip-profile --folder Texas --file texas-hip-profiles.yaml
+$ scm backup object hip-profile --folder Texas --file texas-hip-profiles.yaml
 ---> 100%
 Successfully backed up 8 HIP profiles to texas-hip-profiles.yaml
 ```
@@ -357,7 +357,7 @@ Multiple requirements with mixed logic:
 ### Basic Compliance Profiles
 
 ```bash
-$ scm set objects hip-profile \
+$ scm set object hip-profile \
     --folder Shared \
     --name patch-compliance \
     --match '{"os-patches": {"is": true}}' \
@@ -369,7 +369,7 @@ Created HIP profile: patch-compliance in folder Shared
 ### Platform-Specific Profile
 
 ```bash
-$ scm set objects hip-profile \
+$ scm set object hip-profile \
     --folder Texas \
     --name windows-corporate \
     --match '{"corp-domain": {"is": true}, "windows-security": {"is": true}}' \
@@ -381,7 +381,7 @@ Created HIP profile: windows-corporate in folder Texas
 ### High Security Profile
 
 ```bash
-$ scm set objects hip-profile \
+$ scm set object hip-profile \
     --folder Shared \
     --name high-security \
     --match '{"antivirus": {"is": true}, "os-patches": {"is": true}, "disk-encryption": {"is": true}, "corp-domain": {"is": true}}' \

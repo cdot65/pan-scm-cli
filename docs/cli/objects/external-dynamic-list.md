@@ -19,7 +19,7 @@ Create or update an external dynamic list object.
 ### Syntax
 
 ```bash
-scm set objects external-dynamic-list [OPTIONS]
+scm set object external-dynamic-list [OPTIONS]
 ```
 
 ### Options
@@ -51,7 +51,7 @@ scm set objects external-dynamic-list [OPTIONS]
 #### Create Predefined IP Blocklist
 
 ```bash
-$ scm set objects external-dynamic-list \
+$ scm set object external-dynamic-list \
     --folder Texas \
     --name paloalto-bulletproof \
     --type predefined_ip \
@@ -64,7 +64,7 @@ Created external dynamic list: paloalto-bulletproof in folder Texas
 #### Create Custom IP List with Hourly Updates
 
 ```bash
-$ scm set objects external-dynamic-list \
+$ scm set object external-dynamic-list \
     --folder Texas \
     --name custom-threats \
     --type ip \
@@ -82,7 +82,7 @@ Delete an external dynamic list object from SCM.
 ### Syntax
 
 ```bash
-scm delete objects external-dynamic-list [OPTIONS]
+scm delete object external-dynamic-list [OPTIONS]
 ```
 
 ### Options
@@ -99,7 +99,7 @@ scm delete objects external-dynamic-list [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete objects external-dynamic-list --folder Texas --name custom-threats
+$ scm delete object external-dynamic-list --folder Texas --name custom-threats
 ---> 100%
 Deleted external dynamic list: custom-threats from folder Texas
 ```
@@ -111,7 +111,7 @@ Load multiple external dynamic list objects from a YAML file.
 ### Syntax
 
 ```bash
-scm load objects external-dynamic-list [OPTIONS]
+scm load object external-dynamic-list [OPTIONS]
 ```
 
 ### Options
@@ -180,7 +180,7 @@ external_dynamic_lists:
 #### Load with Original Locations
 
 ```bash
-$ scm load objects external-dynamic-list --file edls.yml
+$ scm load object external-dynamic-list --file edls.yml
 ---> 100%
 ✓ Loaded external dynamic list: paloalto-bulletproof
 ✓ Loaded external dynamic list: paloalto-highrisk
@@ -194,7 +194,7 @@ Successfully loaded 5 out of 5 external dynamic lists from 'edls.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load objects external-dynamic-list --file edls.yml --folder Austin
+$ scm load object external-dynamic-list --file edls.yml --folder Austin
 ---> 100%
 ✓ Loaded external dynamic list: paloalto-bulletproof
 ✓ Loaded external dynamic list: paloalto-highrisk
@@ -215,7 +215,7 @@ Display external dynamic list objects.
 ### Syntax
 
 ```bash
-scm show objects external-dynamic-list [OPTIONS]
+scm show object external-dynamic-list [OPTIONS]
 ```
 
 ### Options
@@ -236,7 +236,7 @@ scm show objects external-dynamic-list [OPTIONS]
 #### Show Specific External Dynamic List
 
 ```bash
-$ scm show objects external-dynamic-list --folder Texas --name custom-threats
+$ scm show object external-dynamic-list --folder Texas --name custom-threats
 ---> 100%
 External Dynamic List: custom-threats
 Location: Folder 'Texas'
@@ -250,7 +250,7 @@ ID: 123e4567-e89b-12d3-a456-426614174000
 #### List All External Dynamic Lists (Default Behavior)
 
 ```bash
-$ scm show objects external-dynamic-list --folder Texas
+$ scm show object external-dynamic-list --folder Texas
 ---> 100%
 External Dynamic Lists in folder 'Texas':
 ------------------------------------------------------------
@@ -285,7 +285,7 @@ Backup all external dynamic list objects from a specified location to a YAML fil
 ### Syntax
 
 ```bash
-scm backup objects external-dynamic-list [OPTIONS]
+scm backup object external-dynamic-list [OPTIONS]
 ```
 
 ### Options
@@ -304,7 +304,7 @@ scm backup objects external-dynamic-list [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup objects external-dynamic-list --folder Texas
+$ scm backup object external-dynamic-list --folder Texas
 ---> 100%
 Successfully backed up 8 external dynamic lists to external-dynamic-list_folder_texas_20240115_120530.yaml
 ```
@@ -312,7 +312,7 @@ Successfully backed up 8 external dynamic lists to external-dynamic-list_folder_
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup objects external-dynamic-list --folder Texas --file texas-edls.yaml
+$ scm backup object external-dynamic-list --folder Texas --file texas-edls.yaml
 ---> 100%
 Successfully backed up 8 external dynamic lists to texas-edls.yaml
 ```
@@ -369,7 +369,7 @@ User-defined lists with flexible update schedules:
 ### Create Predefined Threat Lists
 
 ```bash
-$ scm set objects external-dynamic-list \
+$ scm set object external-dynamic-list \
     --folder Shared \
     --name bulletproof-ips \
     --type predefined_ip \
@@ -382,7 +382,7 @@ Created external dynamic list: bulletproof-ips in folder Shared
 ### Create Custom IP Lists
 
 ```bash
-$ scm set objects external-dynamic-list \
+$ scm set object external-dynamic-list \
     --folder Shared \
     --name office-whitelist \
     --type ip \
@@ -398,7 +398,7 @@ Created external dynamic list: office-whitelist in folder Shared
 ### Create Domain Lists with Authentication
 
 ```bash
-$ scm set objects external-dynamic-list \
+$ scm set object external-dynamic-list \
     --folder Texas \
     --name malware-domains \
     --type domain \
