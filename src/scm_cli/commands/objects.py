@@ -1,4 +1,4 @@
-"""Objects module commands for scm-cli.
+"""Objects module commands for scm.
 
 This module implements set, delete, and load commands for objects-related
 configurations such as address-group, address, service-group, etc.
@@ -56,11 +56,11 @@ def show_context_info() -> None:
 # ========================================================================================================================================================================================
 
 # Create app groups for each action type
-set_app = typer.Typer(help="Create or update objects configurations")
-delete_app = typer.Typer(help="Remove objects configurations")
-load_app = typer.Typer(help="Load objects configurations from YAML files")
-show_app = typer.Typer(help="Display objects configurations")
-backup_app = typer.Typer(help="Backup objects configurations to YAML files")
+set_app = typer.Typer(help="Create or update object configurations")
+delete_app = typer.Typer(help="Remove object configurations")
+load_app = typer.Typer(help="Load object configurations from YAML files")
+show_app = typer.Typer(help="Display object configurations")
+backup_app = typer.Typer(help="Backup object configurations to YAML files")
 
 # ========================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -427,16 +427,16 @@ def backup_address_group(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects address-group --folder Austin
+        scm backup object address-group --folder Austin
 
         # Backup from a folder with custom output file
-        scm-cli backup objects address-group --folder Austin --file my-backups/austin-groups.yaml
+        scm backup object address-group --folder Austin --file my-backups/austin-groups.yaml
 
         # Backup from a snippet (when supported by SDK)
-        scm-cli backup objects address-group --snippet "Shared Objects"
+        scm backup object address-group --snippet "Shared Objects"
 
         # Backup from a device (when supported by SDK)
-        scm-cli backup objects address-group --device "FW-NYC-01"
+        scm backup object address-group --device "FW-NYC-01"
 
     """
     try:
@@ -499,7 +499,7 @@ def delete_address_group(
 
     Examples
     --------
-        scm-cli delete objects address-group --folder Texas --name test123
+        scm delete object address-group --folder Texas --name test123
 
     """
     try:
@@ -525,16 +525,16 @@ def load_address_group(
     Examples
     --------
         # Load from file with original locations
-        scm-cli load objects address-group --file config/address_groups.yml
+        scm load object address-group --file config/address_groups.yml
 
         # Load with folder override
-        scm-cli load objects address-group --file config/address_groups.yml --folder Texas
+        scm load object address-group --file config/address_groups.yml --folder Texas
 
         # Load with snippet override
-        scm-cli load objects address-group --file config/address_groups.yml --snippet DNS-Best-Practice
+        scm load object address-group --file config/address_groups.yml --snippet DNS-Best-Practice
 
         # Dry run to preview changes
-        scm-cli load objects address-group --file config/address_groups.yml --dry-run
+        scm load object address-group --file config/address_groups.yml --dry-run
 
     """
     try:
@@ -645,7 +645,7 @@ def set_address_group(
     Example:
     -------
         # Static address group
-        scm-cli set objects address-group \
+        scm set object address-group \
         --folder Texas \
         --name test-static \
         --type static \
@@ -653,7 +653,7 @@ def set_address_group(
         --description "test static group"
 
         # Dynamic address group
-        scm-cli set objects address-group \
+        scm set object address-group \
         --folder Texas \
         --name test-dynamic \
         --type dynamic \
@@ -701,10 +701,10 @@ def show_address_group(
     Examples
     --------
         # List all address groups in a folder (default behavior)
-        scm-cli show objects address-group --folder Texas
+        scm show object address-group --folder Texas
 
         # Show a specific address group by name
-        scm-cli show objects address-group --folder Texas --name web-servers
+        scm show object address-group --folder Texas --name web-servers
 
     """
     try:
@@ -819,18 +819,18 @@ def backup_address(
     device: str = BACKUP_DEVICE_OPTION,
     file: Path | None = BACKUP_FILE_OPTION,
 ):
-    """Backup all address objects from a specified location to a YAML file.
+    """Backup all address object from a specified location to a YAML file.
 
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects address --folder Austin
+        scm backup object address --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects address --folder Austin --file addresses-backup.yaml
+        scm backup object address --folder Austin --file addresses-backup.yaml
 
         # Backup from a snippet (when supported by SDK)
-        scm-cli backup objects address --snippet "Shared Objects"
+        scm backup object address --snippet "Shared Objects"
 
     """
     try:
@@ -882,7 +882,7 @@ def delete_address(
 
     Examples
     --------
-        scm-cli delete objects address --folder Texas --name webserver
+        scm delete object address --folder Texas --name webserver
 
     """
     try:
@@ -903,20 +903,20 @@ def load_address(
     snippet: str = LOAD_SNIPPET_OPTION,
     device: str = LOAD_DEVICE_OPTION,
 ):
-    """Load address objects from a YAML file.
+    """Load address object from a YAML file.
 
     Examples:
         # Load from file with original locations
-        scm-cli load objects address --file config/addresses.yml
+        scm load object address --file config/addresses.yml
 
         # Load with folder override
-        scm-cli load objects address --file config/addresses.yml --folder Production
+        scm load object address --file config/addresses.yml --folder Production
 
         # Load with snippet override
-        scm-cli load objects address --file config/addresses.yml --snippet DNS-Best-Practice
+        scm load object address --file config/addresses.yml --snippet DNS-Best-Practice
 
         # Dry run to preview changes
-        scm-cli load objects address --file config/addresses.yml --dry-run
+        scm load object address --file config/addresses.yml --dry-run
 
     """
     try:
@@ -1036,7 +1036,7 @@ def set_address(
 
     Example:
     -------
-        scm-cli set objects address \
+        scm set object address \
         --folder Texas \
         --name webserver \
         --ip-netmask 192.168.1.100/32 \
@@ -1088,10 +1088,10 @@ def show_address(
     Example:
     -------
         # List all addresses in a folder (default behavior)
-        scm-cli show objects address --folder Texas
+        scm show object address --folder Texas
 
         # Show a specific address by name
-        scm-cli show objects address --folder Texas --name webserver
+        scm show object address --folder Texas --name webserver
 
     """
     try:
@@ -1211,10 +1211,10 @@ def backup_application(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects application --folder Austin
+        scm backup object application --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects application --folder Austin --file apps-backup.yaml
+        scm backup object application --folder Austin --file apps-backup.yaml
 
     """
     try:
@@ -1266,7 +1266,7 @@ def delete_application(
 
     Example:
     -------
-    scm-cli delete objects application --folder Texas --name custom-app
+    scm delete object application --folder Texas --name custom-app
 
     """
     try:
@@ -1292,16 +1292,16 @@ def load_application(
     Examples
     --------
         # Load from file with original locations
-        scm-cli load objects application --file config/applications.yml
+        scm load object application --file config/applications.yml
 
         # Load with folder override
-        scm-cli load objects application --file config/applications.yml --folder Texas
+        scm load object application --file config/applications.yml --folder Texas
 
         # Load with snippet override
-        scm-cli load objects application --file config/applications.yml --snippet DNS-Best-Practice
+        scm load object application --file config/applications.yml --snippet DNS-Best-Practice
 
         # Dry run to preview changes
-        scm-cli load objects application --file config/applications.yml --dry-run
+        scm load object application --file config/applications.yml --dry-run
 
     """
     try:
@@ -1433,7 +1433,7 @@ def set_application(
 
     Example:
     -------
-        scm-cli set objects application \
+        scm set object application \
         --folder Texas \
         --name custom-database \
         --category business-systems \
@@ -1505,10 +1505,10 @@ def show_application(
     Examples
     --------
         # List all applications in a folder (default behavior)
-        scm-cli show objects application --folder Texas
+        scm show object application --folder Texas
 
         # Show a specific application by name
-        scm-cli show objects application --folder Texas --name custom-database
+        scm show object application --folder Texas --name custom-database
 
     """
     try:
@@ -1641,10 +1641,10 @@ def backup_application_group(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects application-group --folder Austin
+        scm backup object application-group --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects application-group --folder Austin --file app-groups.yaml
+        scm backup object application-group --folder Austin --file app-groups.yaml
 
     """
     try:
@@ -1662,7 +1662,7 @@ def backup_application_group(
         # Convert SDK models to dictionaries, excluding unset values
         backup_data = []
         for group in groups:
-            # The list method returns dict objects already, but let's ensure we exclude any None values
+            # The list method returns dict object already, but let's ensure we exclude any None values
             group_dict = {k: v for k, v in group.items() if v is not None}
             # Remove system fields that shouldn't be in backup
             group_dict.pop("id", None)
@@ -1696,7 +1696,7 @@ def delete_application_group(
 
     Example:
     -------
-    scm-cli delete objects application-group --folder Texas --name web-apps
+    scm delete object application-group --folder Texas --name web-apps
 
     """
     try:
@@ -1721,7 +1721,7 @@ def load_application_group(
 
     Example:
     -------
-    scm-cli load objects application-group --file config/application_groups.yml
+    scm load object application-group --file config/application_groups.yml
 
     """
     try:
@@ -1816,7 +1816,7 @@ def set_application_group(
 
     Example:
     -------
-        scm-cli set objects application-group \
+        scm set object application-group \
         --folder Texas \
         --name web-apps \
         --members ["ssl", "web-browsing", "http", "https"]
@@ -1854,10 +1854,10 @@ def show_application_group(
     Examples
     --------
         # List all application groups in a folder (default behavior)
-        scm-cli show objects application-group --folder Texas
+        scm show object application-group --folder Texas
 
         # Show a specific application group by name
-        scm-cli show objects application-group --folder Texas --name web-apps
+        scm show object application-group --folder Texas --name web-apps
 
     """
     try:
@@ -1950,10 +1950,10 @@ def backup_application_filter(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects application-filter --folder Austin
+        scm backup object application-filter --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects application-filter --folder Austin --file app-filters.yaml
+        scm backup object application-filter --folder Austin --file app-filters.yaml
 
     """
     try:
@@ -1971,7 +1971,7 @@ def backup_application_filter(
         # Convert SDK models to dictionaries, excluding unset values
         backup_data = []
         for filter_obj in filters:
-            # The list method returns dict objects already, but let's ensure we exclude any None values
+            # The list method returns dict object already, but let's ensure we exclude any None values
             filter_dict = {k: v for k, v in filter_obj.items() if v is not None}
             # Remove system fields that shouldn't be in backup
             filter_dict.pop("id", None)
@@ -2005,7 +2005,7 @@ def delete_application_filter(
 
     Example:
     -------
-    scm-cli delete objects application-filter --folder Texas --name high-risk-apps
+    scm delete object application-filter --folder Texas --name high-risk-apps
 
     """
     try:
@@ -2030,7 +2030,7 @@ def load_application_filter(
 
     Example:
     -------
-    scm-cli load objects application-filter --file config/application_filters.yml
+    scm load object application-filter --file config/application_filters.yml
 
     """
     try:
@@ -2149,7 +2149,7 @@ def set_application_filter(
 
     Example:
     -------
-        scm-cli set objects application-filter \
+        scm set object application-filter \
         --folder Texas \
         --name high-risk-apps \
         --category ["business-systems"] \
@@ -2216,10 +2216,10 @@ def show_application_filter(
     Examples
     --------
         # List all application filters in a folder (default behavior)
-        scm-cli show objects application-filter --folder Texas
+        scm show object application-filter --folder Texas
 
         # Show a specific application filter by name
-        scm-cli show objects application-filter --folder Texas --name high-risk-apps
+        scm show object application-filter --folder Texas --name high-risk-apps
 
     """
     try:
@@ -2353,10 +2353,10 @@ def backup_dynamic_user_group(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects dynamic-user-group --folder Austin
+        scm backup object dynamic-user-group --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects dynamic-user-group --folder Austin --file dug-backup.yaml
+        scm backup object dynamic-user-group --folder Austin --file dug-backup.yaml
 
     """
     try:
@@ -2413,7 +2413,7 @@ def delete_dynamic_user_group(
 
     Example:
     -------
-    scm-cli delete objects dynamic-user-group --folder Texas --name it-admins
+    scm delete object dynamic-user-group --folder Texas --name it-admins
 
     """
     try:
@@ -2438,7 +2438,7 @@ def load_dynamic_user_group(
 
     Example:
     -------
-    scm-cli load objects dynamic-user-group --file config/dynamic_user_groups.yml
+    scm load object dynamic-user-group --file config/dynamic_user_groups.yml
 
     """
     try:
@@ -2537,7 +2537,7 @@ def set_dynamic_user_group(
 
     Example:
     -------
-        scm-cli set objects dynamic-user-group \\
+        scm set object dynamic-user-group \\
         --folder Texas \\
         --name it-admins \\
         --filter "tag.Department='IT' and tag.Role='Admin'" \\
@@ -2581,10 +2581,10 @@ def show_dynamic_user_group(
     Examples
     --------
         # List all dynamic user groups in a folder (default behavior)
-        scm-cli show objects dynamic-user-group --folder Texas
+        scm show object dynamic-user-group --folder Texas
 
         # Show a specific dynamic user group by name
-        scm-cli show objects dynamic-user-group --folder Texas --name it-admins
+        scm show object dynamic-user-group --folder Texas --name it-admins
 
     """
     try:
@@ -2675,10 +2675,10 @@ def backup_external_dynamic_list(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects external-dynamic-list --folder Austin
+        scm backup object external-dynamic-list --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects external-dynamic-list --folder Austin --file edl-backup.yaml
+        scm backup object external-dynamic-list --folder Austin --file edl-backup.yaml
 
     """
     try:
@@ -2760,7 +2760,7 @@ def delete_external_dynamic_list(
 
     Example:
     -------
-    scm-cli delete objects external-dynamic-list --folder Texas --name malicious-ips
+    scm delete object external-dynamic-list --folder Texas --name malicious-ips
 
     """
     try:
@@ -2785,7 +2785,7 @@ def load_external_dynamic_list(
 
     Example:
     -------
-    scm-cli load objects external-dynamic-list --file config/external_dynamic_lists.yml
+    scm load object external-dynamic-list --file config/external_dynamic_lists.yml
 
     """
     try:
@@ -2917,15 +2917,15 @@ def set_external_dynamic_list(
     Example:
     -------
         # Create a predefined IP list
-        scm-cli set objects external-dynamic-list --folder Texas --name paloalto-bulletproof \\
+        scm set object external-dynamic-list --folder Texas --name paloalto-bulletproof \\
             --type predefined_ip --url "https://saasedl.paloaltonetworks.com/feeds/BulletproofIPList"
 
         # Create a custom IP blocklist with hourly updates
-        scm-cli set objects external-dynamic-list --folder Texas --name custom-blocklist \\
+        scm set object external-dynamic-list --folder Texas --name custom-blocklist \\
             --type ip --url "https://example.com/blocklist.txt" --recurring hourly
 
         # Create a domain list with daily updates at 3 AM
-        scm-cli set objects external-dynamic-list --folder Texas --name malicious-domains \\
+        scm set object external-dynamic-list --folder Texas --name malicious-domains \\
             --type domain --url "https://example.com/domains.txt" --recurring daily --hour 03 \\
             --expand-domain
 
@@ -2983,10 +2983,10 @@ def show_external_dynamic_list(
     Examples
     --------
         # List all external dynamic lists in a folder (default behavior)
-        scm-cli show objects external-dynamic-list --folder Texas
+        scm show object external-dynamic-list --folder Texas
 
         # Show a specific external dynamic list by name
-        scm-cli show objects external-dynamic-list --folder Texas --name malicious-ips
+        scm show object external-dynamic-list --folder Texas --name malicious-ips
 
     """
     try:
@@ -3105,10 +3105,10 @@ def backup_hip_object(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects hip-object --folder Austin
+        scm backup object hip-object --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects hip-object --folder Austin --file hip-objects.yaml
+        scm backup object hip-object --folder Austin --file hip-objects.yaml
 
     """
     try:
@@ -3290,7 +3290,7 @@ def delete_hip_object(
 
     Example:
     -------
-    scm-cli delete objects hip-object --folder Texas --name windows-compliance
+    scm delete object hip-object --folder Texas --name windows-compliance
 
     """
     try:
@@ -3315,7 +3315,7 @@ def load_hip_object(
 
     Example:
     -------
-    scm-cli load objects hip-object --file config/hip_objects.yml
+    scm load object hip-object --file config/hip_objects.yml
 
     """
     try:
@@ -3444,7 +3444,7 @@ def set_hip_object(
     Example:
     -------
         # Create a Windows workstation compliance policy
-        scm-cli set objects hip-object \\
+        scm set object hip-object \\
         --folder Texas \\
         --name windows-compliance \\
         --description "Windows workstation compliance" \\
@@ -3455,7 +3455,7 @@ def set_hip_object(
         --patch-management-enabled
 
         # Create a mobile device policy
-        scm-cli set objects hip-object \\
+        scm set object hip-object \\
         --folder Texas \\
         --name mobile-policy \\
         --description "Mobile device compliance" \\
@@ -3464,7 +3464,7 @@ def set_hip_object(
         --mobile-device-passcode-set
 
         # Create a network-based policy
-        scm-cli set objects hip-object \\
+        scm set object hip-object \\
         --folder Texas \\
         --name wifi-only \\
         --description "WiFi network only" \\
@@ -3557,10 +3557,10 @@ def show_hip_object(
     Examples
     --------
         # List all HIP objects in a folder (default behavior)
-        scm-cli show objects hip-object --folder Texas
+        scm show object hip-object --folder Texas
 
         # Show a specific HIP object by name
-        scm-cli show objects hip-object --folder Texas --name windows-compliance
+        scm show object hip-object --folder Texas --name windows-compliance
 
     """
     try:
@@ -3786,10 +3786,10 @@ def backup_hip_profile(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects hip-profile --folder Austin
+        scm backup object hip-profile --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects hip-profile --folder Austin --file hip-profiles.yaml
+        scm backup object hip-profile --folder Austin --file hip-profiles.yaml
 
     """
     try:
@@ -4008,10 +4008,10 @@ def show_hip_profile(
     Examples
     --------
         # List all HIP profiles in a folder (default behavior)
-        scm-cli show objects hip-profile --folder Texas
+        scm show object hip-profile --folder Texas
 
         # Show a specific HIP profile by name
-        scm-cli show objects hip-profile --folder Texas --name windows-compliance
+        scm show object hip-profile --folder Texas --name windows-compliance
 
     """
     try:
@@ -4076,10 +4076,10 @@ def backup_http_server_profile(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects http-server-profile --folder Austin
+        scm backup object http-server-profile --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects http-server-profile --folder Austin --file http-profiles.yaml
+        scm backup object http-server-profile --folder Austin --file http-profiles.yaml
 
     """
     try:
@@ -4330,10 +4330,10 @@ def show_http_server_profile(
     Examples
     --------
         # List all HTTP server profiles in a folder (default behavior)
-        scm-cli show objects http-server-profile --folder Texas
+        scm show object http-server-profile --folder Texas
 
         # Show a specific HTTP server profile by name
-        scm-cli show objects http-server-profile --folder Texas --name syslog-collector
+        scm show object http-server-profile --folder Texas --name syslog-collector
 
     """
     try:
@@ -4439,13 +4439,13 @@ def backup_log_forwarding_profile(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects log-forwarding-profile --folder Austin
+        scm backup object log-forwarding-profile --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects log-forwarding-profile --folder Austin --file log-profiles.yaml
+        scm backup object log-forwarding-profile --folder Austin --file log-profiles.yaml
 
         # Exclude default profiles
-        scm-cli backup objects log-forwarding-profile --folder Austin --exclude-default
+        scm backup object log-forwarding-profile --folder Austin --exclude-default
 
     """
     try:
@@ -4707,10 +4707,10 @@ def show_log_forwarding_profile(
     Examples
     --------
         # List all log forwarding profiles in a folder (default behavior)
-        scm-cli show objects log-forwarding-profile --folder Texas
+        scm show object log-forwarding-profile --folder Texas
 
         # Show a specific log forwarding profile by name
-        scm-cli show objects log-forwarding-profile --folder Texas --name security-logs
+        scm show object log-forwarding-profile --folder Texas --name security-logs
 
     """
     try:
@@ -4818,10 +4818,10 @@ def backup_service(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects service --folder Austin
+        scm backup object service --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects service --folder Austin --file services.yaml
+        scm backup object service --folder Austin --file services.yaml
 
     """
     try:
@@ -5105,10 +5105,10 @@ def show_service(
     Examples
     --------
         # List all services in a folder (default behavior)
-        scm-cli show objects service --folder Texas
+        scm show object service --folder Texas
 
         # Show a specific service by name
-        scm-cli show objects service --folder Texas --name web-server
+        scm show object service --folder Texas --name web-server
 
     """
     try:
@@ -5228,10 +5228,10 @@ def backup_service_group(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects service-group --folder Austin
+        scm backup object service-group --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects service-group --folder Austin --file service-groups.yaml
+        scm backup object service-group --folder Austin --file service-groups.yaml
 
     """
     try:
@@ -5471,10 +5471,10 @@ def show_service_group(
     Examples
     --------
         # List all service groups in a folder (default behavior)
-        scm-cli show objects service-group --folder Texas
+        scm show object service-group --folder Texas
 
         # Show a specific service group by name
-        scm-cli show objects service-group --folder Texas --name web-services
+        scm show object service-group --folder Texas --name web-services
 
     """
     try:
@@ -5549,10 +5549,10 @@ def backup_syslog_server_profile(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects syslog-server-profile --folder Austin
+        scm backup object syslog-server-profile --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects syslog-server-profile --folder Austin --file syslog-profiles.yaml
+        scm backup object syslog-server-profile --folder Austin --file syslog-profiles.yaml
 
     """
     try:
@@ -5831,10 +5831,10 @@ def show_syslog_server_profile(
     Examples
     --------
         # List all syslog server profiles (default behavior)
-        scm-cli show objects syslog-server-profile
+        scm show object syslog-server-profile
 
         # Show a specific syslog server profile by name
-        scm-cli show objects syslog-server-profile --name primary-syslog
+        scm show object syslog-server-profile --name primary-syslog
 
     """
     try:
@@ -5951,10 +5951,10 @@ def backup_tag(
     Examples
     --------
         # Backup from a folder
-        scm-cli backup objects tag --folder Austin
+        scm backup object tag --folder Austin
 
         # Backup with custom output file
-        scm-cli backup objects tag --folder Austin --file tags.yaml
+        scm backup object tag --folder Austin --file tags.yaml
 
     """
     try:
@@ -6171,10 +6171,10 @@ def show_tag(
     Examples
     --------
         # List all tags (default behavior)
-        scm-cli show objects tag
+        scm show object tag
 
         # Show a specific tag by name
-        scm-cli show objects tag --name Production
+        scm show object tag --name Production
 
     """
     try:
