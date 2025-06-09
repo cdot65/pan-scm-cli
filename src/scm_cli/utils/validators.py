@@ -22,11 +22,11 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
 class BandwidthAllocation(BaseModel):
-    """Model for bandwidth allocation configurations with folder path."""
+    """Model for bandwidth allocation configurations (global resource, no folder)."""
 
-    folder: str = Field(..., description="Folder path for the bandwidth allocation")
     name: str = Field(..., description="Name of the bandwidth allocation")
     bandwidth: int = Field(..., description="Bandwidth value in Mbps")
+    spn_name_list: list[str] = Field(..., min_length=1, description="List of SPN names to associate with allocation")
     description: str = Field("", description="Description of the bandwidth allocation")
     tags: list[str] = Field(default_factory=list, description="List of tags")
 
@@ -35,6 +35,7 @@ class BandwidthAllocation(BaseModel):
         return {
             "name": self.name,
             "allocated_bandwidth": self.bandwidth,
+            "spn_name_list": self.spn_name_list,
             "description": self.description,
             "tags": self.tags,
         }
