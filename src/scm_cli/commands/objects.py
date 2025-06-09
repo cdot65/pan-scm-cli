@@ -1048,22 +1048,27 @@ def set_address(
     """
     try:
         # Validate inputs using the Pydantic model
-        address = Address(
-            folder=folder,
-            name=name,
-            description=description or "",
-            tags=tags or [],
-            ip_netmask=ip_netmask,
-            ip_range=ip_range,
-            ip_wildcard=ip_wildcard,
-            fqdn=fqdn,
-        )
+        address_data = {
+            "folder": folder,
+            "name": name,
+            "tags": tags or [],
+            "ip_netmask": ip_netmask,
+            "ip_range": ip_range,
+            "ip_wildcard": ip_wildcard,
+            "fqdn": fqdn,
+        }
+
+        # Only include description if provided
+        if description is not None:
+            address_data["description"] = description
+
+        address = Address(**address_data)
 
         # Call the SDK client to create the address
         result = scm_client.create_address(
             folder=address.folder,
             name=address.name,
-            description=address.description,
+            description=description,  # Pass None if not provided, not empty string
             tags=address.tags,
             ip_netmask=address.ip_netmask,
             ip_range=address.ip_range,

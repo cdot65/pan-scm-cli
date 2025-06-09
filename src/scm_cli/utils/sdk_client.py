@@ -990,8 +990,11 @@ class SCMClient:
             address_data = {
                 "name": name,
                 "folder": folder,
-                "description": description or "",
             }
+
+            # Only include description if it's provided and not empty
+            if description:
+                address_data["description"] = description
 
             # Add exactly one address type
             if ip_netmask:
