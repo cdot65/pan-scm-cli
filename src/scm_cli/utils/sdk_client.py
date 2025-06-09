@@ -176,18 +176,18 @@ class SCMClient:
 
     def create_bandwidth_allocation(
         self,
-        folder: str,
         name: str,
         bandwidth: int,
+        spn_name_list: list[str],
         description: str = "",
         tags: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create a bandwidth allocation.
 
         Args:
-            folder: Folder to create the bandwidth allocation in
             name: Name of the bandwidth allocation
             bandwidth: Bandwidth in Mbps
+            spn_name_list: List of SPN names to associate with allocation
             description: Optional description
             tags: Optional list of tags
 
@@ -196,15 +196,15 @@ class SCMClient:
 
         """
         tags = tags or []
-        self.logger.info(f"Creating bandwidth allocation: {name} with {bandwidth} Mbps in folder {folder}")
+        self.logger.info(f"Creating bandwidth allocation: {name} with {bandwidth} Mbps for SPNs: {spn_name_list}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"ba-{name}",
-                "folder": folder,
                 "name": name,
-                "bandwidth": bandwidth,
+                "allocated_bandwidth": bandwidth,
+                "spn_name_list": spn_name_list,
                 "description": description,
                 "tags": tags,
             }
@@ -214,39 +214,39 @@ class SCMClient:
             allocation_data = {
                 "name": name,
                 "allocated_bandwidth": bandwidth,
+                "spn_name_list": spn_name_list,
                 "description": description or "",
             }
 
-            # Add exactly one address type
             if tags:
-                # Convert a list of tags to a comma-separated string
-                allocation_data["tags"] = ",".join(tags)
+                allocation_data["tags"] = tags
 
-            # Note: bandwidth allocations don't have a folder parameter in the SDK
-            # The folder parameter is kept in the method signature for CLI consistency
             result = self.client.bandwidth_allocation.create(allocation_data)
 
             # Convert SDK response to dict for compatibility
-            return result.dict()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("creation", folder, name, e)
+            self._handle_api_exception("creation", "N/A", name, e)
 
     def delete_bandwidth_allocation(
         self,
-        folder: str,
         name: str,
+        spn_name_list: list[str],
     ) -> bool:
         """Delete a bandwidth allocation.
 
         Args:
-            folder: Folder containing the bandwidth allocation
             name: Name of the bandwidth allocation to delete
+            spn_name_list: List of SPN names associated with the allocation
 
         Returns:
             bool: True if deletion was successful
 
+        Note:
+            Bandwidth allocations are global resources and do not have folder parameters.
+
         """
-        self.logger.info(f"Deleting bandwidth allocation: {name} from folder {folder}")
+        self.logger.info(f"Deleting bandwidth allocation: {name} with SPNs: {spn_name_list}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -254,11 +254,10 @@ class SCMClient:
 
         try:
             # Delete using the SDK bandwidth_allocation service (singular, not plural)
-            # Note: bandwidth allocations don't have a folder parameter in the SDK
-            self.client.bandwidth_allocation.delete(name=name)
+            self.client.bandwidth_allocation.delete(name=name, spn_name_list=spn_name_list)
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", "N/A", name, e)
 
     def get_bandwidth_allocation(
         self,

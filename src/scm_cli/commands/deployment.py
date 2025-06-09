@@ -29,11 +29,9 @@ backup_app = typer.Typer(help="Backup SASE configurations to YAML files")
 # ========================================================================================================================================================================================
 
 # Define typer option constants
-FOLDER_OPTION = typer.Option(..., "--folder", help="Folder path for the bandwidth allocation")
 NAME_OPTION = typer.Option(..., "--name", help="Name of the bandwidth allocation")
 BANDWIDTH_OPTION = typer.Option(..., "--bandwidth", help="Bandwidth value in Mbps")
 DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of the bandwidth allocation")
-TAGS_OPTION = typer.Option(None, "--tags", help="List of tags")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
 
@@ -97,24 +95,33 @@ def backup_bandwidth_allocation():
 
 @delete_app.command("bandwidth-allocation")
 def delete_bandwidth_allocation(
-    folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    spn_name_list: str = typer.Option(..., "--spn-name-list", help="SPN names (comma-separated if multiple)"),
 ):
     """Delete a bandwidth allocation.
 
     Example:
     -------
     scm delete sase bandwidth-allocation \
-        --folder Texas \
-        --name primary
+        --name primary \
+        --spn-name-list ["spn1", "spn2"]
+
+    Note: Bandwidth allocations are global resources and do not require a folder parameter.
 
     """
     try:
-        result = scm_client.delete_bandwidth_allocation(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted bandwidth allocation: {name} from folder {folder}")
+        # Convert comma-separated string to list
+        if isinstance(spn_name_list, str):
+            spn_list = [spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]
         else:
-            typer.echo(f"Bandwidth allocation not found: {name} in folder {folder}", err=True)
+            # Already a list
+            spn_list = spn_name_list
+        
+        result = scm_client.delete_bandwidth_allocation(name=name, spn_name_list=spn_list)
+        if result:
+            typer.echo(f"Deleted bandwidth allocation: {name}")
+        else:
+            typer.echo(f"Bandwidth allocation not found: {name}", err=True)
             raise typer.Exit(code=1)
     except Exception as e:
         typer.echo(f"Error deleting bandwidth allocation: {str(e)}", err=True)
@@ -143,7 +150,8 @@ def load_bandwidth_allocation(
             typer.echo("DRY RUN: Would apply the following configurations:")
             for allocation_data in config["bandwidth_allocations"]:
                 # Output details about each allocation that would be created
-                typer.echo(f"Would create bandwidth allocation: {allocation_data['name']} ({allocation_data['bandwidth']} Mbps) in folder {allocation_data['folder']}")
+                spn_names = allocation_data.get('spn_name_list', [])
+                typer.echo(f"Would create bandwidth allocation: {allocation_data['name']} ({allocation_data['bandwidth']} Mbps) with SPNs: {spn_names}")
             typer.echo(yaml.dump(config["bandwidth_allocations"]))
             return None
 
@@ -155,16 +163,17 @@ def load_bandwidth_allocation(
 
             # Call the SDK client to create the bandwidth allocation
             result = scm_client.create_bandwidth_allocation(
-                folder=allocation.folder,
                 name=allocation.name,
                 bandwidth=allocation.bandwidth,
+                spn_name_list=allocation.spn_name_list,
                 description=allocation.description,
                 tags=allocation.tags,
             )
 
             results.append(result)
             # Output details about each allocation
-            typer.echo(f"Applied bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
+            bandwidth_value = result.get('allocated_bandwidth', result.get('bandwidth', 'N/A'))
+            typer.echo(f"Applied bandwidth allocation: {result['name']} ({bandwidth_value} Mbps)")
 
         # Add a summary message that matches test expectations
         typer.echo(f"Loaded {len(results)} bandwidth allocation(s)")
@@ -177,45 +186,58 @@ def load_bandwidth_allocation(
 
 @set_app.command("bandwidth-allocation")
 def set_bandwidth_allocation(
-    folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
     bandwidth: int = BANDWIDTH_OPTION,
+    spn_name_list: str = typer.Option(..., "--spn-name-list", help="SPN names (comma-separated if multiple)"),
     description: str | None = DESCRIPTION_OPTION,
-    tags: list[str] | None = TAGS_OPTION,
+    tags: str | None = typer.Option(None, "--tags", help="Tags (comma-separated if multiple)"),
 ):
     """Create or update a bandwidth allocation.
 
     Example:
     -------
     scm set sase bandwidth-allocation \
-        --folder Texas \
         --name primary \
         --bandwidth 1000 \
+        --spn-name-list ["spn1", "spn2"] \
         --description "Primary allocation" \
         --tags ["production"]
 
+    Note: Bandwidth allocations are global resources and do not require a folder parameter.
+
     """
     try:
+        # Convert comma-separated strings to lists
+        if isinstance(spn_name_list, str):
+            spn_list = [spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]
+        else:
+            spn_list = spn_name_list
+            
+        if isinstance(tags, str):
+            tag_list = [tag.strip() for tag in tags.split(",")] if tags and "," in tags else ([tags.strip()] if tags else [])
+        else:
+            tag_list = tags or []
+        
         # Validate input using Pydantic model
         allocation = BandwidthAllocation(
-            folder=folder,
             name=name,
             bandwidth=bandwidth,
+            spn_name_list=spn_list,
             description=description or "",
-            tags=tags or [],
+            tags=tag_list,
         )
 
         # Call the SDK client to create the bandwidth allocation
         result = scm_client.create_bandwidth_allocation(
-            folder=allocation.folder,
             name=allocation.name,
             bandwidth=allocation.bandwidth,
+            spn_name_list=allocation.spn_name_list,
             description=allocation.description,
             tags=allocation.tags,
         )
 
         # Include bandwidth in the output message to match test expectations
-        typer.echo(f"Created bandwidth allocation: {result['name']} ({result['bandwidth']} Mbps) in folder {result['folder']}")
+        typer.echo(f"Created bandwidth allocation: {result['name']} ({result.get('allocated_bandwidth', result.get('bandwidth', 'N/A'))} Mbps)")
         return result
     except Exception as e:
         typer.echo(f"Error creating bandwidth allocation: {str(e)}", err=True)
