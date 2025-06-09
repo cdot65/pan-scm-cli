@@ -28,8 +28,10 @@ class SCMClient:
     This client provides methods for interacting with Palo Alto Networks
     Strata Cloud Manager API, organized by configuration type:
 
-    Deployment Configuration:
+    SASE Deployment Configuration:
         - Bandwidth Allocation: create, get, list, delete
+        - Remote Network: create, get, list, delete
+        - Service Connection: create, get, list, delete
 
     Objects Configuration:
         - Address Groups: create, get, list, delete
@@ -160,14 +162,14 @@ class SCMClient:
 
     # ======================================================================================================================================================================================
     # API METHODS - Quick Navigation:
-    # - Deployment Configuration: Bandwidth Allocation
     # - Objects Configuration: Address Groups, Address Objects
     # - Network Configuration: Security Zones
+    # - SASE Deployment Configuration: Bandwidth Allocation
     # - Security Configuration: Security Rules, Anti-Spyware Profiles
     # ======================================================================================================================================================================================
 
     # ======================================================================================================================================================================================
-    # DEPLOYMENT CONFIGURATION METHODS
+    # SASE DEPLOYMENT CONFIGURATION METHODS
     # ======================================================================================================================================================================================
 
     # Bandwidth Allocation -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -338,6 +340,473 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", "N/A", "bandwidth allocations", e)
+
+    # ------------------------- Service Connection Methods ------------------------
+
+    def create_service_connection(
+        self,
+        name: str,
+        ipsec_tunnel: str,
+        region: str,
+        folder: str = "Service Connections",
+        onboarding_type: str = "classic",
+        backup_SC: str | None = None,
+        nat_pool: str | None = None,
+        no_export_community: str | None = None,
+        source_nat: bool | None = None,
+        subnets: list[str] | None = None,
+        secondary_ipsec_tunnel: str | None = None,
+        bgp_peer: dict[str, Any] | None = None,
+        protocol: dict[str, Any] | None = None,
+        qos: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a service connection.
+
+        Args:
+            name: Name of the service connection
+            ipsec_tunnel: IPsec tunnel for the service connection
+            region: Region for the service connection
+            folder: Folder containing the service connection (default: "Service Connections")
+            onboarding_type: Onboarding type (default: "classic")
+            backup_SC: Backup service connection
+            nat_pool: NAT pool for the service connection
+            no_export_community: No export community configuration
+            source_nat: Enable source NAT
+            subnets: Subnets for the service connection
+            secondary_ipsec_tunnel: Secondary IPsec tunnel
+            bgp_peer: BGP peer configuration
+            protocol: Protocol configuration (BGP)
+            qos: QoS configuration
+
+        Returns:
+            dict[str, Any]: Created/updated service connection object
+
+        """
+        self.logger.info(f"Creating/updating service connection '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"sc-{name}",
+                "name": name,
+                "folder": folder,
+                "ipsec_tunnel": ipsec_tunnel,
+                "region": region,
+                "onboarding_type": onboarding_type,
+                "subnets": subnets or ["10.0.0.0/24"],
+            }
+
+        try:
+            # Try to fetch existing service connection
+            try:
+                existing = self.client.service_connection.fetch(name=name)
+                self.logger.info(f"Found existing service connection '{name}', updating...")
+
+                # Update fields
+                updated = False
+                if existing.ipsec_tunnel != ipsec_tunnel:
+                    existing.ipsec_tunnel = ipsec_tunnel
+                    updated = True
+                if existing.region != region:
+                    existing.region = region
+                    updated = True
+                if backup_SC is not None and existing.backup_SC != backup_SC:
+                    existing.backup_SC = backup_SC
+                    updated = True
+                if nat_pool is not None and existing.nat_pool != nat_pool:
+                    existing.nat_pool = nat_pool
+                    updated = True
+                if no_export_community is not None and existing.no_export_community != no_export_community:
+                    existing.no_export_community = no_export_community
+                    updated = True
+                if source_nat is not None and existing.source_nat != source_nat:
+                    existing.source_nat = source_nat
+                    updated = True
+                if subnets is not None and existing.subnets != subnets:
+                    existing.subnets = subnets
+                    updated = True
+                if secondary_ipsec_tunnel is not None and existing.secondary_ipsec_tunnel != secondary_ipsec_tunnel:
+                    existing.secondary_ipsec_tunnel = secondary_ipsec_tunnel
+                    updated = True
+
+                if updated:
+                    result = self.client.service_connection.update(existing)
+                    self.logger.info(f"Updated service connection '{name}'")
+                else:
+                    self.logger.info(f"No changes needed for service connection '{name}'")
+                    result = existing
+
+                return json.loads(result.model_dump_json(exclude_unset=True))
+
+            except NotFoundError:
+                # Create new service connection
+                self.logger.info(f"Service connection '{name}' not found, creating new...")
+
+                data = {
+                    "name": name,
+                    "folder": folder,
+                    "ipsec_tunnel": ipsec_tunnel,
+                    "region": region,
+                    "onboarding_type": onboarding_type,
+                }
+
+                # Add optional fields
+                if backup_SC:
+                    data["backup_SC"] = backup_SC
+                if nat_pool:
+                    data["nat_pool"] = nat_pool
+                if no_export_community:
+                    data["no_export_community"] = no_export_community
+                if source_nat is not None:
+                    data["source_nat"] = source_nat
+                if subnets:
+                    data["subnets"] = subnets
+                if secondary_ipsec_tunnel:
+                    data["secondary_ipsec_tunnel"] = secondary_ipsec_tunnel
+                if bgp_peer:
+                    data["bgp_peer"] = bgp_peer
+                if protocol:
+                    data["protocol"] = protocol
+                if qos:
+                    data["qos"] = qos
+
+                result = self.client.service_connection.create(data)
+                self.logger.info(f"Created service connection '{name}'")
+                return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", name, "service connection", e)
+
+    def delete_service_connection(self, name: str) -> bool:
+        """Delete a service connection.
+
+        Args:
+            name: Name of the service connection to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting service connection '{name}'")
+
+        if not self.client:
+            self.logger.info(f"Mock mode: Would delete service connection '{name}'")
+            return True
+
+        try:
+            # First, fetch the service connection to get its ID
+            service_connection = self.client.service_connection.fetch(name=name)
+            self.client.service_connection.delete(str(service_connection.id))
+            self.logger.info(f"Successfully deleted service connection '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", name, "service connection", e)
+
+    def get_service_connection(self, name: str) -> dict[str, Any]:
+        """Get a specific service connection by name.
+
+        Args:
+            name: Name of the service connection
+
+        Returns:
+            dict[str, Any]: Service connection object
+
+        """
+        self.logger.info(f"Getting service connection '{name}'")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"sc-{name}",
+                "name": name,
+                "folder": "Service Connections",
+                "ipsec_tunnel": "ipsec-tunnel-1",
+                "region": "us-east-1",
+                "onboarding_type": "classic",
+                "subnets": ["10.0.0.0/24"],
+            }
+
+        try:
+            # Fetch the service connection by name
+            result = self.client.service_connection.fetch(name=name)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", name, "service connection", e)
+
+    def list_service_connections(self) -> list[dict[str, Any]]:
+        """List all service connections.
+
+        Returns:
+            list[dict[str, Any]]: List of service connections
+
+        """
+        self.logger.info("Listing service connections")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "sc-1",
+                    "name": "Primary Service Connection",
+                    "folder": "Service Connections",
+                    "ipsec_tunnel": "ipsec-tunnel-1",
+                    "region": "us-east-1",
+                    "onboarding_type": "classic",
+                    "subnets": ["10.0.0.0/24"],
+                },
+                {
+                    "id": "sc-2",
+                    "name": "Backup Service Connection",
+                    "folder": "Service Connections",
+                    "ipsec_tunnel": "ipsec-tunnel-2",
+                    "region": "us-west-2",
+                    "onboarding_type": "classic",
+                    "subnets": ["10.1.0.0/24"],
+                },
+            ]
+
+        try:
+            # List service connections using the SDK
+            results = self.client.service_connection.list()
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "", "service connections", e)
+
+    # ------------------------- Remote Network Methods -------------------------
+
+    def create_remote_network(
+        self,
+        name: str,
+        folder: str,
+        region: str,
+        license_type: str = "FWAAS-AGGREGATE",
+        description: str | None = None,
+        subnets: list[str] | None = None,
+        spn_name: str | None = None,
+        ecmp_load_balancing: str = "disable",
+        ecmp_tunnels: list[dict[str, Any]] | None = None,
+        ipsec_tunnel: str | None = None,
+        secondary_ipsec_tunnel: str | None = None,
+        protocol: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a remote network.
+
+        Args:
+            name: Name of the remote network
+            folder: Folder containing the remote network
+            region: Region for the remote network
+            license_type: License type (default: "FWAAS-AGGREGATE")
+            description: Description of the remote network
+            subnets: Subnets for the remote network
+            spn_name: SPN name (needed when license_type is FWAAS-AGGREGATE)
+            ecmp_load_balancing: Enable or disable ECMP load balancing
+            ecmp_tunnels: ECMP tunnel configurations
+            ipsec_tunnel: IPsec tunnel (required when ecmp_load_balancing is disable)
+            secondary_ipsec_tunnel: Secondary IPsec tunnel
+            protocol: Protocol configuration (BGP)
+
+        Returns:
+            dict[str, Any]: Created/updated remote network object
+
+        """
+        self.logger.info(f"Creating/updating remote network '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"rn-{name}",
+                "name": name,
+                "folder": folder,
+                "region": region,
+                "license_type": license_type,
+                "spn_name": spn_name or "default-spn",
+                "ecmp_load_balancing": ecmp_load_balancing,
+                "ipsec_tunnel": ipsec_tunnel or "ipsec-tunnel-1",
+                "subnets": subnets or ["192.168.0.0/24"],
+            }
+
+        try:
+            # Try to fetch existing remote network
+            try:
+                existing = self.client.remote_network.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing remote network '{name}', updating...")
+
+                # Update fields
+                updated = False
+                if existing.region != region:
+                    existing.region = region
+                    updated = True
+                if description is not None and existing.description != description:
+                    existing.description = description
+                    updated = True
+                if subnets is not None and existing.subnets != subnets:
+                    existing.subnets = subnets
+                    updated = True
+                if spn_name is not None and existing.spn_name != spn_name:
+                    existing.spn_name = spn_name
+                    updated = True
+                if ecmp_load_balancing != existing.ecmp_load_balancing:
+                    existing.ecmp_load_balancing = ecmp_load_balancing
+                    updated = True
+                if ecmp_tunnels is not None and existing.ecmp_tunnels != ecmp_tunnels:
+                    existing.ecmp_tunnels = ecmp_tunnels
+                    updated = True
+                if ipsec_tunnel is not None and existing.ipsec_tunnel != ipsec_tunnel:
+                    existing.ipsec_tunnel = ipsec_tunnel
+                    updated = True
+                if secondary_ipsec_tunnel is not None and existing.secondary_ipsec_tunnel != secondary_ipsec_tunnel:
+                    existing.secondary_ipsec_tunnel = secondary_ipsec_tunnel
+                    updated = True
+
+                if updated:
+                    result = self.client.remote_network.update(existing)
+                    self.logger.info(f"Updated remote network '{name}'")
+                else:
+                    self.logger.info(f"No changes needed for remote network '{name}'")
+                    result = existing
+
+                return json.loads(result.model_dump_json(exclude_unset=True))
+
+            except NotFoundError:
+                # Create new remote network
+                self.logger.info(f"Remote network '{name}' not found, creating new...")
+
+                data = {
+                    "name": name,
+                    "folder": folder,
+                    "region": region,
+                    "license_type": license_type,
+                    "ecmp_load_balancing": ecmp_load_balancing,
+                }
+
+                # Add optional fields
+                if description:
+                    data["description"] = description
+                if subnets:
+                    data["subnets"] = subnets
+                if spn_name:
+                    data["spn_name"] = spn_name
+                if ecmp_tunnels:
+                    data["ecmp_tunnels"] = ecmp_tunnels
+                if ipsec_tunnel:
+                    data["ipsec_tunnel"] = ipsec_tunnel
+                if secondary_ipsec_tunnel:
+                    data["secondary_ipsec_tunnel"] = secondary_ipsec_tunnel
+                if protocol:
+                    data["protocol"] = protocol
+
+                result = self.client.remote_network.create(data)
+                self.logger.info(f"Created remote network '{name}'")
+                return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", name, "remote network", e)
+
+    def delete_remote_network(self, folder: str, name: str) -> bool:
+        """Delete a remote network.
+
+        Args:
+            folder: Folder containing the remote network
+            name: Name of the remote network to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting remote network '{name}' from folder: {folder}")
+
+        if not self.client:
+            self.logger.info(f"Mock mode: Would delete remote network '{name}'")
+            return True
+
+        try:
+            # First, fetch the remote network to get its ID
+            remote_network = self.client.remote_network.fetch(name=name, folder=folder)
+            self.client.remote_network.delete(str(remote_network.id))
+            self.logger.info(f"Successfully deleted remote network '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", name, "remote network", e)
+
+    def get_remote_network(self, folder: str, name: str) -> dict[str, Any]:
+        """Get a specific remote network by name.
+
+        Args:
+            folder: Folder containing the remote network
+            name: Name of the remote network
+
+        Returns:
+            dict[str, Any]: Remote network object
+
+        """
+        self.logger.info(f"Getting remote network '{name}' from folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"rn-{name}",
+                "name": name,
+                "folder": folder,
+                "region": "us-east-1",
+                "license_type": "FWAAS-AGGREGATE",
+                "spn_name": "default-spn",
+                "ecmp_load_balancing": "disable",
+                "ipsec_tunnel": "ipsec-tunnel-1",
+                "subnets": ["192.168.0.0/24"],
+            }
+
+        try:
+            # Fetch the remote network by name and folder
+            result = self.client.remote_network.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", name, "remote network", e)
+
+    def list_remote_networks(self, folder: str) -> list[dict[str, Any]]:
+        """List remote networks in a folder.
+
+        Args:
+            folder: Folder to list remote networks from
+
+        Returns:
+            list[dict[str, Any]]: List of remote networks
+
+        """
+        self.logger.info(f"Listing remote networks in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "rn-1",
+                    "name": "Branch Office 1",
+                    "folder": folder,
+                    "region": "us-east-1",
+                    "license_type": "FWAAS-AGGREGATE",
+                    "spn_name": "default-spn",
+                    "ecmp_load_balancing": "disable",
+                    "ipsec_tunnel": "ipsec-tunnel-1",
+                    "subnets": ["192.168.0.0/24"],
+                },
+                {
+                    "id": "rn-2",
+                    "name": "Branch Office 2",
+                    "folder": folder,
+                    "region": "us-west-2",
+                    "license_type": "FWAAS-AGGREGATE",
+                    "spn_name": "default-spn",
+                    "ecmp_load_balancing": "disable",
+                    "ipsec_tunnel": "ipsec-tunnel-2",
+                    "subnets": ["192.168.1.0/24"],
+                },
+            ]
+
+        try:
+            # List remote networks using the SDK
+            results = self.client.remote_network.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "remote networks", e)
 
     # ======================================================================================================================================================================================
     # OBJECTS CONFIGURATION METHODS
@@ -5062,473 +5531,6 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container or "", "decryption profiles", e)
-
-    # ------------------------- Service Connection Methods ------------------------
-
-    def create_service_connection(
-        self,
-        name: str,
-        ipsec_tunnel: str,
-        region: str,
-        folder: str = "Service Connections",
-        onboarding_type: str = "classic",
-        backup_SC: str | None = None,
-        nat_pool: str | None = None,
-        no_export_community: str | None = None,
-        source_nat: bool | None = None,
-        subnets: list[str] | None = None,
-        secondary_ipsec_tunnel: str | None = None,
-        bgp_peer: dict[str, Any] | None = None,
-        protocol: dict[str, Any] | None = None,
-        qos: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Create or update a service connection.
-
-        Args:
-            name: Name of the service connection
-            ipsec_tunnel: IPsec tunnel for the service connection
-            region: Region for the service connection
-            folder: Folder containing the service connection (default: "Service Connections")
-            onboarding_type: Onboarding type (default: "classic")
-            backup_SC: Backup service connection
-            nat_pool: NAT pool for the service connection
-            no_export_community: No export community configuration
-            source_nat: Enable source NAT
-            subnets: Subnets for the service connection
-            secondary_ipsec_tunnel: Secondary IPsec tunnel
-            bgp_peer: BGP peer configuration
-            protocol: Protocol configuration (BGP)
-            qos: QoS configuration
-
-        Returns:
-            dict[str, Any]: Created/updated service connection object
-
-        """
-        self.logger.info(f"Creating/updating service connection '{name}' in folder: {folder}")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return {
-                "id": f"sc-{name}",
-                "name": name,
-                "folder": folder,
-                "ipsec_tunnel": ipsec_tunnel,
-                "region": region,
-                "onboarding_type": onboarding_type,
-                "subnets": subnets or ["10.0.0.0/24"],
-            }
-
-        try:
-            # Try to fetch existing service connection
-            try:
-                existing = self.client.service_connection.fetch(name=name)
-                self.logger.info(f"Found existing service connection '{name}', updating...")
-
-                # Update fields
-                updated = False
-                if existing.ipsec_tunnel != ipsec_tunnel:
-                    existing.ipsec_tunnel = ipsec_tunnel
-                    updated = True
-                if existing.region != region:
-                    existing.region = region
-                    updated = True
-                if backup_SC is not None and existing.backup_SC != backup_SC:
-                    existing.backup_SC = backup_SC
-                    updated = True
-                if nat_pool is not None and existing.nat_pool != nat_pool:
-                    existing.nat_pool = nat_pool
-                    updated = True
-                if no_export_community is not None and existing.no_export_community != no_export_community:
-                    existing.no_export_community = no_export_community
-                    updated = True
-                if source_nat is not None and existing.source_nat != source_nat:
-                    existing.source_nat = source_nat
-                    updated = True
-                if subnets is not None and existing.subnets != subnets:
-                    existing.subnets = subnets
-                    updated = True
-                if secondary_ipsec_tunnel is not None and existing.secondary_ipsec_tunnel != secondary_ipsec_tunnel:
-                    existing.secondary_ipsec_tunnel = secondary_ipsec_tunnel
-                    updated = True
-
-                if updated:
-                    result = self.client.service_connection.update(existing)
-                    self.logger.info(f"Updated service connection '{name}'")
-                else:
-                    self.logger.info(f"No changes needed for service connection '{name}'")
-                    result = existing
-
-                return json.loads(result.model_dump_json(exclude_unset=True))
-
-            except NotFoundError:
-                # Create new service connection
-                self.logger.info(f"Service connection '{name}' not found, creating new...")
-
-                data = {
-                    "name": name,
-                    "folder": folder,
-                    "ipsec_tunnel": ipsec_tunnel,
-                    "region": region,
-                    "onboarding_type": onboarding_type,
-                }
-
-                # Add optional fields
-                if backup_SC:
-                    data["backup_SC"] = backup_SC
-                if nat_pool:
-                    data["nat_pool"] = nat_pool
-                if no_export_community:
-                    data["no_export_community"] = no_export_community
-                if source_nat is not None:
-                    data["source_nat"] = source_nat
-                if subnets:
-                    data["subnets"] = subnets
-                if secondary_ipsec_tunnel:
-                    data["secondary_ipsec_tunnel"] = secondary_ipsec_tunnel
-                if bgp_peer:
-                    data["bgp_peer"] = bgp_peer
-                if protocol:
-                    data["protocol"] = protocol
-                if qos:
-                    data["qos"] = qos
-
-                result = self.client.service_connection.create(data)
-                self.logger.info(f"Created service connection '{name}'")
-                return json.loads(result.model_dump_json(exclude_unset=True))
-
-        except Exception as e:
-            self._handle_api_exception("creating/updating", name, "service connection", e)
-
-    def delete_service_connection(self, name: str) -> bool:
-        """Delete a service connection.
-
-        Args:
-            name: Name of the service connection to delete
-
-        Returns:
-            bool: True if deletion was successful
-
-        """
-        self.logger.info(f"Deleting service connection '{name}'")
-
-        if not self.client:
-            self.logger.info(f"Mock mode: Would delete service connection '{name}'")
-            return True
-
-        try:
-            # First, fetch the service connection to get its ID
-            service_connection = self.client.service_connection.fetch(name=name)
-            self.client.service_connection.delete(str(service_connection.id))
-            self.logger.info(f"Successfully deleted service connection '{name}'")
-            return True
-        except Exception as e:
-            self._handle_api_exception("deleting", name, "service connection", e)
-
-    def get_service_connection(self, name: str) -> dict[str, Any]:
-        """Get a specific service connection by name.
-
-        Args:
-            name: Name of the service connection
-
-        Returns:
-            dict[str, Any]: Service connection object
-
-        """
-        self.logger.info(f"Getting service connection '{name}'")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return {
-                "id": f"sc-{name}",
-                "name": name,
-                "folder": "Service Connections",
-                "ipsec_tunnel": "ipsec-tunnel-1",
-                "region": "us-east-1",
-                "onboarding_type": "classic",
-                "subnets": ["10.0.0.0/24"],
-            }
-
-        try:
-            # Fetch the service connection by name
-            result = self.client.service_connection.fetch(name=name)
-            return json.loads(result.model_dump_json(exclude_unset=True))
-        except Exception as e:
-            self._handle_api_exception("fetching", name, "service connection", e)
-
-    def list_service_connections(self) -> list[dict[str, Any]]:
-        """List all service connections.
-
-        Returns:
-            list[dict[str, Any]]: List of service connections
-
-        """
-        self.logger.info("Listing service connections")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return [
-                {
-                    "id": "sc-1",
-                    "name": "Primary Service Connection",
-                    "folder": "Service Connections",
-                    "ipsec_tunnel": "ipsec-tunnel-1",
-                    "region": "us-east-1",
-                    "onboarding_type": "classic",
-                    "subnets": ["10.0.0.0/24"],
-                },
-                {
-                    "id": "sc-2",
-                    "name": "Backup Service Connection",
-                    "folder": "Service Connections",
-                    "ipsec_tunnel": "ipsec-tunnel-2",
-                    "region": "us-west-2",
-                    "onboarding_type": "classic",
-                    "subnets": ["10.1.0.0/24"],
-                },
-            ]
-
-        try:
-            # List service connections using the SDK
-            results = self.client.service_connection.list()
-            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
-        except Exception as e:
-            self._handle_api_exception("listing", "", "service connections", e)
-
-    # ------------------------- Remote Network Methods -------------------------
-
-    def create_remote_network(
-        self,
-        name: str,
-        folder: str,
-        region: str,
-        license_type: str = "FWAAS-AGGREGATE",
-        description: str | None = None,
-        subnets: list[str] | None = None,
-        spn_name: str | None = None,
-        ecmp_load_balancing: str = "disable",
-        ecmp_tunnels: list[dict[str, Any]] | None = None,
-        ipsec_tunnel: str | None = None,
-        secondary_ipsec_tunnel: str | None = None,
-        protocol: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Create or update a remote network.
-
-        Args:
-            name: Name of the remote network
-            folder: Folder containing the remote network
-            region: Region for the remote network
-            license_type: License type (default: "FWAAS-AGGREGATE")
-            description: Description of the remote network
-            subnets: Subnets for the remote network
-            spn_name: SPN name (needed when license_type is FWAAS-AGGREGATE)
-            ecmp_load_balancing: Enable or disable ECMP load balancing
-            ecmp_tunnels: ECMP tunnel configurations
-            ipsec_tunnel: IPsec tunnel (required when ecmp_load_balancing is disable)
-            secondary_ipsec_tunnel: Secondary IPsec tunnel
-            protocol: Protocol configuration (BGP)
-
-        Returns:
-            dict[str, Any]: Created/updated remote network object
-
-        """
-        self.logger.info(f"Creating/updating remote network '{name}' in folder: {folder}")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return {
-                "id": f"rn-{name}",
-                "name": name,
-                "folder": folder,
-                "region": region,
-                "license_type": license_type,
-                "spn_name": spn_name or "default-spn",
-                "ecmp_load_balancing": ecmp_load_balancing,
-                "ipsec_tunnel": ipsec_tunnel or "ipsec-tunnel-1",
-                "subnets": subnets or ["192.168.0.0/24"],
-            }
-
-        try:
-            # Try to fetch existing remote network
-            try:
-                existing = self.client.remote_network.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing remote network '{name}', updating...")
-
-                # Update fields
-                updated = False
-                if existing.region != region:
-                    existing.region = region
-                    updated = True
-                if description is not None and existing.description != description:
-                    existing.description = description
-                    updated = True
-                if subnets is not None and existing.subnets != subnets:
-                    existing.subnets = subnets
-                    updated = True
-                if spn_name is not None and existing.spn_name != spn_name:
-                    existing.spn_name = spn_name
-                    updated = True
-                if ecmp_load_balancing != existing.ecmp_load_balancing:
-                    existing.ecmp_load_balancing = ecmp_load_balancing
-                    updated = True
-                if ecmp_tunnels is not None and existing.ecmp_tunnels != ecmp_tunnels:
-                    existing.ecmp_tunnels = ecmp_tunnels
-                    updated = True
-                if ipsec_tunnel is not None and existing.ipsec_tunnel != ipsec_tunnel:
-                    existing.ipsec_tunnel = ipsec_tunnel
-                    updated = True
-                if secondary_ipsec_tunnel is not None and existing.secondary_ipsec_tunnel != secondary_ipsec_tunnel:
-                    existing.secondary_ipsec_tunnel = secondary_ipsec_tunnel
-                    updated = True
-
-                if updated:
-                    result = self.client.remote_network.update(existing)
-                    self.logger.info(f"Updated remote network '{name}'")
-                else:
-                    self.logger.info(f"No changes needed for remote network '{name}'")
-                    result = existing
-
-                return json.loads(result.model_dump_json(exclude_unset=True))
-
-            except NotFoundError:
-                # Create new remote network
-                self.logger.info(f"Remote network '{name}' not found, creating new...")
-
-                data = {
-                    "name": name,
-                    "folder": folder,
-                    "region": region,
-                    "license_type": license_type,
-                    "ecmp_load_balancing": ecmp_load_balancing,
-                }
-
-                # Add optional fields
-                if description:
-                    data["description"] = description
-                if subnets:
-                    data["subnets"] = subnets
-                if spn_name:
-                    data["spn_name"] = spn_name
-                if ecmp_tunnels:
-                    data["ecmp_tunnels"] = ecmp_tunnels
-                if ipsec_tunnel:
-                    data["ipsec_tunnel"] = ipsec_tunnel
-                if secondary_ipsec_tunnel:
-                    data["secondary_ipsec_tunnel"] = secondary_ipsec_tunnel
-                if protocol:
-                    data["protocol"] = protocol
-
-                result = self.client.remote_network.create(data)
-                self.logger.info(f"Created remote network '{name}'")
-                return json.loads(result.model_dump_json(exclude_unset=True))
-
-        except Exception as e:
-            self._handle_api_exception("creating/updating", name, "remote network", e)
-
-    def delete_remote_network(self, folder: str, name: str) -> bool:
-        """Delete a remote network.
-
-        Args:
-            folder: Folder containing the remote network
-            name: Name of the remote network to delete
-
-        Returns:
-            bool: True if deletion was successful
-
-        """
-        self.logger.info(f"Deleting remote network '{name}' from folder: {folder}")
-
-        if not self.client:
-            self.logger.info(f"Mock mode: Would delete remote network '{name}'")
-            return True
-
-        try:
-            # First, fetch the remote network to get its ID
-            remote_network = self.client.remote_network.fetch(name=name, folder=folder)
-            self.client.remote_network.delete(str(remote_network.id))
-            self.logger.info(f"Successfully deleted remote network '{name}'")
-            return True
-        except Exception as e:
-            self._handle_api_exception("deleting", name, "remote network", e)
-
-    def get_remote_network(self, folder: str, name: str) -> dict[str, Any]:
-        """Get a specific remote network by name.
-
-        Args:
-            folder: Folder containing the remote network
-            name: Name of the remote network
-
-        Returns:
-            dict[str, Any]: Remote network object
-
-        """
-        self.logger.info(f"Getting remote network '{name}' from folder: {folder}")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return {
-                "id": f"rn-{name}",
-                "name": name,
-                "folder": folder,
-                "region": "us-east-1",
-                "license_type": "FWAAS-AGGREGATE",
-                "spn_name": "default-spn",
-                "ecmp_load_balancing": "disable",
-                "ipsec_tunnel": "ipsec-tunnel-1",
-                "subnets": ["192.168.0.0/24"],
-            }
-
-        try:
-            # Fetch the remote network by name and folder
-            result = self.client.remote_network.fetch(name=name, folder=folder)
-            return json.loads(result.model_dump_json(exclude_unset=True))
-        except Exception as e:
-            self._handle_api_exception("fetching", name, "remote network", e)
-
-    def list_remote_networks(self, folder: str) -> list[dict[str, Any]]:
-        """List remote networks in a folder.
-
-        Args:
-            folder: Folder to list remote networks from
-
-        Returns:
-            list[dict[str, Any]]: List of remote networks
-
-        """
-        self.logger.info(f"Listing remote networks in folder: {folder}")
-
-        if not self.client:
-            # Return mock data if no client is available
-            return [
-                {
-                    "id": "rn-1",
-                    "name": "Branch Office 1",
-                    "folder": folder,
-                    "region": "us-east-1",
-                    "license_type": "FWAAS-AGGREGATE",
-                    "spn_name": "default-spn",
-                    "ecmp_load_balancing": "disable",
-                    "ipsec_tunnel": "ipsec-tunnel-1",
-                    "subnets": ["192.168.0.0/24"],
-                },
-                {
-                    "id": "rn-2",
-                    "name": "Branch Office 2",
-                    "folder": folder,
-                    "region": "us-west-2",
-                    "license_type": "FWAAS-AGGREGATE",
-                    "spn_name": "default-spn",
-                    "ecmp_load_balancing": "disable",
-                    "ipsec_tunnel": "ipsec-tunnel-2",
-                    "subnets": ["192.168.1.0/24"],
-                },
-            ]
-
-        try:
-            # List remote networks using the SDK
-            results = self.client.remote_network.list(folder=folder)
-            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
-        except Exception as e:
-            self._handle_api_exception("listing", folder, "remote networks", e)
 
 
 class LazyClient:
