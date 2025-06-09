@@ -12,7 +12,7 @@ All object-related commands require the `--folder` parameter to specify where ob
 
 ```bash
 # Create an address in the Shared folder
-scm set objects address --folder Shared --name web-server --ip-netmask 10.1.1.10/32
+scm set object address --folder Shared --name web-server --ip-netmask 10.1.1.10/32
 ```
 
 ### Common Folder Operations
@@ -21,10 +21,10 @@ Working across multiple folders:
 
 ```bash
 # List all address objects in the Shared folder
-scm set objects address --list --folder Shared
+scm set object address --list --folder Shared
 
 # List all address objects in a different folder
-scm set objects address --list --folder Branch-Office-1
+scm set object address --list --folder Branch-Office-1
 ```
 
 ## Bulk Operations
@@ -37,7 +37,7 @@ Load multiple objects of the same type from a YAML file:
 
 ```bash
 # Create multiple addresses defined in a YAML file
-scm load objects address --folder Shared --file addresses.yaml
+scm load object address --folder Shared --file addresses.yaml
 ```
 
 ### YAML Structure for Bulk Loading
@@ -71,7 +71,7 @@ Add the `--mock` flag to any command to run it in mock mode:
 
 ```bash
 # Test creating an address without actually calling the API
-scm set objects address --mock --folder Shared --name test-server --ip-netmask 10.1.1.10/32
+scm set object address --mock --folder Shared --name test-server --ip-netmask 10.1.1.10/32
 ```
 
 This is useful for:
@@ -90,7 +90,7 @@ Add the `--verbose` flag to see detailed operation information:
 
 ```bash
 # Get verbose output when creating an address
-scm set objects address --verbose --folder Shared --name test-server --ip-netmask 10.1.1.10/32
+scm set object address --verbose --folder Shared --name test-server --ip-netmask 10.1.1.10/32
 ```
 
 Verbose output includes:
@@ -129,7 +129,7 @@ This allows for scripting with error checking:
 ```bash
 #!/bin/bash
 # Create an address and check if successful
-scm set objects address --folder Shared --name test-server --ip-netmask 10.1.1.10/32
+scm set object address --folder Shared --name test-server --ip-netmask 10.1.1.10/32
 if [ $? -eq 0 ]; then
   echo "Address created successfully"
 else
@@ -144,7 +144,7 @@ For programmatic use, consider parsing the CLI output:
 
 ```bash
 # Get a list of addresses in JSON format and process with jq
-ADDRESSES=$(scm set objects address --list --folder Shared --output json | jq '.[] | select(.name | startswith("web-"))')
+ADDRESSES=$(scm set object address --list --folder Shared --output json | jq '.[] | select(.name | startswith("web-"))')
 ```
 
 ## Next Steps

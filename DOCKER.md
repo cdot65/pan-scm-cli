@@ -79,7 +79,7 @@ docker exec pan-scm scm context list
 docker exec pan-scm scm context use production
 
 # Run commands with the active context
-docker exec pan-scm scm show objects address --folder Texas
+docker exec pan-scm scm show object address --folder Texas
 ```
 
 ### Authentication Methods
@@ -127,7 +127,7 @@ docker run -d \
   pan-scm-cli:latest
 
 # Process YAML files
-docker exec pan-scm scm load objects address --file /home/scmuser/data/addresses.yml
+docker exec pan-scm scm load object address --file /home/scmuser/data/addresses.yml
 
 # Interactive shell access
 docker exec -it pan-scm /bin/ash
@@ -145,8 +145,8 @@ docker exec scm-prod scm context use production
 docker exec scm-dev scm context use development
 
 # Operations are isolated to each tenant
-docker exec scm-prod scm backup objects address --folder Production
-docker exec scm-dev scm set objects address --folder Development --name test --ip-netmask 10.0.0.1/32
+docker exec scm-prod scm backup object address --folder Production
+docker exec scm-dev scm set object address --folder Development --name test --ip-netmask 10.0.0.1/32
 ```
 
 ### Container Management

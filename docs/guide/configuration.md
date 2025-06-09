@@ -129,7 +129,7 @@ Client ID: dev@333333333.iam.panserviceaccount.com
 TSG ID: 333333333
 
 # Now all commands use the dev context with DEBUG logging
-$ scm show objects address --folder Development
+$ scm show object address --folder Development
 [INFO] Using authentication context: dev
 DEBUG:scm_cli.utils.sdk_client:Listing addresses in folder='Development'
 Addresses in folder 'Development':
@@ -288,10 +288,10 @@ scm context create development \
 
 # Switch between environments
 scm context use production
-scm show objects address --folder Texas
+scm show object address --folder Texas
 
 scm context use development
-scm show objects address --folder DevFolder
+scm show object address --folder DevFolder
 ```
 
 ### Example 2: CI/CD Setup with Environment Variables
@@ -305,7 +305,7 @@ export SCM_LOG_LEVEL="WARNING"
 
 # Run commands in CI pipeline
 scm context test
-scm load objects address --file addresses.yaml --folder Production
+scm load object address --file addresses.yaml --folder Production
 ```
 
 ### Example 3: Context with Environment Variable Override
@@ -315,7 +315,7 @@ scm load objects address --file addresses.yaml --folder Production
 scm context use staging
 
 # Override specific settings for a one-off command
-SCM_LOG_LEVEL=DEBUG scm show objects address --folder Texas
+SCM_LOG_LEVEL=DEBUG scm show object address --folder Texas
 ```
 
 ## Debugging Configuration
