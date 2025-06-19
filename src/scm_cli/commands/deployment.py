@@ -40,7 +40,7 @@ DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution witho
 # ========================================================================================================================================================================================
 
 
-@backup_app.command("bandwidth")
+@backup_app.command("bandwidth-allocation")
 def backup_bandwidth_allocation():
     """Back up all bandwidth allocations to a YAML file.
 
@@ -111,12 +111,8 @@ def delete_bandwidth_allocation(
     """
     try:
         # Convert comma-separated string to list
-        if isinstance(spn_name_list, str):
-            spn_list = [spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]
-        else:
-            # Already a list
-            spn_list = spn_name_list
-        
+        spn_list = ([spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]) if isinstance(spn_name_list, str) else spn_name_list
+
         result = scm_client.delete_bandwidth_allocation(name=name, spn_name_list=spn_list)
         if result:
             typer.echo(f"Deleted bandwidth allocation: {name}")
@@ -150,7 +146,7 @@ def load_bandwidth_allocation(
             typer.echo("DRY RUN: Would apply the following configurations:")
             for allocation_data in config["bandwidth_allocations"]:
                 # Output details about each allocation that would be created
-                spn_names = allocation_data.get('spn_name_list', [])
+                spn_names = allocation_data.get("spn_name_list", [])
                 typer.echo(f"Would create bandwidth allocation: {allocation_data['name']} ({allocation_data['bandwidth']} Mbps) with SPNs: {spn_names}")
             typer.echo(yaml.dump(config["bandwidth_allocations"]))
             return None
@@ -172,7 +168,7 @@ def load_bandwidth_allocation(
 
             results.append(result)
             # Output details about each allocation
-            bandwidth_value = result.get('allocated_bandwidth', result.get('bandwidth', 'N/A'))
+            bandwidth_value = result.get("allocated_bandwidth", result.get("bandwidth", "N/A"))
             typer.echo(f"Applied bandwidth allocation: {result['name']} ({bandwidth_value} Mbps)")
 
         # Add a summary message that matches test expectations
@@ -208,16 +204,10 @@ def set_bandwidth_allocation(
     """
     try:
         # Convert comma-separated strings to lists
-        if isinstance(spn_name_list, str):
-            spn_list = [spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]
-        else:
-            spn_list = spn_name_list
-            
-        if isinstance(tags, str):
-            tag_list = [tag.strip() for tag in tags.split(",")] if tags and "," in tags else ([tags.strip()] if tags else [])
-        else:
-            tag_list = tags or []
-        
+        spn_list = ([spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]) if isinstance(spn_name_list, str) else spn_name_list
+
+        tag_list = ([tag.strip() for tag in tags.split(",")] if tags and "," in tags else [tags.strip()] if tags else []) if isinstance(tags, str) else tags or []
+
         # Validate input using Pydantic model
         allocation = BandwidthAllocation(
             name=name,
@@ -245,7 +235,9 @@ def set_bandwidth_allocation(
 
 
 @show_app.command("bandwidth-allocation")
-def show_bandwidth_allocation(name: str | None = typer.Option(None, "--name", help="Name of the bandwidth allocation to show")):
+def show_bandwidth_allocation(
+    name: str | None = typer.Option(None, "--name", help="Name of the bandwidth allocation to show"),
+):
     """Display bandwidth allocations.
 
     Example:
@@ -600,7 +592,6 @@ def show_service_connection(
             connection = scm_client.get_service_connection(name=name)
 
             typer.echo(f"Service Connection: {connection.get('name', 'N/A')}")
-            typer.echo(f"Folder: {connection.get('folder', 'N/A')}")
             typer.echo(f"IPsec Tunnel: {connection.get('ipsec_tunnel', 'N/A')}")
             typer.echo(f"Region: {connection.get('region', 'N/A')}")
             typer.echo(f"Onboarding Type: {connection.get('onboarding_type', 'N/A')}")
@@ -699,7 +690,7 @@ def backup_remote_network():
     """
     try:
         # List all remote networks
-        networks = scm_client.list_remote_networks(folder="Remote Networks")
+        networks = scm_client.list_remote_networks()
 
         if not networks:
             typer.echo("No remote networks found")
@@ -753,7 +744,9 @@ def delete_remote_network(
 
     """
     try:
-        result = scm_client.delete_remote_network(name=name, folder="Remote Networks")
+        result = scm_client.delete_remote_network(
+            name=name,
+        )
         if result:
             typer.echo(f"Deleted remote network: {name}")
         else:
@@ -926,10 +919,11 @@ def show_remote_network(
     try:
         if name:
             # Get a specific remote network by name
-            network = scm_client.get_remote_network(name=name, folder="Remote Networks")
+            network = scm_client.get_remote_network(
+                name=name,
+            )
 
             typer.echo(f"Remote Network: {network.get('name', 'N/A')}")
-            typer.echo(f"Folder: {network.get('folder', 'N/A')}")
             typer.echo(f"Region: {network.get('region', 'N/A')}")
             typer.echo(f"License Type: {network.get('license_type', 'N/A')}")
 
@@ -974,7 +968,7 @@ def show_remote_network(
 
         else:
             # List all remote networks
-            networks = scm_client.list_remote_networks(folder="Remote Networks")
+            networks = scm_client.list_remote_networks()
 
             if not networks:
                 typer.echo("No remote networks found")
@@ -985,7 +979,6 @@ def show_remote_network(
 
             for network in networks:
                 typer.echo(f"Name: {network.get('name', 'N/A')}")
-                typer.echo(f"  Folder: {network.get('folder', 'N/A')}")
                 typer.echo(f"  Region: {network.get('region', 'N/A')}")
                 typer.echo(f"  License Type: {network.get('license_type', 'N/A')}")
 

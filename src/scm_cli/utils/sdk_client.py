@@ -347,7 +347,6 @@ class SCMClient:
         name: str,
         ipsec_tunnel: str,
         region: str,
-        folder: str = "Service Connections",
         onboarding_type: str = "classic",
         backup_SC: str | None = None,
         nat_pool: str | None = None,
@@ -359,13 +358,12 @@ class SCMClient:
         protocol: dict[str, Any] | None = None,
         qos: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create or update a service connection using smart upsert logic.
+        """Create or update a service connection using smart upsert logic (folder is always 'Service Connections').
 
         Args:
             name: Name of the service connection
             ipsec_tunnel: IPsec tunnel for the service connection
             region: Region for the service connection
-            folder: Folder containing the service connection (default: "Service Connections")
             onboarding_type: Onboarding type (default: "classic")
             backup_SC: Backup service connection
             nat_pool: NAT pool for the service connection
@@ -381,6 +379,7 @@ class SCMClient:
             dict[str, Any]: Created/updated service connection object
 
         """
+        folder = "Service Connections"
         self.logger.info(f"Creating/updating service connection '{name}' in folder: {folder}")
 
         if not self.client:
@@ -527,9 +526,9 @@ class SCMClient:
                 if qos:
                     data["qos"] = qos
 
-                self.logger.info(f"Creating new service connection '{name}'")
+                self.logger.info(f"Creating new service connection '{name}' in folder: {folder}")
                 created = self.client.service_connection.create(data)
-                self.logger.info(f"Successfully created service connection '{name}'")
+                self.logger.info(f"Successfully created service connection '{name}' in folder: {folder}")
                 result = json.loads(created.model_dump_json(exclude_unset=True))
                 result["__action__"] = "created"
                 return result
@@ -637,7 +636,6 @@ class SCMClient:
     def create_remote_network(
         self,
         name: str,
-        folder: str,
         region: str,
         license_type: str = "FWAAS-AGGREGATE",
         description: str | None = None,
@@ -649,11 +647,10 @@ class SCMClient:
         secondary_ipsec_tunnel: str | None = None,
         protocol: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create or update a remote network using smart upsert logic.
+        """Create or update a remote network using smart upsert logic (folder is always 'Remote Networks').
 
         Args:
             name: Name of the remote network
-            folder: Folder containing the remote network
             region: Region for the remote network
             license_type: License type (default: "FWAAS-AGGREGATE")
             description: Description of the remote network
@@ -669,6 +666,7 @@ class SCMClient:
             dict[str, Any]: Created/updated remote network object
 
         """
+        folder = "Remote Networks"
         self.logger.info(f"Creating/updating remote network '{name}' in folder: {folder}")
 
         if not self.client:
@@ -839,17 +837,17 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deleting", name, "remote network", e)
 
-    def get_remote_network(self, folder: str, name: str) -> dict[str, Any]:
-        """Get a specific remote network by name.
+    def get_remote_network(self, name: str) -> dict[str, Any]:
+        """Get a specific remote network by name (folder is always 'Remote Networks').
 
         Args:
-            folder: Folder containing the remote network
             name: Name of the remote network
 
         Returns:
             dict[str, Any]: Remote network object
 
         """
+        folder = "Remote Networks"
         self.logger.info(f"Getting remote network '{name}' from folder: {folder}")
 
         if not self.client:
@@ -873,16 +871,14 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("fetching", name, "remote network", e)
 
-    def list_remote_networks(self, folder: str) -> list[dict[str, Any]]:
-        """List remote networks in a folder.
-
-        Args:
-            folder: Folder to list remote networks from
+    def list_remote_networks(self) -> list[dict[str, Any]]:
+        """List all remote networks (folder is always 'Remote Networks').
 
         Returns:
             list[dict[str, Any]]: List of remote networks
 
         """
+        folder = "Remote Networks"
         self.logger.info(f"Listing remote networks in folder: {folder}")
 
         if not self.client:
