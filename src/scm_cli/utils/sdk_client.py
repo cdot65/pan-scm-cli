@@ -182,7 +182,12 @@ class SCMClient:
         description: str = "",
         tags: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Create a bandwidth allocation.
+        """Create or update a bandwidth allocation (smart upsert).
+
+        This method will:
+        - Create a new bandwidth allocation if it does not exist
+        - Update the allocation if it exists and any field differs
+        - Skip update if no changes are detected
 
         Args:
             name: Name of the bandwidth allocation
@@ -192,11 +197,11 @@ class SCMClient:
             tags: Optional list of tags
 
         Returns:
-            dict[str, Any]: The created bandwidth allocation object
+            dict[str, Any]: The created/updated bandwidth allocation object, with '__action__' key: 'created', 'updated', or 'no_change'.
 
         """
         tags = tags or []
-        self.logger.info(f"Creating bandwidth allocation: {name} with {bandwidth} Mbps for SPNs: {spn_name_list}")
+        self.logger.info(f"Upsert bandwidth allocation: {name} ({bandwidth} Mbps) for SPNs: {spn_name_list}")
 
         if not self.client:
             # Return mock data if no client is available
@@ -207,26 +212,84 @@ class SCMClient:
                 "spn_name_list": spn_name_list,
                 "description": description,
                 "tags": tags,
+                "__action__": "created",
             }
 
         try:
-            # Create using the SDK bandwidth_allocation service (singular, not plural)
-            allocation_data = {
-                "name": name,
-                "allocated_bandwidth": bandwidth,
-                "spn_name_list": spn_name_list,
-                "description": description or "",
-            }
+            # Step 1: Try to fetch the existing bandwidth allocation
+            existing = None
+            try:
+                existing = self.client.bandwidth_allocation.fetch(name=name)
+                self.logger.info(f"Found existing bandwidth allocation '{name}'")
+            except NotFoundError:
+                self.logger.info(f"Bandwidth allocation '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching bandwidth allocation '{name}': {str(e)}")
 
-            if tags:
-                allocation_data["tags"] = tags
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
 
-            result = self.client.bandwidth_allocation.create(allocation_data)
+                # Compare required fields
+                if getattr(existing, "allocated_bandwidth", None) != bandwidth:
+                    existing.allocated_bandwidth = bandwidth
+                    update_fields.append("allocated_bandwidth")
+                    needs_update = True
 
-            # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+                # Compare SPN name list (order-insensitive)
+                current_spns = set(getattr(existing, "spn_name_list", []) or [])
+                new_spns = set(spn_name_list or [])
+                if current_spns != new_spns:
+                    existing.spn_name_list = spn_name_list
+                    update_fields.append("spn_name_list")
+                    needs_update = True
+
+                # Compare description
+                if description is not None and getattr(existing, "description", "") != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                # Compare tags (order-insensitive)
+                if tags is not None:
+                    current_tags = set(getattr(existing, "tags", []) or [])
+                    new_tags = set(tags or [])
+                    if current_tags != new_tags:
+                        existing.tags = tags
+                        update_fields.append("tags")
+                        needs_update = True
+
+                # Only update if changes detected
+                if needs_update:
+                    self.logger.info(f"Updating bandwidth allocation fields: {', '.join(update_fields)}")
+                    updated = self.client.bandwidth_allocation.update(existing)
+                    self.logger.info(f"Successfully updated bandwidth allocation '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for bandwidth allocation '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+            else:
+                # Step 3: Create new bandwidth allocation
+                allocation_data = {
+                    "name": name,
+                    "allocated_bandwidth": bandwidth,
+                    "spn_name_list": spn_name_list,
+                    "description": description or "",
+                }
+                if tags:
+                    allocation_data["tags"] = tags
+                created = self.client.bandwidth_allocation.create(allocation_data)
+                self.logger.info(f"Successfully created bandwidth allocation '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
         except Exception as e:
-            self._handle_api_exception("creation", "N/A", name, e)
+            self._handle_api_exception("creation/update", "N/A", name, e)
 
     def delete_bandwidth_allocation(
         self,
@@ -253,8 +316,10 @@ class SCMClient:
             return True
 
         try:
+            # SDK expects comma-separated string for spn_name_list
+            spn_arg = ",".join(spn_name_list) if isinstance(spn_name_list, list) else spn_name_list
             # Delete using the SDK bandwidth_allocation service (singular, not plural)
-            self.client.bandwidth_allocation.delete(name=name, spn_name_list=spn_name_list)
+            self.client.bandwidth_allocation.delete(name=name, spn_name_list=spn_arg)
             return True
         except Exception as e:
             self._handle_api_exception("deletion", "N/A", name, e)
@@ -347,7 +412,6 @@ class SCMClient:
         name: str,
         ipsec_tunnel: str,
         region: str,
-        folder: str = "Service Connections",
         onboarding_type: str = "classic",
         backup_SC: str | None = None,
         nat_pool: str | None = None,
@@ -359,13 +423,12 @@ class SCMClient:
         protocol: dict[str, Any] | None = None,
         qos: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create or update a service connection using smart upsert logic.
+        """Create or update a service connection using smart upsert logic (folder is always 'Service Connections').
 
         Args:
             name: Name of the service connection
             ipsec_tunnel: IPsec tunnel for the service connection
             region: Region for the service connection
-            folder: Folder containing the service connection (default: "Service Connections")
             onboarding_type: Onboarding type (default: "classic")
             backup_SC: Backup service connection
             nat_pool: NAT pool for the service connection
@@ -381,6 +444,7 @@ class SCMClient:
             dict[str, Any]: Created/updated service connection object
 
         """
+        folder = "Service Connections"
         self.logger.info(f"Creating/updating service connection '{name}' in folder: {folder}")
 
         if not self.client:
@@ -527,9 +591,9 @@ class SCMClient:
                 if qos:
                     data["qos"] = qos
 
-                self.logger.info(f"Creating new service connection '{name}'")
+                self.logger.info(f"Creating new service connection '{name}' in folder: {folder}")
                 created = self.client.service_connection.create(data)
-                self.logger.info(f"Successfully created service connection '{name}'")
+                self.logger.info(f"Successfully created service connection '{name}' in folder: {folder}")
                 result = json.loads(created.model_dump_json(exclude_unset=True))
                 result["__action__"] = "created"
                 return result
@@ -637,7 +701,6 @@ class SCMClient:
     def create_remote_network(
         self,
         name: str,
-        folder: str,
         region: str,
         license_type: str = "FWAAS-AGGREGATE",
         description: str | None = None,
@@ -649,11 +712,10 @@ class SCMClient:
         secondary_ipsec_tunnel: str | None = None,
         protocol: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create or update a remote network using smart upsert logic.
+        """Create or update a remote network using smart upsert logic (folder is always 'Remote Networks').
 
         Args:
             name: Name of the remote network
-            folder: Folder containing the remote network
             region: Region for the remote network
             license_type: License type (default: "FWAAS-AGGREGATE")
             description: Description of the remote network
@@ -669,6 +731,7 @@ class SCMClient:
             dict[str, Any]: Created/updated remote network object
 
         """
+        folder = "Remote Networks"
         self.logger.info(f"Creating/updating remote network '{name}' in folder: {folder}")
 
         if not self.client:
@@ -839,17 +902,17 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deleting", name, "remote network", e)
 
-    def get_remote_network(self, folder: str, name: str) -> dict[str, Any]:
-        """Get a specific remote network by name.
+    def get_remote_network(self, name: str) -> dict[str, Any]:
+        """Get a specific remote network by name (folder is always 'Remote Networks').
 
         Args:
-            folder: Folder containing the remote network
             name: Name of the remote network
 
         Returns:
             dict[str, Any]: Remote network object
 
         """
+        folder = "Remote Networks"
         self.logger.info(f"Getting remote network '{name}' from folder: {folder}")
 
         if not self.client:
@@ -873,16 +936,14 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("fetching", name, "remote network", e)
 
-    def list_remote_networks(self, folder: str) -> list[dict[str, Any]]:
-        """List remote networks in a folder.
-
-        Args:
-            folder: Folder to list remote networks from
+    def list_remote_networks(self) -> list[dict[str, Any]]:
+        """List all remote networks (folder is always 'Remote Networks').
 
         Returns:
             list[dict[str, Any]]: List of remote networks
 
         """
+        folder = "Remote Networks"
         self.logger.info(f"Listing remote networks in folder: {folder}")
 
         if not self.client:

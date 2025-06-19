@@ -1,5 +1,24 @@
 # Release Notes
 
+## Version 0.5.1
+
+**Released:** June 19, 2025
+
+### Added
+
+- **Bandwidth Allocation Smart-Upsert**: `set sase bandwidth-allocation` now performs create-or-update with field-level change detection and returns `__action__` (`created`, `updated`, `no_change`).
+
+### Changed
+
+- **Field Cleanup**: Bandwidth allocations no longer accept or display a `description` attribute. CLI options, validators, and SDK client have been updated accordingly.
+- **CLI Error Handling**: Deleting bandwidth allocations now gracefully accepts both comma-separated strings and Python lists for `--spn-name-list`.
+
+### Fixed
+
+- Resolved `'list' object has no attribute 'split'` error when deleting bandwidth allocations with a single SPN.
+
+---
+
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
 ## Version 0.5.0
