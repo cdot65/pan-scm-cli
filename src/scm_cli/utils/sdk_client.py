@@ -182,7 +182,12 @@ class SCMClient:
         description: str = "",
         tags: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Create a bandwidth allocation.
+        """Create or update a bandwidth allocation (smart upsert).
+
+        This method will:
+        - Create a new bandwidth allocation if it does not exist
+        - Update the allocation if it exists and any field differs
+        - Skip update if no changes are detected
 
         Args:
             name: Name of the bandwidth allocation
@@ -192,11 +197,11 @@ class SCMClient:
             tags: Optional list of tags
 
         Returns:
-            dict[str, Any]: The created bandwidth allocation object
+            dict[str, Any]: The created/updated bandwidth allocation object, with '__action__' key: 'created', 'updated', or 'no_change'.
 
         """
         tags = tags or []
-        self.logger.info(f"Creating bandwidth allocation: {name} with {bandwidth} Mbps for SPNs: {spn_name_list}")
+        self.logger.info(f"Upsert bandwidth allocation: {name} ({bandwidth} Mbps) for SPNs: {spn_name_list}")
 
         if not self.client:
             # Return mock data if no client is available
@@ -207,26 +212,84 @@ class SCMClient:
                 "spn_name_list": spn_name_list,
                 "description": description,
                 "tags": tags,
+                "__action__": "created",
             }
 
         try:
-            # Create using the SDK bandwidth_allocation service (singular, not plural)
-            allocation_data = {
-                "name": name,
-                "allocated_bandwidth": bandwidth,
-                "spn_name_list": spn_name_list,
-                "description": description or "",
-            }
+            # Step 1: Try to fetch the existing bandwidth allocation
+            existing = None
+            try:
+                existing = self.client.bandwidth_allocation.fetch(name=name)
+                self.logger.info(f"Found existing bandwidth allocation '{name}'")
+            except NotFoundError:
+                self.logger.info(f"Bandwidth allocation '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching bandwidth allocation '{name}': {str(e)}")
 
-            if tags:
-                allocation_data["tags"] = tags
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
 
-            result = self.client.bandwidth_allocation.create(allocation_data)
+                # Compare required fields
+                if getattr(existing, "allocated_bandwidth", None) != bandwidth:
+                    existing.allocated_bandwidth = bandwidth
+                    update_fields.append("allocated_bandwidth")
+                    needs_update = True
 
-            # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+                # Compare SPN name list (order-insensitive)
+                current_spns = set(getattr(existing, "spn_name_list", []) or [])
+                new_spns = set(spn_name_list or [])
+                if current_spns != new_spns:
+                    existing.spn_name_list = spn_name_list
+                    update_fields.append("spn_name_list")
+                    needs_update = True
+
+                # Compare description
+                if description is not None and getattr(existing, "description", "") != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                # Compare tags (order-insensitive)
+                if tags is not None:
+                    current_tags = set(getattr(existing, "tags", []) or [])
+                    new_tags = set(tags or [])
+                    if current_tags != new_tags:
+                        existing.tags = tags
+                        update_fields.append("tags")
+                        needs_update = True
+
+                # Only update if changes detected
+                if needs_update:
+                    self.logger.info(f"Updating bandwidth allocation fields: {', '.join(update_fields)}")
+                    updated = self.client.bandwidth_allocation.update(existing)
+                    self.logger.info(f"Successfully updated bandwidth allocation '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for bandwidth allocation '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+            else:
+                # Step 3: Create new bandwidth allocation
+                allocation_data = {
+                    "name": name,
+                    "allocated_bandwidth": bandwidth,
+                    "spn_name_list": spn_name_list,
+                    "description": description or "",
+                }
+                if tags:
+                    allocation_data["tags"] = tags
+                created = self.client.bandwidth_allocation.create(allocation_data)
+                self.logger.info(f"Successfully created bandwidth allocation '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
         except Exception as e:
-            self._handle_api_exception("creation", "N/A", name, e)
+            self._handle_api_exception("creation/update", "N/A", name, e)
 
     def delete_bandwidth_allocation(
         self,
@@ -253,8 +316,10 @@ class SCMClient:
             return True
 
         try:
+            # SDK expects comma-separated string for spn_name_list
+            spn_arg = ",".join(spn_name_list) if isinstance(spn_name_list, list) else spn_name_list
             # Delete using the SDK bandwidth_allocation service (singular, not plural)
-            self.client.bandwidth_allocation.delete(name=name, spn_name_list=spn_name_list)
+            self.client.bandwidth_allocation.delete(name=name, spn_name_list=spn_arg)
             return True
         except Exception as e:
             self._handle_api_exception("deletion", "N/A", name, e)
