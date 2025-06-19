@@ -110,6 +110,11 @@ def delete_bandwidth_allocation(
 
     """
     try:
+        # Defensive check: Only accept comma-separated string, not list
+        if isinstance(spn_name_list, list):
+            typer.echo("Error: --spn-name-list must be a comma-separated string (e.g., --spn-name-list foo,bar)", err=True)
+            raise typer.Exit(code=1)
+
         # Convert comma-separated string to list
         spn_list = ([spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]) if isinstance(spn_name_list, str) else spn_name_list
 
