@@ -383,13 +383,13 @@ The project uses a unified approach where `set` commands handle both create and 
 
 This pattern has been successfully implemented for most object types and should be extended to the remaining resources.
 
-### SASE Bandwidth Allocations (In Progress)
+### SASE Bandwidth Allocations (Completed in v0.5.1)
 
-- [ ] Implement smart upsert logic for `create_sase_bandwidth_allocation` method
-- [ ] Handle existing allocations gracefully (update instead of fail)
-- [ ] Add proper error handling for allocation conflicts
-- [ ] Implement CLI commands: set sase bandwidth-allocation, delete sase bandwidth-allocation, show sase bandwidth-allocation, list sase bandwidth-allocations, load sase bandwidth-allocations, backup sase bandwidth-allocations
-- [ ] Add comprehensive tests and documentation for all sase bandwidth-allocation commands
+- [x] Implement smart upsert logic for `create_bandwidth_allocation` method
+- [x] Handle existing allocations gracefully (update instead of fail)
+- [x] Add proper error handling for allocation conflicts
+- [x] Implement CLI commands: set/delete/show/list/load/backup bandwidth allocations
+- [x] Add comprehensive tests and documentation for all SASE bandwidth-allocation commands
 
 ### Security Zones
 
