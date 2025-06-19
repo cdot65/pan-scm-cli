@@ -150,4 +150,4 @@ Thumbs.db
 .secrets.*
 
 .sdk_documentation
-.claude/sdk
+.claude/scm
