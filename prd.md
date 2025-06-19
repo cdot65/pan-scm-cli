@@ -139,7 +139,7 @@ Each SASE resource must support the following CLI commands:
 - `load sase remote-networks` (bulk YAML load)
 - `backup sase remote-networks` (YAML export)
 
-- `set sase bandwidth-allocation` (create/update)
+- `set sase bandwidth-allocation` (create/update, smart upsert with change detection, no `description` field)
 - `delete sase bandwidth-allocation`
 - `show sase bandwidth-allocation` (get by name/id)
 - `list sase bandwidth-allocations` (with filters)
@@ -605,7 +605,7 @@ The backup commands perform intelligent data transformation:
 1. **Address Groups**: Converts SDK format (static/dynamic keys) to CLI format (type field with members/filter)
 2. **Security Zones**: Extracts mode and interfaces from network configuration
 3. **Security Rules**: Maps SDK fields (from*, to*, etc.) back to CLI fields (source_zones, destination_zones, etc.)
-4. **Bandwidth Allocations**: Maps allocated_bandwidth to bandwidth
+4. **Bandwidth Allocations**: Maps `allocated_bandwidth` to `bandwidth`; `description` field removed from model and CLI
 
 ### 15.5 Benefits
 
