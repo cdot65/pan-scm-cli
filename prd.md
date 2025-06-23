@@ -139,7 +139,7 @@ Each SASE resource must support the following CLI commands:
 - `load sase remote-networks` (bulk YAML load)
 - `backup sase remote-networks` (YAML export)
 
-- `set sase bandwidth-allocation` (create/update, smart upsert with change detection, no `description` field)
+- `set sase bandwidth-allocation` (create/update)
 - `delete sase bandwidth-allocation`
 - `show sase bandwidth-allocation` (get by name/id)
 - `list sase bandwidth-allocations` (with filters)
@@ -605,7 +605,7 @@ The backup commands perform intelligent data transformation:
 1. **Address Groups**: Converts SDK format (static/dynamic keys) to CLI format (type field with members/filter)
 2. **Security Zones**: Extracts mode and interfaces from network configuration
 3. **Security Rules**: Maps SDK fields (from*, to*, etc.) back to CLI fields (source_zones, destination_zones, etc.)
-4. **Bandwidth Allocations**: Maps `allocated_bandwidth` to `bandwidth`; `description` field removed from model and CLI
+4. **Bandwidth Allocations**: Maps allocated_bandwidth to bandwidth
 
 ### 15.5 Benefits
 
@@ -2508,3 +2508,109 @@ Enhanced `scm context test` command:
 3. **Debugging Support**: Context information helps identify credential issues
 4. **Cleaner Output**: Suppressed noisy authentication library logging
 5. **Resource Efficiency**: SDK client only initialized when needed
+
+## 36. Insights Commands
+
+### 36.1 Problem Statement
+
+The SCM platform provides various insights and analytics about network resources, user activity, and infrastructure state. The CLI needs to expose these insights to enable administrators to monitor and analyze their deployments effectively. Without CLI access to insights, users must rely on the web UI, which limits automation and integration capabilities.
+
+### 36.2 Solution: Comprehensive Insights Command Suite
+
+Implement a new command category `scm insights` with subcommands for retrieving various types of insights data from the SCM platform.
+
+#### 36.2.1 Insights Resource Types
+
+The following insights resources will be supported:
+
+1. **Alerts** (`scm insights alerts`): Security and system alerts
+2. **Mobile Users** (`scm insights mobile-users`): Mobile user activity and status
+3. **Locations** (`scm insights locations`): Geographic location information
+4. **Remote Networks** (`scm insights remote-networks`): Remote network connectivity status
+5. **Service Connections** (`scm insights service-connections`): Service connection health and metrics
+6. **Tunnels** (`scm insights tunnels`): VPN tunnel status and statistics
+
+#### 36.2.2 Command Structure
+
+```bash
+scm insights <resource> [options]
+```
+
+Each insights command will support:
+
+- **List/Show**: Display insights data with filtering options
+- **Export**: Save insights data to JSON/CSV formats
+- **Real-time**: Option for live updates (where applicable)
+- **Time range**: Specify historical data range
+- **Filtering**: Filter by various criteria specific to each resource type
+
+### 36.3 Technical Implementation Details
+
+#### 36.3.1 SDK Integration
+
+The implementation will leverage the pan-scm-sdk's insights capabilities:
+
+- Research SDK support for insights endpoints
+- Implement wrapper methods in `sdk_client.py` for each insights resource
+- Handle pagination for large result sets
+- Support real-time streaming where available
+
+#### 36.3.2 Command Module Structure
+
+Create a new command module `src/scm_cli/commands/insights.py`:
+
+- Follow established command patterns from other modules
+- Implement consistent output formatting
+- Support multiple output formats (table, JSON, CSV)
+- Add appropriate filtering options for each resource type
+
+#### 36.3.3 Data Models
+
+Extend `validators.py` with insights-specific models:
+
+- Alert model with severity, timestamp, and details
+- Mobile user model with connection status and metadata
+- Location model with geographic and network information
+- Remote network model with connectivity metrics
+- Service connection model with health status
+- Tunnel model with performance statistics
+
+### 36.4 Example Usage
+
+```bash
+# List all alerts
+scm insights alerts --list
+
+# Show specific alert details
+scm insights alerts --id ALERT-12345
+
+# List mobile users with filters
+scm insights mobile-users --status connected --location "New York"
+
+# Export service connection metrics
+scm insights service-connections --export csv --file connections.csv
+
+# Show tunnel statistics for a specific time range
+scm insights tunnels --start "2024-01-01" --end "2024-01-31"
+
+# Monitor real-time alerts
+scm insights alerts --real-time
+```
+
+### 36.5 Implementation Phases
+
+1. **Phase 1**: Research SDK capabilities and design command structure
+2. **Phase 2**: Implement basic list/show functionality for each resource
+3. **Phase 3**: Add filtering and export capabilities
+4. **Phase 4**: Implement real-time monitoring features
+5. **Phase 5**: Add comprehensive tests and documentation
+
+### 36.6 Success Criteria
+
+- All six insights resources have functional CLI commands
+- Commands follow established patterns and style guide
+- Comprehensive filtering options for each resource type
+- Multiple output formats supported (table, JSON, CSV)
+- Real-time monitoring capability where applicable
+- 100% test coverage for new commands
+- Complete documentation with examples

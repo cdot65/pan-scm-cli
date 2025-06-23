@@ -13,6 +13,9 @@ The project has successfully implemented:
 - ✅ Documentation with examples
 - ✅ Consistent style guide with 191-character separators
 - ✅ Alphabetical ordering in main.py
+- ✅ Multi-tenant context management
+- ✅ Docker multi-platform support
+- ✅ Authentication error handling and lazy client initialization
 
 ## Recent Improvements (Completed ✅)
 
@@ -383,13 +386,13 @@ The project uses a unified approach where `set` commands handle both create and 
 
 This pattern has been successfully implemented for most object types and should be extended to the remaining resources.
 
-### SASE Bandwidth Allocations (Completed in v0.5.1)
+### SASE Bandwidth Allocations (In Progress)
 
-- [x] Implement smart upsert logic for `create_bandwidth_allocation` method
-- [x] Handle existing allocations gracefully (update instead of fail)
-- [x] Add proper error handling for allocation conflicts
-- [x] Implement CLI commands: set/delete/show/list/load/backup bandwidth allocations
-- [x] Add comprehensive tests and documentation for all SASE bandwidth-allocation commands
+- [ ] Implement smart upsert logic for `create_sase_bandwidth_allocation` method
+- [ ] Handle existing allocations gracefully (update instead of fail)
+- [ ] Add proper error handling for allocation conflicts
+- [ ] Implement CLI commands: set sase bandwidth-allocation, delete sase bandwidth-allocation, show sase bandwidth-allocation, list sase bandwidth-allocations, load sase bandwidth-allocations, backup sase bandwidth-allocations
+- [ ] Add comprehensive tests and documentation for all sase bandwidth-allocation commands
 
 ### Security Zones
 
@@ -451,9 +454,137 @@ This pattern has been successfully implemented for most object types and should 
 - [ ] Add integration tests with mock SCM API
 - [ ] Add performance benchmarks
 
+## Phase 5: Insights Commands (New)
+
+### Overview
+
+Implement comprehensive insights commands for monitoring and analyzing SCM deployments. These commands will provide access to real-time and historical data about network resources, user activity, and infrastructure state.
+
+### Insights Command Structure
+
+```bash
+scm insights <resource> [options]
+```
+
+### Resources to Implement
+
+#### Alerts
+
+- [ ] Research SDK support for alerts endpoint
+- [ ] Implement `list_alerts()` method in sdk_client.py
+- [ ] Implement `get_alert()` method in sdk_client.py
+- [ ] Create Alert validator model in validators.py
+- [ ] Implement `show insights alerts` command with --list and --id options
+- [ ] Add severity filtering (--severity critical/high/medium/low)
+- [ ] Add time range filtering (--start, --end)
+- [ ] Add export functionality (--export json/csv)
+- [ ] Add real-time monitoring option (--real-time)
+- [ ] Add comprehensive tests
+- [ ] Document command usage and examples
+
+#### Mobile Users
+
+- [ ] Research SDK support for mobile users endpoint
+- [ ] Implement `list_mobile_users()` method in sdk_client.py
+- [ ] Implement `get_mobile_user()` method in sdk_client.py
+- [ ] Create MobileUser validator model in validators.py
+- [ ] Implement `show insights mobile-users` command
+- [ ] Add status filtering (--status connected/disconnected)
+- [ ] Add location filtering (--location)
+- [ ] Add export functionality (--export json/csv)
+- [ ] Add comprehensive tests
+- [ ] Document command usage and examples
+
+#### Locations
+
+- [ ] Research SDK support for locations endpoint
+- [ ] Implement `list_locations()` method in sdk_client.py
+- [ ] Implement `get_location()` method in sdk_client.py
+- [ ] Create Location validator model in validators.py
+- [ ] Implement `show insights locations` command
+- [ ] Add geographic filtering options
+- [ ] Add export functionality (--export json/csv)
+- [ ] Add comprehensive tests
+- [ ] Document command usage and examples
+
+#### Remote Networks
+
+- [ ] Research SDK support for remote networks insights endpoint
+- [ ] Implement `list_remote_network_insights()` method in sdk_client.py
+- [ ] Implement `get_remote_network_insights()` method in sdk_client.py
+- [ ] Create RemoteNetworkInsights validator model in validators.py
+- [ ] Implement `show insights remote-networks` command
+- [ ] Add connectivity status filtering
+- [ ] Add performance metrics display
+- [ ] Add export functionality (--export json/csv)
+- [ ] Add comprehensive tests
+- [ ] Document command usage and examples
+
+#### Service Connections
+
+- [ ] Research SDK support for service connections insights endpoint
+- [ ] Implement `list_service_connection_insights()` method in sdk_client.py
+- [ ] Implement `get_service_connection_insights()` method in sdk_client.py
+- [ ] Create ServiceConnectionInsights validator model in validators.py
+- [ ] Implement `show insights service-connections` command
+- [ ] Add health status filtering
+- [ ] Add metrics display (latency, throughput, etc.)
+- [ ] Add export functionality (--export json/csv)
+- [ ] Add comprehensive tests
+- [ ] Document command usage and examples
+
+#### Tunnels
+
+- [ ] Research SDK support for tunnels endpoint
+- [ ] Implement `list_tunnels()` method in sdk_client.py
+- [ ] Implement `get_tunnel()` method in sdk_client.py
+- [ ] Create Tunnel validator model in validators.py
+- [ ] Implement `show insights tunnels` command
+- [ ] Add status filtering (--status up/down)
+- [ ] Add performance statistics display
+- [ ] Add time range filtering for historical data
+- [ ] Add export functionality (--export json/csv)
+- [ ] Add comprehensive tests
+- [ ] Document command usage and examples
+
+### Implementation Tasks
+
+#### Module Setup
+
+- [ ] Create src/scm_cli/commands/insights.py module
+- [ ] Follow established command patterns from other modules
+- [ ] Register insights app in main.py
+- [ ] Add consistent section separators (191 characters)
+
+#### Common Features
+
+- [ ] Implement table output format using Rich library
+- [ ] Implement JSON output format
+- [ ] Implement CSV export functionality
+- [ ] Add progress indicators for long-running operations
+- [ ] Handle pagination for large result sets
+- [ ] Add mock mode support for testing
+
+#### Testing
+
+- [ ] Create test_insights_commands.py
+- [ ] Add unit tests for each insights resource
+- [ ] Add integration tests with mock data
+- [ ] Ensure 100% test coverage
+
+#### Documentation
+
+- [ ] Create docs/cli/insights/ directory
+- [ ] Document each insights resource command
+- [ ] Add examples for common use cases
+- [ ] Update main README with insights commands
+
 ## Notes
 
 - All show commands should support both `--list` (all objects) and `--name` (specific object) flags
 - Maintain consistent command structure across all object types
 - Follow existing patterns for error handling and output formatting
 - Update documentation immediately after implementing each feature
+- Insights commands may require different SDK endpoints than configuration commands
+- Consider rate limiting and performance implications for real-time monitoring
+- Ensure proper error handling for network connectivity issues

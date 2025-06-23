@@ -1848,3 +1848,123 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
             raise ValueError(f"Validation error in item {idx}: {str(e)}") from e
 
     return validated_items
+
+
+# ========================================================================================================================================================================================
+# INSIGHTS AND MONITORING MODELS
+# ========================================================================================================================================================================================
+
+
+class Alert(BaseModel):
+    """Model for alert data from insights API."""
+
+    id: str = Field(..., description="Alert ID")
+    name: str = Field(..., description="Alert name")
+    severity: str = Field(..., description="Alert severity level (critical, high, medium, low)")
+    status: str = Field(..., description="Alert status")
+    timestamp: str = Field(..., description="Alert timestamp")
+    description: str | None = Field(None, description="Alert description")
+    folder: str | None = Field(None, description="Folder containing the alert")
+    source: str | None = Field(None, description="Alert source")
+    category: str | None = Field(None, description="Alert category")
+    impacted_resources: list[str] = Field(default_factory=list, description="List of impacted resources")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional alert metadata")
+
+
+class MobileUser(BaseModel):
+    """Model for mobile user insights data."""
+
+    id: str = Field(..., description="Mobile user ID")
+    username: str = Field(..., description="Username")
+    device_id: str | None = Field(None, description="Device ID")
+    status: str = Field(..., description="Connection status (connected, disconnected)")
+    location: str | None = Field(None, description="Current location")
+    last_seen: str | None = Field(None, description="Last seen timestamp")
+    ip_address: str | None = Field(None, description="IP address")
+    folder: str | None = Field(None, description="Folder")
+    gateway: str | None = Field(None, description="Connected gateway")
+    bandwidth_used: int | None = Field(None, description="Bandwidth used in Mbps")
+    session_duration: int | None = Field(None, description="Session duration in seconds")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional user metadata")
+
+
+class Location(BaseModel):
+    """Model for location insights data."""
+
+    id: str = Field(..., description="Location ID")
+    name: str = Field(..., description="Location name")
+    region: str | None = Field(None, description="Geographic region")
+    country: str | None = Field(None, description="Country")
+    state: str | None = Field(None, description="State or province")
+    city: str | None = Field(None, description="City")
+    latitude: float | None = Field(None, description="Latitude coordinate")
+    longitude: float | None = Field(None, description="Longitude coordinate")
+    folder: str | None = Field(None, description="Folder")
+    total_users: int | None = Field(None, description="Total users at location")
+    active_users: int | None = Field(None, description="Active users at location")
+    bandwidth_capacity: int | None = Field(None, description="Bandwidth capacity in Mbps")
+    bandwidth_used: int | None = Field(None, description="Bandwidth used in Mbps")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional location metadata")
+
+
+class RemoteNetworkInsights(BaseModel):
+    """Model for remote network insights data."""
+
+    id: str = Field(..., description="Remote network ID")
+    name: str = Field(..., description="Remote network name")
+    connectivity_status: str = Field(..., description="Connectivity status (connected, disconnected, degraded)")
+    folder: str | None = Field(None, description="Folder")
+    site_id: str | None = Field(None, description="Site ID")
+    region: str | None = Field(None, description="Region")
+    bandwidth_allocated: int | None = Field(None, description="Allocated bandwidth in Mbps")
+    bandwidth_used: int | None = Field(None, description="Used bandwidth in Mbps")
+    latency: float | None = Field(None, description="Latency in milliseconds")
+    packet_loss: float | None = Field(None, description="Packet loss percentage")
+    jitter: float | None = Field(None, description="Jitter in milliseconds")
+    tunnel_count: int | None = Field(None, description="Number of tunnels")
+    active_tunnels: int | None = Field(None, description="Number of active tunnels")
+    last_status_change: str | None = Field(None, description="Last status change timestamp")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional network metadata")
+
+
+class ServiceConnectionInsights(BaseModel):
+    """Model for service connection insights data."""
+
+    id: str = Field(..., description="Service connection ID")
+    name: str = Field(..., description="Service connection name")
+    health_status: str = Field(..., description="Health status (healthy, unhealthy, degraded)")
+    folder: str | None = Field(None, description="Folder")
+    region: str | None = Field(None, description="Region")
+    service_type: str | None = Field(None, description="Service type")
+    latency: float | None = Field(None, description="Latency in milliseconds")
+    throughput: float | None = Field(None, description="Throughput in Mbps")
+    availability: float | None = Field(None, description="Availability percentage")
+    uptime: int | None = Field(None, description="Uptime in seconds")
+    last_health_check: str | None = Field(None, description="Last health check timestamp")
+    error_count: int | None = Field(None, description="Error count")
+    warning_count: int | None = Field(None, description="Warning count")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional connection metadata")
+
+
+class Tunnel(BaseModel):
+    """Model for tunnel insights data."""
+
+    id: str = Field(..., description="Tunnel ID")
+    name: str = Field(..., description="Tunnel name")
+    status: str = Field(..., description="Tunnel status (up, down)")
+    tunnel_type: str | None = Field(None, description="Tunnel type (IPSec, SSL, etc)")
+    folder: str | None = Field(None, description="Folder")
+    source_zone: str | None = Field(None, description="Source zone")
+    destination_zone: str | None = Field(None, description="Destination zone")
+    local_address: str | None = Field(None, description="Local endpoint address")
+    remote_address: str | None = Field(None, description="Remote endpoint address")
+    bytes_sent: int | None = Field(None, description="Bytes sent")
+    bytes_received: int | None = Field(None, description="Bytes received")
+    packets_sent: int | None = Field(None, description="Packets sent")
+    packets_received: int | None = Field(None, description="Packets received")
+    latency: float | None = Field(None, description="Latency in milliseconds")
+    jitter: float | None = Field(None, description="Jitter in milliseconds")
+    packet_loss: float | None = Field(None, description="Packet loss percentage")
+    uptime: int | None = Field(None, description="Uptime in seconds")
+    last_state_change: str | None = Field(None, description="Last state change timestamp")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional tunnel metadata")
