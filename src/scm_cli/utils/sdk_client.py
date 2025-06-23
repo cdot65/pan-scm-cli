@@ -7,6 +7,7 @@ dynaconf settings.
 
 import json
 import logging
+from datetime import datetime
 from typing import Any, NoReturn
 
 from oauthlib.oauth2.rfc6749.errors import InvalidClientError
@@ -133,6 +134,37 @@ class SCMClient:
                     file=sys.stderr,
                 )
                 raise SystemExit(1) from e
+
+    @property
+    def mock(self) -> bool:
+        """Check if the client is in mock mode."""
+        return self.client is None
+
+    def _extract_impacted_resources(self, impacted_objects: Any) -> list[str]:
+        """Extract impacted resources from various formats.
+        
+        Args:
+            impacted_objects: Can be a list, dict, or string
+            
+        Returns:
+            List of resource identifiers
+        """
+        if not impacted_objects:
+            return []
+            
+        if isinstance(impacted_objects, list):
+            return [str(obj) for obj in impacted_objects]
+            
+        if isinstance(impacted_objects, dict):
+            # Extract meaningful identifiers from the dict
+            resources = []
+            if "entity" in impacted_objects and impacted_objects["entity"]:
+                resources.append(str(impacted_objects["entity"]))
+            if "tenant_id" in impacted_objects:
+                resources.append(f"tenant:{impacted_objects['tenant_id']}")
+            return resources if resources else [str(impacted_objects)]
+            
+        return [str(impacted_objects)]
 
     def _handle_api_exception(self, operation: str, folder: str, resource_name: str, exception: Exception) -> NoReturn:
         """Handle API exceptions with proper logging and error formatting.
@@ -5781,6 +5813,698 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container or "", "decryption profiles", e)
+
+    # ======================================================================================================================================================================================
+    # INSIGHTS AND MONITORING METHODS
+    # ======================================================================================================================================================================================
+
+    # ------------------------------------------------------------------------------------ Alerts ----------------------------------------------------------------------------------
+
+    def list_alerts(self, folder: str = None, max_results: int = 100, **filters) -> list[dict[str, Any]]:
+        """List alerts from insights API.
+
+        Args:
+            folder: Folder to filter alerts (optional)
+            max_results: Maximum number of results to return
+            **filters: Additional filters (severity, start_time, end_time, etc.)
+
+        Returns:
+            List of alert dictionaries
+
+        """
+        logger.info("Listing alerts")
+
+        if self.mock:
+            # Return mock data for alerts
+            return [
+                {
+                    "id": "alert-001",
+                    "name": "Critical CPU Usage",
+                    "severity": "critical",
+                    "status": "active",
+                    "timestamp": "2024-01-20T10:30:00Z",
+                    "description": "CPU usage exceeded 95% threshold",
+                    "folder": folder or "Texas",
+                    "source": "system-monitor",
+                    "category": "performance",
+                    "impacted_resources": ["fw-01", "fw-02"],
+                    "metadata": {"cpu_percent": 97.5},
+                },
+                {
+                    "id": "alert-002",
+                    "name": "Tunnel Down",
+                    "severity": "high",
+                    "status": "active",
+                    "timestamp": "2024-01-20T09:15:00Z",
+                    "description": "IPSec tunnel to remote site is down",
+                    "folder": folder or "Texas",
+                    "source": "tunnel-monitor",
+                    "category": "connectivity",
+                    "impacted_resources": ["tunnel-remote-01"],
+                    "metadata": {"site": "Branch Office 1"},
+                },
+            ]
+
+        try:
+            # Check if the SDK has the alerts service
+            if not hasattr(self.client, "alerts"):
+                raise NotImplementedError("Alerts service not yet available in current pan-scm-sdk version")
+
+            # Try using the SDK's list method with proper parameters
+            try:
+                # Convert string severity to list if needed
+                severity_list = None
+                if filters.get("severity"):
+                    severity_list = filters["severity"].split(",") if isinstance(filters["severity"], str) else filters["severity"]
+                
+                status_list = None
+                if filters.get("status"):
+                    status_list = filters["status"].split(",") if isinstance(filters["status"], str) else filters["status"]
+                
+                # Try using list method
+                result = self.client.alerts.list(
+                    severity=severity_list,
+                    status=status_list,
+                    start_time=int(filters["start_time"]) if filters.get("start_time") and filters["start_time"].isdigit() else None,
+                    category=filters.get("category"),
+                    max_results=max_results,
+                )
+                
+                # Process each alert
+                alerts = []
+                for alert_obj in result:
+                    # Convert to dict - handle both dict and object responses
+                    if hasattr(alert_obj, "model_dump"):
+                        alert_data = alert_obj.model_dump()
+                    else:
+                        alert_data = alert_obj if isinstance(alert_obj, dict) else vars(alert_obj)
+                    
+                    # Map fields to our expected format
+                    alert = {
+                        "id": alert_data.get("id") or alert_data.get("alert_id"),
+                        "name": alert_data.get("name") or alert_data.get("message"),
+                        "severity": alert_data.get("severity"),
+                        "status": alert_data.get("status") or alert_data.get("state"),
+                        "timestamp": alert_data.get("timestamp") or alert_data.get("raised_time"),
+                        "description": alert_data.get("description"),
+                        "folder": alert_data.get("folder"),
+                        "source": alert_data.get("source"),
+                        "category": alert_data.get("category"),
+                        "impacted_resources": alert_data.get("impacted_resources") or alert_data.get("primary_impacted_objects", []),
+                        "metadata": alert_data.get("metadata") or alert_data.get("resource_context"),
+                    }
+                    alerts.append(alert)
+                    
+                return alerts
+                
+            except Exception as list_error:
+                # If list method fails, fall back to query method
+                self.logger.debug(f"List method failed: {list_error}, trying query method")
+                
+                # Build properties for query
+                properties = [
+                    {"property": "alert_id"},
+                    {"property": "severity"},
+                    {"property": "message"},
+                    {"property": "raised_time"},
+                    {"property": "updated_time"},
+                    {"property": "state"},
+                    {"property": "category"},
+                ]
+                
+                # Build filter for recent alerts (last 30 days by default)
+                filter_rules = []
+                
+                # Add time filter
+                days_back = 30  # default
+                if filters.get("start_time") and filters["start_time"].isdigit():
+                    days_back = int(filters["start_time"])
+                filter_rules.append({
+                    "property": "updated_time", 
+                    "operator": "last_n_days", 
+                    "values": [days_back]
+                })
+                
+                # Add severity filter if provided
+                if filters.get("severity"):
+                    severity_list = filters["severity"].split(",") if isinstance(filters["severity"], str) else filters["severity"]
+                    filter_rules.append({
+                        "property": "severity",
+                        "operator": "in",
+                        "values": severity_list
+                    })
+                
+                # Add status filter if provided
+                if filters.get("status"):
+                    status_list = filters["status"].split(",") if isinstance(filters["status"], str) else filters["status"]
+                    filter_rules.append({
+                        "property": "state",
+                        "operator": "in", 
+                        "values": status_list
+                    })
+                
+                # Simple query with basic filters
+                response = self.client.alerts.query(
+                    properties=properties,
+                    filter={"rules": filter_rules},
+                    count=max_results
+                )
+                
+                # Process raw response - response.data is a list of dicts
+                alerts = []
+                if hasattr(response, 'data') and response.data:
+                    for item in response.data:
+                        # Handle timestamp conversion
+                        timestamp = item.get("raised_time")
+                        if isinstance(timestamp, int):
+                            # Convert milliseconds to ISO format
+                            timestamp = datetime.fromtimestamp(timestamp / 1000).isoformat() + "Z"
+                        
+                        alert = {
+                            "id": item.get("alert_id", ""),
+                            "name": item.get("message", ""),
+                            "severity": item.get("severity", ""),
+                            "status": item.get("state", ""),
+                            "timestamp": timestamp,
+                            "category": item.get("category", ""),
+                            "impacted_resources": [],
+                            "metadata": {},
+                        }
+                        alerts.append(alert)
+                    
+                return alerts
+        except NotImplementedError:
+            raise
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "insights", "alerts", e)
+
+    def get_alert(self, alert_id: str, folder: str = None) -> dict[str, Any]:
+        """Get a specific alert by ID.
+
+        Args:
+            alert_id: Alert ID
+            folder: Folder containing the alert (optional)
+
+        Returns:
+            Alert dictionary
+
+        """
+        logger.info(f"Getting alert {alert_id}")
+
+        if self.mock:
+            return {
+                "id": alert_id,
+                "name": "Critical CPU Usage",
+                "severity": "critical",
+                "status": "active",
+                "timestamp": "2024-01-20T10:30:00Z",
+                "description": "CPU usage exceeded 95% threshold",
+                "folder": folder or "Texas",
+                "source": "system-monitor",
+                "category": "performance",
+                "impacted_resources": ["fw-01", "fw-02"],
+                "metadata": {"cpu_percent": 97.5},
+            }
+
+        try:
+            # Check if the SDK has the alerts service
+            if not hasattr(self.client, "alerts"):
+                raise NotImplementedError("Alerts service not yet available in current pan-scm-sdk version")
+
+            # Use the actual SDK alerts service
+            result = self.client.alerts.get(alert_id)
+
+            # Convert Alert object to dictionary
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotImplementedError:
+            raise
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder or "insights", f"alert {alert_id}", e)
+
+    # ------------------------------------------------------------------------------------ Mobile Users ----------------------------------------------------------------------------------
+
+    def list_mobile_users(self, folder: str = None, max_results: int = 100, **filters) -> list[dict[str, Any]]:
+        """List mobile users from insights API.
+
+        Args:
+            folder: Folder to filter users (optional)
+            max_results: Maximum number of results to return
+            **filters: Additional filters (status, location, etc.)
+
+        Returns:
+            List of mobile user dictionaries
+
+        """
+        logger.info("Listing mobile users")
+
+        if self.mock:
+            return [
+                {
+                    "id": "user-001",
+                    "username": "jsmith@company.com",
+                    "device_id": "device-abc123",
+                    "status": "connected",
+                    "location": "New York, NY",
+                    "last_seen": "2024-01-20T11:00:00Z",
+                    "ip_address": "10.0.1.45",
+                    "folder": folder or "Mobile Users",
+                    "gateway": "gw-nyc-01",
+                    "bandwidth_used": 25,
+                    "session_duration": 3600,
+                    "metadata": {"os": "Windows 11", "client_version": "6.2.1"},
+                },
+                {
+                    "id": "user-002",
+                    "username": "mjones@company.com",
+                    "device_id": "device-xyz789",
+                    "status": "disconnected",
+                    "location": "San Francisco, CA",
+                    "last_seen": "2024-01-20T09:30:00Z",
+                    "ip_address": "10.0.2.67",
+                    "folder": folder or "Mobile Users",
+                    "gateway": "gw-sfo-01",
+                    "bandwidth_used": 0,
+                    "session_duration": 0,
+                    "metadata": {"os": "macOS 14", "client_version": "6.2.0"},
+                },
+            ]
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    def get_mobile_user(self, user_id: str, folder: str = None) -> dict[str, Any]:
+        """Get a specific mobile user by ID.
+
+        Args:
+            user_id: User ID
+            folder: Folder containing the user (optional)
+
+        Returns:
+            Mobile user dictionary
+
+        """
+        logger.info(f"Getting mobile user {user_id}")
+
+        if self.mock:
+            return {
+                "id": user_id,
+                "username": "jsmith@company.com",
+                "device_id": "device-abc123",
+                "status": "connected",
+                "location": "New York, NY",
+                "last_seen": "2024-01-20T11:00:00Z",
+                "ip_address": "10.0.1.45",
+                "folder": folder or "Mobile Users",
+                "gateway": "gw-nyc-01",
+                "bandwidth_used": 25,
+                "session_duration": 3600,
+                "metadata": {"os": "Windows 11", "client_version": "6.2.1"},
+            }
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    # ------------------------------------------------------------------------------------ Locations ----------------------------------------------------------------------------------
+
+    def list_locations(self, folder: str = None, max_results: int = 100, **filters) -> list[dict[str, Any]]:
+        """List locations from insights API.
+
+        Args:
+            folder: Folder to filter locations (optional)
+            max_results: Maximum number of results to return
+            **filters: Additional filters (region, etc.)
+
+        Returns:
+            List of location dictionaries
+
+        """
+        logger.info("Listing locations")
+
+        if self.mock:
+            return [
+                {
+                    "id": "loc-001",
+                    "name": "New York Office",
+                    "region": "us-east",
+                    "country": "United States",
+                    "state": "New York",
+                    "city": "New York",
+                    "latitude": 40.7128,
+                    "longitude": -74.0060,
+                    "folder": folder or "Locations",
+                    "total_users": 150,
+                    "active_users": 87,
+                    "bandwidth_capacity": 1000,
+                    "bandwidth_used": 450,
+                    "metadata": {"site_code": "NYC01", "timezone": "America/New_York"},
+                },
+                {
+                    "id": "loc-002",
+                    "name": "San Francisco Office",
+                    "region": "us-west",
+                    "country": "United States",
+                    "state": "California",
+                    "city": "San Francisco",
+                    "latitude": 37.7749,
+                    "longitude": -122.4194,
+                    "folder": folder or "Locations",
+                    "total_users": 200,
+                    "active_users": 145,
+                    "bandwidth_capacity": 2000,
+                    "bandwidth_used": 1200,
+                    "metadata": {"site_code": "SFO01", "timezone": "America/Los_Angeles"},
+                },
+            ]
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    def get_location(self, location_id: str, folder: str = None) -> dict[str, Any]:
+        """Get a specific location by ID.
+
+        Args:
+            location_id: Location ID
+            folder: Folder containing the location (optional)
+
+        Returns:
+            Location dictionary
+
+        """
+        logger.info(f"Getting location {location_id}")
+
+        if self.mock:
+            return {
+                "id": location_id,
+                "name": "New York Office",
+                "region": "us-east",
+                "country": "United States",
+                "state": "New York",
+                "city": "New York",
+                "latitude": 40.7128,
+                "longitude": -74.0060,
+                "folder": folder or "Locations",
+                "total_users": 150,
+                "active_users": 87,
+                "bandwidth_capacity": 1000,
+                "bandwidth_used": 450,
+                "metadata": {"site_code": "NYC01", "timezone": "America/New_York"},
+            }
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    # ------------------------------------------------------------------------------------ Remote Networks ----------------------------------------------------------------------------------
+
+    def list_remote_network_insights(self, folder: str = None, max_results: int = 100, include_metrics: bool = False, **filters) -> list[dict[str, Any]]:
+        """List remote network insights from API.
+
+        Args:
+            folder: Folder to filter networks (optional)
+            max_results: Maximum number of results to return
+            include_metrics: Include performance metrics
+            **filters: Additional filters (connectivity, etc.)
+
+        Returns:
+            List of remote network insights dictionaries
+
+        """
+        logger.info("Listing remote network insights")
+
+        if self.mock:
+            return [
+                {
+                    "id": "rn-001",
+                    "name": "Branch Office 1",
+                    "connectivity_status": "connected",
+                    "folder": folder or "Remote Networks",
+                    "site_id": "site-001",
+                    "region": "us-east",
+                    "bandwidth_allocated": 100,
+                    "bandwidth_used": 45,
+                    "latency": 25.5 if include_metrics else None,
+                    "packet_loss": 0.1 if include_metrics else None,
+                    "jitter": 2.3 if include_metrics else None,
+                    "tunnel_count": 2,
+                    "active_tunnels": 2,
+                    "last_status_change": "2024-01-19T14:30:00Z",
+                    "metadata": {"branch_code": "BR001"},
+                },
+                {
+                    "id": "rn-002",
+                    "name": "Branch Office 2",
+                    "connectivity_status": "degraded",
+                    "folder": folder or "Remote Networks",
+                    "site_id": "site-002",
+                    "region": "us-west",
+                    "bandwidth_allocated": 50,
+                    "bandwidth_used": 48,
+                    "latency": 150.2 if include_metrics else None,
+                    "packet_loss": 2.5 if include_metrics else None,
+                    "jitter": 15.7 if include_metrics else None,
+                    "tunnel_count": 2,
+                    "active_tunnels": 1,
+                    "last_status_change": "2024-01-20T10:15:00Z",
+                    "metadata": {"branch_code": "BR002"},
+                },
+            ]
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    def get_remote_network_insights(self, network_id: str, folder: str = None, include_metrics: bool = False) -> dict[str, Any]:
+        """Get specific remote network insights by ID.
+
+        Args:
+            network_id: Network ID
+            folder: Folder containing the network (optional)
+            include_metrics: Include performance metrics
+
+        Returns:
+            Remote network insights dictionary
+
+        """
+        logger.info(f"Getting remote network insights for {network_id}")
+
+        if self.mock:
+            return {
+                "id": network_id,
+                "name": "Branch Office 1",
+                "connectivity_status": "connected",
+                "folder": folder or "Remote Networks",
+                "site_id": "site-001",
+                "region": "us-east",
+                "bandwidth_allocated": 100,
+                "bandwidth_used": 45,
+                "latency": 25.5 if include_metrics else None,
+                "packet_loss": 0.1 if include_metrics else None,
+                "jitter": 2.3 if include_metrics else None,
+                "tunnel_count": 2,
+                "active_tunnels": 2,
+                "last_status_change": "2024-01-19T14:30:00Z",
+                "metadata": {"branch_code": "BR001"},
+            }
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    # -------------------------------------------------------------------------------------- Service Connections -----------------------------------------------------------------------------
+
+    def list_service_connection_insights(self, folder: str = None, max_results: int = 100, include_metrics: bool = False, **filters) -> list[dict[str, Any]]:
+        """List service connection insights from API.
+
+        Args:
+            folder: Folder to filter connections (optional)
+            max_results: Maximum number of results to return
+            include_metrics: Include performance metrics
+            **filters: Additional filters (health_status, etc.)
+
+        Returns:
+            List of service connection insights dictionaries
+
+        """
+        logger.info("Listing service connection insights")
+
+        if self.mock:
+            return [
+                {
+                    "id": "sc-001",
+                    "name": "AWS Direct Connect",
+                    "health_status": "healthy",
+                    "folder": folder or "Service Connections",
+                    "region": "us-east-1",
+                    "service_type": "aws",
+                    "latency": 5.2 if include_metrics else None,
+                    "throughput": 850.5 if include_metrics else None,
+                    "availability": 99.95 if include_metrics else None,
+                    "uptime": 2592000,
+                    "last_health_check": "2024-01-20T11:00:00Z",
+                    "error_count": 0,
+                    "warning_count": 2,
+                    "metadata": {"connection_id": "dxcon-abc123"},
+                },
+                {
+                    "id": "sc-002",
+                    "name": "Azure ExpressRoute",
+                    "health_status": "degraded",
+                    "folder": folder or "Service Connections",
+                    "region": "westus2",
+                    "service_type": "azure",
+                    "latency": 45.8 if include_metrics else None,
+                    "throughput": 450.2 if include_metrics else None,
+                    "availability": 98.5 if include_metrics else None,
+                    "uptime": 1728000,
+                    "last_health_check": "2024-01-20T10:55:00Z",
+                    "error_count": 5,
+                    "warning_count": 15,
+                    "metadata": {"circuit_id": "expr-xyz789"},
+                },
+            ]
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    def get_service_connection_insights(self, connection_id: str, folder: str = None, include_metrics: bool = False) -> dict[str, Any]:
+        """Get specific service connection insights by ID.
+
+        Args:
+            connection_id: Connection ID
+            folder: Folder containing the connection (optional)
+            include_metrics: Include performance metrics
+
+        Returns:
+            Service connection insights dictionary
+
+        """
+        logger.info(f"Getting service connection insights for {connection_id}")
+
+        if self.mock:
+            return {
+                "id": connection_id,
+                "name": "AWS Direct Connect",
+                "health_status": "healthy",
+                "folder": folder or "Service Connections",
+                "region": "us-east-1",
+                "service_type": "aws",
+                "latency": 5.2 if include_metrics else None,
+                "throughput": 850.5 if include_metrics else None,
+                "availability": 99.95 if include_metrics else None,
+                "uptime": 2592000,
+                "last_health_check": "2024-01-20T11:00:00Z",
+                "error_count": 0,
+                "warning_count": 2,
+                "metadata": {"connection_id": "dxcon-abc123"},
+            }
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    # ------------------------------------------------------------------------------------ Tunnels ----------------------------------------------------------------------------------
+
+    def list_tunnels(self, folder: str = None, max_results: int = 100, include_stats: bool = False, **filters) -> list[dict[str, Any]]:
+        """List tunnels from insights API.
+
+        Args:
+            folder: Folder to filter tunnels (optional)
+            max_results: Maximum number of results to return
+            include_stats: Include performance statistics
+            **filters: Additional filters (status, start_time, end_time, etc.)
+
+        Returns:
+            List of tunnel dictionaries
+
+        """
+        logger.info("Listing tunnels")
+
+        if self.mock:
+            return [
+                {
+                    "id": "tunnel-001",
+                    "name": "IPSec-Branch-01",
+                    "status": "up",
+                    "tunnel_type": "IPSec",
+                    "folder": folder or "Tunnels",
+                    "source_zone": "trust",
+                    "destination_zone": "untrust",
+                    "local_address": "203.0.113.1",
+                    "remote_address": "198.51.100.1",
+                    "bytes_sent": 1073741824 if include_stats else None,
+                    "bytes_received": 2147483648 if include_stats else None,
+                    "packets_sent": 1000000 if include_stats else None,
+                    "packets_received": 2000000 if include_stats else None,
+                    "latency": 25.5 if include_stats else None,
+                    "jitter": 2.3 if include_stats else None,
+                    "packet_loss": 0.1 if include_stats else None,
+                    "uptime": 2592000,
+                    "last_state_change": "2024-01-01T00:00:00Z",
+                    "metadata": {"peer_id": "branch-01"},
+                },
+                {
+                    "id": "tunnel-002",
+                    "name": "SSL-VPN-Users",
+                    "status": "down",
+                    "tunnel_type": "SSL",
+                    "folder": folder or "Tunnels",
+                    "source_zone": "vpn",
+                    "destination_zone": "trust",
+                    "local_address": "203.0.113.2",
+                    "remote_address": "0.0.0.0",
+                    "bytes_sent": 0 if include_stats else None,
+                    "bytes_received": 0 if include_stats else None,
+                    "packets_sent": 0 if include_stats else None,
+                    "packets_received": 0 if include_stats else None,
+                    "latency": None,
+                    "jitter": None,
+                    "packet_loss": None,
+                    "uptime": 0,
+                    "last_state_change": "2024-01-20T10:00:00Z",
+                    "metadata": {"pool": "vpn-pool-1"},
+                },
+            ]
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
+
+    def get_tunnel(self, tunnel_id: str, folder: str = None, include_stats: bool = False, start_time: str = None, end_time: str = None) -> dict[str, Any]:
+        """Get a specific tunnel by ID.
+
+        Args:
+            tunnel_id: Tunnel ID
+            folder: Folder containing the tunnel (optional)
+            include_stats: Include performance statistics
+            start_time: Start time for historical data (ISO format)
+            end_time: End time for historical data (ISO format)
+
+        Returns:
+            Tunnel dictionary
+
+        """
+        logger.info(f"Getting tunnel {tunnel_id}")
+
+        if self.mock:
+            return {
+                "id": tunnel_id,
+                "name": "IPSec-Branch-01",
+                "status": "up",
+                "tunnel_type": "IPSec",
+                "folder": folder or "Tunnels",
+                "source_zone": "trust",
+                "destination_zone": "untrust",
+                "local_address": "203.0.113.1",
+                "remote_address": "198.51.100.1",
+                "bytes_sent": 1073741824 if include_stats else None,
+                "bytes_received": 2147483648 if include_stats else None,
+                "packets_sent": 1000000 if include_stats else None,
+                "packets_received": 2000000 if include_stats else None,
+                "latency": 25.5 if include_stats else None,
+                "jitter": 2.3 if include_stats else None,
+                "packet_loss": 0.1 if include_stats else None,
+                "uptime": 2592000,
+                "last_state_change": "2024-01-01T00:00:00Z",
+                "metadata": {"peer_id": "branch-01"},
+            }
+
+        # TODO: Implement actual API call when insights API is available
+        raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
 
 
 class LazyClient:
