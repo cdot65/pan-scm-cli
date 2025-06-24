@@ -9,7 +9,7 @@ import csv
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import typer
 import yaml
@@ -90,16 +90,22 @@ def show_alerts(
         "--severity",
         help="Filter alerts by severity (critical, high, medium, low)",
     ),
-    start_time: datetime | None = typer.Option(
-        None,
-        "--start",
-        help="Filter alerts starting from this time (ISO format)",
-    ),
-    end_time: datetime | None = typer.Option(
-        None,
-        "--end",
-        help="Filter alerts up to this time (ISO format)",
-    ),
+    start_time: Annotated[
+        datetime | None,
+        typer.Option(
+            None,
+            "--start",
+            help="Filter alerts starting from this time (ISO format)",
+        ),
+    ] = None,
+    end_time: Annotated[
+        datetime | None,
+        typer.Option(
+            None,
+            "--end",
+            help="Filter alerts up to this time (ISO format)",
+        ),
+    ] = None,
     export_format: str | None = typer.Option(
         None,
         "--export",
@@ -534,16 +540,22 @@ def show_tunnels(
         "--status",
         help="Filter by tunnel status (up, down)",
     ),
-    start_time: datetime | None = typer.Option(
-        None,
-        "--start",
-        help="Filter historical data from this time (ISO format)",
-    ),
-    end_time: datetime | None = typer.Option(
-        None,
-        "--end",
-        help="Filter historical data up to this time (ISO format)",
-    ),
+    start_time: Annotated[
+        datetime | None,
+        typer.Option(
+            None,
+            "--start",
+            help="Filter historical data from this time (ISO format)",
+        ),
+    ] = None,
+    end_time: Annotated[
+        datetime | None,
+        typer.Option(
+            None,
+            "--end",
+            help="Filter historical data up to this time (ISO format)",
+        ),
+    ] = None,
     export_format: str | None = typer.Option(
         None,
         "--export",

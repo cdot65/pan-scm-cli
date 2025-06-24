@@ -35,6 +35,18 @@ DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of th
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
 
+# List options for multiline definitions
+SUBNETS_SC_OPTION = typer.Option(
+    None,
+    "--subnets",
+    help="Subnets for the service connection",
+)
+SUBNETS_RN_OPTION = typer.Option(
+    None,
+    "--subnets",
+    help="Subnets for the remote network",
+)
+
 # ========================================================================================================================================================================================
 # BANDWIDTH ALLOCATION COMMANDS
 # ========================================================================================================================================================================================
@@ -491,7 +503,7 @@ def set_service_connection(
     backup_sc: str | None = typer.Option(None, "--backup-sc", help="Backup service connection"),
     nat_pool: str | None = typer.Option(None, "--nat-pool", help="NAT pool"),
     source_nat: bool | None = typer.Option(None, "--source-nat", help="Enable source NAT"),
-    subnets: list[str] | None = typer.Option(None, "--subnets", help="Subnets for the service connection"),
+    subnets: list[str] | None = SUBNETS_SC_OPTION,
     bgp_enable: bool | None = typer.Option(None, "--bgp-enable", help="Enable BGP"),
     bgp_peer_as: str | None = typer.Option(None, "--bgp-peer-as", help="BGP peer AS number"),
     bgp_peer_ip_address: str | None = typer.Option(None, "--bgp-peer-ip", help="BGP peer IP address"),
@@ -821,7 +833,7 @@ def set_remote_network(
     region: str = typer.Option(..., "--region", help="Region for the remote network"),
     license_type: str = typer.Option("FWAAS-AGGREGATE", "--license-type", help="License type"),
     description: str | None = DESCRIPTION_OPTION,
-    subnets: list[str] | None = typer.Option(None, "--subnets", help="Subnets for the remote network"),
+    subnets: list[str] | None = SUBNETS_RN_OPTION,
     spn_name: str | None = typer.Option(None, "--spn-name", help="SPN name (required for FWAAS-AGGREGATE)"),
     ecmp_load_balancing: str = typer.Option("disable", "--ecmp-load-balancing", help="Enable or disable ECMP"),
     ipsec_tunnel: str | None = typer.Option(None, "--ipsec-tunnel", help="IPsec tunnel (required when ECMP disabled)"),
