@@ -47,7 +47,7 @@ class ServiceConnection(BaseModel):
     ipsec_tunnel: str = Field(..., description="IPsec tunnel for the service connection")
     region: str = Field(..., description="Region for the service connection")
     onboarding_type: str = Field("classic", description="Onboarding type for the service connection")
-    backup_SC: str | None = Field(None, description="Backup service connection")
+    backup_sc: str | None = Field(None, alias="backup_SC", description="Backup service connection")
     nat_pool: str | None = Field(None, description="NAT pool for the service connection")
     no_export_community: str | None = Field(None, description="No export community configuration")
     source_nat: bool | None = Field(None, description="Enable source NAT")
@@ -87,8 +87,8 @@ class ServiceConnection(BaseModel):
         }
 
         # Add optional fields if present
-        if self.backup_SC:
-            model_data["backup_SC"] = self.backup_SC
+        if self.backup_sc:
+            model_data["backup_SC"] = self.backup_sc
         if self.nat_pool:
             model_data["nat_pool"] = self.nat_pool
         if self.no_export_community:

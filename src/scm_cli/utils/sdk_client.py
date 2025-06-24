@@ -5,14 +5,13 @@ with Palo Alto Networks Strata Cloud Manager. It uses the credentials from
 dynaconf settings.
 """
 
+import contextlib
 import json
 import logging
 from datetime import datetime
 from typing import Any, NoReturn
 
 from oauthlib.oauth2.rfc6749.errors import InvalidClientError
-
-# Import the actual SDK client
 from scm.client import Scm
 from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
 
@@ -142,19 +141,20 @@ class SCMClient:
 
     def _extract_impacted_resources(self, impacted_objects: Any) -> list[str]:
         """Extract impacted resources from various formats.
-        
+
         Args:
             impacted_objects: Can be a list, dict, or string
-            
+
         Returns:
             List of resource identifiers
+
         """
         if not impacted_objects:
             return []
-            
+
         if isinstance(impacted_objects, list):
             return [str(obj) for obj in impacted_objects]
-            
+
         if isinstance(impacted_objects, dict):
             # Extract meaningful identifiers from the dict
             resources = []
@@ -163,7 +163,7 @@ class SCMClient:
             if "tenant_id" in impacted_objects:
                 resources.append(f"tenant:{impacted_objects['tenant_id']}")
             return resources if resources else [str(impacted_objects)]
-            
+
         return [str(impacted_objects)]
 
     def _handle_api_exception(self, operation: str, folder: str, resource_name: str, exception: Exception) -> NoReturn:
@@ -445,7 +445,7 @@ class SCMClient:
         ipsec_tunnel: str,
         region: str,
         onboarding_type: str = "classic",
-        backup_SC: str | None = None,
+        backup_sc: str | None = None,
         nat_pool: str | None = None,
         no_export_community: str | None = None,
         source_nat: bool | None = None,
@@ -462,7 +462,7 @@ class SCMClient:
             ipsec_tunnel: IPsec tunnel for the service connection
             region: Region for the service connection
             onboarding_type: Onboarding type (default: "classic")
-            backup_SC: Backup service connection
+            backup_sc: Backup service connection
             nat_pool: NAT pool for the service connection
             no_export_community: No export community configuration
             source_nat: Enable source NAT
@@ -525,8 +525,8 @@ class SCMClient:
                     needs_update = True
 
                 # Check optional fields
-                if backup_SC is not None and getattr(existing_connection, "backup_SC", None) != backup_SC:
-                    existing_connection.backup_SC = backup_SC
+                if backup_sc is not None and getattr(existing_connection, "backup_SC", None) != backup_sc:
+                    existing_connection.backup_SC = backup_sc
                     update_fields.append("backup_SC")
                     needs_update = True
 
@@ -604,8 +604,8 @@ class SCMClient:
                 }
 
                 # Add optional fields
-                if backup_SC:
-                    data["backup_SC"] = backup_SC
+                if backup_sc:
+                    data["backup_SC"] = backup_sc
                 if nat_pool:
                     data["nat_pool"] = nat_pool
                 if no_export_community:
@@ -5876,11 +5876,11 @@ class SCMClient:
                 severity_list = None
                 if filters.get("severity"):
                     severity_list = filters["severity"].split(",") if isinstance(filters["severity"], str) else filters["severity"]
-                
+
                 status_list = None
                 if filters.get("status"):
                     status_list = filters["status"].split(",") if isinstance(filters["status"], str) else filters["status"]
-                
+
                 # Try using list method
                 result = self.client.alerts.list(
                     severity=severity_list,
@@ -5889,16 +5889,13 @@ class SCMClient:
                     category=filters.get("category"),
                     max_results=max_results,
                 )
-                
+
                 # Process each alert
                 alerts = []
                 for alert_obj in result:
                     # Convert to dict - handle both dict and object responses
-                    if hasattr(alert_obj, "model_dump"):
-                        alert_data = alert_obj.model_dump()
-                    else:
-                        alert_data = alert_obj if isinstance(alert_obj, dict) else vars(alert_obj)
-                    
+                    alert_data = alert_obj.model_dump() if hasattr(alert_obj, "model_dump") else alert_obj if isinstance(alert_obj, dict) else vars(alert_obj)
+
                     # Map fields to our expected format
                     alert = {
                         "id": alert_data.get("id") or alert_data.get("alert_id"),
@@ -5914,13 +5911,13 @@ class SCMClient:
                         "metadata": alert_data.get("metadata") or alert_data.get("resource_context"),
                     }
                     alerts.append(alert)
-                    
+
                 return alerts
-                
+
             except Exception as list_error:
                 # If list method fails, fall back to query method
                 self.logger.debug(f"List method failed: {list_error}, trying query method")
-                
+
                 # Build properties for query
                 properties = [
                     {"property": "alert_id"},
@@ -5931,55 +5928,39 @@ class SCMClient:
                     {"property": "state"},
                     {"property": "category"},
                 ]
-                
+
                 # Build filter for recent alerts (last 30 days by default)
                 filter_rules = []
-                
+
                 # Add time filter
                 days_back = 30  # default
                 if filters.get("start_time") and filters["start_time"].isdigit():
                     days_back = int(filters["start_time"])
-                filter_rules.append({
-                    "property": "updated_time", 
-                    "operator": "last_n_days", 
-                    "values": [days_back]
-                })
-                
+                filter_rules.append({"property": "updated_time", "operator": "last_n_days", "values": [days_back]})
+
                 # Add severity filter if provided
                 if filters.get("severity"):
                     severity_list = filters["severity"].split(",") if isinstance(filters["severity"], str) else filters["severity"]
-                    filter_rules.append({
-                        "property": "severity",
-                        "operator": "in",
-                        "values": severity_list
-                    })
-                
+                    filter_rules.append({"property": "severity", "operator": "in", "values": severity_list})
+
                 # Add status filter if provided
                 if filters.get("status"):
                     status_list = filters["status"].split(",") if isinstance(filters["status"], str) else filters["status"]
-                    filter_rules.append({
-                        "property": "state",
-                        "operator": "in", 
-                        "values": status_list
-                    })
-                
+                    filter_rules.append({"property": "state", "operator": "in", "values": status_list})
+
                 # Simple query with basic filters
-                response = self.client.alerts.query(
-                    properties=properties,
-                    filter={"rules": filter_rules},
-                    count=max_results
-                )
-                
+                response = self.client.alerts.query(properties=properties, filter={"rules": filter_rules}, count=max_results)
+
                 # Process raw response - response.data is a list of dicts
                 alerts = []
-                if hasattr(response, 'data') and response.data:
+                if hasattr(response, "data") and response.data:
                     for item in response.data:
                         # Handle timestamp conversion
                         timestamp = item.get("raised_time")
                         if isinstance(timestamp, int):
                             # Convert milliseconds to ISO format
                             timestamp = datetime.fromtimestamp(timestamp / 1000).isoformat() + "Z"
-                        
+
                         alert = {
                             "id": item.get("alert_id", ""),
                             "name": item.get("message", ""),
@@ -5991,7 +5972,7 @@ class SCMClient:
                             "metadata": {},
                         }
                         alerts.append(alert)
-                    
+
                 return alerts
         except NotImplementedError:
             raise
@@ -6031,11 +6012,57 @@ class SCMClient:
             if not hasattr(self.client, "alerts"):
                 raise NotImplementedError("Alerts service not yet available in current pan-scm-sdk version")
 
-            # Use the actual SDK alerts service
-            result = self.client.alerts.get(alert_id)
+            # Use query method to get specific alert
+            properties = [
+                {"property": "alert_id"},
+                {"property": "severity"},
+                {"property": "message"},
+                {"property": "raised_time"},
+                {"property": "updated_time"},
+                {"property": "state"},
+                {"property": "category"},
+                {"property": "code"},
+                {"property": "primary_impacted_objects", "function": "to_json_string"},
+                {"property": "resource_context", "function": "to_json_string"},
+            ]
 
-            # Convert Alert object to dictionary
-            return json.loads(result.model_dump_json(exclude_unset=True))
+            response = self.client.alerts.query(properties=properties, filter={"rules": [{"property": "alert_id", "operator": "equals", "values": [alert_id]}]}, count=1)
+
+            # Check if we got a result
+            if not hasattr(response, "data") or not response.data:
+                raise ValueError(f"Alert with ID '{alert_id}' not found")
+
+            # Process the first (and only) result
+            item = response.data[0]
+
+            # Handle timestamp conversion
+            timestamp = item.get("raised_time")
+            if isinstance(timestamp, int):
+                timestamp = datetime.fromtimestamp(timestamp / 1000).isoformat() + "Z"
+
+            # Parse JSON string fields
+            primary_impacted = item.get("primary_impacted_objects")
+            if isinstance(primary_impacted, str):
+                with contextlib.suppress(json.JSONDecodeError, TypeError):
+                    primary_impacted = json.loads(primary_impacted)
+
+            resource_context = item.get("resource_context")
+            if isinstance(resource_context, str):
+                with contextlib.suppress(json.JSONDecodeError, TypeError):
+                    resource_context = json.loads(resource_context)
+
+            # Return formatted alert
+            return {
+                "id": item.get("alert_id", ""),
+                "name": item.get("message", ""),
+                "severity": item.get("severity", ""),
+                "status": item.get("state", ""),
+                "timestamp": timestamp,
+                "category": item.get("category", ""),
+                "code": item.get("code", ""),
+                "impacted_resources": self._extract_impacted_resources(primary_impacted),
+                "metadata": resource_context,
+            }
         except NotImplementedError:
             raise
         except Exception as e:
