@@ -129,6 +129,7 @@ nav:
           - Security Rules: cli/security/rules.md
       - Deployment:
           - Bandwidth Allocation: cli/deployment/bandwidth.md
+      - Insights: cli/insights.md
   - User Guide:
       - Getting Started: guide/getting-started.md
       - Configuration: guide/configuration.md
