@@ -561,10 +561,10 @@ def load_address_group(
             if folder or snippet or device:
                 typer.echo(f"Container override: {folder or snippet or device}")
             typer.echo(yaml.dump(address_groups))
-            return []
+            return
 
         # Apply each address group
-        results = []
+        results: list[dict[str, Any]] = []
         created_count = 0
         updated_count = 0
 
@@ -624,7 +624,6 @@ def load_address_group(
         if updated_count > 0:
             typer.echo(f"  - Updated: {updated_count}")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading address groups: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -953,10 +952,10 @@ def load_address(
                 override_value = folder or snippet or device
                 typer.echo(f"Container override: {override_type} = '{override_value}'")
             typer.echo(yaml.dump(addresses))
-            return []
+            return
 
         # Apply each address
-        results = []
+        results: list[dict[str, Any]] = []
         created_count = 0
         updated_count = 0
 
@@ -1014,8 +1013,6 @@ def load_address(
         if updated_count > 0:
             typer.echo(f"  - Updated: {updated_count}")
 
-        return results
-
     except Exception as e:
         typer.echo(f"Error loading addresses: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -1048,7 +1045,7 @@ def set_address(
     """
     try:
         # Validate inputs using the Pydantic model
-        address_data = {
+        address_data: dict[str, Any] = {
             "folder": folder,
             "name": name,
             "tags": tags or [],
@@ -1342,10 +1339,10 @@ def load_application(
             if folder or snippet or device:
                 typer.echo(f"Container override: {folder or snippet or device}")
             typer.echo(yaml.dump(applications))
-            return []
+            return
 
         # Apply each application
-        results = []
+        results: list[dict[str, Any]] = []
         created_count = 0
         updated_count = 0
 
@@ -1416,7 +1413,6 @@ def load_application(
         if updated_count > 0:
             typer.echo(f"  - Updated: {updated_count}")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading applications: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -1764,10 +1760,10 @@ def load_application_group(
             if folder or snippet or device:
                 typer.echo(f"Container override: {folder or snippet or device}")
             typer.echo(yaml.dump(application_groups))
-            return []
+            return
 
         # Apply each application group
-        results = []
+        results: list[dict[str, Any]] = []
         created_count = 0
         updated_count = 0
 
@@ -1814,7 +1810,6 @@ def load_application_group(
         if updated_count > 0:
             typer.echo(f"  - Updated: {updated_count}")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading application groups: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -2073,10 +2068,10 @@ def load_application_filter(
             if folder or snippet or device:
                 typer.echo(f"Container override: {folder or snippet or device}")
             typer.echo(yaml.dump(application_filters))
-            return []
+            return
 
         # Apply each application filter
-        results = []
+        results: list[dict[str, Any]] = []
         created_count = 0
         updated_count = 0
 
@@ -2135,7 +2130,6 @@ def load_application_filter(
         if updated_count > 0:
             typer.echo(f"  - Updated: {updated_count}")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading application filters: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -2481,10 +2475,10 @@ def load_dynamic_user_group(
             if folder or snippet or device:
                 typer.echo(f"Container override: {folder or snippet or device}")
             typer.echo(yaml.dump(dynamic_user_groups))
-            return []
+            return
 
         # Apply each dynamic user group
-        results = []
+        results: list[dict[str, Any]] = []
         created_count = 0
         updated_count = 0
 
@@ -2533,7 +2527,6 @@ def load_dynamic_user_group(
         if updated_count > 0:
             typer.echo(f"  - Updated: {updated_count}")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading dynamic user groups: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -2823,12 +2816,12 @@ def load_external_dynamic_list(
         external_dynamic_lists = yaml_content.get("external_dynamic_lists", [])
         if not external_dynamic_lists:
             typer.echo("No external dynamic lists found in the YAML file.")
-            return []
+            return
 
         if dry_run:
             typer.echo("[DRY RUN] Would load the following external dynamic lists:")
 
-        results = []
+        results: list[dict[str, Any]] = []
         loaded_count = 0
 
         for idx, edl_config in enumerate(external_dynamic_lists, 1):
@@ -2900,8 +2893,6 @@ def load_external_dynamic_list(
         else:
             typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(external_dynamic_lists)} external dynamic lists from '{file}'")
 
-        return results
-
     except Exception as e:
         typer.echo(f"Error loading external dynamic lists: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -2947,7 +2938,7 @@ def set_external_dynamic_list(
     try:
         # Validate the configuration
 
-        edl_config = {
+        edl_config: dict[str, Any] = {
             "folder": folder,
             "name": name,
             "type": type,
@@ -3353,12 +3344,12 @@ def load_hip_object(
         hip_objects = yaml_content.get("hip_objects", [])
         if not hip_objects:
             typer.echo("No HIP objects found in the YAML file.")
-            return []
+            return
 
         if dry_run:
             typer.echo("[DRY RUN] Would load the following HIP objects:")
 
-        results = []
+        results: list[dict[str, Any]] = []
         loaded_count = 0
 
         for idx, hip_data in enumerate(hip_objects, 1):
@@ -3420,7 +3411,6 @@ def load_hip_object(
         else:
             typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(hip_objects)} HIP objects from '{file}'")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading HIP objects: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -3488,7 +3478,7 @@ def set_hip_object(
     """
     try:
         # Build the HIP object data from options
-        hip_data = {
+        hip_data: dict[str, Any] = {
             "folder": folder,
             "name": name,
             "description": description,
@@ -3900,12 +3890,12 @@ def load_hip_profile(
         hip_profiles = yaml_content.get("hip_profiles", [])
         if not hip_profiles:
             typer.echo("No HIP profiles found in the YAML file.")
-            return []
+            return
 
         if dry_run:
             typer.echo("[DRY RUN] Would load the following HIP profiles:")
 
-        results = []
+        results: list[dict[str, Any]] = []
         loaded_count = 0
 
         for idx, profile_data in enumerate(hip_profiles, 1):
@@ -3969,7 +3959,6 @@ def load_hip_profile(
         else:
             typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(hip_profiles)} HIP profiles from '{file}'")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading HIP profiles: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -4196,12 +4185,12 @@ def load_http_server_profile(
         http_server_profiles = yaml_content.get("http_server_profiles", [])
         if not http_server_profiles:
             typer.echo("No HTTP server profiles found in the YAML file.")
-            return []
+            return
 
         if dry_run:
             typer.echo("[DRY RUN] Would load the following HTTP server profiles:")
 
-        results = []
+        results: list[dict[str, Any]] = []
         loaded_count = 0
 
         for idx, profile_data in enumerate(http_server_profiles, 1):
@@ -4269,7 +4258,6 @@ def load_http_server_profile(
         else:
             typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(http_server_profiles)} HTTP server profiles from '{file}'")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading HTTP server profiles: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -4306,6 +4294,7 @@ def set_http_server_profile(
             servers=servers_list,
             description=description,
             tag_registration=tag_registration,
+            format_config=None,
         )
 
         # Convert to SDK model format
@@ -4565,12 +4554,12 @@ def load_log_forwarding_profile(
         log_forwarding_profiles = yaml_content.get("log_forwarding_profiles", [])
         if not log_forwarding_profiles:
             typer.echo("No log forwarding profiles found in the YAML file.")
-            return []
+            return
 
         if dry_run:
             typer.echo("[DRY RUN] Would load the following log forwarding profiles:")
 
-        results = []
+        results: list[dict[str, Any]] = []
         loaded_count = 0
 
         for idx, profile_data in enumerate(log_forwarding_profiles, 1):
@@ -4638,7 +4627,6 @@ def load_log_forwarding_profile(
         else:
             typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(log_forwarding_profiles)} log forwarding profiles from '{file}'")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading log forwarding profiles: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -4673,7 +4661,7 @@ def set_log_forwarding_profile(
                 raise typer.Exit(code=1) from e
 
         # Validate using Pydantic model
-        profile_data = {
+        profile_data: dict[str, Any] = {
             "folder": folder,
             "name": name,
         }
@@ -4873,10 +4861,10 @@ def backup_service(
         yaml_data = {"services": services_data}
 
         # Generate output filename if not provided
-        filename = file or get_default_backup_filename("service", location_type, location_value)
+        filename = Path(file or get_default_backup_filename("service", location_type, location_value))
 
         # Write to file
-        with file.open() as f:
+        with filename.open("w") as f:
             yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
         typer.echo(f"Successfully backed up {len(services_data)} services to {filename}")
@@ -4936,12 +4924,12 @@ def load_service(
         services = yaml_content.get("services", [])
         if not services:
             typer.echo("No services found in the YAML file.")
-            return []
+            return
 
         if dry_run:
             typer.echo("[DRY RUN] Would load the following services:")
 
-        results = []
+        results: list[dict[str, Any]] = []
         loaded_count = 0
 
         for idx, service_data in enumerate(services, 1):
@@ -5020,7 +5008,6 @@ def load_service(
         else:
             typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(services)} services from '{file}'")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading services: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -5354,12 +5341,12 @@ def load_service_group(
         service_groups = yaml_content.get("service_groups", [])
         if not service_groups:
             typer.echo("No service groups found in the YAML file.")
-            return []
+            return
 
         if dry_run:
             typer.echo("[DRY RUN] Would load the following service groups:")
 
-        results = []
+        results: list[dict[str, Any]] = []
         loaded_count = 0
 
         for idx, group_data in enumerate(service_groups, 1):
@@ -5422,7 +5409,6 @@ def load_service_group(
         else:
             typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(service_groups)} service groups from '{file}'")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading service groups: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -5449,7 +5435,7 @@ def set_service_group(
             tag_list = [t.strip() for t in tag.split(",") if t.strip()]
 
         # Validate using Pydantic model
-        service_group_data = {
+        service_group_data: dict[str, Any] = {
             "folder": folder,
             "name": name,
             "members": member_list,
@@ -5599,11 +5585,11 @@ def backup_syslog_server_profile(
         export_data = {"syslog_server_profiles": profiles}
 
         # Generate filename if not provided
-        filename = file or get_default_backup_filename("syslog-server-profile", location_type, location_value)
+        filename = Path(file or get_default_backup_filename("syslog-server-profile", location_type, location_value))
 
         # Write to file
-        Path(filename).parent.mkdir(parents=True, exist_ok=True)
-        with file.open() as f:
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
             yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
 
         typer.echo(f"Successfully backed up {len(profiles)} syslog server profiles to {filename}")
@@ -5694,12 +5680,12 @@ def load_syslog_server_profile(
         syslog_server_profiles = yaml_content.get("syslog_server_profiles", [])
         if not syslog_server_profiles:
             typer.echo("No syslog server profiles found in the YAML file.")
-            return []
+            return
 
         if dry_run:
             typer.echo("[DRY RUN] Would load the following syslog server profiles:")
 
-        results = []
+        results: list[dict[str, Any]] = []
         loaded_count = 0
 
         for idx, profile_data in enumerate(syslog_server_profiles, 1):
@@ -5766,7 +5752,6 @@ def load_syslog_server_profile(
         else:
             typer.echo(f"\nSuccessfully loaded {loaded_count} out of {len(syslog_server_profiles)} syslog server profiles from '{file}'")
 
-        return results
     except Exception as e:
         typer.echo(f"Error loading syslog server profiles: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
@@ -5796,7 +5781,7 @@ def set_syslog_server_profile(
             folder = "Texas"  # Default to Texas folder
 
         # Build syslog server profile data
-        profile_data = {
+        profile_data: dict[str, Any] = {
             "name": name,
             "server": [
                 {
@@ -5998,11 +5983,11 @@ def backup_tag(
         export_data = {"tags": tags}
 
         # Generate filename if not provided
-        filename = file or get_default_backup_filename("tag", location_type, location_value)
+        filename = Path(file or get_default_backup_filename("tag", location_type, location_value))
 
         # Write to file
-        Path(filename).parent.mkdir(parents=True, exist_ok=True)
-        with file.open() as f:
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
             yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
 
         typer.echo(f"Successfully backed up {len(tags)} tags to {filename}")
@@ -6076,7 +6061,7 @@ def load_tag(
             raise typer.Exit(code=1)
 
         # Load YAML data
-        with file.open() as f:
+        with Path(file).open() as f:
             data = yaml.safe_load(f)
 
         if not data or "tags" not in data:

@@ -5,6 +5,7 @@ configurations such as bandwidth allocations.
 """
 
 from pathlib import Path
+from typing import Any
 
 import typer
 import yaml
@@ -171,6 +172,9 @@ def load_bandwidth_allocation(
         # Apply each allocation
         results = []
         for allocation_data in config["bandwidth_allocations"]:
+            # Extract description before validation since it's not in the model
+            description = allocation_data.pop("description", "")
+
             # Validate using the Pydantic model
             allocation = BandwidthAllocation(**allocation_data)
 
@@ -179,7 +183,7 @@ def load_bandwidth_allocation(
                 name=allocation.name,
                 bandwidth=allocation.bandwidth,
                 spn_name_list=allocation.spn_name_list,
-                description=allocation.description,
+                description=description,
                 tags=allocation.tags,
             )
 
@@ -230,7 +234,6 @@ def set_bandwidth_allocation(
             name=name,
             bandwidth=bandwidth,
             spn_name_list=spn_list,
-            description=description or "",
             tags=tag_list,
         )
 
@@ -239,7 +242,7 @@ def set_bandwidth_allocation(
             name=allocation.name,
             bandwidth=allocation.bandwidth,
             spn_name_list=allocation.spn_name_list,
-            description=allocation.description,
+            description=description or "",
             tags=allocation.tags,
         )
 
@@ -529,7 +532,7 @@ def set_service_connection(
     """
     try:
         # Build connection data
-        connection_data = {
+        connection_data: dict[str, Any] = {
             "name": name,
             "folder": "Service Connections",
             "ipsec_tunnel": ipsec_tunnel,
@@ -863,7 +866,7 @@ def set_remote_network(
     """
     try:
         # Build network data
-        network_data = {
+        network_data: dict[str, Any] = {
             "name": name,
             "folder": "Remote Networks",
             "region": region,

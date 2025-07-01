@@ -166,6 +166,34 @@ class SCMClient:
 
         return [str(impacted_objects)]
 
+    def _remove_empty_fields(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Remove fields with empty values from a dictionary.
+
+        Args:
+            data: Dictionary to clean
+
+        Returns:
+            Dictionary with empty fields removed
+
+        """
+        cleaned = {}
+        for key, value in data.items():
+            # Skip empty lists, empty dicts, empty strings, and None values
+            if value is None:
+                continue
+            if isinstance(value, (list, dict)) and not value:
+                continue
+            if isinstance(value, str) and not value.strip():
+                continue
+            # Recursively clean nested dictionaries
+            if isinstance(value, dict):
+                cleaned_value = self._remove_empty_fields(value)
+                if cleaned_value:  # Only add if the cleaned dict is not empty
+                    cleaned[key] = cleaned_value
+            else:
+                cleaned[key] = value
+        return cleaned
+
     def _handle_api_exception(self, operation: str, folder: str, resource_name: str, exception: Exception) -> NoReturn:
         """Handle API exceptions with proper logging and error formatting.
 
@@ -4505,7 +4533,7 @@ class SCMClient:
                     result["__action__"] = "updated"
                     return result
                 except Exception as update_error:
-                    self._handle_api_exception("update", container_value, f"tag '{tag_data['name']}'", update_error)
+                    self._handle_api_exception("update", container_value or "unknown", f"tag '{tag_data['name']}'", update_error)
             else:
                 self.logger.info(f"No changes detected for tag '{tag_data['name']}', skipping update")
                 result = json.loads(existing_tag.model_dump_json(exclude_unset=True))
@@ -5677,6 +5705,8 @@ class SCMClient:
                 profile = self.client.decryption_profile.fetch(name=name, device=device)
 
             # Delete using the ID
+            if profile is None:
+                raise ValueError(f"Decryption profile '{name}' not found")
             self.client.decryption_profile.delete(str(profile.id))
             return True
         except Exception as e:
@@ -5739,7 +5769,7 @@ class SCMClient:
             if result is not None:
                 return json.loads(result.model_dump_json(exclude_unset=True))
             else:
-                return None  # No profile found
+                raise ValueError(f"Decryption profile '{name}' not found")
         except Exception as e:
             self._handle_api_exception("getting", container or "", "decryption profile", e)
 
@@ -5825,14 +5855,19 @@ class SCMClient:
 
         Args:
             folder: Folder to filter alerts (optional)
-            max_results: Maximum number of results to return
+            max_results: Maximum number of results to return after sorting
             **filters: Additional filters (severity, start_time, end_time, etc.)
 
         Returns:
-            List of alert dictionaries
+            List of alert dictionaries sorted by timestamp (newest first)
 
         """
-        logger.info("Listing alerts")
+        logger.info(f"Listing alerts (will return up to {max_results} after sorting)")
+        
+        # Always fetch more alerts than requested to ensure we get the most recent ones
+        # The API might return alerts in arbitrary order, so we need to fetch enough
+        # to ensure we capture recent alerts before sorting
+        api_fetch_limit = max(200, max_results * 5)  # Fetch at least 200 or 5x requested
 
         if self.mock:
             # Return mock data for alerts
@@ -5881,13 +5916,31 @@ class SCMClient:
                 if filters.get("status"):
                     status_list = filters["status"].split(",") if isinstance(filters["status"], str) else filters["status"]
 
-                # Try using list method
+                # Convert ISO timestamp to Unix timestamp if provided
+                start_timestamp = None
+                if filters.get("start_time"):
+                    try:
+                        # If it's already a digit string, use it as-is
+                        if filters["start_time"].isdigit():
+                            start_timestamp = int(filters["start_time"])
+                        else:
+                            # Parse ISO format and convert to Unix timestamp
+                            from datetime import datetime
+
+                            dt = datetime.fromisoformat(filters["start_time"].replace("Z", "+00:00"))
+                            start_timestamp = int(dt.timestamp())
+                            self.logger.debug(f"Converted start_time {filters['start_time']} to timestamp {start_timestamp}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to parse start_time {filters['start_time']}: {e}")
+                        pass
+
+                # Try using list method - fetch more than requested for proper sorting
                 result = self.client.alerts.list(
                     severity=severity_list,
                     status=status_list,
-                    start_time=int(filters["start_time"]) if filters.get("start_time") and filters["start_time"].isdigit() else None,
+                    start_time=start_timestamp,
                     category=filters.get("category"),
-                    max_results=max_results,
+                    max_results=api_fetch_limit,
                 )
 
                 # Process each alert
@@ -5910,9 +5963,32 @@ class SCMClient:
                         "impacted_resources": alert_data.get("impacted_resources") or alert_data.get("primary_impacted_objects", []),
                         "metadata": alert_data.get("metadata") or alert_data.get("resource_context"),
                     }
+                    
+                    # Remove empty fields for cleaner output
+                    alert = self._remove_empty_fields(alert)
+
+                    # Client-side time filtering if API doesn't support it
+                    if filters.get("start_time") and alert.get("timestamp"):
+                        try:
+                            # Parse alert timestamp
+                            alert_time = datetime.fromisoformat(alert["timestamp"].replace("Z", "+00:00"))
+                            start_time = datetime.fromisoformat(filters["start_time"].replace("Z", "+00:00"))
+
+                            # Skip alerts older than start_time
+                            if alert_time < start_time:
+                                self.logger.debug(f"Filtering out alert from {alert['timestamp']} (before {filters['start_time']})")
+                                continue
+                        except Exception as e:
+                            self.logger.debug(f"Failed to filter by time: {e}")
+                            pass
+
                     alerts.append(alert)
 
-                return alerts
+                # Sort alerts by timestamp (newest first)
+                alerts.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                
+                # Limit to the requested number of results
+                return alerts[:max_results]
 
             except Exception as list_error:
                 # If list method fails, fall back to query method
@@ -5948,8 +6024,8 @@ class SCMClient:
                     status_list = filters["status"].split(",") if isinstance(filters["status"], str) else filters["status"]
                     filter_rules.append({"property": "state", "operator": "in", "values": status_list})
 
-                # Simple query with basic filters
-                response = self.client.alerts.query(properties=properties, filter={"rules": filter_rules}, count=max_results)
+                # Simple query with basic filters - fetch more for proper sorting
+                response = self.client.alerts.query(properties=properties, filter={"rules": filter_rules}, count=api_fetch_limit)
 
                 # Process raw response - response.data is a list of dicts
                 alerts = []
@@ -5971,9 +6047,13 @@ class SCMClient:
                             "impacted_resources": [],
                             "metadata": {},
                         }
+                        # Remove empty fields for cleaner output
+                        alert = self._remove_empty_fields(alert)
                         alerts.append(alert)
 
-                return alerts
+                # Sort alerts by timestamp (newest first) and limit results
+                alerts.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+                return alerts[:max_results]
         except NotImplementedError:
             raise
         except Exception as e:
