@@ -7,6 +7,7 @@ configurations such as security rules, profiles, etc.
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import typer
 import yaml
@@ -1125,7 +1126,7 @@ def set_anti_spyware_profile(
 
     try:
         # Validate and create anti-spyware profile
-        profile_data = {
+        profile_data: dict[str, Any] = {
             location_type: location_value,
             "name": name,
         }
@@ -1631,7 +1632,7 @@ def set_decryption_profile(
 
     try:
         # Build profile data
-        profile_data = {
+        profile_data: dict[str, Any] = {
             location_type: location_value,
             "name": name,
         }

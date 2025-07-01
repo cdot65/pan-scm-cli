@@ -7,7 +7,7 @@ various SCM configuration actions (set, delete, load) and object types.
 import typer
 
 # Import object type modules
-from .commands import context, deployment, network, objects, security
+from .commands import context, deployment, insights, network, objects, security
 
 # ============================================================================================================================================================================================
 # MAIN CLI APPLICATION
@@ -189,6 +189,9 @@ show_app.add_typer(
 
 # Register context management as a top-level command
 app.add_typer(context.app, name="context")
+
+# Register insights as a top-level command
+app.add_typer(insights.app, name="insights")
 
 
 # Note: test-auth command has been removed in favor of 'scm context test'
