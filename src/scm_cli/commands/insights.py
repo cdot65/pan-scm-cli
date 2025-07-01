@@ -7,7 +7,7 @@ connections, and tunnels.
 
 import csv
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -59,7 +59,7 @@ def export_data(data: list[dict[str, Any]], export_format: str, output_file: str
             return
 
         # Get all unique keys from all dictionaries
-        all_keys = set()
+        all_keys: set[str] = set()
         for item in data:
             all_keys.update(item.keys())
 
@@ -88,12 +88,11 @@ def show_alerts(
     severity: str | None = typer.Option(
         None,
         "--severity",
-        help="Filter alerts by severity (critical, high, medium, low)",
+        help="Filter alerts by severity (Critical, High, Medium, Low - case sensitive)",
     ),
     start_time: Annotated[
         datetime | None,
         typer.Option(
-            None,
             "--start",
             help="Filter alerts starting from this time (ISO format)",
         ),
@@ -101,7 +100,6 @@ def show_alerts(
     end_time: Annotated[
         datetime | None,
         typer.Option(
-            None,
             "--end",
             help="Filter alerts up to this time (ISO format)",
         ),
@@ -122,7 +120,7 @@ def show_alerts(
         "--real-time",
         help="Monitor alerts in real-time (continuous polling)",
     ),
-    max_results: int = typer.Option(100, "--max-results", help="Maximum number of results to return"),
+    max_results: int = typer.Option(10, "--max-results", help="Maximum number of results to return (default: 10)"),
     folder: str | None = typer.Option(
         None,
         "--folder",
@@ -133,8 +131,14 @@ def show_alerts(
     """Show alerts from Strata Cloud Manager.
 
     Examples:
-        # List all alerts
+        # List alerts from last 7 days (default)
         scm insights alerts --list
+
+        # List alerts from a specific date
+        scm insights alerts --list --start "2025-06-20T00:00:00"
+
+        # List alerts in a date range
+        scm insights alerts --list --start "2025-06-20T00:00:00" --end "2025-06-23T23:59:59"
 
         # Get a specific alert
         scm insights alerts --id alert-123
@@ -164,8 +168,18 @@ def show_alerts(
             filters = {}
             if severity:
                 filters["severity"] = severity
+            
+            # Time filtering
             if start_time:
                 filters["start_time"] = start_time.isoformat()
+                typer.echo(f"Filtering alerts from {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            else:
+                # Default to 7 days ago
+                seven_days_ago = datetime.now() - timedelta(days=7)
+                filters["start_time"] = seven_days_ago.isoformat()
+                typer.echo(f"Note: Showing up to {max_results} most recent alerts from the last 7 days (since {seven_days_ago.strftime('%Y-%m-%d %H:%M:%S')})")
+                typer.echo("Tip: Use --max-results to change the number of alerts shown.")
+                
             if end_time:
                 filters["end_time"] = end_time.isoformat()
 
@@ -543,7 +557,6 @@ def show_tunnels(
     start_time: Annotated[
         datetime | None,
         typer.Option(
-            None,
             "--start",
             help="Filter historical data from this time (ISO format)",
         ),
@@ -551,7 +564,6 @@ def show_tunnels(
     end_time: Annotated[
         datetime | None,
         typer.Option(
-            None,
             "--end",
             help="Filter historical data up to this time (ISO format)",
         ),
