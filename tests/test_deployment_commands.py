@@ -1,13 +1,24 @@
 """Tests for the deployment commands module."""
 
 import typer
+
 from scm_cli.commands.deployment import (
+    backup_app,
     delete_app,
     delete_bandwidth_allocation,
+    delete_bgp_routing,
+    delete_internal_dns_server,
     load_app,
     load_bandwidth_allocation,
+    load_internal_dns_server,
     set_app,
     set_bandwidth_allocation,
+    set_bgp_routing,
+    set_internal_dns_server,
+    show_app,
+    show_bgp_routing,
+    show_internal_dns_server,
+    show_network_location,
 )
 
 
@@ -257,3 +268,369 @@ class TestBandwidthAllocationCommands:
         assert result.exit_code == 1
         assert "Error loading bandwidth allocations" in result.stdout
         assert "YAML parsing error" in result.stdout
+
+
+class TestDeploymentApps:
+    """Test that all deployment apps exist."""
+
+    def test_backup_command_exists(self):
+        """Test that the backup command exists."""
+        assert backup_app
+
+    def test_show_command_exists(self):
+        """Test that the show command exists."""
+        assert show_app
+
+
+class TestBGPRoutingCommands:
+    """Test the BGP routing commands."""
+
+    def test_set_bgp_routing_command(self, runner, monkeypatch):
+        """Test the set bgp-routing command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(**kwargs):
+            return {
+                "backbone_routing": kwargs.get("backbone_routing"),
+                "routing_preference": kwargs.get("routing_preference", {"default": {}}),
+                "accept_route_over_SC": kwargs.get("accept_route_over_SC", False),
+                "outbound_routes_for_services": kwargs.get("outbound_routes_for_services", []),
+                "add_host_route_to_ike_peer": kwargs.get("add_host_route_to_ike_peer", False),
+                "withdraw_static_route": kwargs.get("withdraw_static_route", False),
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_bgp_routing", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_routing)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--backbone-routing",
+                "no-asymmetric-routing",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created BGP routing" in result.stdout
+
+    def test_set_bgp_routing_error(self, runner, monkeypatch):
+        """Test the set bgp-routing command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(**kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_bgp_routing", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_routing)
+
+        result = runner.invoke(
+            test_app,
+            ["--backbone-routing", "no-asymmetric-routing"],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating BGP routing" in result.stdout
+
+    def test_show_bgp_routing_command(self, runner, monkeypatch):
+        """Test the show bgp-routing command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get():
+            return {
+                "backbone_routing": "no-asymmetric-routing",
+                "routing_preference": {"default": {}},
+                "accept_route_over_SC": False,
+                "outbound_routes_for_services": [],
+                "add_host_route_to_ike_peer": False,
+                "withdraw_static_route": False,
+            }
+
+        monkeypatch.setattr(scm_client, "get_bgp_routing", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_bgp_routing)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "BGP Routing Configuration" in result.stdout
+        assert "no-asymmetric-routing" in result.stdout
+
+    def test_delete_bgp_routing_command(self, runner, monkeypatch):
+        """Test the delete bgp-routing command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete():
+            return True
+
+        monkeypatch.setattr(scm_client, "delete_bgp_routing", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_bgp_routing)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "Reset BGP routing" in result.stdout
+
+
+class TestInternalDNSServerCommands:
+    """Test the internal DNS server commands."""
+
+    def test_set_internal_dns_server_command(self, runner, monkeypatch):
+        """Test the set internal-dns-server command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(**kwargs):
+            return {
+                "id": "dns-12345",
+                "name": kwargs.get("name"),
+                "domain_name": kwargs.get("domain_name"),
+                "primary": kwargs.get("primary"),
+                "secondary": kwargs.get("secondary"),
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_internal_dns_server", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_internal_dns_server)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--name",
+                "corp-dns",
+                "--domain-name",
+                "corp.example.com",
+                "--primary",
+                "10.0.0.1",
+                "--secondary",
+                "10.0.0.2",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created internal DNS server" in result.stdout
+        assert "corp-dns" in result.stdout
+
+    def test_set_internal_dns_server_error(self, runner, monkeypatch):
+        """Test the set internal-dns-server command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(**kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_internal_dns_server", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_internal_dns_server)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--name",
+                "corp-dns",
+                "--domain-name",
+                "corp.example.com",
+                "--primary",
+                "10.0.0.1",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating internal DNS server" in result.stdout
+
+    def test_show_internal_dns_server_specific(self, runner, monkeypatch):
+        """Test showing a specific internal DNS server."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(name):
+            return {
+                "id": "dns-12345",
+                "name": name,
+                "domain_name": ["corp.example.com"],
+                "primary": "10.0.0.1",
+                "secondary": "10.0.0.2",
+            }
+
+        monkeypatch.setattr(scm_client, "get_internal_dns_server", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_internal_dns_server)
+
+        result = runner.invoke(test_app, ["--name", "corp-dns"])
+
+        assert result.exit_code == 0
+        assert "corp-dns" in result.stdout
+        assert "corp.example.com" in result.stdout
+        assert "10.0.0.1" in result.stdout
+
+    def test_show_internal_dns_server_list(self, runner, monkeypatch):
+        """Test listing all internal DNS servers."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list():
+            return [
+                {
+                    "id": "dns-1",
+                    "name": "dns-server-1",
+                    "domain_name": ["corp.example.com"],
+                    "primary": "10.0.0.1",
+                },
+                {
+                    "id": "dns-2",
+                    "name": "dns-server-2",
+                    "domain_name": ["dev.example.com"],
+                    "primary": "10.1.0.1",
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_internal_dns_servers", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_internal_dns_server)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "Internal DNS Servers:" in result.stdout
+        assert "dns-server-1" in result.stdout
+        assert "dns-server-2" in result.stdout
+
+    def test_delete_internal_dns_server_command(self, runner, monkeypatch):
+        """Test the delete internal-dns-server command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete(name):
+            return True
+
+        monkeypatch.setattr(scm_client, "delete_internal_dns_server", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_internal_dns_server)
+
+        result = runner.invoke(test_app, ["--name", "corp-dns"])
+
+        assert result.exit_code == 0
+        assert "Deleted internal DNS server" in result.stdout
+        assert "corp-dns" in result.stdout
+
+    def test_load_internal_dns_server_command(self, runner, monkeypatch, tmp_path):
+        """Test the load internal-dns-server command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(**kwargs):
+            return {
+                "id": "dns-12345",
+                "name": kwargs.get("name"),
+                "domain_name": kwargs.get("domain_name"),
+                "primary": kwargs.get("primary"),
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_internal_dns_server", mock_create)
+
+        yaml_content = """
+        internal_dns_servers:
+          - name: corp-dns
+            domain_name:
+              - corp.example.com
+            primary: "10.0.0.1"
+        """
+        test_file = tmp_path / "test_dns.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_internal_dns_server)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0
+        assert "Created internal DNS server" in result.stdout
+        assert "Loaded 1 internal DNS server(s)" in result.stdout
+
+
+class TestNetworkLocationCommands:
+    """Test the network location commands."""
+
+    def test_show_network_location_specific(self, runner, monkeypatch):
+        """Test showing a specific network location."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(value):
+            return {
+                "value": value,
+                "display": "US West",
+                "continent": "North America",
+                "latitude": 37.38,
+                "longitude": -121.98,
+                "region": value,
+                "aggregate_region": "us-southwest",
+            }
+
+        monkeypatch.setattr(scm_client, "get_network_location", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_network_location)
+
+        result = runner.invoke(test_app, ["--value", "us-west-1"])
+
+        assert result.exit_code == 0
+        assert "US West" in result.stdout
+        assert "us-west-1" in result.stdout
+        assert "North America" in result.stdout
+
+    def test_show_network_location_list(self, runner, monkeypatch):
+        """Test listing all network locations."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list():
+            return [
+                {
+                    "value": "us-west-1",
+                    "display": "US West",
+                    "continent": "North America",
+                    "region": "us-west-1",
+                },
+                {
+                    "value": "us-east-1",
+                    "display": "US East",
+                    "continent": "North America",
+                    "region": "us-east-1",
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_network_locations", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_network_location)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "Network Locations:" in result.stdout
+        assert "us-west-1" in result.stdout
+        assert "us-east-1" in result.stdout
+
+    def test_show_network_location_empty(self, runner, monkeypatch):
+        """Test showing network locations when none exist."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list():
+            return []
+
+        monkeypatch.setattr(scm_client, "list_network_locations", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_network_location)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "No network locations found" in result.stdout

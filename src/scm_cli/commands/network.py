@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import IKECryptoProfile, IPSecCryptoProfile, NATRule, Zone
+from ..utils.validators import IKECryptoProfile, IKEGateway, IPSecCryptoProfile, NATRule, Zone
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -463,6 +463,353 @@ def show_ike_crypto_profile(
             return profiles
     except Exception as e:
         typer.echo(f"Error showing IKE crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# IKE GATEWAY COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("ike-gateway", help="Export IKE gateways to a YAML file.")
+def backup_ike_gateway(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export IKE gateways from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving IKE gateways from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        gateways = scm_client.list_ike_gateways(**kwargs)
+        if not gateways:
+            typer.echo(f"No IKE gateways found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"ike_gateways": gateways}
+        filename = Path(file or get_default_backup_filename("ike-gateway", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(gateways)} IKE gateways to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up IKE gateways: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("ike-gateway", help="Delete an IKE gateway.")
+def delete_ike_gateway(
+    name: str = typer.Argument(..., help="Name of the IKE gateway to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete an IKE gateway."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        gateway = scm_client.get_ike_gateway(name=name, folder=folder, snippet=snippet, device=device)
+        if not gateway:
+            typer.echo(f"IKE gateway '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete IKE gateway '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_ike_gateway(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted IKE gateway: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting IKE gateway: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("ike-gateway", help="Load IKE gateways from a YAML file.")
+def load_ike_gateway(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load IKE gateways from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "ike_gateways" not in data:
+            typer.echo("No IKE gateways found in file", err=True)
+            raise typer.Exit(code=1)
+        gateways = data["ike_gateways"]
+        if not isinstance(gateways, list):
+            gateways = [gateways]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(gateways))
+            return None
+
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for gateway_data in gateways:
+            try:
+                if folder:
+                    gateway_data["folder"] = folder
+                    gateway_data.pop("snippet", None)
+                    gateway_data.pop("device", None)
+                elif snippet:
+                    gateway_data["snippet"] = snippet
+                    gateway_data.pop("folder", None)
+                    gateway_data.pop("device", None)
+                elif device:
+                    gateway_data["device"] = device
+                    gateway_data.pop("folder", None)
+                    gateway_data.pop("snippet", None)
+                validated_gw = IKEGateway(**gateway_data)
+                sdk_data = validated_gw.to_sdk_model()
+                result = scm_client.create_ike_gateway(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_gw.folder or validated_gw.snippet or validated_gw.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created IKE gateway: {validated_gw.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated IKE gateway: {validated_gw.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for IKE gateway: {validated_gw.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing IKE gateway: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} IKE gateways")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading IKE gateways: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("ike-gateway", help="Create or update an IKE gateway.")
+def set_ike_gateway(
+    name: str = typer.Argument(..., help="Name of the IKE gateway"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    pre_shared_key: str = typer.Option(None, "--pre-shared-key", help="Pre-shared key for authentication"),
+    peer_address_ip: str = typer.Option(None, "--peer-address-ip", help="Peer IP address"),
+    peer_address_fqdn: str = typer.Option(None, "--peer-address-fqdn", help="Peer FQDN"),
+    peer_address_dynamic: bool = typer.Option(False, "--peer-address-dynamic", help="Use dynamic peer address"),
+    protocol_version: str = typer.Option("ikev2-preferred", "--protocol-version", help="IKE version (ikev1, ikev2, ikev2-preferred)"),
+    ike_crypto_profile: str = typer.Option(None, "--ike-crypto-profile", help="IKE crypto profile name"),
+    peer_id_type: str = typer.Option(None, "--peer-id-type", help="Peer ID type (ipaddr, keyid, fqdn, ufqdn)"),
+    peer_id_value: str = typer.Option(None, "--peer-id-value", help="Peer ID value"),
+    local_id_type: str = typer.Option(None, "--local-id-type", help="Local ID type (ipaddr, keyid, fqdn, ufqdn)"),
+    local_id_value: str = typer.Option(None, "--local-id-value", help="Local ID value"),
+    nat_traversal: bool = typer.Option(None, "--nat-traversal", help="Enable NAT traversal"),
+    fragmentation: bool = typer.Option(None, "--fragmentation", help="Enable IKE fragmentation"),
+    passive_mode: bool = typer.Option(None, "--passive-mode", help="Enable passive mode"),
+    dpd_enable: bool = typer.Option(None, "--dpd-enable", help="Enable Dead Peer Detection"),
+    authentication_json: str = typer.Option(None, "--authentication-json", help="Full authentication config as JSON (overrides --pre-shared-key)"),
+    peer_address_json: str = typer.Option(None, "--peer-address-json", help="Full peer address config as JSON"),
+    protocol_json: str = typer.Option(None, "--protocol-json", help="Full protocol config as JSON"),
+    protocol_common_json: str = typer.Option(None, "--protocol-common-json", help="Full protocol_common config as JSON"),
+) -> None:
+    """Create or update an IKE gateway."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+
+        # Build authentication
+        if authentication_json:
+            authentication = json.loads(authentication_json)
+        elif pre_shared_key:
+            authentication = {"pre_shared_key": {"key": pre_shared_key}}
+        else:
+            typer.echo("Error: --pre-shared-key or --authentication-json is required", err=True)
+            raise typer.Exit(code=1)
+
+        # Build peer_address
+        if peer_address_json:
+            peer_address = json.loads(peer_address_json)
+        elif peer_address_ip:
+            peer_address = {"ip": peer_address_ip}
+        elif peer_address_fqdn:
+            peer_address = {"fqdn": peer_address_fqdn}
+        elif peer_address_dynamic:
+            peer_address = {"dynamic": {}}
+        else:
+            typer.echo("Error: one of --peer-address-ip, --peer-address-fqdn, --peer-address-dynamic, or --peer-address-json is required", err=True)
+            raise typer.Exit(code=1)
+
+        # Build protocol
+        if protocol_json:
+            protocol = json.loads(protocol_json)
+        else:
+            protocol: dict[str, Any] = {"version": protocol_version}
+            if protocol_version in ("ikev1", "ikev2-preferred"):
+                ikev1_config: dict[str, Any] = {}
+                if ike_crypto_profile:
+                    ikev1_config["ike_crypto_profile"] = ike_crypto_profile
+                if dpd_enable is not None:
+                    ikev1_config["dpd"] = {"enable": dpd_enable}
+                if ikev1_config:
+                    protocol["ikev1"] = ikev1_config
+            if protocol_version in ("ikev2", "ikev2-preferred"):
+                ikev2_config: dict[str, Any] = {}
+                if ike_crypto_profile:
+                    ikev2_config["ike_crypto_profile"] = ike_crypto_profile
+                if dpd_enable is not None:
+                    ikev2_config["dpd"] = {"enable": dpd_enable}
+                if ikev2_config:
+                    protocol["ikev2"] = ikev2_config
+
+        gateway_data: dict[str, Any] = {
+            "name": name,
+            location_type: location_value,
+            "authentication": authentication,
+            "peer_address": peer_address,
+            "protocol": protocol,
+        }
+
+        # Build peer_id
+        if peer_id_type and peer_id_value:
+            gateway_data["peer_id"] = {"type": peer_id_type, "id": peer_id_value}
+
+        # Build local_id
+        if local_id_type and local_id_value:
+            gateway_data["local_id"] = {"type": local_id_type, "id": local_id_value}
+
+        # Build protocol_common
+        if protocol_common_json:
+            gateway_data["protocol_common"] = json.loads(protocol_common_json)
+        else:
+            protocol_common: dict[str, Any] = {}
+            if nat_traversal is not None:
+                protocol_common["nat_traversal"] = {"enable": nat_traversal}
+            if fragmentation is not None:
+                protocol_common["fragmentation"] = {"enable": fragmentation}
+            if passive_mode is not None:
+                protocol_common["passive_mode"] = passive_mode
+            if protocol_common:
+                gateway_data["protocol_common"] = protocol_common
+
+        validated_gw = IKEGateway(**gateway_data)
+        sdk_data = validated_gw.to_sdk_model()
+        result = scm_client.create_ike_gateway(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created IKE gateway: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated IKE gateway: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for IKE gateway: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating IKE gateway: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("ike-gateway", help="Show IKE gateway details.")
+def show_ike_gateway(
+    name: str = typer.Option(None, "--name", help="Name of specific IKE gateway to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show IKE gateway details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            gateway = scm_client.get_ike_gateway(name=name, folder=folder, snippet=snippet, device=device)
+            if not gateway:
+                typer.echo(f"IKE gateway '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nIKE Gateway: {gateway['name']}")
+            typer.echo("=" * 60)
+            location = gateway.get("folder") or gateway.get("snippet") or gateway.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            # Authentication
+            auth = gateway.get("authentication", {})
+            if "pre_shared_key" in auth:
+                typer.echo("Authentication: Pre-Shared Key")
+            elif "certificate" in auth:
+                typer.echo("Authentication: Certificate")
+            # Peer address
+            peer_addr = gateway.get("peer_address", {})
+            if "ip" in peer_addr:
+                typer.echo(f"Peer Address: {peer_addr['ip']}")
+            elif "fqdn" in peer_addr:
+                typer.echo(f"Peer Address (FQDN): {peer_addr['fqdn']}")
+            elif "dynamic" in peer_addr:
+                typer.echo("Peer Address: Dynamic")
+            # Protocol
+            proto = gateway.get("protocol", {})
+            typer.echo(f"Protocol Version: {proto.get('version', 'N/A')}")
+            if proto.get("ikev1") and proto["ikev1"].get("ike_crypto_profile"):
+                typer.echo(f"IKEv1 Crypto Profile: {proto['ikev1']['ike_crypto_profile']}")
+            if proto.get("ikev2") and proto["ikev2"].get("ike_crypto_profile"):
+                typer.echo(f"IKEv2 Crypto Profile: {proto['ikev2']['ike_crypto_profile']}")
+            # Peer/Local ID
+            if gateway.get("peer_id"):
+                typer.echo(f"Peer ID: {gateway['peer_id'].get('type', 'N/A')} = {gateway['peer_id'].get('id', 'N/A')}")
+            if gateway.get("local_id"):
+                typer.echo(f"Local ID: {gateway['local_id'].get('type', 'N/A')} = {gateway['local_id'].get('id', 'N/A')}")
+            # Protocol common
+            common = gateway.get("protocol_common", {})
+            if common.get("nat_traversal"):
+                typer.echo(f"NAT Traversal: {common['nat_traversal'].get('enable', False)}")
+            if common.get("fragmentation"):
+                typer.echo(f"Fragmentation: {common['fragmentation'].get('enable', False)}")
+            if common.get("passive_mode") is not None:
+                typer.echo(f"Passive Mode: {common['passive_mode']}")
+            if gateway.get("id"):
+                typer.echo(f"\nID: {gateway['id']}")
+            return gateway
+        else:
+            gateways = scm_client.list_ike_gateways(folder=folder, snippet=snippet, device=device)
+            if not gateways:
+                typer.echo("No IKE gateways found")
+                return
+            typer.echo("\nIKE Gateways:")
+            typer.echo("-" * 80)
+            for gateway in gateways:
+                location = gateway.get("folder") or gateway.get("snippet") or gateway.get("device", "N/A")
+                typer.echo(f"Name: {gateway.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                auth = gateway.get("authentication", {})
+                if "pre_shared_key" in auth:
+                    typer.echo("  Authentication: Pre-Shared Key")
+                elif "certificate" in auth:
+                    typer.echo("  Authentication: Certificate")
+                peer_addr = gateway.get("peer_address", {})
+                if "ip" in peer_addr:
+                    typer.echo(f"  Peer Address: {peer_addr['ip']}")
+                elif "fqdn" in peer_addr:
+                    typer.echo(f"  Peer Address (FQDN): {peer_addr['fqdn']}")
+                elif "dynamic" in peer_addr:
+                    typer.echo("  Peer Address: Dynamic")
+                proto = gateway.get("protocol", {})
+                typer.echo(f"  Protocol Version: {proto.get('version', 'N/A')}")
+                if gateway.get("id"):
+                    typer.echo(f"  ID: {gateway['id']}")
+                typer.echo("-" * 80)
+            return gateways
+    except Exception as e:
+        typer.echo(f"Error showing IKE gateway: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 

@@ -1874,6 +1874,102 @@ class IKECryptoProfile(BaseModel):
         return model_data
 
 
+class IKEGateway(BaseModel):
+    """Model for IKE gateway configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the IKE gateway")
+    snippet: str | None = Field(None, description="Snippet path for the IKE gateway")
+    device: str | None = Field(None, description="Device path for the IKE gateway")
+    name: str = Field(
+        ...,
+        description="Name of the IKE gateway",
+        pattern=r"^[0-9a-zA-Z._\-]+$",
+        max_length=63,
+    )
+
+    # Authentication
+    authentication: dict[str, Any] = Field(..., description="Authentication configuration (pre_shared_key or certificate)")
+
+    # Peer address
+    peer_address: dict[str, Any] = Field(..., description="Peer address configuration (ip, fqdn, or dynamic)")
+
+    # Protocol
+    protocol: dict[str, Any] = Field(..., description="IKE protocol configuration (ikev1, ikev2, version)")
+
+    # Optional fields
+    peer_id: dict[str, Any] | None = Field(None, description="Peer identification (type and id)")
+    local_id: dict[str, Any] | None = Field(None, description="Local identification (type and id)")
+    protocol_common: dict[str, Any] | None = Field(None, description="Common protocol settings (nat_traversal, passive_mode, fragmentation)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "IKEGateway":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_authentication(self) -> "IKEGateway":
+        """Validate authentication configuration."""
+        auth = self.authentication
+        if "pre_shared_key" not in auth and "certificate" not in auth:
+            raise ValueError("Authentication must include 'pre_shared_key' or 'certificate'")
+        if "pre_shared_key" in auth and "certificate" in auth:
+            raise ValueError("Only one of 'pre_shared_key' or 'certificate' can be specified")
+        if "pre_shared_key" in auth:
+            psk = auth["pre_shared_key"]
+            if not isinstance(psk, dict) or "key" not in psk:
+                raise ValueError("pre_shared_key must be a dict with 'key' field")
+        return self
+
+    @model_validator(mode="after")
+    def validate_peer_address(self) -> "IKEGateway":
+        """Validate peer address configuration."""
+        addr = self.peer_address
+        addr_types = [k for k in ["ip", "fqdn", "dynamic"] if k in addr]
+        if len(addr_types) != 1:
+            raise ValueError("Exactly one of 'ip', 'fqdn', or 'dynamic' must be specified in peer_address")
+        return self
+
+    @model_validator(mode="after")
+    def validate_protocol(self) -> "IKEGateway":
+        """Validate protocol configuration."""
+        proto = self.protocol
+        version = proto.get("version", "ikev2-preferred")
+        valid_versions = ["ikev1", "ikev2", "ikev2-preferred"]
+        if version not in valid_versions:
+            raise ValueError(f"Invalid protocol version '{version}'. Must be one of: {', '.join(valid_versions)}")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "authentication": self.authentication,
+            "peer_address": self.peer_address,
+            "protocol": self.protocol,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.peer_id:
+            model_data["peer_id"] = self.peer_id
+        if self.local_id:
+            model_data["local_id"] = self.local_id
+        if self.protocol_common:
+            model_data["protocol_common"] = self.protocol_common
+
+        return model_data
+
+
 class Zone(BaseModel):
     """Model for security zone configurations with folder path."""
 
@@ -2464,6 +2560,133 @@ class URLCategory(BaseModel):
 
 
 # ========================================================================================================================================================================================
+# SETUP CONFIGURATION MODELS
+# ========================================================================================================================================================================================
+
+
+class Folder(BaseModel):
+    """Model for folder configurations."""
+
+    name: str = Field(..., description="Name of the folder")
+    parent: str = Field(..., description="Parent folder name (empty string for root folders)")
+    description: str | None = Field(None, description="Description of the folder")
+    labels: list[str] | None = Field(None, description="Labels to apply to the folder")
+    snippets: list[str] | None = Field(None, description="Snippet IDs associated with the folder")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+            "parent": self.parent,
+        }
+
+        if self.description:
+            model_data["description"] = self.description
+        if self.labels:
+            model_data["labels"] = self.labels
+        if self.snippets:
+            model_data["snippets"] = self.snippets
+
+        return model_data
+
+
+class Label(BaseModel):
+    """Model for label configurations."""
+
+    name: str = Field(..., max_length=63, description="Name of the label")
+    description: str | None = Field(None, description="Description of the label")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        if self.description:
+            model_data["description"] = self.description
+
+        return model_data
+
+
+class Snippet(BaseModel):
+    """Model for snippet configurations."""
+
+    name: str = Field(..., description="Name of the snippet")
+    description: str | None = Field(None, description="Description of the snippet")
+    labels: list[str] | None = Field(None, description="Labels to apply to the snippet")
+    enable_prefix: bool | None = Field(None, description="Whether to enable prefix for this snippet")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        if self.description:
+            model_data["description"] = self.description
+        if self.labels:
+            model_data["labels"] = self.labels
+        if self.enable_prefix is not None:
+            model_data["enable_prefix"] = self.enable_prefix
+
+        return model_data
+
+
+class Variable(BaseModel):
+    """Model for variable configurations."""
+
+    name: str = Field(..., max_length=63, description="Name of the variable")
+    type: str = Field(..., description="Variable type")
+    value: str = Field(..., description="Variable value")
+    description: str | None = Field(None, description="Description of the variable")
+    folder: str | None = Field(None, description="Folder to scope the variable to")
+    snippet: str | None = Field(None, description="Snippet to scope the variable to")
+    device: str | None = Field(None, description="Device to scope the variable to")
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        """Validate that the type is one of the allowed values."""
+        allowed = [
+            "percent", "count", "ip-netmask", "zone", "ip-range",
+            "ip-wildcard", "device-priority", "device-id", "egress-max",
+            "as-number", "fqdn", "port", "link-tag", "group-id",
+            "rate", "router-id", "qos-profile", "timer",
+        ]
+        if v not in allowed:
+            raise ValueError(f"type must be one of {allowed}, got {v}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "Variable":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+            "type": self.type,
+            "value": self.value,
+        }
+
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        if self.description:
+            model_data["description"] = self.description
+
+        return model_data
+
+
+# ========================================================================================================================================================================================
 # UTILITY FUNCTIONS
 # ========================================================================================================================================================================================
 
@@ -2641,6 +2864,79 @@ class VulnerabilityProtectionProfile(BaseModel):
 
 
 # ========================================================================================================================================================================================
+# MOBILE AGENT CONFIGURATION MODELS
+# ========================================================================================================================================================================================
+
+
+class AuthSetting(BaseModel):
+    """Model for mobile agent auth setting configurations."""
+
+    name: str = Field(..., description="Name of the auth setting")
+    folder: str | None = Field(None, description="Folder path for the auth setting")
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+    description: str | None = Field(None, description="Description of the auth setting")
+    auth_type: str | None = Field(None, description="Authentication type (saml, client-certificate, ldap)")
+    os: str | None = Field(None, description="Operating system (Any, Windows, macOS, Linux, iOS, Android, ChromeOS)")
+    max_user: int | None = Field(None, description="Maximum number of concurrent users")
+    saml_idp: str | None = Field(None, description="SAML identity provider profile name")
+    certificate_profile: str | None = Field(None, description="Certificate profile name")
+    ldap_profile: str | None = Field(None, description="LDAP server profile name")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "AuthSetting":
+        """Validate that at least one container is provided.
+
+        Returns:
+            The validated auth setting model
+
+        Raises:
+            ValueError: If no container is provided
+
+        """
+        if not self.folder and not self.snippet and not self.device:
+            raise ValueError("At least one of folder, snippet, or device must be provided")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container
+        if self.folder:
+            model_data["folder"] = self.folder
+        if self.snippet:
+            model_data["snippet"] = self.snippet
+        if self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.auth_type is not None:
+            model_data["auth_type"] = self.auth_type
+        if self.os is not None:
+            model_data["os"] = self.os
+        if self.max_user is not None:
+            model_data["max_user"] = self.max_user
+        if self.saml_idp is not None:
+            model_data["saml_idp"] = self.saml_idp
+        if self.certificate_profile is not None:
+            model_data["certificate_profile"] = self.certificate_profile
+        if self.ldap_profile is not None:
+            model_data["ldap_profile"] = self.ldap_profile
+
+        return model_data
+
+
+# ========================================================================================================================================================================================
 # INSIGHTS AND MONITORING MODELS
 # ========================================================================================================================================================================================
 
@@ -2758,3 +3054,93 @@ class Tunnel(BaseModel):
     uptime: int | None = Field(None, description="Uptime in seconds")
     last_state_change: str | None = Field(None, description="Last state change timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional tunnel metadata")
+
+
+# ========================================================================================================================================================================================
+# BGP ROUTING CONFIGURATION MODELS
+# ========================================================================================================================================================================================
+
+
+class BGPRouting(BaseModel):
+    """Model for BGP routing configurations (singleton, no folder)."""
+
+    backbone_routing: str = Field(
+        ...,
+        description="Backbone routing mode (no-asymmetric-routing, asymmetric-routing-only, asymmetric-routing-with-load-share)",
+    )
+    routing_preference: str | None = Field(
+        None,
+        description="Routing preference (default, hot_potato_routing)",
+    )
+    accept_route_over_sc: bool = Field(False, description="Accept routes over service connections")
+    outbound_routes_for_services: list[str] = Field(default_factory=list, description="Outbound routes for services in CIDR notation")
+    add_host_route_to_ike_peer: bool = Field(False, description="Add host route to IKE peer")
+    withdraw_static_route: bool = Field(False, description="Withdraw static routes")
+
+    @field_validator("backbone_routing")
+    @classmethod
+    def validate_backbone_routing(cls, v: str) -> str:
+        """Validate backbone_routing value."""
+        valid_values = {"no-asymmetric-routing", "asymmetric-routing-only", "asymmetric-routing-with-load-share"}
+        if v not in valid_values:
+            raise ValueError(f"backbone_routing must be one of: {', '.join(sorted(valid_values))}")
+        return v
+
+    @field_validator("routing_preference")
+    @classmethod
+    def validate_routing_preference(cls, v: str | None) -> str | None:
+        """Validate routing_preference value."""
+        if v is not None:
+            valid_values = {"default", "hot_potato_routing"}
+            if v not in valid_values:
+                raise ValueError(f"routing_preference must be one of: {', '.join(sorted(valid_values))}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        data: dict[str, Any] = {
+            "backbone_routing": self.backbone_routing,
+            "accept_route_over_SC": self.accept_route_over_sc,
+            "outbound_routes_for_services": self.outbound_routes_for_services,
+            "add_host_route_to_ike_peer": self.add_host_route_to_ike_peer,
+            "withdraw_static_route": self.withdraw_static_route,
+        }
+        if self.routing_preference:
+            if self.routing_preference == "default":
+                data["routing_preference"] = {"default": {}}
+            elif self.routing_preference == "hot_potato_routing":
+                data["routing_preference"] = {"hot_potato_routing": {}}
+        return data
+
+
+# ========================================================================================================================================================================================
+# INTERNAL DNS SERVER CONFIGURATION MODELS
+# ========================================================================================================================================================================================
+
+
+class InternalDNSServer(BaseModel):
+    """Model for internal DNS server configurations."""
+
+    name: str = Field(..., max_length=63, pattern=r"^[0-9a-zA-Z._\- ]+$", description="Name of the internal DNS server")
+    domain_name: list[str] = Field(..., min_length=1, description="DNS domain name(s)")
+    primary: str = Field(..., description="Primary DNS server IP address")
+    secondary: str | None = Field(None, description="Secondary DNS server IP address")
+
+    @field_validator("domain_name", mode="before")
+    @classmethod
+    def validate_domain_name(cls, v: Any) -> list[str]:
+        """Ensure domain_name is a list."""
+        if isinstance(v, str):
+            return [v]
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        data: dict[str, Any] = {
+            "name": self.name,
+            "domain_name": self.domain_name,
+            "primary": self.primary,
+        }
+        if self.secondary:
+            data["secondary"] = self.secondary
+        return data
