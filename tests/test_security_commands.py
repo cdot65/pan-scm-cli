@@ -2,10 +2,14 @@
 
 import typer
 
-from scm_cli.commands.security import (
+from scm_cli.commands.security import (  # noqa: F401
     delete_app,
+    delete_app_override_rule,
+    delete_authentication_rule,
+    delete_decryption_rule,
     delete_dns_security_profile,
     delete_security_rule,
+    delete_url_access_profile,
     delete_url_category,
     delete_vulnerability_protection_profile,
     delete_wildfire_antivirus_profile,
@@ -14,12 +18,20 @@ from scm_cli.commands.security import (
     load_vulnerability_protection_profile,
     load_wildfire_antivirus_profile,
     set_app,
+    set_app_override_rule,
+    set_authentication_rule,
+    set_decryption_rule,
     set_dns_security_profile,
     set_security_rule,
+    set_url_access_profile,
     set_url_category,
     set_vulnerability_protection_profile,
     set_wildfire_antivirus_profile,
+    show_app_override_rule,
+    show_authentication_rule,
+    show_decryption_rule,
     show_dns_security_profile,
+    show_url_access_profile,
     show_url_category,
     show_vulnerability_protection_profile,
     show_wildfire_antivirus_profile,
@@ -1096,3 +1108,433 @@ class TestURLCategoryCommands:
         assert "Custom-Block-List" in result.stdout
         assert "malware.example.com" in result.stdout
         assert "phishing.test.org" in result.stdout
+
+
+class TestAppOverrideRuleCommands:
+    """Test the app override rule commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_app_override_rule(self, runner, monkeypatch):
+        """Test the set app-override-rule command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_app_override_rule.return_value = {
+            "id": "aor-1",
+            "name": "override-https",
+            "folder": "Texas",
+            "application": "ssl",
+            "port": "8443",
+            "protocol": "tcp",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_app_override_rule)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "override-https",
+                "--application",
+                "ssl",
+                "--port",
+                "8443",
+                "--protocol",
+                "tcp",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created app override rule" in result.stdout
+        assert "override-https" in result.stdout
+
+    def test_set_app_override_rule_error(self, runner, monkeypatch):
+        """Test the set command with error."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_app_override_rule.side_effect = ValueError("Test error")
+
+        test_app = typer.Typer()
+        test_app.command()(set_app_override_rule)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test",
+                "--application",
+                "ssl",
+                "--port",
+                "443",
+                "--protocol",
+                "tcp",
+            ],
+        )
+
+        assert result.exit_code == 1
+
+    def test_delete_app_override_rule(self, runner, monkeypatch):
+        """Test the delete app-override-rule command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.delete_app_override_rule.return_value = True
+
+        test_app = typer.Typer()
+        test_app.command()(delete_app_override_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "override-https"])
+
+        assert result.exit_code == 0
+        assert "Deleted app override rule" in result.stdout
+
+    def test_show_app_override_rule_list(self, runner, monkeypatch):
+        """Test the show command listing all rules."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_app_override_rules.return_value = [
+            {"id": "aor-1", "name": "Override Web", "application": "web-browsing", "port": "443", "protocol": "tcp"},
+        ]
+
+        test_app = typer.Typer()
+        test_app.command()(show_app_override_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "Override Web" in result.stdout
+
+    def test_show_app_override_rule_single(self, runner, monkeypatch):
+        """Test the show command for a single rule."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.get_app_override_rule.return_value = {
+            "id": "aor-1",
+            "name": "override-https",
+            "folder": "Texas",
+            "application": "ssl",
+            "port": "8443",
+            "protocol": "tcp",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(show_app_override_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "override-https"])
+
+        assert result.exit_code == 0
+        assert "App Override Rule: override-https" in result.stdout
+        assert "ssl" in result.stdout
+
+
+class TestAuthenticationRuleCommands:
+    """Test the authentication rule commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_authentication_rule(self, runner, monkeypatch):
+        """Test the set authentication-rule command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_authentication_rule.return_value = {
+            "id": "authr-1",
+            "name": "auth-web",
+            "folder": "Texas",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_authentication_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+
+        assert result.exit_code == 0
+        assert "Created authentication rule" in result.stdout
+
+    def test_set_authentication_rule_error(self, runner, monkeypatch):
+        """Test the set command with error."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_authentication_rule.side_effect = ValueError("Test error")
+
+        test_app = typer.Typer()
+        test_app.command()(set_authentication_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test"])
+
+        assert result.exit_code == 1
+
+    def test_delete_authentication_rule(self, runner, monkeypatch):
+        """Test the delete authentication-rule command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.delete_authentication_rule.return_value = True
+
+        test_app = typer.Typer()
+        test_app.command()(delete_authentication_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+
+        assert result.exit_code == 0
+        assert "Deleted authentication rule" in result.stdout
+
+    def test_show_authentication_rule_list(self, runner, monkeypatch):
+        """Test the show command listing all rules."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_authentication_rules.return_value = [
+            {"id": "authr-1", "name": "Auth Rule 1", "from": ["any"], "to": ["any"]},
+        ]
+
+        test_app = typer.Typer()
+        test_app.command()(show_authentication_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "Auth Rule 1" in result.stdout
+
+    def test_show_authentication_rule_single(self, runner, monkeypatch):
+        """Test the show command for a single rule."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.get_authentication_rule.return_value = {
+            "id": "authr-1",
+            "name": "auth-web",
+            "folder": "Texas",
+            "from": ["trust"],
+            "to": ["untrust"],
+            "authentication_enforcement": "default-auth",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(show_authentication_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+
+        assert result.exit_code == 0
+        assert "Authentication Rule: auth-web" in result.stdout
+
+
+class TestDecryptionRuleCommands:
+    """Test the decryption rule commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_decryption_rule(self, runner, monkeypatch):
+        """Test the set decryption-rule command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_decryption_rule.return_value = {
+            "id": "decr-1",
+            "name": "no-decrypt-internal",
+            "folder": "Texas",
+            "action": "no-decrypt",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_decryption_rule)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "no-decrypt-internal",
+                "--action",
+                "no-decrypt",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created decryption rule" in result.stdout
+
+    def test_set_decryption_rule_error(self, runner, monkeypatch):
+        """Test the set command with error."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_decryption_rule.side_effect = ValueError("Test error")
+
+        test_app = typer.Typer()
+        test_app.command()(set_decryption_rule)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test",
+                "--action",
+                "decrypt",
+            ],
+        )
+
+        assert result.exit_code == 1
+
+    def test_delete_decryption_rule(self, runner, monkeypatch):
+        """Test the delete decryption-rule command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.delete_decryption_rule.return_value = True
+
+        test_app = typer.Typer()
+        test_app.command()(delete_decryption_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "decrypt-web"])
+
+        assert result.exit_code == 0
+        assert "Deleted decryption rule" in result.stdout
+
+    def test_show_decryption_rule_list(self, runner, monkeypatch):
+        """Test the show command listing all rules."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_decryption_rules.return_value = [
+            {"id": "decr-1", "name": "Decrypt Rule 1", "action": "no-decrypt"},
+        ]
+
+        test_app = typer.Typer()
+        test_app.command()(show_decryption_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "Decrypt Rule 1" in result.stdout
+
+    def test_show_decryption_rule_single(self, runner, monkeypatch):
+        """Test the show command for a single rule."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.get_decryption_rule.return_value = {
+            "id": "decr-1",
+            "name": "decrypt-outbound",
+            "folder": "Texas",
+            "action": "decrypt",
+            "from": ["trust"],
+            "to": ["untrust"],
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(show_decryption_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "decrypt-outbound"])
+
+        assert result.exit_code == 0
+        assert "Decryption Rule: decrypt-outbound" in result.stdout
+
+
+class TestURLAccessProfileCommands:
+    """Test the URL access profile commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_url_access_profile(self, runner, monkeypatch):
+        """Test the set url-access-profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_url_access_profile.return_value = {
+            "id": "uap-1",
+            "name": "strict-url",
+            "folder": "Texas",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_access_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "strict-url",
+                "--block",
+                "adult",
+                "--block",
+                "malware",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created URL access profile" in result.stdout
+
+    def test_set_url_access_profile_error(self, runner, monkeypatch):
+        """Test the set command with error."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_url_access_profile.side_effect = ValueError("Test error")
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_access_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test"])
+
+        assert result.exit_code == 1
+
+    def test_delete_url_access_profile(self, runner, monkeypatch):
+        """Test the delete url-access-profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.delete_url_access_profile.return_value = True
+
+        test_app = typer.Typer()
+        test_app.command()(delete_url_access_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "strict-url"])
+
+        assert result.exit_code == 0
+        assert "Deleted URL access profile" in result.stdout
+
+    def test_show_url_access_profile_list(self, runner, monkeypatch):
+        """Test the show command listing all profiles."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_url_access_profiles.return_value = [
+            {"id": "uap-1", "name": "URL Profile 1", "block": ["adult", "malware"]},
+        ]
+
+        test_app = typer.Typer()
+        test_app.command()(show_url_access_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "URL Profile 1" in result.stdout
+
+    def test_show_url_access_profile_single(self, runner, monkeypatch):
+        """Test the show command for a single profile."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.get_url_access_profile.return_value = {
+            "id": "uap-1",
+            "name": "strict-url",
+            "folder": "Texas",
+            "block": ["adult", "malware"],
+            "alert": ["hacking"],
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(show_url_access_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "strict-url"])
+
+        assert result.exit_code == 0
+        assert "URL Access Profile: strict-url" in result.stdout
+        assert "Block:" in result.stdout

@@ -17,6 +17,12 @@ from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     AggregateInterface,
+    BgpAddressFamilyProfile,
+    BgpAuthProfile,
+    BgpFilteringProfile,
+    BgpRedistributionProfile,
+    BgpRouteMap,
+    BgpRouteMapRedistribution,
     DhcpInterface,
     EthernetInterface,
     IKECryptoProfile,
@@ -26,6 +32,9 @@ from ..utils.validators import (
     Layer3Subinterface,
     LoopbackInterface,
     NATRule,
+    OspfAuthProfile,
+    RouteAccessList,
+    RoutePrefixList,
     TunnelInterface,
     VlanInterface,
     Zone,
@@ -3755,4 +3764,1814 @@ def show_vlan_interface(
             return interfaces
     except Exception as e:
         typer.echo(f"Error showing VLAN interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BGP ADDRESS FAMILY PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("bgp-address-family-profile", help="Export BGP address family profiles to a YAML file.")
+def backup_bgp_address_family_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export BGP address family profiles from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving BGP address family profiles from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_bgp_address_family_profiles(**kwargs)
+        if not profiles:
+            typer.echo(f"No BGP address family profiles found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"bgp_address_family_profiles": profiles}
+        filename = Path(file or get_default_backup_filename("bgp-address-family-profile", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(profiles)} BGP address family profiles to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up BGP address family profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("bgp-address-family-profile", help="Delete a BGP address family profile.")
+def delete_bgp_address_family_profile(
+    name: str = typer.Argument(..., help="Name of the BGP address family profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a BGP address family profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_bgp_address_family_profile(name=name, folder=folder, snippet=snippet, device=device)
+        if not profile:
+            typer.echo(f"BGP address family profile '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete BGP address family profile '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_bgp_address_family_profile(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted BGP address family profile: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting BGP address family profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("bgp-address-family-profile", help="Load BGP address family profiles from a YAML file.")
+def load_bgp_address_family_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load BGP address family profiles from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "bgp_address_family_profiles" not in data:
+            typer.echo("No BGP address family profiles found in file", err=True)
+            raise typer.Exit(code=1)
+        profiles = data["bgp_address_family_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for p in profiles:
+                typer.echo(f"  Would process: {p.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for profile_data in profiles:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+                validated = BgpAddressFamilyProfile(**profile_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_bgp_address_family_profile(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created BGP address family profile: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated BGP address family profile: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for BGP address family profile: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing BGP address family profile: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} BGP address family profiles")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading BGP address family profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("bgp-address-family-profile", help="Create or update a BGP address family profile.")
+def set_bgp_address_family_profile(
+    name: str = typer.Argument(..., help="Name of the BGP address family profile"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    ipv4_json: str = typer.Option(None, "--ipv4-json", help="IPv4 address family config as JSON"),
+) -> None:
+    """Create or update a BGP address family profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if ipv4_json:
+            profile_data["ipv4"] = json.loads(ipv4_json)
+        validated = BgpAddressFamilyProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_address_family_profile(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created BGP address family profile: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated BGP address family profile: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for BGP address family profile: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating BGP address family profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("bgp-address-family-profile", help="Show BGP address family profile details.")
+def show_bgp_address_family_profile(
+    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show BGP address family profile details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            profile = scm_client.get_bgp_address_family_profile(name=name, folder=folder, snippet=snippet, device=device)
+            if not profile:
+                typer.echo(f"BGP address family profile '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nBGP Address Family Profile: {profile['name']}")
+            typer.echo("=" * 60)
+            location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if profile.get("ipv4"):
+                typer.echo(f"IPv4: {json.dumps(profile['ipv4'], indent=2)}")
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+            return profile
+        else:
+            profiles = scm_client.list_bgp_address_family_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No BGP address family profiles found")
+                return
+            typer.echo("\nBGP Address Family Profiles:")
+            typer.echo("-" * 80)
+            for profile in profiles:
+                location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 80)
+            return profiles
+    except Exception as e:
+        typer.echo(f"Error showing BGP address family profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BGP AUTH PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("bgp-auth-profile", help="Export BGP auth profiles to a YAML file.")
+def backup_bgp_auth_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export BGP auth profiles from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving BGP auth profiles from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_bgp_auth_profiles(**kwargs)
+        if not profiles:
+            typer.echo(f"No BGP auth profiles found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"bgp_auth_profiles": profiles}
+        filename = Path(file or get_default_backup_filename("bgp-auth-profile", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(profiles)} BGP auth profiles to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up BGP auth profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("bgp-auth-profile", help="Delete a BGP auth profile.")
+def delete_bgp_auth_profile(
+    name: str = typer.Argument(..., help="Name of the BGP auth profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a BGP auth profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_bgp_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
+        if not profile:
+            typer.echo(f"BGP auth profile '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete BGP auth profile '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_bgp_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted BGP auth profile: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting BGP auth profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("bgp-auth-profile", help="Load BGP auth profiles from a YAML file.")
+def load_bgp_auth_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load BGP auth profiles from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "bgp_auth_profiles" not in data:
+            typer.echo("No BGP auth profiles found in file", err=True)
+            raise typer.Exit(code=1)
+        profiles = data["bgp_auth_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for p in profiles:
+                typer.echo(f"  Would process: {p.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for profile_data in profiles:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+                validated = BgpAuthProfile(**profile_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_bgp_auth_profile(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created BGP auth profile: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated BGP auth profile: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for BGP auth profile: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing BGP auth profile: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} BGP auth profiles")
+    except Exception as e:
+        typer.echo(f"Error loading BGP auth profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("bgp-auth-profile", help="Create or update a BGP auth profile.")
+def set_bgp_auth_profile(
+    name: str = typer.Argument(..., help="Name of the BGP auth profile"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    secret: str = typer.Option(None, "--secret", help="BGP authentication key"),
+) -> None:
+    """Create or update a BGP auth profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if secret is not None:
+            profile_data["secret"] = secret
+        validated = BgpAuthProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_auth_profile(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created BGP auth profile: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated BGP auth profile: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for BGP auth profile: {name} in {location_value}")
+    except Exception as e:
+        typer.echo(f"Error creating/updating BGP auth profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("bgp-auth-profile", help="Show BGP auth profile details.")
+def show_bgp_auth_profile(
+    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show BGP auth profile details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            profile = scm_client.get_bgp_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
+            if not profile:
+                typer.echo(f"BGP auth profile '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nBGP Auth Profile: {profile['name']}")
+            typer.echo("=" * 60)
+            location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if profile.get("secret"):
+                typer.echo("Secret: ********")
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+            return profile
+        else:
+            profiles = scm_client.list_bgp_auth_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No BGP auth profiles found")
+                return
+            typer.echo("\nBGP Auth Profiles:")
+            typer.echo("-" * 80)
+            for profile in profiles:
+                location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 80)
+            return profiles
+    except Exception as e:
+        typer.echo(f"Error showing BGP auth profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# OSPF AUTH PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("ospf-auth-profile", help="Export OSPF auth profiles to a YAML file.")
+def backup_ospf_auth_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export OSPF auth profiles from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving OSPF auth profiles from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_ospf_auth_profiles(**kwargs)
+        if not profiles:
+            typer.echo(f"No OSPF auth profiles found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"ospf_auth_profiles": profiles}
+        filename = Path(file or get_default_backup_filename("ospf-auth-profile", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(profiles)} OSPF auth profiles to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up OSPF auth profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("ospf-auth-profile", help="Delete an OSPF auth profile.")
+def delete_ospf_auth_profile(
+    name: str = typer.Argument(..., help="Name of the OSPF auth profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete an OSPF auth profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_ospf_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
+        if not profile:
+            typer.echo(f"OSPF auth profile '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete OSPF auth profile '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_ospf_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted OSPF auth profile: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting OSPF auth profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("ospf-auth-profile", help="Load OSPF auth profiles from a YAML file.")
+def load_ospf_auth_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load OSPF auth profiles from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "ospf_auth_profiles" not in data:
+            typer.echo("No OSPF auth profiles found in file", err=True)
+            raise typer.Exit(code=1)
+        profiles = data["ospf_auth_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for p in profiles:
+                typer.echo(f"  Would process: {p.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for profile_data in profiles:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+                validated = OspfAuthProfile(**profile_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_ospf_auth_profile(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created OSPF auth profile: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated OSPF auth profile: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for OSPF auth profile: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing OSPF auth profile: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} OSPF auth profiles")
+    except Exception as e:
+        typer.echo(f"Error loading OSPF auth profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("ospf-auth-profile", help="Create or update an OSPF auth profile.")
+def set_ospf_auth_profile(
+    name: str = typer.Argument(..., help="Name of the OSPF auth profile"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    password: str = typer.Option(None, "--password", help="Simple password authentication"),
+    md5_json: str = typer.Option(None, "--md5-json", help="MD5 authentication keys as JSON"),
+) -> None:
+    """Create or update an OSPF auth profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if password is not None:
+            profile_data["password"] = password
+        if md5_json:
+            profile_data["md5"] = json.loads(md5_json)
+        validated = OspfAuthProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_ospf_auth_profile(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created OSPF auth profile: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated OSPF auth profile: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for OSPF auth profile: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating OSPF auth profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("ospf-auth-profile", help="Show OSPF auth profile details.")
+def show_ospf_auth_profile(
+    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show OSPF auth profile details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            profile = scm_client.get_ospf_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
+            if not profile:
+                typer.echo(f"OSPF auth profile '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nOSPF Auth Profile: {profile['name']}")
+            typer.echo("=" * 60)
+            location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if profile.get("password"):
+                typer.echo("Password: ********")
+            if profile.get("md5"):
+                typer.echo(f"MD5 Keys: {len(profile['md5'])} key(s)")
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+            return profile
+        else:
+            profiles = scm_client.list_ospf_auth_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No OSPF auth profiles found")
+                return
+            typer.echo("\nOSPF Auth Profiles:")
+            typer.echo("-" * 80)
+            for profile in profiles:
+                location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 80)
+            return profiles
+    except Exception as e:
+        typer.echo(f"Error showing OSPF auth profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# ROUTE ACCESS LIST COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("route-access-list", help="Export route access lists to a YAML file.")
+def backup_route_access_list(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export route access lists from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving route access lists from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        items = scm_client.list_route_access_lists(**kwargs)
+        if not items:
+            typer.echo(f"No route access lists found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"route_access_lists": items}
+        filename = Path(file or get_default_backup_filename("route-access-list", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(items)} route access lists to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up route access lists: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("route-access-list", help="Delete a route access list.")
+def delete_route_access_list(
+    name: str = typer.Argument(..., help="Name of the route access list to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a route access list."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        item = scm_client.get_route_access_list(name=name, folder=folder, snippet=snippet, device=device)
+        if not item:
+            typer.echo(f"Route access list '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete route access list '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_route_access_list(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted route access list: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting route access list: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("route-access-list", help="Load route access lists from a YAML file.")
+def load_route_access_list(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load route access lists from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "route_access_lists" not in data:
+            typer.echo("No route access lists found in file", err=True)
+            raise typer.Exit(code=1)
+        items = data["route_access_lists"]
+        if not isinstance(items, list):
+            items = [items]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for item in items:
+                typer.echo(f"  Would process: {item.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for item_data in items:
+            try:
+                if folder:
+                    item_data["folder"] = folder
+                    item_data.pop("snippet", None)
+                    item_data.pop("device", None)
+                elif snippet:
+                    item_data["snippet"] = snippet
+                    item_data.pop("folder", None)
+                    item_data.pop("device", None)
+                elif device:
+                    item_data["device"] = device
+                    item_data.pop("folder", None)
+                    item_data.pop("snippet", None)
+                validated = RouteAccessList(**item_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_route_access_list(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created route access list: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated route access list: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for route access list: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing route access list: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} route access lists")
+    except Exception as e:
+        typer.echo(f"Error loading route access lists: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("route-access-list", help="Create or update a route access list.")
+def set_route_access_list(
+    name: str = typer.Argument(..., help="Name of the route access list"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    description: str = typer.Option(None, "--description", help="Description"),
+    type_json: str = typer.Option(None, "--type-json", help="Access list type config as JSON"),
+) -> None:
+    """Create or update a route access list."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        item_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if description is not None:
+            item_data["description"] = description
+        if type_json:
+            item_data["type"] = json.loads(type_json)
+        validated = RouteAccessList(**item_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_route_access_list(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created route access list: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated route access list: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for route access list: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating route access list: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("route-access-list", help="Show route access list details.")
+def show_route_access_list(
+    name: str = typer.Option(None, "--name", help="Name of specific route access list to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show route access list details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            item = scm_client.get_route_access_list(name=name, folder=folder, snippet=snippet, device=device)
+            if not item:
+                typer.echo(f"Route access list '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nRoute Access List: {item['name']}")
+            typer.echo("=" * 60)
+            location = item.get("folder") or item.get("snippet") or item.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if item.get("description"):
+                typer.echo(f"Description: {item['description']}")
+            if item.get("type"):
+                typer.echo(f"Type: {json.dumps(item['type'], indent=2)}")
+            if item.get("id"):
+                typer.echo(f"\nID: {item['id']}")
+            return item
+        else:
+            items = scm_client.list_route_access_lists(folder=folder, snippet=snippet, device=device)
+            if not items:
+                typer.echo("No route access lists found")
+                return
+            typer.echo("\nRoute Access Lists:")
+            typer.echo("-" * 80)
+            for item in items:
+                location = item.get("folder") or item.get("snippet") or item.get("device", "N/A")
+                typer.echo(f"Name: {item.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if item.get("description"):
+                    typer.echo(f"  Description: {item['description']}")
+                if item.get("id"):
+                    typer.echo(f"  ID: {item['id']}")
+                typer.echo("-" * 80)
+            return items
+    except Exception as e:
+        typer.echo(f"Error showing route access list: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# ROUTE PREFIX LIST COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("route-prefix-list", help="Export route prefix lists to a YAML file.")
+def backup_route_prefix_list(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export route prefix lists from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving route prefix lists from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        items = scm_client.list_route_prefix_lists(**kwargs)
+        if not items:
+            typer.echo(f"No route prefix lists found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"route_prefix_lists": items}
+        filename = Path(file or get_default_backup_filename("route-prefix-list", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(items)} route prefix lists to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up route prefix lists: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("route-prefix-list", help="Delete a route prefix list.")
+def delete_route_prefix_list(
+    name: str = typer.Argument(..., help="Name of the route prefix list to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a route prefix list."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        item = scm_client.get_route_prefix_list(name=name, folder=folder, snippet=snippet, device=device)
+        if not item:
+            typer.echo(f"Route prefix list '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete route prefix list '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_route_prefix_list(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted route prefix list: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting route prefix list: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("route-prefix-list", help="Load route prefix lists from a YAML file.")
+def load_route_prefix_list(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load route prefix lists from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "route_prefix_lists" not in data:
+            typer.echo("No route prefix lists found in file", err=True)
+            raise typer.Exit(code=1)
+        items = data["route_prefix_lists"]
+        if not isinstance(items, list):
+            items = [items]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for item in items:
+                typer.echo(f"  Would process: {item.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for item_data in items:
+            try:
+                if folder:
+                    item_data["folder"] = folder
+                    item_data.pop("snippet", None)
+                    item_data.pop("device", None)
+                elif snippet:
+                    item_data["snippet"] = snippet
+                    item_data.pop("folder", None)
+                    item_data.pop("device", None)
+                elif device:
+                    item_data["device"] = device
+                    item_data.pop("folder", None)
+                    item_data.pop("snippet", None)
+                validated = RoutePrefixList(**item_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_route_prefix_list(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created route prefix list: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated route prefix list: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for route prefix list: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing route prefix list: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} route prefix lists")
+    except Exception as e:
+        typer.echo(f"Error loading route prefix lists: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("route-prefix-list", help="Create or update a route prefix list.")
+def set_route_prefix_list(
+    name: str = typer.Argument(..., help="Name of the route prefix list"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    description: str = typer.Option(None, "--description", help="Description"),
+    ipv4_json: str = typer.Option(None, "--ipv4-json", help="IPv4 prefix list config as JSON"),
+) -> None:
+    """Create or update a route prefix list."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        item_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if description is not None:
+            item_data["description"] = description
+        if ipv4_json:
+            item_data["ipv4"] = json.loads(ipv4_json)
+        validated = RoutePrefixList(**item_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_route_prefix_list(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created route prefix list: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated route prefix list: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for route prefix list: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating route prefix list: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("route-prefix-list", help="Show route prefix list details.")
+def show_route_prefix_list(
+    name: str = typer.Option(None, "--name", help="Name of specific route prefix list to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show route prefix list details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            item = scm_client.get_route_prefix_list(name=name, folder=folder, snippet=snippet, device=device)
+            if not item:
+                typer.echo(f"Route prefix list '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nRoute Prefix List: {item['name']}")
+            typer.echo("=" * 60)
+            location = item.get("folder") or item.get("snippet") or item.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if item.get("description"):
+                typer.echo(f"Description: {item['description']}")
+            if item.get("ipv4"):
+                typer.echo(f"IPv4: {json.dumps(item['ipv4'], indent=2)}")
+            if item.get("id"):
+                typer.echo(f"\nID: {item['id']}")
+            return item
+        else:
+            items = scm_client.list_route_prefix_lists(folder=folder, snippet=snippet, device=device)
+            if not items:
+                typer.echo("No route prefix lists found")
+                return
+            typer.echo("\nRoute Prefix Lists:")
+            typer.echo("-" * 80)
+            for item in items:
+                location = item.get("folder") or item.get("snippet") or item.get("device", "N/A")
+                typer.echo(f"Name: {item.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if item.get("description"):
+                    typer.echo(f"  Description: {item['description']}")
+                if item.get("id"):
+                    typer.echo(f"  ID: {item['id']}")
+                typer.echo("-" * 80)
+            return items
+    except Exception as e:
+        typer.echo(f"Error showing route prefix list: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BGP FILTERING PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("bgp-filtering-profile", help="Export BGP filtering profiles to a YAML file.")
+def backup_bgp_filtering_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export BGP filtering profiles from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving BGP filtering profiles from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_bgp_filtering_profiles(**kwargs)
+        if not profiles:
+            typer.echo(f"No BGP filtering profiles found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"bgp_filtering_profiles": profiles}
+        filename = Path(file or get_default_backup_filename("bgp-filtering-profile", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(profiles)} BGP filtering profiles to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up BGP filtering profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("bgp-filtering-profile", help="Delete a BGP filtering profile.")
+def delete_bgp_filtering_profile(
+    name: str = typer.Argument(..., help="Name of the BGP filtering profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a BGP filtering profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_bgp_filtering_profile(name=name, folder=folder, snippet=snippet, device=device)
+        if not profile:
+            typer.echo(f"BGP filtering profile '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete BGP filtering profile '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_bgp_filtering_profile(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted BGP filtering profile: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting BGP filtering profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("bgp-filtering-profile", help="Load BGP filtering profiles from a YAML file.")
+def load_bgp_filtering_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load BGP filtering profiles from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "bgp_filtering_profiles" not in data:
+            typer.echo("No BGP filtering profiles found in file", err=True)
+            raise typer.Exit(code=1)
+        profiles = data["bgp_filtering_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for p in profiles:
+                typer.echo(f"  Would process: {p.get('name', 'N/A')}")
+            return
+        created_count = 0
+        for profile_data in profiles:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+                validated = BgpFilteringProfile(**profile_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_bgp_filtering_profile(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                created_count += 1
+                typer.echo(f"{action.capitalize()} BGP filtering profile: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing BGP filtering profile: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count} BGP filtering profiles")
+    except Exception as e:
+        typer.echo(f"Error loading BGP filtering profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("bgp-filtering-profile", help="Create or update a BGP filtering profile.")
+def set_bgp_filtering_profile(
+    name: str = typer.Argument(..., help="Name of the BGP filtering profile"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    ipv4_json: str = typer.Option(None, "--ipv4-json", help="IPv4 filtering config as JSON"),
+) -> None:
+    """Create or update a BGP filtering profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if ipv4_json:
+            profile_data["ipv4"] = json.loads(ipv4_json)
+        validated = BgpFilteringProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_filtering_profile(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created BGP filtering profile: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated BGP filtering profile: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for BGP filtering profile: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating BGP filtering profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("bgp-filtering-profile", help="Show BGP filtering profile details.")
+def show_bgp_filtering_profile(
+    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show BGP filtering profile details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            profile = scm_client.get_bgp_filtering_profile(name=name, folder=folder, snippet=snippet, device=device)
+            if not profile:
+                typer.echo(f"BGP filtering profile '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nBGP Filtering Profile: {profile['name']}")
+            typer.echo("=" * 60)
+            location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if profile.get("ipv4"):
+                typer.echo(f"IPv4: {json.dumps(profile['ipv4'], indent=2)}")
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+            return profile
+        else:
+            profiles = scm_client.list_bgp_filtering_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No BGP filtering profiles found")
+                return
+            typer.echo("\nBGP Filtering Profiles:")
+            typer.echo("-" * 80)
+            for profile in profiles:
+                location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 80)
+            return profiles
+    except Exception as e:
+        typer.echo(f"Error showing BGP filtering profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BGP REDISTRIBUTION PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("bgp-redistribution-profile", help="Export BGP redistribution profiles to a YAML file.")
+def backup_bgp_redistribution_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export BGP redistribution profiles from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving BGP redistribution profiles from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_bgp_redistribution_profiles(**kwargs)
+        if not profiles:
+            typer.echo(f"No BGP redistribution profiles found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"bgp_redistribution_profiles": profiles}
+        filename = Path(file or get_default_backup_filename("bgp-redistribution-profile", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(profiles)} BGP redistribution profiles to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up BGP redistribution profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("bgp-redistribution-profile", help="Delete a BGP redistribution profile.")
+def delete_bgp_redistribution_profile(
+    name: str = typer.Argument(..., help="Name of the BGP redistribution profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a BGP redistribution profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_bgp_redistribution_profile(name=name, folder=folder, snippet=snippet, device=device)
+        if not profile:
+            typer.echo(f"BGP redistribution profile '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete BGP redistribution profile '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_bgp_redistribution_profile(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted BGP redistribution profile: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting BGP redistribution profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("bgp-redistribution-profile", help="Load BGP redistribution profiles from a YAML file.")
+def load_bgp_redistribution_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load BGP redistribution profiles from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "bgp_redistribution_profiles" not in data:
+            typer.echo("No BGP redistribution profiles found in file", err=True)
+            raise typer.Exit(code=1)
+        profiles = data["bgp_redistribution_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for p in profiles:
+                typer.echo(f"  Would process: {p.get('name', 'N/A')}")
+            return
+        created_count = 0
+        for profile_data in profiles:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+                validated = BgpRedistributionProfile(**profile_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_bgp_redistribution_profile(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                created_count += 1
+                typer.echo(f"{action.capitalize()} BGP redistribution profile: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing BGP redistribution profile: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count} BGP redistribution profiles")
+    except Exception as e:
+        typer.echo(f"Error loading BGP redistribution profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("bgp-redistribution-profile", help="Create or update a BGP redistribution profile.")
+def set_bgp_redistribution_profile(
+    name: str = typer.Argument(..., help="Name of the BGP redistribution profile"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    ipv4_json: str = typer.Option(None, "--ipv4-json", help="IPv4 redistribution config as JSON"),
+) -> None:
+    """Create or update a BGP redistribution profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if ipv4_json:
+            profile_data["ipv4"] = json.loads(ipv4_json)
+        validated = BgpRedistributionProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_redistribution_profile(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created BGP redistribution profile: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated BGP redistribution profile: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for BGP redistribution profile: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating BGP redistribution profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("bgp-redistribution-profile", help="Show BGP redistribution profile details.")
+def show_bgp_redistribution_profile(
+    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show BGP redistribution profile details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            profile = scm_client.get_bgp_redistribution_profile(name=name, folder=folder, snippet=snippet, device=device)
+            if not profile:
+                typer.echo(f"BGP redistribution profile '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nBGP Redistribution Profile: {profile['name']}")
+            typer.echo("=" * 60)
+            location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if profile.get("ipv4"):
+                typer.echo(f"IPv4: {json.dumps(profile['ipv4'], indent=2)}")
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+            return profile
+        else:
+            profiles = scm_client.list_bgp_redistribution_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No BGP redistribution profiles found")
+                return
+            typer.echo("\nBGP Redistribution Profiles:")
+            typer.echo("-" * 80)
+            for profile in profiles:
+                location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 80)
+            return profiles
+    except Exception as e:
+        typer.echo(f"Error showing BGP redistribution profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BGP ROUTE MAP COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("bgp-route-map", help="Export BGP route maps to a YAML file.")
+def backup_bgp_route_map(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export BGP route maps from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving BGP route maps from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        items = scm_client.list_bgp_route_maps(**kwargs)
+        if not items:
+            typer.echo(f"No BGP route maps found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"bgp_route_maps": items}
+        filename = Path(file or get_default_backup_filename("bgp-route-map", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(items)} BGP route maps to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up BGP route maps: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("bgp-route-map", help="Delete a BGP route map.")
+def delete_bgp_route_map(
+    name: str = typer.Argument(..., help="Name of the BGP route map to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a BGP route map."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        item = scm_client.get_bgp_route_map(name=name, folder=folder, snippet=snippet, device=device)
+        if not item:
+            typer.echo(f"BGP route map '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete BGP route map '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_bgp_route_map(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted BGP route map: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting BGP route map: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("bgp-route-map", help="Load BGP route maps from a YAML file.")
+def load_bgp_route_map(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load BGP route maps from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "bgp_route_maps" not in data:
+            typer.echo("No BGP route maps found in file", err=True)
+            raise typer.Exit(code=1)
+        items = data["bgp_route_maps"]
+        if not isinstance(items, list):
+            items = [items]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for item in items:
+                typer.echo(f"  Would process: {item.get('name', 'N/A')}")
+            return
+        created_count = 0
+        for item_data in items:
+            try:
+                if folder:
+                    item_data["folder"] = folder
+                    item_data.pop("snippet", None)
+                    item_data.pop("device", None)
+                elif snippet:
+                    item_data["snippet"] = snippet
+                    item_data.pop("folder", None)
+                    item_data.pop("device", None)
+                elif device:
+                    item_data["device"] = device
+                    item_data.pop("folder", None)
+                    item_data.pop("snippet", None)
+                validated = BgpRouteMap(**item_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_bgp_route_map(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                created_count += 1
+                typer.echo(f"{action.capitalize()} BGP route map: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing BGP route map: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count} BGP route maps")
+    except Exception as e:
+        typer.echo(f"Error loading BGP route maps: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("bgp-route-map", help="Create or update a BGP route map.")
+def set_bgp_route_map(
+    name: str = typer.Argument(..., help="Name of the BGP route map"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    route_map_json: str = typer.Option(None, "--route-map-json", help="Route map entries as JSON"),
+) -> None:
+    """Create or update a BGP route map."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        item_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if route_map_json:
+            item_data["route_map"] = json.loads(route_map_json)
+        validated = BgpRouteMap(**item_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_route_map(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created BGP route map: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated BGP route map: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for BGP route map: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating BGP route map: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("bgp-route-map", help="Show BGP route map details.")
+def show_bgp_route_map(
+    name: str = typer.Option(None, "--name", help="Name of specific BGP route map to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show BGP route map details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            item = scm_client.get_bgp_route_map(name=name, folder=folder, snippet=snippet, device=device)
+            if not item:
+                typer.echo(f"BGP route map '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nBGP Route Map: {item['name']}")
+            typer.echo("=" * 60)
+            location = item.get("folder") or item.get("snippet") or item.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if item.get("route_map"):
+                typer.echo(f"Entries: {len(item['route_map'])}")
+                for entry in item["route_map"]:
+                    typer.echo(f"  Seq {entry.get('name', 'N/A')}: {entry.get('action', 'N/A')}")
+            if item.get("id"):
+                typer.echo(f"\nID: {item['id']}")
+            return item
+        else:
+            items = scm_client.list_bgp_route_maps(folder=folder, snippet=snippet, device=device)
+            if not items:
+                typer.echo("No BGP route maps found")
+                return
+            typer.echo("\nBGP Route Maps:")
+            typer.echo("-" * 80)
+            for item in items:
+                location = item.get("folder") or item.get("snippet") or item.get("device", "N/A")
+                typer.echo(f"Name: {item.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                entries = item.get("route_map", [])
+                typer.echo(f"  Entries: {len(entries)}")
+                if item.get("id"):
+                    typer.echo(f"  ID: {item['id']}")
+                typer.echo("-" * 80)
+            return items
+    except Exception as e:
+        typer.echo(f"Error showing BGP route map: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BGP ROUTE MAP REDISTRIBUTION COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("bgp-route-map-redistribution", help="Export BGP route map redistributions to a YAML file.")
+def backup_bgp_route_map_redistribution(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export BGP route map redistributions from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving BGP route map redistributions from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        items = scm_client.list_bgp_route_map_redistributions(**kwargs)
+        if not items:
+            typer.echo(f"No BGP route map redistributions found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"bgp_route_map_redistributions": items}
+        filename = Path(file or get_default_backup_filename("bgp-route-map-redistribution", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(items)} BGP route map redistributions to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up BGP route map redistributions: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("bgp-route-map-redistribution", help="Delete a BGP route map redistribution.")
+def delete_bgp_route_map_redistribution(
+    name: str = typer.Argument(..., help="Name of the BGP route map redistribution to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a BGP route map redistribution."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        item = scm_client.get_bgp_route_map_redistribution(name=name, folder=folder, snippet=snippet, device=device)
+        if not item:
+            typer.echo(f"BGP route map redistribution '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete BGP route map redistribution '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_bgp_route_map_redistribution(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted BGP route map redistribution: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting BGP route map redistribution: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("bgp-route-map-redistribution", help="Load BGP route map redistributions from a YAML file.")
+def load_bgp_route_map_redistribution(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load BGP route map redistributions from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "bgp_route_map_redistributions" not in data:
+            typer.echo("No BGP route map redistributions found in file", err=True)
+            raise typer.Exit(code=1)
+        items = data["bgp_route_map_redistributions"]
+        if not isinstance(items, list):
+            items = [items]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for item in items:
+                typer.echo(f"  Would process: {item.get('name', 'N/A')}")
+            return
+        created_count = 0
+        for item_data in items:
+            try:
+                if folder:
+                    item_data["folder"] = folder
+                    item_data.pop("snippet", None)
+                    item_data.pop("device", None)
+                elif snippet:
+                    item_data["snippet"] = snippet
+                    item_data.pop("folder", None)
+                    item_data.pop("device", None)
+                elif device:
+                    item_data["device"] = device
+                    item_data.pop("folder", None)
+                    item_data.pop("snippet", None)
+                validated = BgpRouteMapRedistribution(**item_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_bgp_route_map_redistribution(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                created_count += 1
+                typer.echo(f"{action.capitalize()} BGP route map redistribution: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing BGP route map redistribution: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count} BGP route map redistributions")
+    except Exception as e:
+        typer.echo(f"Error loading BGP route map redistributions: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("bgp-route-map-redistribution", help="Create or update a BGP route map redistribution.")
+def set_bgp_route_map_redistribution(
+    name: str = typer.Argument(..., help="Name of the BGP route map redistribution"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    bgp_json: str = typer.Option(None, "--bgp-json", help="BGP source protocol config as JSON"),
+    ospf_json: str = typer.Option(None, "--ospf-json", help="OSPF source protocol config as JSON"),
+    connected_static_json: str = typer.Option(None, "--connected-static-json", help="Connected/Static source protocol config as JSON"),
+) -> None:
+    """Create or update a BGP route map redistribution."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        item_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if bgp_json:
+            item_data["bgp"] = json.loads(bgp_json)
+        if ospf_json:
+            item_data["ospf"] = json.loads(ospf_json)
+        if connected_static_json:
+            item_data["connected_static"] = json.loads(connected_static_json)
+        validated = BgpRouteMapRedistribution(**item_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_route_map_redistribution(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created BGP route map redistribution: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated BGP route map redistribution: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for BGP route map redistribution: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating BGP route map redistribution: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("bgp-route-map-redistribution", help="Show BGP route map redistribution details.")
+def show_bgp_route_map_redistribution(
+    name: str = typer.Option(None, "--name", help="Name of specific BGP route map redistribution to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show BGP route map redistribution details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            item = scm_client.get_bgp_route_map_redistribution(name=name, folder=folder, snippet=snippet, device=device)
+            if not item:
+                typer.echo(f"BGP route map redistribution '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nBGP Route Map Redistribution: {item['name']}")
+            typer.echo("=" * 60)
+            location = item.get("folder") or item.get("snippet") or item.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            for proto in ["bgp", "ospf", "connected_static"]:
+                if item.get(proto):
+                    typer.echo(f"Source: {proto}")
+                    typer.echo(f"  Config: {json.dumps(item[proto], indent=2)}")
+            if item.get("id"):
+                typer.echo(f"\nID: {item['id']}")
+            return item
+        else:
+            items = scm_client.list_bgp_route_map_redistributions(folder=folder, snippet=snippet, device=device)
+            if not items:
+                typer.echo("No BGP route map redistributions found")
+                return
+            typer.echo("\nBGP Route Map Redistributions:")
+            typer.echo("-" * 80)
+            for item in items:
+                location = item.get("folder") or item.get("snippet") or item.get("device", "N/A")
+                typer.echo(f"Name: {item.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                for proto in ["bgp", "ospf", "connected_static"]:
+                    if item.get(proto):
+                        typer.echo(f"  Source: {proto}")
+                if item.get("id"):
+                    typer.echo(f"  ID: {item['id']}")
+                typer.echo("-" * 80)
+            return items
+    except Exception as e:
+        typer.echo(f"Error showing BGP route map redistribution: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

@@ -13,7 +13,19 @@ import typer
 import yaml
 
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AntiSpywareProfile, DecryptionProfile, DNSSecurityProfile, SecurityRule, URLCategory, VulnerabilityProtectionProfile, WildfireAntivirusProfile
+from ..utils.validators import (
+    AntiSpywareProfile,
+    AppOverrideRule,
+    AuthenticationRule,
+    DecryptionProfile,
+    DecryptionRule,
+    DNSSecurityProfile,
+    SecurityRule,
+    URLAccessProfile,
+    URLCategory,
+    VulnerabilityProtectionProfile,
+    WildfireAntivirusProfile,
+)
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -3643,4 +3655,1239 @@ def show_url_category(
 
     except Exception as e:
         typer.echo(f"Error showing URL category: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# APP OVERRIDE RULE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("app-override-rule")
+def backup_app_override_rule(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Backup all app override rules from a container to a YAML file.
+
+    Examples:
+        # Backup from folder
+        scm backup security app-override-rule --folder Austin --rulebase pre
+
+        # Backup to custom filename
+        scm backup security app-override-rule --folder Austin --file my-rules.yaml
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not file:
+        file = get_default_backup_filename("app-override-rules", location_type, location_value, rulebase)
+
+    try:
+        kwargs = {location_type: location_value}
+        rules = scm_client.list_app_override_rules(**kwargs, rulebase=rulebase, exact_match=True)
+
+        if not rules:
+            typer.echo(f"No app override rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
+            return
+
+        backup_data = []
+        for rule in rules:
+            rule_dict = rule.copy()
+            rule_dict.pop("id", None)
+            rule_dict["rulebase"] = rulebase
+            backup_data.append(rule_dict)
+
+        yaml_data = {"app_override_rules": backup_data}
+
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} app override rules to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up app override rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("app-override-rule")
+def delete_app_override_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
+    device: str = typer.Option(None, "--device", help="Device containing the rule"),
+    name: str = NAME_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Delete an app override rule.
+
+    Examples:
+        scm delete security app-override-rule --folder Texas --name override-web --rulebase pre
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_app_override_rule(**kwargs, name=name, rulebase=rulebase)
+        if result:
+            typer.echo(f"Deleted app override rule: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(f"App override rule not found: {name} in {location_type} {location_value}", err=True)
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting app override rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("app-override-rule", help="Load app override rules from a YAML file.")
+def load_app_override_rule(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load app override rules from a YAML file.
+
+    Examples:
+        scm load security app-override-rule --file config/app_override_rules.yml
+        scm load security app-override-rule --file config/app_override_rules.yml --folder Production
+        scm load security app-override-rule --file config/app_override_rules.yml --dry-run
+
+    """
+    try:
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+            raise typer.Exit(code=1)
+
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "app_override_rules" not in raw_data:
+            typer.echo("No app override rules found in file", err=True)
+            raise typer.Exit(code=1)
+
+        rules = raw_data["app_override_rules"]
+        if not isinstance(rules, list):
+            rules = [rules]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(rules))
+            return []
+
+        results = []
+        for rule_data in rules:
+            try:
+                if folder:
+                    rule_data["folder"] = folder
+                    rule_data.pop("snippet", None)
+                    rule_data.pop("device", None)
+                elif snippet:
+                    rule_data["snippet"] = snippet
+                    rule_data.pop("folder", None)
+                    rule_data.pop("device", None)
+                elif device:
+                    rule_data["device"] = device
+                    rule_data.pop("folder", None)
+                    rule_data.pop("snippet", None)
+
+                rule = AppOverrideRule(**rule_data)
+                sdk_data = rule.to_sdk_model()
+
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_app_override_rule(**container_kwargs, **sdk_data)
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error processing app override rule '{rule_data.get('name', 'unknown')}': {str(e)}", err=True)
+                continue
+
+        typer.echo(f"Successfully processed {len(results)} app override rule(s)")
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading app override rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("app-override-rule")
+def set_app_override_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder path"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path"),
+    device: str = typer.Option(None, "--device", help="Device path"),
+    name: str = NAME_OPTION,
+    application: str = typer.Option(..., "--application", help="Application to override"),
+    port: str = typer.Option(..., "--port", help="Port(s) for the rule"),
+    protocol: str = typer.Option(..., "--protocol", help="Protocol (tcp or udp)"),
+    rulebase: str = RULEBASE_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    source_zones: list[str] | None = typer.Option(None, "--source-zones", help="Source zones"),
+    destination_zones: list[str] | None = typer.Option(None, "--destination-zones", help="Destination zones"),
+    disabled: bool = typer.Option(False, "--disabled", help="Disable the rule"),
+    tags: list[str] | None = TAGS_OPTION,
+):
+    r"""Create or update an app override rule.
+
+    Examples:
+        scm set security app-override-rule --folder Texas --name override-https \
+            --application ssl --port 8443 --protocol tcp
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        rule_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+            "application": application,
+            "port": port,
+            "protocol": protocol,
+            "rulebase": rulebase,
+        }
+
+        if description:
+            rule_data["description"] = description
+        if source_zones:
+            rule_data["from_zones"] = source_zones
+        if destination_zones:
+            rule_data["to_zones"] = destination_zones
+        if disabled:
+            rule_data["disabled"] = disabled
+        if tags:
+            rule_data["tag"] = tags
+
+        rule = AppOverrideRule(**rule_data)
+        sdk_data = rule.to_sdk_model()
+
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_app_override_rule(**container_kwargs, **sdk_data)
+        typer.echo(f"Created app override rule: {result['name']} in {location_type} {location_value}")
+
+    except Exception as e:
+        typer.echo(f"Error creating app override rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("app-override-rule")
+def show_app_override_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
+    device: str = typer.Option(None, "--device", help="Device containing the rule"),
+    name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Display app override rules.
+
+    Examples:
+        scm show security app-override-rule --folder Texas --rulebase pre
+        scm show security app-override-rule --folder Texas --name override-https
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            kwargs = {location_type: location_value}
+            rule = scm_client.get_app_override_rule(**kwargs, name=name, rulebase=rulebase)
+
+            typer.echo(f"\nApp Override Rule: {rule.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+            if rule.get("folder"):
+                typer.echo(f"Location: Folder '{rule['folder']}'")
+            elif rule.get("snippet"):
+                typer.echo(f"Location: Snippet '{rule['snippet']}'")
+            elif rule.get("device"):
+                typer.echo(f"Location: Device '{rule['device']}'")
+            if rule.get("description"):
+                typer.echo(f"Description: {rule['description']}")
+            typer.echo(f"Application: {rule.get('application', 'N/A')}")
+            typer.echo(f"Port: {rule.get('port', 'N/A')}")
+            typer.echo(f"Protocol: {rule.get('protocol', 'N/A')}")
+            typer.echo(f"From: {rule.get('from', ['any'])}")
+            typer.echo(f"To: {rule.get('to', ['any'])}")
+            typer.echo(f"Source: {rule.get('source', ['any'])}")
+            typer.echo(f"Destination: {rule.get('destination', ['any'])}")
+            if rule.get("disabled"):
+                typer.echo("Status: Disabled")
+            if rule.get("id"):
+                typer.echo(f"ID: {rule['id']}")
+
+        else:
+            kwargs = {location_type: location_value}
+            rules = scm_client.list_app_override_rules(**kwargs, rulebase=rulebase, exact_match=False)
+
+            if not rules:
+                typer.echo(f"No app override rules found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nApp Override Rules in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for rule in rules:
+                typer.echo(f"Name: {rule.get('name', 'N/A')}")
+                typer.echo(f"  Application: {rule.get('application', 'N/A')}")
+                typer.echo(f"  Port: {rule.get('port', 'N/A')}")
+                typer.echo(f"  Protocol: {rule.get('protocol', 'N/A')}")
+                if rule.get("id"):
+                    typer.echo(f"  ID: {rule['id']}")
+                typer.echo("-" * 80)
+
+            return rules
+
+    except Exception as e:
+        typer.echo(f"Error showing app override rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# AUTHENTICATION RULE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("authentication-rule")
+def backup_authentication_rule(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Backup all authentication rules from a container to a YAML file.
+
+    Examples:
+        scm backup security authentication-rule --folder Austin --rulebase pre
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not file:
+        file = get_default_backup_filename("authentication-rules", location_type, location_value, rulebase)
+
+    try:
+        kwargs = {location_type: location_value}
+        rules = scm_client.list_authentication_rules(**kwargs, rulebase=rulebase, exact_match=True)
+
+        if not rules:
+            typer.echo(f"No authentication rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
+            return
+
+        backup_data = []
+        for rule in rules:
+            rule_dict = rule.copy()
+            rule_dict.pop("id", None)
+            rule_dict["rulebase"] = rulebase
+            backup_data.append(rule_dict)
+
+        yaml_data = {"authentication_rules": backup_data}
+
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} authentication rules to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up authentication rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("authentication-rule")
+def delete_authentication_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
+    device: str = typer.Option(None, "--device", help="Device containing the rule"),
+    name: str = NAME_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Delete an authentication rule.
+
+    Examples:
+        scm delete security authentication-rule --folder Texas --name auth-rule-1
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_authentication_rule(**kwargs, name=name, rulebase=rulebase)
+        if result:
+            typer.echo(f"Deleted authentication rule: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(f"Authentication rule not found: {name} in {location_type} {location_value}", err=True)
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting authentication rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("authentication-rule", help="Load authentication rules from a YAML file.")
+def load_authentication_rule(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load authentication rules from a YAML file.
+
+    Examples:
+        scm load security authentication-rule --file config/authentication_rules.yml
+        scm load security authentication-rule --file config/authentication_rules.yml --folder Production
+
+    """
+    try:
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+            raise typer.Exit(code=1)
+
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "authentication_rules" not in raw_data:
+            typer.echo("No authentication rules found in file", err=True)
+            raise typer.Exit(code=1)
+
+        rules = raw_data["authentication_rules"]
+        if not isinstance(rules, list):
+            rules = [rules]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(rules))
+            return []
+
+        results = []
+        for rule_data in rules:
+            try:
+                if folder:
+                    rule_data["folder"] = folder
+                    rule_data.pop("snippet", None)
+                    rule_data.pop("device", None)
+                elif snippet:
+                    rule_data["snippet"] = snippet
+                    rule_data.pop("folder", None)
+                    rule_data.pop("device", None)
+                elif device:
+                    rule_data["device"] = device
+                    rule_data.pop("folder", None)
+                    rule_data.pop("snippet", None)
+
+                rule = AuthenticationRule(**rule_data)
+                sdk_data = rule.to_sdk_model()
+
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_authentication_rule(**container_kwargs, **sdk_data)
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error processing authentication rule '{rule_data.get('name', 'unknown')}': {str(e)}", err=True)
+                continue
+
+        typer.echo(f"Successfully processed {len(results)} authentication rule(s)")
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading authentication rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("authentication-rule")
+def set_authentication_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder path"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path"),
+    device: str = typer.Option(None, "--device", help="Device path"),
+    name: str = NAME_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    source_zones: list[str] | None = typer.Option(None, "--source-zones", help="Source zones"),
+    destination_zones: list[str] | None = typer.Option(None, "--destination-zones", help="Destination zones"),
+    service: list[str] | None = typer.Option(None, "--service", help="Services"),
+    category: list[str] | None = typer.Option(None, "--category", help="URL categories"),
+    authentication_enforcement: str | None = typer.Option(None, "--authentication-enforcement", help="Authentication profile"),
+    disabled: bool = typer.Option(False, "--disabled", help="Disable the rule"),
+    tags: list[str] | None = TAGS_OPTION,
+):
+    r"""Create or update an authentication rule.
+
+    Examples:
+        scm set security authentication-rule --folder Texas --name auth-web \
+            --source-zones trust --destination-zones untrust
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        rule_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+            "rulebase": rulebase,
+        }
+
+        if description:
+            rule_data["description"] = description
+        if source_zones:
+            rule_data["from_zones"] = source_zones
+        if destination_zones:
+            rule_data["to_zones"] = destination_zones
+        if service:
+            rule_data["service"] = service
+        if category:
+            rule_data["category"] = category
+        if authentication_enforcement:
+            rule_data["authentication_enforcement"] = authentication_enforcement
+        if disabled:
+            rule_data["disabled"] = disabled
+        if tags:
+            rule_data["tag"] = tags
+
+        rule = AuthenticationRule(**rule_data)
+        sdk_data = rule.to_sdk_model()
+
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_authentication_rule(**container_kwargs, **sdk_data)
+        typer.echo(f"Created authentication rule: {result['name']} in {location_type} {location_value}")
+
+    except Exception as e:
+        typer.echo(f"Error creating authentication rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("authentication-rule")
+def show_authentication_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
+    device: str = typer.Option(None, "--device", help="Device containing the rule"),
+    name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Display authentication rules.
+
+    Examples:
+        scm show security authentication-rule --folder Texas --rulebase pre
+        scm show security authentication-rule --folder Texas --name auth-web
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            kwargs = {location_type: location_value}
+            rule = scm_client.get_authentication_rule(**kwargs, name=name, rulebase=rulebase)
+
+            typer.echo(f"\nAuthentication Rule: {rule.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+            if rule.get("folder"):
+                typer.echo(f"Location: Folder '{rule['folder']}'")
+            elif rule.get("snippet"):
+                typer.echo(f"Location: Snippet '{rule['snippet']}'")
+            elif rule.get("device"):
+                typer.echo(f"Location: Device '{rule['device']}'")
+            if rule.get("description"):
+                typer.echo(f"Description: {rule['description']}")
+            typer.echo(f"From: {rule.get('from', ['any'])}")
+            typer.echo(f"To: {rule.get('to', ['any'])}")
+            typer.echo(f"Source: {rule.get('source', ['any'])}")
+            typer.echo(f"Destination: {rule.get('destination', ['any'])}")
+            typer.echo(f"Service: {rule.get('service', ['any'])}")
+            typer.echo(f"Category: {rule.get('category', ['any'])}")
+            if rule.get("authentication_enforcement"):
+                typer.echo(f"Authentication Enforcement: {rule['authentication_enforcement']}")
+            if rule.get("disabled"):
+                typer.echo("Status: Disabled")
+            if rule.get("id"):
+                typer.echo(f"ID: {rule['id']}")
+
+        else:
+            kwargs = {location_type: location_value}
+            rules = scm_client.list_authentication_rules(**kwargs, rulebase=rulebase, exact_match=False)
+
+            if not rules:
+                typer.echo(f"No authentication rules found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nAuthentication Rules in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for rule in rules:
+                typer.echo(f"Name: {rule.get('name', 'N/A')}")
+                if rule.get("authentication_enforcement"):
+                    typer.echo(f"  Auth Enforcement: {rule['authentication_enforcement']}")
+                if rule.get("id"):
+                    typer.echo(f"  ID: {rule['id']}")
+                typer.echo("-" * 80)
+
+            return rules
+
+    except Exception as e:
+        typer.echo(f"Error showing authentication rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# DECRYPTION RULE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("decryption-rule")
+def backup_decryption_rule(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Backup all decryption rules from a container to a YAML file.
+
+    Examples:
+        scm backup security decryption-rule --folder Austin --rulebase pre
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not file:
+        file = get_default_backup_filename("decryption-rules", location_type, location_value, rulebase)
+
+    try:
+        kwargs = {location_type: location_value}
+        rules = scm_client.list_decryption_rules(**kwargs, rulebase=rulebase, exact_match=True)
+
+        if not rules:
+            typer.echo(f"No decryption rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
+            return
+
+        backup_data = []
+        for rule in rules:
+            rule_dict = rule.copy()
+            rule_dict.pop("id", None)
+            rule_dict["rulebase"] = rulebase
+            backup_data.append(rule_dict)
+
+        yaml_data = {"decryption_rules": backup_data}
+
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} decryption rules to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up decryption rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("decryption-rule")
+def delete_decryption_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
+    device: str = typer.Option(None, "--device", help="Device containing the rule"),
+    name: str = NAME_OPTION,
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Delete a decryption rule.
+
+    Examples:
+        scm delete security decryption-rule --folder Texas --name decrypt-web
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_decryption_rule(**kwargs, name=name, rulebase=rulebase)
+        if result:
+            typer.echo(f"Deleted decryption rule: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(f"Decryption rule not found: {name} in {location_type} {location_value}", err=True)
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting decryption rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("decryption-rule", help="Load decryption rules from a YAML file.")
+def load_decryption_rule(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load decryption rules from a YAML file.
+
+    Examples:
+        scm load security decryption-rule --file config/decryption_rules.yml
+        scm load security decryption-rule --file config/decryption_rules.yml --folder Production
+
+    """
+    try:
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+            raise typer.Exit(code=1)
+
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "decryption_rules" not in raw_data:
+            typer.echo("No decryption rules found in file", err=True)
+            raise typer.Exit(code=1)
+
+        rules = raw_data["decryption_rules"]
+        if not isinstance(rules, list):
+            rules = [rules]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(rules))
+            return []
+
+        results = []
+        for rule_data in rules:
+            try:
+                if folder:
+                    rule_data["folder"] = folder
+                    rule_data.pop("snippet", None)
+                    rule_data.pop("device", None)
+                elif snippet:
+                    rule_data["snippet"] = snippet
+                    rule_data.pop("folder", None)
+                    rule_data.pop("device", None)
+                elif device:
+                    rule_data["device"] = device
+                    rule_data.pop("folder", None)
+                    rule_data.pop("snippet", None)
+
+                rule = DecryptionRule(**rule_data)
+                sdk_data = rule.to_sdk_model()
+
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_decryption_rule(**container_kwargs, **sdk_data)
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error processing decryption rule '{rule_data.get('name', 'unknown')}': {str(e)}", err=True)
+                continue
+
+        typer.echo(f"Successfully processed {len(results)} decryption rule(s)")
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading decryption rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("decryption-rule")
+def set_decryption_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder path"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path"),
+    device: str = typer.Option(None, "--device", help="Device path"),
+    name: str = NAME_OPTION,
+    action: str = typer.Option(..., "--action", help="Action (decrypt or no-decrypt)"),
+    rulebase: str = RULEBASE_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    source_zones: list[str] | None = typer.Option(None, "--source-zones", help="Source zones"),
+    destination_zones: list[str] | None = typer.Option(None, "--destination-zones", help="Destination zones"),
+    profile: str | None = typer.Option(None, "--profile", help="Decryption profile"),
+    type_json: str | None = typer.Option(None, "--type", help="Decryption type as JSON"),
+    disabled: bool = typer.Option(False, "--disabled", help="Disable the rule"),
+    tags: list[str] | None = TAGS_OPTION,
+):
+    r"""Create or update a decryption rule.
+
+    Examples:
+        scm set security decryption-rule --folder Texas --name no-decrypt-internal \
+            --action no-decrypt --source-zones trust --destination-zones trust
+
+        scm set security decryption-rule --folder Texas --name decrypt-outbound \
+            --action decrypt --type '{"ssl_forward_proxy": {}}'
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        rule_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+            "action": action,
+            "rulebase": rulebase,
+        }
+
+        if description:
+            rule_data["description"] = description
+        if source_zones:
+            rule_data["from_zones"] = source_zones
+        if destination_zones:
+            rule_data["to_zones"] = destination_zones
+        if profile:
+            rule_data["profile"] = profile
+        if type_json:
+            rule_data["type"] = json.loads(type_json)
+        if disabled:
+            rule_data["disabled"] = disabled
+        if tags:
+            rule_data["tag"] = tags
+
+        rule = DecryptionRule(**rule_data)
+        sdk_data = rule.to_sdk_model()
+
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_decryption_rule(**container_kwargs, **sdk_data)
+        typer.echo(f"Created decryption rule: {result['name']} in {location_type} {location_value}")
+
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating decryption rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("decryption-rule")
+def show_decryption_rule(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
+    device: str = typer.Option(None, "--device", help="Device containing the rule"),
+    name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
+    rulebase: str = RULEBASE_OPTION,
+):
+    """Display decryption rules.
+
+    Examples:
+        scm show security decryption-rule --folder Texas --rulebase pre
+        scm show security decryption-rule --folder Texas --name decrypt-outbound
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            kwargs = {location_type: location_value}
+            rule = scm_client.get_decryption_rule(**kwargs, name=name, rulebase=rulebase)
+
+            typer.echo(f"\nDecryption Rule: {rule.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+            if rule.get("folder"):
+                typer.echo(f"Location: Folder '{rule['folder']}'")
+            elif rule.get("snippet"):
+                typer.echo(f"Location: Snippet '{rule['snippet']}'")
+            elif rule.get("device"):
+                typer.echo(f"Location: Device '{rule['device']}'")
+            if rule.get("description"):
+                typer.echo(f"Description: {rule['description']}")
+            typer.echo(f"Action: {rule.get('action', 'N/A')}")
+            typer.echo(f"From: {rule.get('from', ['any'])}")
+            typer.echo(f"To: {rule.get('to', ['any'])}")
+            typer.echo(f"Source: {rule.get('source', ['any'])}")
+            typer.echo(f"Destination: {rule.get('destination', ['any'])}")
+            if rule.get("profile"):
+                typer.echo(f"Profile: {rule['profile']}")
+            if rule.get("type"):
+                typer.echo(f"Type: {rule['type']}")
+            if rule.get("disabled"):
+                typer.echo("Status: Disabled")
+            if rule.get("id"):
+                typer.echo(f"ID: {rule['id']}")
+
+        else:
+            kwargs = {location_type: location_value}
+            rules = scm_client.list_decryption_rules(**kwargs, rulebase=rulebase, exact_match=False)
+
+            if not rules:
+                typer.echo(f"No decryption rules found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nDecryption Rules in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for rule in rules:
+                typer.echo(f"Name: {rule.get('name', 'N/A')}")
+                typer.echo(f"  Action: {rule.get('action', 'N/A')}")
+                if rule.get("id"):
+                    typer.echo(f"  ID: {rule['id']}")
+                typer.echo("-" * 80)
+
+            return rules
+
+    except Exception as e:
+        typer.echo(f"Error showing decryption rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# URL ACCESS PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("url-access-profile")
+def backup_url_access_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all URL access profiles from a container to a YAML file.
+
+    Examples:
+        scm backup security url-access-profile --folder Austin
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not file:
+        file = get_default_backup_filename("url-access-profiles", location_type, location_value)
+
+    try:
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_url_access_profiles(**kwargs, exact_match=True)
+
+        if not profiles:
+            typer.echo(f"No URL access profiles found in {location_type} '{location_value}'")
+            return
+
+        backup_data = []
+        for profile in profiles:
+            profile_dict = profile.copy()
+            profile_dict.pop("id", None)
+            backup_data.append(profile_dict)
+
+        yaml_data = {"url_access_profiles": backup_data}
+
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} URL access profiles to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up URL access profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("url-access-profile")
+def delete_url_access_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the profile"),
+    name: str = NAME_OPTION,
+):
+    """Delete a URL access profile.
+
+    Examples:
+        scm delete security url-access-profile --folder Texas --name strict-url-profile
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_url_access_profile(**kwargs, name=name)
+        if result:
+            typer.echo(f"Deleted URL access profile: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(f"URL access profile not found: {name} in {location_type} {location_value}", err=True)
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting URL access profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("url-access-profile", help="Load URL access profiles from a YAML file.")
+def load_url_access_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load URL access profiles from a YAML file.
+
+    Examples:
+        scm load security url-access-profile --file config/url_access_profiles.yml
+        scm load security url-access-profile --file config/url_access_profiles.yml --folder Production
+
+    """
+    try:
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+            raise typer.Exit(code=1)
+
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "url_access_profiles" not in raw_data:
+            typer.echo("No URL access profiles found in file", err=True)
+            raise typer.Exit(code=1)
+
+        profiles = raw_data["url_access_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(profiles))
+            return []
+
+        results = []
+        for profile_data in profiles:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+
+                profile = URLAccessProfile(**profile_data)
+                sdk_data = profile.to_sdk_model()
+
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_url_access_profile(**container_kwargs, **sdk_data)
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error processing URL access profile '{profile_data.get('name', 'unknown')}': {str(e)}", err=True)
+                continue
+
+        typer.echo(f"Successfully processed {len(results)} URL access profile(s)")
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading URL access profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("url-access-profile")
+def set_url_access_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder path"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path"),
+    device: str = typer.Option(None, "--device", help="Device path"),
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    block: list[str] | None = typer.Option(None, "--block", help="URL categories to block"),
+    alert: list[str] | None = typer.Option(None, "--alert", help="URL categories to alert"),
+    allow: list[str] | None = typer.Option(None, "--allow", help="URL categories to allow"),
+    credential_enforcement_json: str | None = typer.Option(None, "--credential-enforcement", help="Credential enforcement as JSON"),
+    cloud_inline_cat: bool = typer.Option(False, "--cloud-inline-cat/--no-cloud-inline-cat", help="Enable cloud inline categorization"),
+    safe_search_enforcement: bool = typer.Option(False, "--safe-search/--no-safe-search", help="Enable safe search enforcement"),
+):
+    r"""Create or update a URL access profile.
+
+    Examples:
+        scm set security url-access-profile --folder Texas --name strict-url \
+            --block adult --block malware --alert hacking
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        profile_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+        }
+
+        if description:
+            profile_data["description"] = description
+        if block:
+            profile_data["block"] = block
+        if alert:
+            profile_data["alert"] = alert
+        if allow:
+            profile_data["allow"] = allow
+        if credential_enforcement_json:
+            profile_data["credential_enforcement"] = json.loads(credential_enforcement_json)
+        if cloud_inline_cat:
+            profile_data["cloud_inline_cat"] = cloud_inline_cat
+        if safe_search_enforcement:
+            profile_data["safe_search_enforcement"] = safe_search_enforcement
+
+        profile = URLAccessProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_url_access_profile(**container_kwargs, **sdk_data)
+        typer.echo(f"Created URL access profile: {result['name']} in {location_type} {location_value}")
+
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating URL access profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("url-access-profile")
+def show_url_access_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the profile"),
+    name: str | None = typer.Option(None, "--name", help="Name of the profile to show"),
+):
+    """Display URL access profiles.
+
+    Examples:
+        scm show security url-access-profile --folder Texas
+        scm show security url-access-profile --folder Texas --name strict-url
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            kwargs = {location_type: location_value}
+            profile = scm_client.get_url_access_profile(**kwargs, name=name)
+
+            typer.echo(f"\nURL Access Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+            if profile.get("folder"):
+                typer.echo(f"Location: Folder '{profile['folder']}'")
+            elif profile.get("snippet"):
+                typer.echo(f"Location: Snippet '{profile['snippet']}'")
+            elif profile.get("device"):
+                typer.echo(f"Location: Device '{profile['device']}'")
+            if profile.get("description"):
+                typer.echo(f"Description: {profile['description']}")
+            if profile.get("block"):
+                typer.echo(f"Block: {profile['block']}")
+            if profile.get("alert"):
+                typer.echo(f"Alert: {profile['alert']}")
+            if profile.get("allow"):
+                typer.echo(f"Allow: {profile['allow']}")
+            if profile.get("continue"):
+                typer.echo(f"Continue: {profile['continue']}")
+            if profile.get("redirect"):
+                typer.echo(f"Redirect: {profile['redirect']}")
+            if profile.get("credential_enforcement"):
+                typer.echo(f"Credential Enforcement: {profile['credential_enforcement']}")
+            if profile.get("cloud_inline_cat") is not None:
+                typer.echo(f"Cloud Inline Cat: {'Enabled' if profile['cloud_inline_cat'] else 'Disabled'}")
+            if profile.get("safe_search_enforcement") is not None:
+                typer.echo(f"Safe Search: {'Enabled' if profile['safe_search_enforcement'] else 'Disabled'}")
+            if profile.get("id"):
+                typer.echo(f"ID: {profile['id']}")
+
+        else:
+            kwargs = {location_type: location_value}
+            profiles = scm_client.list_url_access_profiles(**kwargs, exact_match=False)
+
+            if not profiles:
+                typer.echo(f"No URL access profiles found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nURL Access Profiles in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+                if profile.get("block"):
+                    typer.echo(f"  Block: {len(profile['block'])} categories")
+                if profile.get("alert"):
+                    typer.echo(f"  Alert: {len(profile['alert'])} categories")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 80)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing URL access profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

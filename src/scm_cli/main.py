@@ -7,7 +7,7 @@ various SCM configuration actions (set, delete, load) and object types.
 import typer
 
 # Import object type modules
-from .commands import commit, context, deployment, insights, jobs, mobile_agent, network, objects, security, setup
+from .commands import commit, context, deployment, identity, insights, jobs, mobile_agent, network, objects, security, setup
 
 # ============================================================================================================================================================================================
 # MAIN CLI APPLICATION
@@ -75,6 +75,11 @@ app.add_typer(
 
 # Backup commands
 backup_app.add_typer(
+    identity.backup_app,
+    name="identity",
+    help="Backup identity configurations",
+)
+backup_app.add_typer(
     mobile_agent.backup_app,
     name="mobile-agent",
     help="Backup mobile agent configurations",
@@ -106,6 +111,11 @@ backup_app.add_typer(
 )
 
 # Delete commands
+delete_app.add_typer(
+    identity.delete_app,
+    name="identity",
+    help="Delete identity configurations",
+)
 delete_app.add_typer(
     mobile_agent.delete_app,
     name="mobile-agent",
@@ -139,6 +149,11 @@ delete_app.add_typer(
 
 # Load commands
 load_app.add_typer(
+    identity.load_app,
+    name="identity",
+    help="Load identity configurations",
+)
+load_app.add_typer(
     mobile_agent.load_app,
     name="mobile-agent",
     help="Load mobile agent configurations",
@@ -171,6 +186,11 @@ load_app.add_typer(
 
 # Set commands
 set_app.add_typer(
+    identity.set_app,
+    name="identity",
+    help="Set identity configurations",
+)
+set_app.add_typer(
     mobile_agent.set_app,
     name="mobile-agent",
     help="Set mobile agent configurations",
@@ -202,6 +222,11 @@ set_app.add_typer(
 )
 
 # Show commands
+show_app.add_typer(
+    identity.show_app,
+    name="identity",
+    help="Show identity configurations",
+)
 show_app.add_typer(
     mobile_agent.show_app,
     name="mobile-agent",
