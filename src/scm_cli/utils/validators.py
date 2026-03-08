@@ -1761,6 +1761,344 @@ class AggregateInterface(BaseModel):
         return model_data
 
 
+class DhcpInterface(BaseModel):
+    """Model for DHCP interface configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the DHCP interface")
+    snippet: str | None = Field(None, description="Snippet path for the DHCP interface")
+    device: str | None = Field(None, description="Device path for the DHCP interface")
+    name: str = Field(..., description="Interface name (e.g. ethernet1/1)")
+    server: dict[str, Any] | None = Field(None, description="DHCP server configuration (mode, ip_pool, option, reserved)")
+    relay: dict[str, Any] | None = Field(None, description="DHCP relay configuration (ip: {enabled, server})")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "DhcpInterface":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_server_relay(self) -> "DhcpInterface":
+        """Validate that server and relay are mutually exclusive."""
+        if self.server is not None and self.relay is not None:
+            raise ValueError("Only one of 'server' or 'relay' can be specified")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.server is not None:
+            model_data["server"] = self.server
+        if self.relay is not None:
+            model_data["relay"] = self.relay
+        return model_data
+
+
+class EthernetInterface(BaseModel):
+    """Model for ethernet interface configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the ethernet interface")
+    snippet: str | None = Field(None, description="Snippet path for the ethernet interface")
+    device: str | None = Field(None, description="Device path for the ethernet interface")
+    name: str = Field(..., description="Ethernet interface variable name (must start with $)")
+    comment: str | None = Field(None, description="Interface description/comment")
+    default_value: str | None = Field(None, description="Physical interface assignment (e.g. ethernet1/1)")
+    link_speed: str | None = Field(None, description="Link speed (auto, 10, 100, 1000, 10000)")
+    link_duplex: str | None = Field(None, description="Link duplex (auto, half, full)")
+    link_state: str | None = Field(None, description="Link state (auto, up, down)")
+    layer2: dict[str, Any] | None = Field(None, description="Layer2 configuration (vlan_tag, lldp)")
+    layer3: dict[str, Any] | None = Field(None, description="Layer3 configuration (ip, dhcp_client, mtu, arp)")
+    tap: dict[str, Any] | None = Field(None, description="TAP mode configuration")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "EthernetInterface":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_interface_mode(self) -> "EthernetInterface":
+        """Validate that at most one interface mode is specified."""
+        modes = [self.layer2, self.layer3, self.tap]
+        configured = [m for m in modes if m is not None]
+        if len(configured) > 1:
+            raise ValueError("Only one interface mode allowed: layer2, layer3, or tap")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.comment:
+            model_data["comment"] = self.comment
+        if self.default_value:
+            model_data["default_value"] = self.default_value
+        if self.link_speed:
+            model_data["link_speed"] = self.link_speed
+        if self.link_duplex:
+            model_data["link_duplex"] = self.link_duplex
+        if self.link_state:
+            model_data["link_state"] = self.link_state
+        if self.layer2 is not None:
+            model_data["layer2"] = self.layer2
+        if self.layer3 is not None:
+            model_data["layer3"] = self.layer3
+        if self.tap is not None:
+            model_data["tap"] = self.tap
+        return model_data
+
+
+class Layer2Subinterface(BaseModel):
+    """Model for layer2 subinterface configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the layer2 subinterface")
+    snippet: str | None = Field(None, description="Snippet path for the layer2 subinterface")
+    device: str | None = Field(None, description="Device path for the layer2 subinterface")
+    name: str = Field(..., description="Subinterface name (e.g. ethernet1/1.100)")
+    vlan_tag: str = Field(..., description="VLAN tag (1-4096)")
+    parent_interface: str | None = Field(None, description="Parent interface name")
+    comment: str | None = Field(None, description="Interface description/comment")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "Layer2Subinterface":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name, "vlan_tag": self.vlan_tag}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.parent_interface:
+            model_data["parent_interface"] = self.parent_interface
+        if self.comment:
+            model_data["comment"] = self.comment
+        return model_data
+
+
+class Layer3Subinterface(BaseModel):
+    """Model for layer3 subinterface configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the layer3 subinterface")
+    snippet: str | None = Field(None, description="Snippet path for the layer3 subinterface")
+    device: str | None = Field(None, description="Device path for the layer3 subinterface")
+    name: str = Field(..., description="Subinterface name (e.g. ethernet1/1.100)")
+    tag: int | None = Field(None, description="VLAN tag (1-4096)")
+    parent_interface: str | None = Field(None, description="Parent interface name")
+    comment: str | None = Field(None, description="Interface description/comment")
+    mtu: int | None = Field(None, description="Maximum transmission unit (576-9216)")
+    interface_management_profile: str | None = Field(None, description="Interface management profile name")
+    ip: list[dict[str, Any]] | None = Field(None, description="Static IP addresses [{name: ip/mask}]")
+    dhcp_client: dict[str, Any] | None = Field(None, description="DHCP client configuration")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "Layer3Subinterface":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_ip_mode(self) -> "Layer3Subinterface":
+        """Validate that only one IP addressing mode is configured."""
+        if self.ip and self.dhcp_client:
+            raise ValueError("Only one IP addressing mode allowed: static IP or DHCP")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.tag is not None:
+            model_data["tag"] = self.tag
+        if self.parent_interface:
+            model_data["parent_interface"] = self.parent_interface
+        if self.comment:
+            model_data["comment"] = self.comment
+        if self.mtu is not None:
+            model_data["mtu"] = self.mtu
+        if self.interface_management_profile:
+            model_data["interface_management_profile"] = self.interface_management_profile
+        if self.ip is not None:
+            model_data["ip"] = self.ip
+        if self.dhcp_client is not None:
+            model_data["dhcp_client"] = self.dhcp_client
+        return model_data
+
+
+class LoopbackInterface(BaseModel):
+    """Model for loopback interface configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the loopback interface")
+    snippet: str | None = Field(None, description="Snippet path for the loopback interface")
+    device: str | None = Field(None, description="Device path for the loopback interface")
+    name: str = Field(..., description="Loopback interface name (variable format, starts with $)")
+    comment: str | None = Field(None, description="Interface description/comment")
+    default_value: str | None = Field(None, description="Default interface assignment (e.g. loopback.1)")
+    mtu: int | None = Field(None, description="Maximum transmission unit (576-9216)")
+    interface_management_profile: str | None = Field(None, description="Interface management profile name")
+    ip: list[dict[str, Any]] | None = Field(None, description="Static IP addresses [{name: ip/mask}]")
+    ipv6: dict[str, Any] | None = Field(None, description="IPv6 configuration")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "LoopbackInterface":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.comment:
+            model_data["comment"] = self.comment
+        if self.default_value:
+            model_data["default_value"] = self.default_value
+        if self.mtu is not None:
+            model_data["mtu"] = self.mtu
+        if self.interface_management_profile:
+            model_data["interface_management_profile"] = self.interface_management_profile
+        if self.ip is not None:
+            model_data["ip"] = self.ip
+        if self.ipv6 is not None:
+            model_data["ipv6"] = self.ipv6
+        return model_data
+
+
+class TunnelInterface(BaseModel):
+    """Model for tunnel interface configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the tunnel interface")
+    snippet: str | None = Field(None, description="Snippet path for the tunnel interface")
+    device: str | None = Field(None, description="Device path for the tunnel interface")
+    name: str = Field(..., description="Tunnel interface name")
+    comment: str | None = Field(None, description="Interface description/comment")
+    default_value: str | None = Field(None, description="Default interface assignment (e.g. tunnel.1)")
+    mtu: int | None = Field(None, description="Maximum transmission unit (576-9216)")
+    interface_management_profile: str | None = Field(None, description="Interface management profile name")
+    ip: list[dict[str, Any]] | None = Field(None, description="Static IP addresses [{name: ip/mask}]")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "TunnelInterface":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.comment:
+            model_data["comment"] = self.comment
+        if self.default_value:
+            model_data["default_value"] = self.default_value
+        if self.mtu is not None:
+            model_data["mtu"] = self.mtu
+        if self.interface_management_profile:
+            model_data["interface_management_profile"] = self.interface_management_profile
+        if self.ip is not None:
+            model_data["ip"] = self.ip
+        return model_data
+
+
+class VlanInterface(BaseModel):
+    """Model for VLAN interface configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the VLAN interface")
+    snippet: str | None = Field(None, description="Snippet path for the VLAN interface")
+    device: str | None = Field(None, description="Device path for the VLAN interface")
+    name: str = Field(..., description="VLAN interface name")
+    comment: str | None = Field(None, description="Interface description/comment")
+    default_value: str | None = Field(None, description="Default interface assignment (e.g. vlan.100)")
+    vlan_tag: str | None = Field(None, description="VLAN tag (1-4096)")
+    mtu: int | None = Field(None, description="Maximum transmission unit (576-9216)")
+    interface_management_profile: str | None = Field(None, description="Interface management profile name")
+    ip: list[dict[str, Any]] | None = Field(None, description="Static IP addresses [{name: ip/mask}]")
+    dhcp_client: dict[str, Any] | None = Field(None, description="DHCP client configuration")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "VlanInterface":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_ip_mode(self) -> "VlanInterface":
+        """Validate that only one IP addressing mode is configured."""
+        if self.ip and self.dhcp_client:
+            raise ValueError("Only one IP addressing mode allowed: static IP or DHCP")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.comment:
+            model_data["comment"] = self.comment
+        if self.default_value:
+            model_data["default_value"] = self.default_value
+        if self.vlan_tag:
+            model_data["vlan_tag"] = self.vlan_tag
+        if self.mtu is not None:
+            model_data["mtu"] = self.mtu
+        if self.interface_management_profile:
+            model_data["interface_management_profile"] = self.interface_management_profile
+        if self.ip is not None:
+            model_data["ip"] = self.ip
+        if self.dhcp_client is not None:
+            model_data["dhcp_client"] = self.dhcp_client
+        return model_data
+
+
 class NATRule(BaseModel):
     """Model for NAT rule configurations."""
 

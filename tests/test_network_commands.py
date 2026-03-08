@@ -4,30 +4,58 @@ import typer  # noqa: I001
 from scm_cli.commands.network import (
     delete_aggregate_interface,
     delete_app,
+    delete_dhcp_interface,
+    delete_ethernet_interface,
     delete_ike_crypto_profile,
     delete_ike_gateway,
     delete_ipsec_crypto_profile,
+    delete_layer2_subinterface,
+    delete_layer3_subinterface,
+    delete_loopback_interface,
     delete_nat_rule,
+    delete_tunnel_interface,
+    delete_vlan_interface,
     delete_zone,
     load_aggregate_interface,
     load_app,
+    load_dhcp_interface,
+    load_ethernet_interface,
     load_ike_crypto_profile,
     load_ike_gateway,
     load_ipsec_crypto_profile,
+    load_layer2_subinterface,
+    load_layer3_subinterface,
+    load_loopback_interface,
     load_nat_rule,
     load_security_zone as load_zone,
+    load_tunnel_interface,
+    load_vlan_interface,
     set_aggregate_interface,
     set_app,
+    set_dhcp_interface,
+    set_ethernet_interface,
     set_ike_crypto_profile,
     set_ike_gateway,
     set_ipsec_crypto_profile,
+    set_layer2_subinterface,
+    set_layer3_subinterface,
+    set_loopback_interface,
     set_nat_rule,
+    set_tunnel_interface,
+    set_vlan_interface,
     set_zone,
     show_aggregate_interface,
+    show_dhcp_interface,
+    show_ethernet_interface,
     show_ike_crypto_profile,
     show_ike_gateway,
     show_ipsec_crypto_profile,
+    show_layer2_subinterface,
+    show_layer3_subinterface,
+    show_loopback_interface,
     show_nat_rule,
+    show_tunnel_interface,
+    show_vlan_interface,
 )
 
 
@@ -1312,3 +1340,665 @@ class TestAggregateInterfaceCommands:
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         assert not mock_called
+
+
+class TestDhcpInterfaceCommands:
+    """Test the DHCP interface commands."""
+
+    def test_set_dhcp_interface_created(self, runner, monkeypatch):
+        """Test set dhcp-interface command creates a new interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(iface_data):
+            result = iface_data.copy()
+            result["id"] = "dhcp-12345"
+            result["__action__"] = "created"
+            return result
+
+        monkeypatch.setattr(scm_client, "create_dhcp_interface", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_dhcp_interface)
+        result = runner.invoke(test_app, ["ethernet1/1", "--folder", "test-folder", "--server-json", '{"mode": "auto"}'])
+        assert result.exit_code == 0
+        assert "Created DHCP interface" in result.stdout
+
+    def test_set_dhcp_interface_error(self, runner, monkeypatch):
+        """Test set dhcp-interface command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_dhcp_interface", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_dhcp_interface)
+        result = runner.invoke(test_app, ["ethernet1/1", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_dhcp_interface_list(self, runner, monkeypatch):
+        """Test show dhcp-interface command lists interfaces."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_dhcp_interfaces", lambda **kwargs: [{"id": "dhcp-1", "name": "ethernet1/1", "folder": "test-folder", "server": {"mode": "auto"}}])
+        test_app = typer.Typer()
+        test_app.command()(show_dhcp_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "ethernet1/1" in result.stdout
+
+    def test_show_dhcp_interface_specific(self, runner, monkeypatch):
+        """Test show dhcp-interface command shows a specific interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_dhcp_interface", lambda **kwargs: {"id": "dhcp-1", "name": "ethernet1/1", "folder": "test-folder", "server": {"mode": "auto"}})
+        test_app = typer.Typer()
+        test_app.command()(show_dhcp_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "ethernet1/1"])
+        assert result.exit_code == 0
+        assert "ethernet1/1" in result.stdout
+
+    def test_delete_dhcp_interface_command(self, runner, monkeypatch):
+        """Test delete dhcp-interface command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_dhcp_interface", lambda **kwargs: {"id": "dhcp-1", "name": "ethernet1/1", "folder": "test-folder"})
+        monkeypatch.setattr(scm_client, "delete_dhcp_interface", lambda **kwargs: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_dhcp_interface)
+        result = runner.invoke(test_app, ["ethernet1/1", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted DHCP interface" in result.stdout
+
+    def test_load_dhcp_interface_command(self, runner, monkeypatch, tmp_path):
+        """Test load dhcp-interface command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"dhcp_interfaces": [{"name": "ethernet1/1", "folder": "test-folder", "server": {"mode": "auto"}}]}
+        yaml_file = tmp_path / "dhcp-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        monkeypatch.setattr(scm_client, "create_dhcp_interface", lambda d: {**d, "id": "dhcp-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_dhcp_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created DHCP interface" in result.stdout
+
+    def test_load_dhcp_interface_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load dhcp-interface command with dry-run."""
+        import yaml
+
+        yaml_data = {"dhcp_interfaces": [{"name": "ethernet1/1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "dhcp-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        test_app = typer.Typer()
+        test_app.command()(load_dhcp_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+
+
+class TestEthernetInterfaceCommands:
+    """Test the ethernet interface commands."""
+
+    def test_set_ethernet_interface_created(self, runner, monkeypatch):
+        """Test set ethernet-interface command creates a new interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_ethernet_interface", lambda d: {**d, "id": "eth-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_ethernet_interface)
+        result = runner.invoke(test_app, ["$eth1", "--folder", "test-folder", "--layer3-json", '{"mtu": 1500}'])
+        assert result.exit_code == 0
+        assert "Created ethernet interface" in result.stdout
+
+    def test_set_ethernet_interface_error(self, runner, monkeypatch):
+        """Test set ethernet-interface command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_ethernet_interface", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_ethernet_interface)
+        result = runner.invoke(test_app, ["$eth1", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_ethernet_interface_list(self, runner, monkeypatch):
+        """Test show ethernet-interface command lists interfaces."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_ethernet_interfaces", lambda **kwargs: [{"id": "eth-1", "name": "$eth1", "folder": "test-folder", "layer3": {"mtu": 1500}}])
+        test_app = typer.Typer()
+        test_app.command()(show_ethernet_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "$eth1" in result.stdout
+
+    def test_show_ethernet_interface_specific(self, runner, monkeypatch):
+        """Test show ethernet-interface command shows a specific interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(
+            scm_client, "get_ethernet_interface", lambda **kwargs: {"id": "eth-1", "name": "$eth1", "folder": "test-folder", "layer3": {"mtu": 9000, "ip": [{"name": "10.0.0.1/24"}]}}
+        )
+        test_app = typer.Typer()
+        test_app.command()(show_ethernet_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "$eth1"])
+        assert result.exit_code == 0
+        assert "$eth1" in result.stdout
+        assert "9000" in result.stdout
+
+    def test_delete_ethernet_interface_command(self, runner, monkeypatch):
+        """Test delete ethernet-interface command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_ethernet_interface", lambda **kwargs: {"id": "eth-1", "name": "$eth1", "folder": "test-folder"})
+        monkeypatch.setattr(scm_client, "delete_ethernet_interface", lambda **kwargs: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_ethernet_interface)
+        result = runner.invoke(test_app, ["$eth1", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted ethernet interface" in result.stdout
+
+    def test_load_ethernet_interface_command(self, runner, monkeypatch, tmp_path):
+        """Test load ethernet-interface command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"ethernet_interfaces": [{"name": "$eth1", "folder": "test-folder", "layer3": {"mtu": 1500}}]}
+        yaml_file = tmp_path / "ethernet-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        monkeypatch.setattr(scm_client, "create_ethernet_interface", lambda d: {**d, "id": "eth-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_ethernet_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created ethernet interface" in result.stdout
+
+    def test_load_ethernet_interface_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load ethernet-interface command with dry-run."""
+        import yaml
+
+        yaml_data = {"ethernet_interfaces": [{"name": "$eth1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "ethernet-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        test_app = typer.Typer()
+        test_app.command()(load_ethernet_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+
+
+class TestLayer2SubinterfaceCommands:
+    """Test the layer2 subinterface commands."""
+
+    def test_set_layer2_subinterface_created(self, runner, monkeypatch):
+        """Test set layer2-subinterface command creates a new interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_layer2_subinterface", lambda d: {**d, "id": "l2sub-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_layer2_subinterface)
+        result = runner.invoke(test_app, ["ethernet1/1.100", "--folder", "test-folder", "--vlan-tag", "100"])
+        assert result.exit_code == 0
+        assert "Created layer2 subinterface" in result.stdout
+
+    def test_set_layer2_subinterface_error(self, runner, monkeypatch):
+        """Test set layer2-subinterface command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_layer2_subinterface", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_layer2_subinterface)
+        result = runner.invoke(test_app, ["ethernet1/1.100", "--folder", "test-folder", "--vlan-tag", "100"])
+        assert result.exit_code == 1
+
+    def test_show_layer2_subinterface_list(self, runner, monkeypatch):
+        """Test show layer2-subinterface command lists interfaces."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_layer2_subinterfaces", lambda **kwargs: [{"id": "l2-1", "name": "ethernet1/1.100", "folder": "test-folder", "vlan_tag": "100"}])
+        test_app = typer.Typer()
+        test_app.command()(show_layer2_subinterface)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "ethernet1/1.100" in result.stdout
+
+    def test_show_layer2_subinterface_specific(self, runner, monkeypatch):
+        """Test show layer2-subinterface command shows a specific interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(
+            scm_client, "get_layer2_subinterface", lambda **kwargs: {"id": "l2-1", "name": "ethernet1/1.100", "folder": "test-folder", "vlan_tag": "100", "parent_interface": "ethernet1/1"}
+        )
+        test_app = typer.Typer()
+        test_app.command()(show_layer2_subinterface)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "ethernet1/1.100"])
+        assert result.exit_code == 0
+        assert "ethernet1/1.100" in result.stdout
+
+    def test_delete_layer2_subinterface_command(self, runner, monkeypatch):
+        """Test delete layer2-subinterface command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_layer2_subinterface", lambda **kwargs: {"id": "l2-1", "name": "ethernet1/1.100", "folder": "test-folder"})
+        monkeypatch.setattr(scm_client, "delete_layer2_subinterface", lambda **kwargs: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_layer2_subinterface)
+        result = runner.invoke(test_app, ["ethernet1/1.100", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted layer2 subinterface" in result.stdout
+
+    def test_load_layer2_subinterface_command(self, runner, monkeypatch, tmp_path):
+        """Test load layer2-subinterface command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"layer2_subinterfaces": [{"name": "ethernet1/1.100", "folder": "test-folder", "vlan_tag": "100"}]}
+        yaml_file = tmp_path / "l2-subinterfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        monkeypatch.setattr(scm_client, "create_layer2_subinterface", lambda d: {**d, "id": "l2sub-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_layer2_subinterface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created layer2 subinterface" in result.stdout
+
+    def test_load_layer2_subinterface_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load layer2-subinterface command with dry-run."""
+        import yaml
+
+        yaml_data = {"layer2_subinterfaces": [{"name": "ethernet1/1.100", "folder": "test-folder", "vlan_tag": "100"}]}
+        yaml_file = tmp_path / "l2-subinterfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        test_app = typer.Typer()
+        test_app.command()(load_layer2_subinterface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+
+
+class TestLayer3SubinterfaceCommands:
+    """Test the layer3 subinterface commands."""
+
+    def test_set_layer3_subinterface_created(self, runner, monkeypatch):
+        """Test set layer3-subinterface command creates a new interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_layer3_subinterface", lambda d: {**d, "id": "l3sub-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_layer3_subinterface)
+        result = runner.invoke(test_app, ["ethernet1/1.100", "--folder", "test-folder", "--tag", "100", "--mtu", "1500"])
+        assert result.exit_code == 0
+        assert "Created layer3 subinterface" in result.stdout
+
+    def test_set_layer3_subinterface_error(self, runner, monkeypatch):
+        """Test set layer3-subinterface command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_layer3_subinterface", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_layer3_subinterface)
+        result = runner.invoke(test_app, ["ethernet1/1.100", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_layer3_subinterface_list(self, runner, monkeypatch):
+        """Test show layer3-subinterface command lists interfaces."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_layer3_subinterfaces", lambda **kwargs: [{"id": "l3-1", "name": "ethernet1/1.100", "folder": "test-folder", "tag": 100, "mtu": 1500}])
+        test_app = typer.Typer()
+        test_app.command()(show_layer3_subinterface)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "ethernet1/1.100" in result.stdout
+
+    def test_show_layer3_subinterface_specific(self, runner, monkeypatch):
+        """Test show layer3-subinterface command shows a specific interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(
+            scm_client, "get_layer3_subinterface", lambda **kwargs: {"id": "l3-1", "name": "ethernet1/1.100", "folder": "test-folder", "tag": 100, "mtu": 9000, "ip": [{"name": "10.0.1.1/24"}]}
+        )
+        test_app = typer.Typer()
+        test_app.command()(show_layer3_subinterface)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "ethernet1/1.100"])
+        assert result.exit_code == 0
+        assert "ethernet1/1.100" in result.stdout
+        assert "9000" in result.stdout
+
+    def test_delete_layer3_subinterface_command(self, runner, monkeypatch):
+        """Test delete layer3-subinterface command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_layer3_subinterface", lambda **kwargs: {"id": "l3-1", "name": "ethernet1/1.100", "folder": "test-folder"})
+        monkeypatch.setattr(scm_client, "delete_layer3_subinterface", lambda **kwargs: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_layer3_subinterface)
+        result = runner.invoke(test_app, ["ethernet1/1.100", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted layer3 subinterface" in result.stdout
+
+    def test_load_layer3_subinterface_command(self, runner, monkeypatch, tmp_path):
+        """Test load layer3-subinterface command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"layer3_subinterfaces": [{"name": "ethernet1/1.100", "folder": "test-folder", "tag": 100, "ip": [{"name": "10.0.1.1/24"}]}]}
+        yaml_file = tmp_path / "l3-subinterfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        monkeypatch.setattr(scm_client, "create_layer3_subinterface", lambda d: {**d, "id": "l3sub-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_layer3_subinterface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created layer3 subinterface" in result.stdout
+
+    def test_load_layer3_subinterface_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load layer3-subinterface command with dry-run."""
+        import yaml
+
+        yaml_data = {"layer3_subinterfaces": [{"name": "ethernet1/1.100", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "l3-subinterfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        test_app = typer.Typer()
+        test_app.command()(load_layer3_subinterface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+
+
+class TestLoopbackInterfaceCommands:
+    """Test the loopback interface commands."""
+
+    def test_set_loopback_interface_created(self, runner, monkeypatch):
+        """Test set loopback-interface command creates a new interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_loopback_interface", lambda d: {**d, "id": "lo-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_loopback_interface)
+        result = runner.invoke(test_app, ["$lo1", "--folder", "test-folder", "--ip-json", '[{"name": "10.0.0.1/32"}]'])
+        assert result.exit_code == 0
+        assert "Created loopback interface" in result.stdout
+
+    def test_set_loopback_interface_error(self, runner, monkeypatch):
+        """Test set loopback-interface command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_loopback_interface", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_loopback_interface)
+        result = runner.invoke(test_app, ["$lo1", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_loopback_interface_list(self, runner, monkeypatch):
+        """Test show loopback-interface command lists interfaces."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_loopback_interfaces", lambda **kwargs: [{"id": "lo-1", "name": "$lo1", "folder": "test-folder", "ip": [{"name": "10.0.0.1/32"}]}])
+        test_app = typer.Typer()
+        test_app.command()(show_loopback_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "$lo1" in result.stdout
+
+    def test_show_loopback_interface_specific(self, runner, monkeypatch):
+        """Test show loopback-interface command shows a specific interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(
+            scm_client, "get_loopback_interface", lambda **kwargs: {"id": "lo-1", "name": "$lo1", "folder": "test-folder", "comment": "test lo", "ip": [{"name": "10.0.0.1/32"}]}
+        )
+        test_app = typer.Typer()
+        test_app.command()(show_loopback_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "$lo1"])
+        assert result.exit_code == 0
+        assert "$lo1" in result.stdout
+
+    def test_delete_loopback_interface_command(self, runner, monkeypatch):
+        """Test delete loopback-interface command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_loopback_interface", lambda **kwargs: {"id": "lo-1", "name": "$lo1", "folder": "test-folder"})
+        monkeypatch.setattr(scm_client, "delete_loopback_interface", lambda **kwargs: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_loopback_interface)
+        result = runner.invoke(test_app, ["$lo1", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted loopback interface" in result.stdout
+
+    def test_load_loopback_interface_command(self, runner, monkeypatch, tmp_path):
+        """Test load loopback-interface command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"loopback_interfaces": [{"name": "$lo1", "folder": "test-folder", "ip": [{"name": "10.0.0.1/32"}]}]}
+        yaml_file = tmp_path / "loopback-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        monkeypatch.setattr(scm_client, "create_loopback_interface", lambda d: {**d, "id": "lo-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_loopback_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created loopback interface" in result.stdout
+
+    def test_load_loopback_interface_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load loopback-interface command with dry-run."""
+        import yaml
+
+        yaml_data = {"loopback_interfaces": [{"name": "$lo1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "loopback-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        test_app = typer.Typer()
+        test_app.command()(load_loopback_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+
+
+class TestTunnelInterfaceCommands:
+    """Test the tunnel interface commands."""
+
+    def test_set_tunnel_interface_created(self, runner, monkeypatch):
+        """Test set tunnel-interface command creates a new interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_tunnel_interface", lambda d: {**d, "id": "tun-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_tunnel_interface)
+        result = runner.invoke(test_app, ["tunnel1", "--folder", "test-folder", "--mtu", "1400"])
+        assert result.exit_code == 0
+        assert "Created tunnel interface" in result.stdout
+
+    def test_set_tunnel_interface_error(self, runner, monkeypatch):
+        """Test set tunnel-interface command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_tunnel_interface", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_tunnel_interface)
+        result = runner.invoke(test_app, ["tunnel1", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_tunnel_interface_list(self, runner, monkeypatch):
+        """Test show tunnel-interface command lists interfaces."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_tunnel_interfaces", lambda **kwargs: [{"id": "tun-1", "name": "tunnel1", "folder": "test-folder", "mtu": 1400}])
+        test_app = typer.Typer()
+        test_app.command()(show_tunnel_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "tunnel1" in result.stdout
+
+    def test_show_tunnel_interface_specific(self, runner, monkeypatch):
+        """Test show tunnel-interface command shows a specific interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_tunnel_interface", lambda **kwargs: {"id": "tun-1", "name": "tunnel1", "folder": "test-folder", "mtu": 1400, "ip": [{"name": "10.0.0.1/30"}]})
+        test_app = typer.Typer()
+        test_app.command()(show_tunnel_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "tunnel1"])
+        assert result.exit_code == 0
+        assert "tunnel1" in result.stdout
+        assert "1400" in result.stdout
+
+    def test_delete_tunnel_interface_command(self, runner, monkeypatch):
+        """Test delete tunnel-interface command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_tunnel_interface", lambda **kwargs: {"id": "tun-1", "name": "tunnel1", "folder": "test-folder"})
+        monkeypatch.setattr(scm_client, "delete_tunnel_interface", lambda **kwargs: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_tunnel_interface)
+        result = runner.invoke(test_app, ["tunnel1", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted tunnel interface" in result.stdout
+
+    def test_load_tunnel_interface_command(self, runner, monkeypatch, tmp_path):
+        """Test load tunnel-interface command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"tunnel_interfaces": [{"name": "tunnel1", "folder": "test-folder", "mtu": 1400}]}
+        yaml_file = tmp_path / "tunnel-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        monkeypatch.setattr(scm_client, "create_tunnel_interface", lambda d: {**d, "id": "tun-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_tunnel_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created tunnel interface" in result.stdout
+
+    def test_load_tunnel_interface_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load tunnel-interface command with dry-run."""
+        import yaml
+
+        yaml_data = {"tunnel_interfaces": [{"name": "tunnel1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "tunnel-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        test_app = typer.Typer()
+        test_app.command()(load_tunnel_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+
+
+class TestVlanInterfaceCommands:
+    """Test the VLAN interface commands."""
+
+    def test_set_vlan_interface_created(self, runner, monkeypatch):
+        """Test set vlan-interface command creates a new interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_vlan_interface", lambda d: {**d, "id": "vlan-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_vlan_interface)
+        result = runner.invoke(test_app, ["vlan1", "--folder", "test-folder", "--vlan-tag", "100"])
+        assert result.exit_code == 0
+        assert "Created VLAN interface" in result.stdout
+
+    def test_set_vlan_interface_error(self, runner, monkeypatch):
+        """Test set vlan-interface command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_vlan_interface", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_vlan_interface)
+        result = runner.invoke(test_app, ["vlan1", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_vlan_interface_list(self, runner, monkeypatch):
+        """Test show vlan-interface command lists interfaces."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_vlan_interfaces", lambda **kwargs: [{"id": "vlan-1", "name": "vlan1", "folder": "test-folder", "vlan_tag": "100"}])
+        test_app = typer.Typer()
+        test_app.command()(show_vlan_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "vlan1" in result.stdout
+
+    def test_show_vlan_interface_specific(self, runner, monkeypatch):
+        """Test show vlan-interface command shows a specific interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_vlan_interface", lambda **kwargs: {"id": "vlan-1", "name": "vlan1", "folder": "test-folder", "vlan_tag": "100", "ip": [{"name": "10.0.10.1/24"}]})
+        test_app = typer.Typer()
+        test_app.command()(show_vlan_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "vlan1"])
+        assert result.exit_code == 0
+        assert "vlan1" in result.stdout
+        assert "100" in result.stdout
+
+    def test_delete_vlan_interface_command(self, runner, monkeypatch):
+        """Test delete vlan-interface command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_vlan_interface", lambda **kwargs: {"id": "vlan-1", "name": "vlan1", "folder": "test-folder"})
+        monkeypatch.setattr(scm_client, "delete_vlan_interface", lambda **kwargs: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_vlan_interface)
+        result = runner.invoke(test_app, ["vlan1", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted VLAN interface" in result.stdout
+
+    def test_load_vlan_interface_command(self, runner, monkeypatch, tmp_path):
+        """Test load vlan-interface command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"vlan_interfaces": [{"name": "vlan1", "folder": "test-folder", "vlan_tag": "100", "ip": [{"name": "10.0.10.1/24"}]}]}
+        yaml_file = tmp_path / "vlan-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        monkeypatch.setattr(scm_client, "create_vlan_interface", lambda d: {**d, "id": "vlan-12345", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_vlan_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created VLAN interface" in result.stdout
+
+    def test_load_vlan_interface_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load vlan-interface command with dry-run."""
+        import yaml
+
+        yaml_data = {"vlan_interfaces": [{"name": "vlan1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "vlan-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        test_app = typer.Typer()
+        test_app.command()(load_vlan_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
