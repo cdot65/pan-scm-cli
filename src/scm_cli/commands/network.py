@@ -15,7 +15,21 @@ from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AggregateInterface, IKECryptoProfile, IKEGateway, IPSecCryptoProfile, NATRule, Zone
+from ..utils.validators import (
+    AggregateInterface,
+    DhcpInterface,
+    EthernetInterface,
+    IKECryptoProfile,
+    IKEGateway,
+    IPSecCryptoProfile,
+    Layer2Subinterface,
+    Layer3Subinterface,
+    LoopbackInterface,
+    NATRule,
+    TunnelInterface,
+    VlanInterface,
+    Zone,
+)
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -2114,4 +2128,1631 @@ def show_nat_rule(
 
     except Exception as e:
         typer.echo(f"Error showing NAT rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# DHCP INTERFACE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("dhcp-interface", help="Export DHCP interfaces to a YAML file.")
+def backup_dhcp_interface(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export DHCP interfaces from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving DHCP interfaces from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        interfaces = scm_client.list_dhcp_interfaces(**kwargs)
+        if not interfaces:
+            typer.echo(f"No DHCP interfaces found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"dhcp_interfaces": interfaces}
+        filename = Path(file or get_default_backup_filename("dhcp-interface", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(interfaces)} DHCP interfaces to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up DHCP interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("dhcp-interface", help="Delete a DHCP interface.")
+def delete_dhcp_interface(
+    name: str = typer.Argument(..., help="Name of the DHCP interface to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a DHCP interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface = scm_client.get_dhcp_interface(name=name, folder=folder, snippet=snippet, device=device)
+        if not iface:
+            typer.echo(f"DHCP interface '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete DHCP interface '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_dhcp_interface(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted DHCP interface: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting DHCP interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("dhcp-interface", help="Load DHCP interfaces from a YAML file.")
+def load_dhcp_interface(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load DHCP interfaces from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "dhcp_interfaces" not in data:
+            typer.echo("No DHCP interfaces found in file", err=True)
+            raise typer.Exit(code=1)
+        interfaces = data["dhcp_interfaces"]
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(interfaces))
+            return None
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for iface_data in interfaces:
+            try:
+                if folder:
+                    iface_data["folder"] = folder
+                    iface_data.pop("snippet", None)
+                    iface_data.pop("device", None)
+                elif snippet:
+                    iface_data["snippet"] = snippet
+                    iface_data.pop("folder", None)
+                    iface_data.pop("device", None)
+                elif device:
+                    iface_data["device"] = device
+                    iface_data.pop("folder", None)
+                    iface_data.pop("snippet", None)
+                validated_iface = DhcpInterface(**iface_data)
+                sdk_data = validated_iface.to_sdk_model()
+                result = scm_client.create_dhcp_interface(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created DHCP interface: {validated_iface.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated DHCP interface: {validated_iface.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for DHCP interface: {validated_iface.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing DHCP interface: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} DHCP interfaces")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading DHCP interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("dhcp-interface", help="Create or update a DHCP interface.")
+def set_dhcp_interface(
+    name: str = typer.Argument(..., help="Name of the DHCP interface"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    server_json: str = typer.Option(None, "--server-json", help="DHCP server config as JSON"),
+    relay_json: str = typer.Option(None, "--relay-json", help="DHCP relay config as JSON"),
+) -> None:
+    """Create or update a DHCP interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if server_json:
+            iface_data["server"] = json.loads(server_json)
+        if relay_json:
+            iface_data["relay"] = json.loads(relay_json)
+        validated_iface = DhcpInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_dhcp_interface(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created DHCP interface: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated DHCP interface: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for DHCP interface: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating DHCP interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("dhcp-interface", help="Show DHCP interface details.")
+def show_dhcp_interface(
+    name: str = typer.Option(None, "--name", help="Name of specific DHCP interface to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show DHCP interface details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            iface = scm_client.get_dhcp_interface(name=name, folder=folder, snippet=snippet, device=device)
+            if not iface:
+                typer.echo(f"DHCP interface '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nDHCP Interface: {iface['name']}")
+            typer.echo("=" * 60)
+            location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if iface.get("server"):
+                typer.echo(f"Server: {json.dumps(iface['server'])}")
+            if iface.get("relay"):
+                typer.echo(f"Relay: {json.dumps(iface['relay'])}")
+            if iface.get("id"):
+                typer.echo(f"\nID: {iface['id']}")
+            return iface
+        else:
+            interfaces = scm_client.list_dhcp_interfaces(folder=folder, snippet=snippet, device=device)
+            if not interfaces:
+                typer.echo("No DHCP interfaces found")
+                return
+            typer.echo("\nDHCP Interfaces:")
+            typer.echo("-" * 80)
+            for iface in interfaces:
+                location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+                typer.echo(f"Name: {iface.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if iface.get("server"):
+                    typer.echo("  Type: Server")
+                elif iface.get("relay"):
+                    typer.echo("  Type: Relay")
+                if iface.get("id"):
+                    typer.echo(f"  ID: {iface['id']}")
+                typer.echo("-" * 80)
+            return interfaces
+    except Exception as e:
+        typer.echo(f"Error showing DHCP interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# ETHERNET INTERFACE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("ethernet-interface", help="Export ethernet interfaces to a YAML file.")
+def backup_ethernet_interface(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export ethernet interfaces from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving ethernet interfaces from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        interfaces = scm_client.list_ethernet_interfaces(**kwargs)
+        if not interfaces:
+            typer.echo(f"No ethernet interfaces found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"ethernet_interfaces": interfaces}
+        filename = Path(file or get_default_backup_filename("ethernet-interface", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(interfaces)} ethernet interfaces to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up ethernet interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("ethernet-interface", help="Delete an ethernet interface.")
+def delete_ethernet_interface(
+    name: str = typer.Argument(..., help="Name of the ethernet interface to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete an ethernet interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface = scm_client.get_ethernet_interface(name=name, folder=folder, snippet=snippet, device=device)
+        if not iface:
+            typer.echo(f"Ethernet interface '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete ethernet interface '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_ethernet_interface(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted ethernet interface: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting ethernet interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("ethernet-interface", help="Load ethernet interfaces from a YAML file.")
+def load_ethernet_interface(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load ethernet interfaces from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "ethernet_interfaces" not in data:
+            typer.echo("No ethernet interfaces found in file", err=True)
+            raise typer.Exit(code=1)
+        interfaces = data["ethernet_interfaces"]
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(interfaces))
+            return None
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for iface_data in interfaces:
+            try:
+                if folder:
+                    iface_data["folder"] = folder
+                    iface_data.pop("snippet", None)
+                    iface_data.pop("device", None)
+                elif snippet:
+                    iface_data["snippet"] = snippet
+                    iface_data.pop("folder", None)
+                    iface_data.pop("device", None)
+                elif device:
+                    iface_data["device"] = device
+                    iface_data.pop("folder", None)
+                    iface_data.pop("snippet", None)
+                validated_iface = EthernetInterface(**iface_data)
+                sdk_data = validated_iface.to_sdk_model()
+                result = scm_client.create_ethernet_interface(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created ethernet interface: {validated_iface.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated ethernet interface: {validated_iface.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for ethernet interface: {validated_iface.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing ethernet interface: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} ethernet interfaces")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading ethernet interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("ethernet-interface", help="Create or update an ethernet interface.")
+def set_ethernet_interface(
+    name: str = typer.Argument(..., help="Name of the ethernet interface"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    comment: str = typer.Option(None, "--comment", help="Interface description/comment"),
+    default_value: str = typer.Option(None, "--default-value", help="Physical interface (e.g. ethernet1/1)"),
+    link_speed: str = typer.Option(None, "--link-speed", help="Link speed (auto, 10, 100, 1000, 10000)"),
+    link_duplex: str = typer.Option(None, "--link-duplex", help="Link duplex (auto, half, full)"),
+    link_state: str = typer.Option(None, "--link-state", help="Link state (auto, up, down)"),
+    layer2_json: str = typer.Option(None, "--layer2-json", help="Layer2 config as JSON"),
+    layer3_json: str = typer.Option(None, "--layer3-json", help="Layer3 config as JSON"),
+    tap_json: str = typer.Option(None, "--tap-json", help="TAP config as JSON"),
+) -> None:
+    """Create or update an ethernet interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if comment:
+            iface_data["comment"] = comment
+        if default_value:
+            iface_data["default_value"] = default_value
+        if link_speed:
+            iface_data["link_speed"] = link_speed
+        if link_duplex:
+            iface_data["link_duplex"] = link_duplex
+        if link_state:
+            iface_data["link_state"] = link_state
+        if layer2_json:
+            iface_data["layer2"] = json.loads(layer2_json)
+        if layer3_json:
+            iface_data["layer3"] = json.loads(layer3_json)
+        if tap_json:
+            iface_data["tap"] = json.loads(tap_json)
+        validated_iface = EthernetInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_ethernet_interface(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created ethernet interface: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated ethernet interface: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for ethernet interface: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating ethernet interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("ethernet-interface", help="Show ethernet interface details.")
+def show_ethernet_interface(
+    name: str = typer.Option(None, "--name", help="Name of specific ethernet interface to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show ethernet interface details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            iface = scm_client.get_ethernet_interface(name=name, folder=folder, snippet=snippet, device=device)
+            if not iface:
+                typer.echo(f"Ethernet interface '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nEthernet Interface: {iface['name']}")
+            typer.echo("=" * 60)
+            location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if iface.get("comment"):
+                typer.echo(f"Comment: {iface['comment']}")
+            if iface.get("layer3"):
+                typer.echo("Mode: Layer3")
+                l3 = iface["layer3"]
+                if l3.get("mtu"):
+                    typer.echo(f"  MTU: {l3['mtu']}")
+                if l3.get("ip"):
+                    for ip_entry in l3["ip"]:
+                        typer.echo(f"  IP: {ip_entry.get('name', 'N/A')}")
+            elif iface.get("layer2"):
+                typer.echo("Mode: Layer2")
+                l2 = iface["layer2"]
+                if l2.get("vlan_tag"):
+                    typer.echo(f"  VLAN Tag: {l2['vlan_tag']}")
+            elif iface.get("tap"):
+                typer.echo("Mode: TAP")
+            if iface.get("id"):
+                typer.echo(f"\nID: {iface['id']}")
+            return iface
+        else:
+            interfaces = scm_client.list_ethernet_interfaces(folder=folder, snippet=snippet, device=device)
+            if not interfaces:
+                typer.echo("No ethernet interfaces found")
+                return
+            typer.echo("\nEthernet Interfaces:")
+            typer.echo("-" * 80)
+            for iface in interfaces:
+                location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+                typer.echo(f"Name: {iface.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if iface.get("comment"):
+                    typer.echo(f"  Comment: {iface['comment']}")
+                if iface.get("layer3"):
+                    typer.echo("  Mode: Layer3")
+                elif iface.get("layer2"):
+                    typer.echo("  Mode: Layer2")
+                elif iface.get("tap"):
+                    typer.echo("  Mode: TAP")
+                if iface.get("id"):
+                    typer.echo(f"  ID: {iface['id']}")
+                typer.echo("-" * 80)
+            return interfaces
+    except Exception as e:
+        typer.echo(f"Error showing ethernet interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# LAYER2 SUBINTERFACE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("layer2-subinterface", help="Export layer2 subinterfaces to a YAML file.")
+def backup_layer2_subinterface(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export layer2 subinterfaces from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving layer2 subinterfaces from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        interfaces = scm_client.list_layer2_subinterfaces(**kwargs)
+        if not interfaces:
+            typer.echo(f"No layer2 subinterfaces found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"layer2_subinterfaces": interfaces}
+        filename = Path(file or get_default_backup_filename("layer2-subinterface", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(interfaces)} layer2 subinterfaces to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up layer2 subinterfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("layer2-subinterface", help="Delete a layer2 subinterface.")
+def delete_layer2_subinterface(
+    name: str = typer.Argument(..., help="Name of the layer2 subinterface to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a layer2 subinterface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface = scm_client.get_layer2_subinterface(name=name, folder=folder, snippet=snippet, device=device)
+        if not iface:
+            typer.echo(f"Layer2 subinterface '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete layer2 subinterface '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_layer2_subinterface(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted layer2 subinterface: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting layer2 subinterface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("layer2-subinterface", help="Load layer2 subinterfaces from a YAML file.")
+def load_layer2_subinterface(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load layer2 subinterfaces from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "layer2_subinterfaces" not in data:
+            typer.echo("No layer2 subinterfaces found in file", err=True)
+            raise typer.Exit(code=1)
+        interfaces = data["layer2_subinterfaces"]
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(interfaces))
+            return None
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for iface_data in interfaces:
+            try:
+                if folder:
+                    iface_data["folder"] = folder
+                    iface_data.pop("snippet", None)
+                    iface_data.pop("device", None)
+                elif snippet:
+                    iface_data["snippet"] = snippet
+                    iface_data.pop("folder", None)
+                    iface_data.pop("device", None)
+                elif device:
+                    iface_data["device"] = device
+                    iface_data.pop("folder", None)
+                    iface_data.pop("snippet", None)
+                validated_iface = Layer2Subinterface(**iface_data)
+                sdk_data = validated_iface.to_sdk_model()
+                result = scm_client.create_layer2_subinterface(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created layer2 subinterface: {validated_iface.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated layer2 subinterface: {validated_iface.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for layer2 subinterface: {validated_iface.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing layer2 subinterface: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} layer2 subinterfaces")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading layer2 subinterfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("layer2-subinterface", help="Create or update a layer2 subinterface.")
+def set_layer2_subinterface(
+    name: str = typer.Argument(..., help="Name of the layer2 subinterface"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    vlan_tag: str = typer.Option(..., "--vlan-tag", help="VLAN tag (1-4096)"),
+    parent_interface: str = typer.Option(None, "--parent-interface", help="Parent interface name"),
+    comment: str = typer.Option(None, "--comment", help="Interface description/comment"),
+) -> None:
+    """Create or update a layer2 subinterface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface_data: dict[str, Any] = {"name": name, "vlan_tag": vlan_tag, location_type: location_value}
+        if parent_interface:
+            iface_data["parent_interface"] = parent_interface
+        if comment:
+            iface_data["comment"] = comment
+        validated_iface = Layer2Subinterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_layer2_subinterface(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created layer2 subinterface: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated layer2 subinterface: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for layer2 subinterface: {name} in {location_value}")
+    except Exception as e:
+        typer.echo(f"Error creating/updating layer2 subinterface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("layer2-subinterface", help="Show layer2 subinterface details.")
+def show_layer2_subinterface(
+    name: str = typer.Option(None, "--name", help="Name of specific layer2 subinterface to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show layer2 subinterface details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            iface = scm_client.get_layer2_subinterface(name=name, folder=folder, snippet=snippet, device=device)
+            if not iface:
+                typer.echo(f"Layer2 subinterface '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nLayer2 Subinterface: {iface['name']}")
+            typer.echo("=" * 60)
+            location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if iface.get("vlan_tag"):
+                typer.echo(f"VLAN Tag: {iface['vlan_tag']}")
+            if iface.get("parent_interface"):
+                typer.echo(f"Parent Interface: {iface['parent_interface']}")
+            if iface.get("comment"):
+                typer.echo(f"Comment: {iface['comment']}")
+            if iface.get("id"):
+                typer.echo(f"\nID: {iface['id']}")
+            return iface
+        else:
+            interfaces = scm_client.list_layer2_subinterfaces(folder=folder, snippet=snippet, device=device)
+            if not interfaces:
+                typer.echo("No layer2 subinterfaces found")
+                return
+            typer.echo("\nLayer2 Subinterfaces:")
+            typer.echo("-" * 80)
+            for iface in interfaces:
+                location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+                typer.echo(f"Name: {iface.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if iface.get("vlan_tag"):
+                    typer.echo(f"  VLAN Tag: {iface['vlan_tag']}")
+                if iface.get("parent_interface"):
+                    typer.echo(f"  Parent: {iface['parent_interface']}")
+                if iface.get("id"):
+                    typer.echo(f"  ID: {iface['id']}")
+                typer.echo("-" * 80)
+            return interfaces
+    except Exception as e:
+        typer.echo(f"Error showing layer2 subinterface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# LAYER3 SUBINTERFACE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("layer3-subinterface", help="Export layer3 subinterfaces to a YAML file.")
+def backup_layer3_subinterface(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export layer3 subinterfaces from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving layer3 subinterfaces from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        interfaces = scm_client.list_layer3_subinterfaces(**kwargs)
+        if not interfaces:
+            typer.echo(f"No layer3 subinterfaces found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"layer3_subinterfaces": interfaces}
+        filename = Path(file or get_default_backup_filename("layer3-subinterface", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(interfaces)} layer3 subinterfaces to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up layer3 subinterfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("layer3-subinterface", help="Delete a layer3 subinterface.")
+def delete_layer3_subinterface(
+    name: str = typer.Argument(..., help="Name of the layer3 subinterface to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a layer3 subinterface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface = scm_client.get_layer3_subinterface(name=name, folder=folder, snippet=snippet, device=device)
+        if not iface:
+            typer.echo(f"Layer3 subinterface '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete layer3 subinterface '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_layer3_subinterface(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted layer3 subinterface: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting layer3 subinterface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("layer3-subinterface", help="Load layer3 subinterfaces from a YAML file.")
+def load_layer3_subinterface(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load layer3 subinterfaces from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "layer3_subinterfaces" not in data:
+            typer.echo("No layer3 subinterfaces found in file", err=True)
+            raise typer.Exit(code=1)
+        interfaces = data["layer3_subinterfaces"]
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(interfaces))
+            return None
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for iface_data in interfaces:
+            try:
+                if folder:
+                    iface_data["folder"] = folder
+                    iface_data.pop("snippet", None)
+                    iface_data.pop("device", None)
+                elif snippet:
+                    iface_data["snippet"] = snippet
+                    iface_data.pop("folder", None)
+                    iface_data.pop("device", None)
+                elif device:
+                    iface_data["device"] = device
+                    iface_data.pop("folder", None)
+                    iface_data.pop("snippet", None)
+                validated_iface = Layer3Subinterface(**iface_data)
+                sdk_data = validated_iface.to_sdk_model()
+                result = scm_client.create_layer3_subinterface(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created layer3 subinterface: {validated_iface.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated layer3 subinterface: {validated_iface.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for layer3 subinterface: {validated_iface.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing layer3 subinterface: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} layer3 subinterfaces")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading layer3 subinterfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("layer3-subinterface", help="Create or update a layer3 subinterface.")
+def set_layer3_subinterface(
+    name: str = typer.Argument(..., help="Name of the layer3 subinterface"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    tag: int = typer.Option(None, "--tag", help="VLAN tag (1-4096)"),
+    parent_interface: str = typer.Option(None, "--parent-interface", help="Parent interface name"),
+    comment: str = typer.Option(None, "--comment", help="Interface description/comment"),
+    mtu: int = typer.Option(None, "--mtu", help="MTU (576-9216)"),
+    ip_json: str = typer.Option(None, "--ip-json", help='Static IPs as JSON (e.g. \'[{"name": "10.0.0.1/24"}]\')'),
+    dhcp_client_json: str = typer.Option(None, "--dhcp-client-json", help="DHCP client config as JSON"),
+) -> None:
+    """Create or update a layer3 subinterface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if tag is not None:
+            iface_data["tag"] = tag
+        if parent_interface:
+            iface_data["parent_interface"] = parent_interface
+        if comment:
+            iface_data["comment"] = comment
+        if mtu is not None:
+            iface_data["mtu"] = mtu
+        if ip_json:
+            iface_data["ip"] = json.loads(ip_json)
+        if dhcp_client_json:
+            iface_data["dhcp_client"] = json.loads(dhcp_client_json)
+        validated_iface = Layer3Subinterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_layer3_subinterface(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created layer3 subinterface: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated layer3 subinterface: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for layer3 subinterface: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating layer3 subinterface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("layer3-subinterface", help="Show layer3 subinterface details.")
+def show_layer3_subinterface(
+    name: str = typer.Option(None, "--name", help="Name of specific layer3 subinterface to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show layer3 subinterface details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            iface = scm_client.get_layer3_subinterface(name=name, folder=folder, snippet=snippet, device=device)
+            if not iface:
+                typer.echo(f"Layer3 subinterface '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nLayer3 Subinterface: {iface['name']}")
+            typer.echo("=" * 60)
+            location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if iface.get("tag"):
+                typer.echo(f"VLAN Tag: {iface['tag']}")
+            if iface.get("mtu"):
+                typer.echo(f"MTU: {iface['mtu']}")
+            if iface.get("ip"):
+                for ip_entry in iface["ip"]:
+                    typer.echo(f"IP: {ip_entry.get('name', 'N/A')}")
+            if iface.get("dhcp_client"):
+                typer.echo("DHCP Client: Enabled")
+            if iface.get("comment"):
+                typer.echo(f"Comment: {iface['comment']}")
+            if iface.get("id"):
+                typer.echo(f"\nID: {iface['id']}")
+            return iface
+        else:
+            interfaces = scm_client.list_layer3_subinterfaces(folder=folder, snippet=snippet, device=device)
+            if not interfaces:
+                typer.echo("No layer3 subinterfaces found")
+                return
+            typer.echo("\nLayer3 Subinterfaces:")
+            typer.echo("-" * 80)
+            for iface in interfaces:
+                location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+                typer.echo(f"Name: {iface.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if iface.get("tag"):
+                    typer.echo(f"  VLAN Tag: {iface['tag']}")
+                if iface.get("mtu"):
+                    typer.echo(f"  MTU: {iface['mtu']}")
+                if iface.get("id"):
+                    typer.echo(f"  ID: {iface['id']}")
+                typer.echo("-" * 80)
+            return interfaces
+    except Exception as e:
+        typer.echo(f"Error showing layer3 subinterface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# LOOPBACK INTERFACE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("loopback-interface", help="Export loopback interfaces to a YAML file.")
+def backup_loopback_interface(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export loopback interfaces from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving loopback interfaces from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        interfaces = scm_client.list_loopback_interfaces(**kwargs)
+        if not interfaces:
+            typer.echo(f"No loopback interfaces found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"loopback_interfaces": interfaces}
+        filename = Path(file or get_default_backup_filename("loopback-interface", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(interfaces)} loopback interfaces to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up loopback interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("loopback-interface", help="Delete a loopback interface.")
+def delete_loopback_interface(
+    name: str = typer.Argument(..., help="Name of the loopback interface to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a loopback interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface = scm_client.get_loopback_interface(name=name, folder=folder, snippet=snippet, device=device)
+        if not iface:
+            typer.echo(f"Loopback interface '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete loopback interface '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_loopback_interface(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted loopback interface: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting loopback interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("loopback-interface", help="Load loopback interfaces from a YAML file.")
+def load_loopback_interface(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load loopback interfaces from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "loopback_interfaces" not in data:
+            typer.echo("No loopback interfaces found in file", err=True)
+            raise typer.Exit(code=1)
+        interfaces = data["loopback_interfaces"]
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(interfaces))
+            return None
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for iface_data in interfaces:
+            try:
+                if folder:
+                    iface_data["folder"] = folder
+                    iface_data.pop("snippet", None)
+                    iface_data.pop("device", None)
+                elif snippet:
+                    iface_data["snippet"] = snippet
+                    iface_data.pop("folder", None)
+                    iface_data.pop("device", None)
+                elif device:
+                    iface_data["device"] = device
+                    iface_data.pop("folder", None)
+                    iface_data.pop("snippet", None)
+                validated_iface = LoopbackInterface(**iface_data)
+                sdk_data = validated_iface.to_sdk_model()
+                result = scm_client.create_loopback_interface(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created loopback interface: {validated_iface.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated loopback interface: {validated_iface.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for loopback interface: {validated_iface.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing loopback interface: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} loopback interfaces")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading loopback interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("loopback-interface", help="Create or update a loopback interface.")
+def set_loopback_interface(
+    name: str = typer.Argument(..., help="Name of the loopback interface"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    comment: str = typer.Option(None, "--comment", help="Interface description/comment"),
+    default_value: str = typer.Option(None, "--default-value", help="Default interface (e.g. loopback.1)"),
+    mtu: int = typer.Option(None, "--mtu", help="MTU (576-9216)"),
+    ip_json: str = typer.Option(None, "--ip-json", help='Static IPs as JSON (e.g. \'[{"name": "10.0.0.1/32"}]\')'),
+    ipv6_json: str = typer.Option(None, "--ipv6-json", help="IPv6 config as JSON"),
+) -> None:
+    """Create or update a loopback interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if comment:
+            iface_data["comment"] = comment
+        if default_value:
+            iface_data["default_value"] = default_value
+        if mtu is not None:
+            iface_data["mtu"] = mtu
+        if ip_json:
+            iface_data["ip"] = json.loads(ip_json)
+        if ipv6_json:
+            iface_data["ipv6"] = json.loads(ipv6_json)
+        validated_iface = LoopbackInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_loopback_interface(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created loopback interface: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated loopback interface: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for loopback interface: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating loopback interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("loopback-interface", help="Show loopback interface details.")
+def show_loopback_interface(
+    name: str = typer.Option(None, "--name", help="Name of specific loopback interface to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show loopback interface details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            iface = scm_client.get_loopback_interface(name=name, folder=folder, snippet=snippet, device=device)
+            if not iface:
+                typer.echo(f"Loopback interface '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nLoopback Interface: {iface['name']}")
+            typer.echo("=" * 60)
+            location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if iface.get("comment"):
+                typer.echo(f"Comment: {iface['comment']}")
+            if iface.get("mtu"):
+                typer.echo(f"MTU: {iface['mtu']}")
+            if iface.get("ip"):
+                for ip_entry in iface["ip"]:
+                    typer.echo(f"IP: {ip_entry.get('name', 'N/A')}")
+            if iface.get("id"):
+                typer.echo(f"\nID: {iface['id']}")
+            return iface
+        else:
+            interfaces = scm_client.list_loopback_interfaces(folder=folder, snippet=snippet, device=device)
+            if not interfaces:
+                typer.echo("No loopback interfaces found")
+                return
+            typer.echo("\nLoopback Interfaces:")
+            typer.echo("-" * 80)
+            for iface in interfaces:
+                location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+                typer.echo(f"Name: {iface.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if iface.get("comment"):
+                    typer.echo(f"  Comment: {iface['comment']}")
+                if iface.get("ip"):
+                    typer.echo(f"  IPs: {len(iface['ip'])}")
+                if iface.get("id"):
+                    typer.echo(f"  ID: {iface['id']}")
+                typer.echo("-" * 80)
+            return interfaces
+    except Exception as e:
+        typer.echo(f"Error showing loopback interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# TUNNEL INTERFACE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("tunnel-interface", help="Export tunnel interfaces to a YAML file.")
+def backup_tunnel_interface(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export tunnel interfaces from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving tunnel interfaces from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        interfaces = scm_client.list_tunnel_interfaces(**kwargs)
+        if not interfaces:
+            typer.echo(f"No tunnel interfaces found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"tunnel_interfaces": interfaces}
+        filename = Path(file or get_default_backup_filename("tunnel-interface", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(interfaces)} tunnel interfaces to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up tunnel interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("tunnel-interface", help="Delete a tunnel interface.")
+def delete_tunnel_interface(
+    name: str = typer.Argument(..., help="Name of the tunnel interface to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a tunnel interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface = scm_client.get_tunnel_interface(name=name, folder=folder, snippet=snippet, device=device)
+        if not iface:
+            typer.echo(f"Tunnel interface '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete tunnel interface '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_tunnel_interface(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted tunnel interface: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting tunnel interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("tunnel-interface", help="Load tunnel interfaces from a YAML file.")
+def load_tunnel_interface(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load tunnel interfaces from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "tunnel_interfaces" not in data:
+            typer.echo("No tunnel interfaces found in file", err=True)
+            raise typer.Exit(code=1)
+        interfaces = data["tunnel_interfaces"]
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(interfaces))
+            return None
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for iface_data in interfaces:
+            try:
+                if folder:
+                    iface_data["folder"] = folder
+                    iface_data.pop("snippet", None)
+                    iface_data.pop("device", None)
+                elif snippet:
+                    iface_data["snippet"] = snippet
+                    iface_data.pop("folder", None)
+                    iface_data.pop("device", None)
+                elif device:
+                    iface_data["device"] = device
+                    iface_data.pop("folder", None)
+                    iface_data.pop("snippet", None)
+                validated_iface = TunnelInterface(**iface_data)
+                sdk_data = validated_iface.to_sdk_model()
+                result = scm_client.create_tunnel_interface(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created tunnel interface: {validated_iface.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated tunnel interface: {validated_iface.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for tunnel interface: {validated_iface.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing tunnel interface: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} tunnel interfaces")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading tunnel interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("tunnel-interface", help="Create or update a tunnel interface.")
+def set_tunnel_interface(
+    name: str = typer.Argument(..., help="Name of the tunnel interface"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    comment: str = typer.Option(None, "--comment", help="Interface description/comment"),
+    default_value: str = typer.Option(None, "--default-value", help="Default interface (e.g. tunnel.1)"),
+    mtu: int = typer.Option(None, "--mtu", help="MTU (576-9216)"),
+    ip_json: str = typer.Option(None, "--ip-json", help='Static IPs as JSON (e.g. \'[{"name": "10.0.0.1/30"}]\')'),
+) -> None:
+    """Create or update a tunnel interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if comment:
+            iface_data["comment"] = comment
+        if default_value:
+            iface_data["default_value"] = default_value
+        if mtu is not None:
+            iface_data["mtu"] = mtu
+        if ip_json:
+            iface_data["ip"] = json.loads(ip_json)
+        validated_iface = TunnelInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_tunnel_interface(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created tunnel interface: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated tunnel interface: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for tunnel interface: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating tunnel interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("tunnel-interface", help="Show tunnel interface details.")
+def show_tunnel_interface(
+    name: str = typer.Option(None, "--name", help="Name of specific tunnel interface to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show tunnel interface details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            iface = scm_client.get_tunnel_interface(name=name, folder=folder, snippet=snippet, device=device)
+            if not iface:
+                typer.echo(f"Tunnel interface '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nTunnel Interface: {iface['name']}")
+            typer.echo("=" * 60)
+            location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if iface.get("comment"):
+                typer.echo(f"Comment: {iface['comment']}")
+            if iface.get("mtu"):
+                typer.echo(f"MTU: {iface['mtu']}")
+            if iface.get("ip"):
+                for ip_entry in iface["ip"]:
+                    typer.echo(f"IP: {ip_entry.get('name', 'N/A')}")
+            if iface.get("id"):
+                typer.echo(f"\nID: {iface['id']}")
+            return iface
+        else:
+            interfaces = scm_client.list_tunnel_interfaces(folder=folder, snippet=snippet, device=device)
+            if not interfaces:
+                typer.echo("No tunnel interfaces found")
+                return
+            typer.echo("\nTunnel Interfaces:")
+            typer.echo("-" * 80)
+            for iface in interfaces:
+                location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+                typer.echo(f"Name: {iface.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if iface.get("comment"):
+                    typer.echo(f"  Comment: {iface['comment']}")
+                if iface.get("mtu"):
+                    typer.echo(f"  MTU: {iface['mtu']}")
+                if iface.get("id"):
+                    typer.echo(f"  ID: {iface['id']}")
+                typer.echo("-" * 80)
+            return interfaces
+    except Exception as e:
+        typer.echo(f"Error showing tunnel interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# VLAN INTERFACE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("vlan-interface", help="Export VLAN interfaces to a YAML file.")
+def backup_vlan_interface(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export VLAN interfaces from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving VLAN interfaces from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        interfaces = scm_client.list_vlan_interfaces(**kwargs)
+        if not interfaces:
+            typer.echo(f"No VLAN interfaces found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"vlan_interfaces": interfaces}
+        filename = Path(file or get_default_backup_filename("vlan-interface", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(interfaces)} VLAN interfaces to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up VLAN interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("vlan-interface", help="Delete a VLAN interface.")
+def delete_vlan_interface(
+    name: str = typer.Argument(..., help="Name of the VLAN interface to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a VLAN interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface = scm_client.get_vlan_interface(name=name, folder=folder, snippet=snippet, device=device)
+        if not iface:
+            typer.echo(f"VLAN interface '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete VLAN interface '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_vlan_interface(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted VLAN interface: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting VLAN interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("vlan-interface", help="Load VLAN interfaces from a YAML file.")
+def load_vlan_interface(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load VLAN interfaces from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "vlan_interfaces" not in data:
+            typer.echo("No VLAN interfaces found in file", err=True)
+            raise typer.Exit(code=1)
+        interfaces = data["vlan_interfaces"]
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(interfaces))
+            return None
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for iface_data in interfaces:
+            try:
+                if folder:
+                    iface_data["folder"] = folder
+                    iface_data.pop("snippet", None)
+                    iface_data.pop("device", None)
+                elif snippet:
+                    iface_data["snippet"] = snippet
+                    iface_data.pop("folder", None)
+                    iface_data.pop("device", None)
+                elif device:
+                    iface_data["device"] = device
+                    iface_data.pop("folder", None)
+                    iface_data.pop("snippet", None)
+                validated_iface = VlanInterface(**iface_data)
+                sdk_data = validated_iface.to_sdk_model()
+                result = scm_client.create_vlan_interface(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created VLAN interface: {validated_iface.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated VLAN interface: {validated_iface.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for VLAN interface: {validated_iface.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing VLAN interface: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} VLAN interfaces")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading VLAN interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("vlan-interface", help="Create or update a VLAN interface.")
+def set_vlan_interface(
+    name: str = typer.Argument(..., help="Name of the VLAN interface"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    comment: str = typer.Option(None, "--comment", help="Interface description/comment"),
+    default_value: str = typer.Option(None, "--default-value", help="Default interface (e.g. vlan.100)"),
+    vlan_tag: str = typer.Option(None, "--vlan-tag", help="VLAN tag (1-4096)"),
+    mtu: int = typer.Option(None, "--mtu", help="MTU (576-9216)"),
+    ip_json: str = typer.Option(None, "--ip-json", help='Static IPs as JSON (e.g. \'[{"name": "10.0.0.1/24"}]\')'),
+    dhcp_client_json: str = typer.Option(None, "--dhcp-client-json", help="DHCP client config as JSON"),
+) -> None:
+    """Create or update a VLAN interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if comment:
+            iface_data["comment"] = comment
+        if default_value:
+            iface_data["default_value"] = default_value
+        if vlan_tag:
+            iface_data["vlan_tag"] = vlan_tag
+        if mtu is not None:
+            iface_data["mtu"] = mtu
+        if ip_json:
+            iface_data["ip"] = json.loads(ip_json)
+        if dhcp_client_json:
+            iface_data["dhcp_client"] = json.loads(dhcp_client_json)
+        validated_iface = VlanInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_vlan_interface(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created VLAN interface: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated VLAN interface: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for VLAN interface: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating VLAN interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("vlan-interface", help="Show VLAN interface details.")
+def show_vlan_interface(
+    name: str = typer.Option(None, "--name", help="Name of specific VLAN interface to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show VLAN interface details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            iface = scm_client.get_vlan_interface(name=name, folder=folder, snippet=snippet, device=device)
+            if not iface:
+                typer.echo(f"VLAN interface '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nVLAN Interface: {iface['name']}")
+            typer.echo("=" * 60)
+            location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if iface.get("comment"):
+                typer.echo(f"Comment: {iface['comment']}")
+            if iface.get("vlan_tag"):
+                typer.echo(f"VLAN Tag: {iface['vlan_tag']}")
+            if iface.get("mtu"):
+                typer.echo(f"MTU: {iface['mtu']}")
+            if iface.get("ip"):
+                for ip_entry in iface["ip"]:
+                    typer.echo(f"IP: {ip_entry.get('name', 'N/A')}")
+            if iface.get("dhcp_client"):
+                typer.echo("DHCP Client: Enabled")
+            if iface.get("id"):
+                typer.echo(f"\nID: {iface['id']}")
+            return iface
+        else:
+            interfaces = scm_client.list_vlan_interfaces(folder=folder, snippet=snippet, device=device)
+            if not interfaces:
+                typer.echo("No VLAN interfaces found")
+                return
+            typer.echo("\nVLAN Interfaces:")
+            typer.echo("-" * 80)
+            for iface in interfaces:
+                location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+                typer.echo(f"Name: {iface.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if iface.get("vlan_tag"):
+                    typer.echo(f"  VLAN Tag: {iface['vlan_tag']}")
+                if iface.get("comment"):
+                    typer.echo(f"  Comment: {iface['comment']}")
+                if iface.get("id"):
+                    typer.echo(f"  ID: {iface['id']}")
+                typer.echo("-" * 80)
+            return interfaces
+    except Exception as e:
+        typer.echo(f"Error showing VLAN interface: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

@@ -11320,6 +11320,955 @@ class SCMClient:
         # TODO: Implement actual API call when insights API is available
         raise NotImplementedError("Insights API not yet available in pan-scm-sdk")
 
+    # ------------------------------------------------------------------------------------- DHCP Interfaces -----------------------------------------------------------------------------------
+
+    def create_dhcp_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a DHCP interface using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in iface_data and iface_data[field] is not None:
+                container_field = field
+                container_value = iface_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = iface_data.copy()
+            result["id"] = f"dhcp-{iface_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_iface = None
+        try:
+            existing_iface = self.client.dhcp_interface.fetch(name=iface_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing DHCP interface '{iface_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"DHCP interface '{iface_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching DHCP interface '{iface_data['name']}': {str(e)}")
+        if existing_iface:
+            needs_update = False
+            update_fields = []
+            for key in ["server", "relay"]:
+                if key in iface_data:
+                    existing_val = getattr(existing_iface, key, None)
+                    existing_dict = json.loads(existing_val.model_dump_json(exclude_unset=True)) if existing_val else None
+                    if iface_data[key] != existing_dict:
+                        needs_update = True
+                        update_fields.append(key)
+            if needs_update:
+                self.logger.info(f"Updating DHCP interface fields: {', '.join(update_fields)}")
+                try:
+                    update_data = iface_data.copy()
+                    update_data["id"] = str(existing_iface.id)
+                    result = self.client.dhcp_interface.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"DHCP interface '{iface_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_iface.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.dhcp_interface.create(iface_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"DHCP interface '{iface_data['name']}'", create_error)
+
+    def delete_dhcp_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a DHCP interface."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete DHCP interface: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            iface = self.client.dhcp_interface.fetch(name=name, **container_kwargs)
+            self.client.dhcp_interface.delete(str(iface.id))
+            self.logger.info(f"Deleted DHCP interface: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"DHCP interface '{name}'", e)
+
+    def get_dhcp_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific DHCP interface."""
+        if not self.client:
+            return {
+                "id": "dhcp-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "server": {"mode": "auto", "ip_pool": ["10.0.0.10-10.0.0.100"]},
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.dhcp_interface.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"DHCP interface '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"DHCP interface '{name}'", e)
+
+    def list_dhcp_interfaces(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List DHCP interfaces in a container."""
+        if not self.client:
+            return [
+                {"id": "dhcp-mock1", "folder": folder or "ngfw-shared", "name": "ethernet1/1", "server": {"mode": "auto", "ip_pool": ["10.0.0.10-10.0.0.100"]}},
+                {"id": "dhcp-mock2", "folder": folder or "ngfw-shared", "name": "ethernet1/2", "relay": {"ip": {"enabled": True, "server": ["10.0.0.1"]}}},
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.dhcp_interface.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "DHCP interfaces", e)
+
+    # ----------------------------------------------------------------------------------- Ethernet Interfaces ---------------------------------------------------------------------------------
+
+    def create_ethernet_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update an ethernet interface using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in iface_data and iface_data[field] is not None:
+                container_field = field
+                container_value = iface_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = iface_data.copy()
+            result["id"] = f"eth-{iface_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_iface = None
+        try:
+            existing_iface = self.client.ethernet_interface.fetch(name=iface_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing ethernet interface '{iface_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Ethernet interface '{iface_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching ethernet interface '{iface_data['name']}': {str(e)}")
+        if existing_iface:
+            needs_update = False
+            update_fields = []
+            for key in ["comment", "link_speed", "link_duplex", "link_state"]:
+                if key in iface_data:
+                    if iface_data[key] != getattr(existing_iface, key, None):
+                        needs_update = True
+                        update_fields.append(key)
+            for key in ["layer2", "layer3", "tap"]:
+                if key in iface_data:
+                    existing_val = getattr(existing_iface, key, None)
+                    existing_dict = json.loads(existing_val.model_dump_json(exclude_unset=True)) if existing_val else None
+                    if iface_data[key] != existing_dict:
+                        needs_update = True
+                        update_fields.append(key)
+            if needs_update:
+                self.logger.info(f"Updating ethernet interface fields: {', '.join(update_fields)}")
+                try:
+                    update_data = iface_data.copy()
+                    update_data["id"] = str(existing_iface.id)
+                    result = self.client.ethernet_interface.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"ethernet interface '{iface_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_iface.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.ethernet_interface.create(iface_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"ethernet interface '{iface_data['name']}'", create_error)
+
+    def delete_ethernet_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete an ethernet interface."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete ethernet interface: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            iface = self.client.ethernet_interface.fetch(name=name, **container_kwargs)
+            self.client.ethernet_interface.delete(str(iface.id))
+            self.logger.info(f"Deleted ethernet interface: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"ethernet interface '{name}'", e)
+
+    def get_ethernet_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific ethernet interface."""
+        if not self.client:
+            return {
+                "id": "eth-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "comment": "Mock ethernet interface",
+                "layer3": {"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]},
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.ethernet_interface.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Ethernet interface '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"ethernet interface '{name}'", e)
+
+    def list_ethernet_interfaces(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List ethernet interfaces in a container."""
+        if not self.client:
+            return [
+                {"id": "eth-mock1", "folder": folder or "ngfw-shared", "name": "$eth1", "comment": "Mock eth 1", "layer3": {"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]}},
+                {"id": "eth-mock2", "folder": folder or "ngfw-shared", "name": "$eth2", "comment": "Mock eth 2", "layer2": {"vlan_tag": "100"}},
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.ethernet_interface.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "ethernet interfaces", e)
+
+    # ---------------------------------------------------------------------------------- Layer2 Subinterfaces ---------------------------------------------------------------------------------
+
+    def create_layer2_subinterface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a layer2 subinterface using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in iface_data and iface_data[field] is not None:
+                container_field = field
+                container_value = iface_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = iface_data.copy()
+            result["id"] = f"l2sub-{iface_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_iface = None
+        try:
+            existing_iface = self.client.layer2_subinterface.fetch(name=iface_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing layer2 subinterface '{iface_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Layer2 subinterface '{iface_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching layer2 subinterface '{iface_data['name']}': {str(e)}")
+        if existing_iface:
+            needs_update = False
+            update_fields = []
+            for key in ["vlan_tag", "comment", "parent_interface"]:
+                if key in iface_data:
+                    if iface_data[key] != getattr(existing_iface, key, None):
+                        needs_update = True
+                        update_fields.append(key)
+            if needs_update:
+                self.logger.info(f"Updating layer2 subinterface fields: {', '.join(update_fields)}")
+                try:
+                    update_data = iface_data.copy()
+                    update_data["id"] = str(existing_iface.id)
+                    result = self.client.layer2_subinterface.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"layer2 subinterface '{iface_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_iface.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.layer2_subinterface.create(iface_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"layer2 subinterface '{iface_data['name']}'", create_error)
+
+    def delete_layer2_subinterface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a layer2 subinterface."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete layer2 subinterface: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            iface = self.client.layer2_subinterface.fetch(name=name, **container_kwargs)
+            self.client.layer2_subinterface.delete(str(iface.id))
+            self.logger.info(f"Deleted layer2 subinterface: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"layer2 subinterface '{name}'", e)
+
+    def get_layer2_subinterface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific layer2 subinterface."""
+        if not self.client:
+            return {
+                "id": "l2sub-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "vlan_tag": "100",
+                "parent_interface": "ethernet1/1",
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.layer2_subinterface.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Layer2 subinterface '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"layer2 subinterface '{name}'", e)
+
+    def list_layer2_subinterfaces(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List layer2 subinterfaces in a container."""
+        if not self.client:
+            return [
+                {"id": "l2sub-mock1", "folder": folder or "ngfw-shared", "name": "ethernet1/1.100", "vlan_tag": "100", "parent_interface": "ethernet1/1"},
+                {"id": "l2sub-mock2", "folder": folder or "ngfw-shared", "name": "ethernet1/1.200", "vlan_tag": "200", "parent_interface": "ethernet1/1"},
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.layer2_subinterface.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "layer2 subinterfaces", e)
+
+    # ---------------------------------------------------------------------------------- Layer3 Subinterfaces ---------------------------------------------------------------------------------
+
+    def create_layer3_subinterface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a layer3 subinterface using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in iface_data and iface_data[field] is not None:
+                container_field = field
+                container_value = iface_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = iface_data.copy()
+            result["id"] = f"l3sub-{iface_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_iface = None
+        try:
+            existing_iface = self.client.layer3_subinterface.fetch(name=iface_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing layer3 subinterface '{iface_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Layer3 subinterface '{iface_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching layer3 subinterface '{iface_data['name']}': {str(e)}")
+        if existing_iface:
+            needs_update = False
+            update_fields = []
+            for key in ["tag", "comment", "parent_interface", "mtu", "interface_management_profile"]:
+                if key in iface_data:
+                    if iface_data[key] != getattr(existing_iface, key, None):
+                        needs_update = True
+                        update_fields.append(key)
+            for key in ["ip", "dhcp_client"]:
+                if key in iface_data:
+                    existing_val = getattr(existing_iface, key, None)
+                    if key == "ip" and existing_val:
+                        existing_dict = [json.loads(e.model_dump_json(exclude_unset=True)) for e in existing_val]
+                    elif existing_val and hasattr(existing_val, "model_dump_json"):
+                        existing_dict = json.loads(existing_val.model_dump_json(exclude_unset=True))
+                    else:
+                        existing_dict = existing_val
+                    if iface_data[key] != existing_dict:
+                        needs_update = True
+                        update_fields.append(key)
+            if needs_update:
+                self.logger.info(f"Updating layer3 subinterface fields: {', '.join(update_fields)}")
+                try:
+                    update_data = iface_data.copy()
+                    update_data["id"] = str(existing_iface.id)
+                    result = self.client.layer3_subinterface.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"layer3 subinterface '{iface_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_iface.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.layer3_subinterface.create(iface_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"layer3 subinterface '{iface_data['name']}'", create_error)
+
+    def delete_layer3_subinterface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a layer3 subinterface."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete layer3 subinterface: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            iface = self.client.layer3_subinterface.fetch(name=name, **container_kwargs)
+            self.client.layer3_subinterface.delete(str(iface.id))
+            self.logger.info(f"Deleted layer3 subinterface: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"layer3 subinterface '{name}'", e)
+
+    def get_layer3_subinterface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific layer3 subinterface."""
+        if not self.client:
+            return {
+                "id": "l3sub-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "tag": 100,
+                "mtu": 1500,
+                "ip": [{"name": "10.0.1.1/24"}],
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.layer3_subinterface.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Layer3 subinterface '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"layer3 subinterface '{name}'", e)
+
+    def list_layer3_subinterfaces(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List layer3 subinterfaces in a container."""
+        if not self.client:
+            return [
+                {"id": "l3sub-mock1", "folder": folder or "ngfw-shared", "name": "ethernet1/1.100", "tag": 100, "mtu": 1500, "ip": [{"name": "10.0.1.1/24"}]},
+                {"id": "l3sub-mock2", "folder": folder or "ngfw-shared", "name": "ethernet1/1.200", "tag": 200, "dhcp_client": {"enable": True}},
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.layer3_subinterface.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "layer3 subinterfaces", e)
+
+    # ------------------------------------------------------------------------------------- Loopback Interfaces -----------------------------------------------------------------------------------
+
+    def create_loopback_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a loopback interface using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in iface_data and iface_data[field] is not None:
+                container_field = field
+                container_value = iface_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = iface_data.copy()
+            result["id"] = f"lo-{iface_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_iface = None
+        try:
+            existing_iface = self.client.loopback_interface.fetch(name=iface_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing loopback interface '{iface_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Loopback interface '{iface_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching loopback interface '{iface_data['name']}': {str(e)}")
+        if existing_iface:
+            needs_update = False
+            update_fields = []
+            for key in ["comment", "mtu", "interface_management_profile"]:
+                if key in iface_data:
+                    if iface_data[key] != getattr(existing_iface, key, None):
+                        needs_update = True
+                        update_fields.append(key)
+            for key in ["ip", "ipv6"]:
+                if key in iface_data:
+                    existing_val = getattr(existing_iface, key, None)
+                    if key == "ip" and existing_val:
+                        existing_dict = [json.loads(e.model_dump_json(exclude_unset=True)) for e in existing_val]
+                    elif existing_val and hasattr(existing_val, "model_dump_json"):
+                        existing_dict = json.loads(existing_val.model_dump_json(exclude_unset=True))
+                    else:
+                        existing_dict = existing_val
+                    if iface_data[key] != existing_dict:
+                        needs_update = True
+                        update_fields.append(key)
+            if needs_update:
+                self.logger.info(f"Updating loopback interface fields: {', '.join(update_fields)}")
+                try:
+                    update_data = iface_data.copy()
+                    update_data["id"] = str(existing_iface.id)
+                    result = self.client.loopback_interface.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"loopback interface '{iface_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_iface.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.loopback_interface.create(iface_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"loopback interface '{iface_data['name']}'", create_error)
+
+    def delete_loopback_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a loopback interface."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete loopback interface: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            iface = self.client.loopback_interface.fetch(name=name, **container_kwargs)
+            self.client.loopback_interface.delete(str(iface.id))
+            self.logger.info(f"Deleted loopback interface: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"loopback interface '{name}'", e)
+
+    def get_loopback_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific loopback interface."""
+        if not self.client:
+            return {
+                "id": "lo-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "comment": "Mock loopback interface",
+                "ip": [{"name": "10.0.0.1/32"}],
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.loopback_interface.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Loopback interface '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"loopback interface '{name}'", e)
+
+    def list_loopback_interfaces(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List loopback interfaces in a container."""
+        if not self.client:
+            return [
+                {"id": "lo-mock1", "folder": folder or "ngfw-shared", "name": "$lo1", "comment": "Loopback 1", "ip": [{"name": "10.0.0.1/32"}]},
+                {"id": "lo-mock2", "folder": folder or "ngfw-shared", "name": "$lo2", "comment": "Loopback 2", "ip": [{"name": "10.0.0.2/32"}]},
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.loopback_interface.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "loopback interfaces", e)
+
+    # ------------------------------------------------------------------------------------- Tunnel Interfaces -----------------------------------------------------------------------------------
+
+    def create_tunnel_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a tunnel interface using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in iface_data and iface_data[field] is not None:
+                container_field = field
+                container_value = iface_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = iface_data.copy()
+            result["id"] = f"tun-{iface_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_iface = None
+        try:
+            existing_iface = self.client.tunnel_interface.fetch(name=iface_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing tunnel interface '{iface_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Tunnel interface '{iface_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching tunnel interface '{iface_data['name']}': {str(e)}")
+        if existing_iface:
+            needs_update = False
+            update_fields = []
+            for key in ["comment", "mtu", "interface_management_profile"]:
+                if key in iface_data:
+                    if iface_data[key] != getattr(existing_iface, key, None):
+                        needs_update = True
+                        update_fields.append(key)
+            if "ip" in iface_data:
+                existing_ip = getattr(existing_iface, "ip", None)
+                existing_ip_list = [json.loads(e.model_dump_json(exclude_unset=True)) for e in existing_ip] if existing_ip else None
+                if iface_data["ip"] != existing_ip_list:
+                    needs_update = True
+                    update_fields.append("ip")
+            if needs_update:
+                self.logger.info(f"Updating tunnel interface fields: {', '.join(update_fields)}")
+                try:
+                    update_data = iface_data.copy()
+                    update_data["id"] = str(existing_iface.id)
+                    result = self.client.tunnel_interface.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"tunnel interface '{iface_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_iface.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.tunnel_interface.create(iface_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"tunnel interface '{iface_data['name']}'", create_error)
+
+    def delete_tunnel_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a tunnel interface."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete tunnel interface: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            iface = self.client.tunnel_interface.fetch(name=name, **container_kwargs)
+            self.client.tunnel_interface.delete(str(iface.id))
+            self.logger.info(f"Deleted tunnel interface: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"tunnel interface '{name}'", e)
+
+    def get_tunnel_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific tunnel interface."""
+        if not self.client:
+            return {
+                "id": "tun-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "comment": "Mock tunnel interface",
+                "mtu": 1500,
+                "ip": [{"name": "10.0.0.1/30"}],
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.tunnel_interface.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Tunnel interface '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"tunnel interface '{name}'", e)
+
+    def list_tunnel_interfaces(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List tunnel interfaces in a container."""
+        if not self.client:
+            return [
+                {"id": "tun-mock1", "folder": folder or "ngfw-shared", "name": "tunnel1", "mtu": 1500, "ip": [{"name": "10.0.0.1/30"}]},
+                {"id": "tun-mock2", "folder": folder or "ngfw-shared", "name": "tunnel2", "mtu": 1400, "ip": [{"name": "10.0.0.5/30"}]},
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.tunnel_interface.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "tunnel interfaces", e)
+
+    # -------------------------------------------------------------------------------------- VLAN Interfaces ------------------------------------------------------------------------------------
+
+    def create_vlan_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a VLAN interface using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in iface_data and iface_data[field] is not None:
+                container_field = field
+                container_value = iface_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = iface_data.copy()
+            result["id"] = f"vlan-{iface_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_iface = None
+        try:
+            existing_iface = self.client.vlan_interface.fetch(name=iface_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing VLAN interface '{iface_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"VLAN interface '{iface_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching VLAN interface '{iface_data['name']}': {str(e)}")
+        if existing_iface:
+            needs_update = False
+            update_fields = []
+            for key in ["comment", "vlan_tag", "mtu", "interface_management_profile"]:
+                if key in iface_data:
+                    if iface_data[key] != getattr(existing_iface, key, None):
+                        needs_update = True
+                        update_fields.append(key)
+            for key in ["ip", "dhcp_client"]:
+                if key in iface_data:
+                    existing_val = getattr(existing_iface, key, None)
+                    if key == "ip" and existing_val:
+                        existing_dict = [json.loads(e.model_dump_json(exclude_unset=True)) for e in existing_val]
+                    elif existing_val and hasattr(existing_val, "model_dump_json"):
+                        existing_dict = json.loads(existing_val.model_dump_json(exclude_unset=True))
+                    else:
+                        existing_dict = existing_val
+                    if iface_data[key] != existing_dict:
+                        needs_update = True
+                        update_fields.append(key)
+            if needs_update:
+                self.logger.info(f"Updating VLAN interface fields: {', '.join(update_fields)}")
+                try:
+                    update_data = iface_data.copy()
+                    update_data["id"] = str(existing_iface.id)
+                    result = self.client.vlan_interface.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"VLAN interface '{iface_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_iface.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.vlan_interface.create(iface_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"VLAN interface '{iface_data['name']}'", create_error)
+
+    def delete_vlan_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a VLAN interface."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete VLAN interface: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            iface = self.client.vlan_interface.fetch(name=name, **container_kwargs)
+            self.client.vlan_interface.delete(str(iface.id))
+            self.logger.info(f"Deleted VLAN interface: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"VLAN interface '{name}'", e)
+
+    def get_vlan_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific VLAN interface."""
+        if not self.client:
+            return {
+                "id": "vlan-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "comment": "Mock VLAN interface",
+                "vlan_tag": "100",
+                "ip": [{"name": "10.0.10.1/24"}],
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.vlan_interface.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"VLAN interface '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"VLAN interface '{name}'", e)
+
+    def list_vlan_interfaces(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List VLAN interfaces in a container."""
+        if not self.client:
+            return [
+                {"id": "vlan-mock1", "folder": folder or "ngfw-shared", "name": "vlan1", "vlan_tag": "100", "ip": [{"name": "10.0.10.1/24"}]},
+                {"id": "vlan-mock2", "folder": folder or "ngfw-shared", "name": "vlan2", "vlan_tag": "200", "ip": [{"name": "10.0.20.1/24"}]},
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.vlan_interface.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "VLAN interfaces", e)
+
 
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
