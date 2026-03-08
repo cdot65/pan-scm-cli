@@ -206,7 +206,7 @@ class SCMClient:
             # Skip empty lists, empty dicts, empty strings, and None values
             if value is None:
                 continue
-            if isinstance(value, (list, dict)) and not value:
+            if isinstance(value, list | dict) and not value:
                 continue
             if isinstance(value, str) and not value.strip():
                 continue
@@ -12781,10 +12781,9 @@ class SCMClient:
             needs_update = False
             update_fields = []
             for key in ["comment", "link_speed", "link_duplex", "link_state"]:
-                if key in iface_data:
-                    if iface_data[key] != getattr(existing_iface, key, None):
-                        needs_update = True
-                        update_fields.append(key)
+                if key in iface_data and iface_data[key] != getattr(existing_iface, key, None):
+                    needs_update = True
+                    update_fields.append(key)
             for key in ["layer2", "layer3", "tap"]:
                 if key in iface_data:
                     existing_val = getattr(existing_iface, key, None)
@@ -12916,10 +12915,9 @@ class SCMClient:
             needs_update = False
             update_fields = []
             for key in ["vlan_tag", "comment", "parent_interface"]:
-                if key in iface_data:
-                    if iface_data[key] != getattr(existing_iface, key, None):
-                        needs_update = True
-                        update_fields.append(key)
+                if key in iface_data and iface_data[key] != getattr(existing_iface, key, None):
+                    needs_update = True
+                    update_fields.append(key)
             if needs_update:
                 self.logger.info(f"Updating layer2 subinterface fields: {', '.join(update_fields)}")
                 try:
@@ -13044,10 +13042,9 @@ class SCMClient:
             needs_update = False
             update_fields = []
             for key in ["tag", "comment", "parent_interface", "mtu", "interface_management_profile"]:
-                if key in iface_data:
-                    if iface_data[key] != getattr(existing_iface, key, None):
-                        needs_update = True
-                        update_fields.append(key)
+                if key in iface_data and iface_data[key] != getattr(existing_iface, key, None):
+                    needs_update = True
+                    update_fields.append(key)
             for key in ["ip", "dhcp_client"]:
                 if key in iface_data:
                     existing_val = getattr(existing_iface, key, None)
@@ -13154,7 +13151,7 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "layer3 subinterfaces", e)
 
-    # ------------------------------------------------------------------------------------- Loopback Interfaces -----------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------- Loopback Interfaces ---------------------------------------------------------------------------------
 
     def create_loopback_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
         """Create or update a loopback interface using smart upsert logic."""
@@ -13185,10 +13182,9 @@ class SCMClient:
             needs_update = False
             update_fields = []
             for key in ["comment", "mtu", "interface_management_profile"]:
-                if key in iface_data:
-                    if iface_data[key] != getattr(existing_iface, key, None):
-                        needs_update = True
-                        update_fields.append(key)
+                if key in iface_data and iface_data[key] != getattr(existing_iface, key, None):
+                    needs_update = True
+                    update_fields.append(key)
             for key in ["ip", "ipv6"]:
                 if key in iface_data:
                     existing_val = getattr(existing_iface, key, None)
@@ -13294,7 +13290,7 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "loopback interfaces", e)
 
-    # ------------------------------------------------------------------------------------- Tunnel Interfaces -----------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------- Tunnel Interfaces ---------------------------------------------------------------------------------
 
     def create_tunnel_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
         """Create or update a tunnel interface using smart upsert logic."""
@@ -13325,10 +13321,9 @@ class SCMClient:
             needs_update = False
             update_fields = []
             for key in ["comment", "mtu", "interface_management_profile"]:
-                if key in iface_data:
-                    if iface_data[key] != getattr(existing_iface, key, None):
-                        needs_update = True
-                        update_fields.append(key)
+                if key in iface_data and iface_data[key] != getattr(existing_iface, key, None):
+                    needs_update = True
+                    update_fields.append(key)
             if "ip" in iface_data:
                 existing_ip = getattr(existing_iface, "ip", None)
                 existing_ip_list = [json.loads(e.model_dump_json(exclude_unset=True)) for e in existing_ip] if existing_ip else None
@@ -13429,7 +13424,7 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "tunnel interfaces", e)
 
-    # -------------------------------------------------------------------------------------- VLAN Interfaces ------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------- VLAN Interfaces ----------------------------------------------------------------------------------
 
     def create_vlan_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
         """Create or update a VLAN interface using smart upsert logic."""
@@ -13460,10 +13455,9 @@ class SCMClient:
             needs_update = False
             update_fields = []
             for key in ["comment", "vlan_tag", "mtu", "interface_management_profile"]:
-                if key in iface_data:
-                    if iface_data[key] != getattr(existing_iface, key, None):
-                        needs_update = True
-                        update_fields.append(key)
+                if key in iface_data and iface_data[key] != getattr(existing_iface, key, None):
+                    needs_update = True
+                    update_fields.append(key)
             for key in ["ip", "dhcp_client"]:
                 if key in iface_data:
                     existing_val = getattr(existing_iface, key, None)
@@ -15495,471 +15489,6 @@ class SCMClient:
                 "action",
                 "enforce_symmetric_return",
             ]:
-                if key in data and data[key] != existing_dict.get(key):
-                    needs_update = True
-            if needs_update:
-                try:
-                    update_data = data.copy()
-                    update_data["id"] = str(existing.id)
-                    result = self.client.pbf_rule.update(update_data)
-                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
-                    result_dict["__action__"] = "updated"
-                    return result_dict
-                except Exception as update_error:
-                    self._handle_api_exception("update", container_value or "unknown", f"PBF rule '{data['name']}'", update_error)
-            else:
-                result = existing_dict
-                result["__action__"] = "no_change"
-                return result
-        else:
-            try:
-                created = self.client.pbf_rule.create(data)
-                result = json.loads(created.model_dump_json(exclude_unset=True))
-                result["__action__"] = "created"
-                return result
-            except Exception as create_error:
-                self._handle_api_exception("creating", str(container_value), f"PBF rule '{data['name']}'", create_error)
-
-    def delete_pbf_rule(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
-        """Delete a PBF rule."""
-        if not self.client:
-            self.logger.info(f"[Mock Mode] Would delete PBF rule: {name}")
-            return
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        try:
-            rule = self.client.pbf_rule.fetch(name=name, **container_kwargs)
-            self.client.pbf_rule.delete(str(rule.id))
-            self.logger.info(f"Deleted PBF rule: {name}")
-        except Exception as e:
-            self._handle_api_exception("deleting", folder or snippet or device or "", f"PBF rule '{name}'", e)
-
-    def get_pbf_rule(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
-        """Get a specific PBF rule."""
-        if not self.client:
-            return {"id": "pbf-rule-mock", "name": name, "folder": folder or "ngfw-shared", "action": {"forward": {"egress_interface": "ethernet1/1"}}}
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        try:
-            result = self.client.pbf_rule.fetch(name=name, **container_kwargs)
-            return json.loads(result.model_dump_json(exclude_unset=True))
-        except NotFoundError:
-            self.logger.warning(f"PBF rule '{name}' not found")
-            return None
-        except Exception as e:
-            self._handle_api_exception("retrieving", folder or snippet or device or "", f"PBF rule '{name}'", e)
-
-    def list_pbf_rules(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List PBF rules in a container."""
-        if not self.client:
-            return [{"id": "pbf-rule-mock1", "folder": folder or "ngfw-shared", "name": "default-pbf-rule", "action": {"forward": {"egress_interface": "ethernet1/1"}}}]
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        try:
-            results = self.client.pbf_rule.list(exact_match=exact_match, **container_kwargs)
-            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
-        except Exception as e:
-            self._handle_api_exception("listing", folder or snippet or device or "", "PBF rules", e)
-
-    # ----------------------------------------------------------------------------- QoS Profiles ------------------------------------------------------------------------------------
-
-    def create_qos_profile(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Create or update a QoS profile using smart upsert logic."""
-        container_fields = ["folder", "snippet", "device"]
-        container_field = None
-        container_value = None
-        for field in container_fields:
-            if field in data and data[field] is not None:
-                container_field = field
-                container_value = data[field]
-                break
-        if not container_field:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        if not self.client:
-            result = data.copy()
-            result["id"] = f"qos-profile-{data['name']}"
-            result["__action__"] = "created"
-            return result
-        existing = None
-        try:
-            existing = self.client.qos_profile.fetch(name=data["name"], **{container_field: container_value})
-            self.logger.info(f"Found existing QoS profile '{data['name']}'")
-        except NotFoundError:
-            self.logger.info(f"QoS profile '{data['name']}' not found, will create new")
-        except Exception as e:
-            self.logger.warning(f"Error fetching QoS profile '{data['name']}': {str(e)}")
-        if existing:
-            needs_update = False
-            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
-            for key in ["aggregate_bandwidth", "class_bandwidth_type"]:
-                if key in data and data[key] != existing_dict.get(key):
-                    needs_update = True
-            if needs_update:
-                try:
-                    update_data = data.copy()
-                    update_data["id"] = str(existing.id)
-                    result = self.client.qos_profile.update(update_data)
-                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
-                    result_dict["__action__"] = "updated"
-                    return result_dict
-                except Exception as update_error:
-                    self._handle_api_exception("update", container_value or "unknown", f"QoS profile '{data['name']}'", update_error)
-            else:
-                result = existing_dict
-                result["__action__"] = "no_change"
-                return result
-        else:
-            try:
-                created = self.client.qos_profile.create(data)
-                result = json.loads(created.model_dump_json(exclude_unset=True))
-                result["__action__"] = "created"
-                return result
-            except Exception as create_error:
-                self._handle_api_exception("creating", str(container_value), f"QoS profile '{data['name']}'", create_error)
-
-    def delete_qos_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
-        """Delete a QoS profile."""
-        if not self.client:
-            self.logger.info(f"[Mock Mode] Would delete QoS profile: {name}")
-            return
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        try:
-            profile = self.client.qos_profile.fetch(name=name, **container_kwargs)
-            self.client.qos_profile.delete(str(profile.id))
-            self.logger.info(f"Deleted QoS profile: {name}")
-        except Exception as e:
-            self._handle_api_exception("deleting", folder or snippet or device or "", f"QoS profile '{name}'", e)
-
-    def get_qos_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
-        """Get a specific QoS profile."""
-        if not self.client:
-            return {"id": "qos-profile-mock", "name": name, "folder": folder or "ngfw-shared", "aggregate_bandwidth": {"egress_max": 100}}
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        try:
-            result = self.client.qos_profile.fetch(name=name, **container_kwargs)
-            return json.loads(result.model_dump_json(exclude_unset=True))
-        except NotFoundError:
-            self.logger.warning(f"QoS profile '{name}' not found")
-            return None
-        except Exception as e:
-            self._handle_api_exception("retrieving", folder or snippet or device or "", f"QoS profile '{name}'", e)
-
-    def list_qos_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List QoS profiles in a container."""
-        if not self.client:
-            return [{"id": "qos-profile-mock1", "folder": folder or "ngfw-shared", "name": "default-qos-profile", "aggregate_bandwidth": {"egress_max": 100}}]
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        try:
-            results = self.client.qos_profile.list(exact_match=exact_match, **container_kwargs)
-            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
-        except Exception as e:
-            self._handle_api_exception("listing", folder or snippet or device or "", "QoS profiles", e)
-
-    # ----------------------------------------------------------------------------- QoS Rules ------------------------------------------------------------------------------------
-
-    def create_qos_rule(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Create or update a QoS rule using smart upsert logic."""
-        container_fields = ["folder", "snippet", "device"]
-        container_field = None
-        container_value = None
-        for field in container_fields:
-            if field in data and data[field] is not None:
-                container_field = field
-                container_value = data[field]
-                break
-        if not container_field:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        if not self.client:
-            result = data.copy()
-            result["id"] = f"qos-rule-{data['name']}"
-            result["__action__"] = "created"
-            return result
-        existing = None
-        try:
-            existing = self.client.qos_rule.fetch(name=data["name"], **{container_field: container_value})
-            self.logger.info(f"Found existing QoS rule '{data['name']}'")
-        except NotFoundError:
-            self.logger.info(f"QoS rule '{data['name']}' not found, will create new")
-        except Exception as e:
-            self.logger.warning(f"Error fetching QoS rule '{data['name']}': {str(e)}")
-        if existing:
-            needs_update = False
-            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
-            for key in ["description", "action", "schedule", "dscp_tos"]:
-                if key in data and data[key] != existing_dict.get(key):
-                    needs_update = True
-            if needs_update:
-                try:
-                    update_data = data.copy()
-                    update_data["id"] = str(existing.id)
-                    result = self.client.qos_rule.update(update_data)
-                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
-                    result_dict["__action__"] = "updated"
-                    return result_dict
-                except Exception as update_error:
-                    self._handle_api_exception("update", container_value or "unknown", f"QoS rule '{data['name']}'", update_error)
-            else:
-                result = existing_dict
-                result["__action__"] = "no_change"
-                return result
-        else:
-            try:
-                created = self.client.qos_rule.create(data)
-                result = json.loads(created.model_dump_json(exclude_unset=True))
-                result["__action__"] = "created"
-                return result
-            except Exception as create_error:
-                self._handle_api_exception("creating", str(container_value), f"QoS rule '{data['name']}'", create_error)
-
-    def delete_qos_rule(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
-        """Delete a QoS rule."""
-        if not self.client:
-            self.logger.info(f"[Mock Mode] Would delete QoS rule: {name}")
-            return
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        try:
-            rule = self.client.qos_rule.fetch(name=name, **container_kwargs)
-            self.client.qos_rule.delete(str(rule.id))
-            self.logger.info(f"Deleted QoS rule: {name}")
-        except Exception as e:
-            self._handle_api_exception("deleting", folder or snippet or device or "", f"QoS rule '{name}'", e)
-
-    def get_qos_rule(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
-        """Get a specific QoS rule."""
-        if not self.client:
-            return {"id": "qos-rule-mock", "name": name, "folder": folder or "ngfw-shared", "action": {"class": "class1"}}
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        try:
-            result = self.client.qos_rule.fetch(name=name, **container_kwargs)
-            return json.loads(result.model_dump_json(exclude_unset=True))
-        except NotFoundError:
-            self.logger.warning(f"QoS rule '{name}' not found")
-            return None
-        except Exception as e:
-            self._handle_api_exception("retrieving", folder or snippet or device or "", f"QoS rule '{name}'", e)
-
-    def list_qos_rules(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List QoS rules in a container."""
-        if not self.client:
-            return [{"id": "qos-rule-mock1", "folder": folder or "ngfw-shared", "name": "default-qos-rule", "action": {"class": "class1"}}]
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        try:
-            results = self.client.qos_rule.list(exact_match=exact_match, **container_kwargs)
-            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
-        except Exception as e:
-            self._handle_api_exception("listing", folder or snippet or device or "", "QoS rules", e)
-
-
-    # -------------------------------------------------------------------------------- DNS Proxy -------------------------------------------------------------------------------------
-
-    def create_dns_proxy(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Create or update a DNS proxy using smart upsert logic."""
-        container_fields = ["folder", "snippet", "device"]
-        container_field = None
-        container_value = None
-        for field in container_fields:
-            if field in data and data[field] is not None:
-                container_field = field
-                container_value = data[field]
-                break
-        if not container_field:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        if not self.client:
-            result = data.copy()
-            result["id"] = f"dns-proxy-{data['name']}"
-            result["__action__"] = "created"
-            return result
-        existing = None
-        try:
-            existing = self.client.dns_proxy.fetch(name=data["name"], **{container_field: container_value})
-            self.logger.info(f"Found existing DNS proxy '{data['name']}'")
-        except NotFoundError:
-            self.logger.info(f"DNS proxy '{data['name']}' not found, will create new")
-        except Exception as e:
-            self.logger.warning(f"Error fetching DNS proxy '{data['name']}': {str(e)}")
-        if existing:
-            needs_update = False
-            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
-            for key in ["enabled", "default", "interface", "domain_servers", "static_entries", "tcp_queries", "udp_queries", "cache"]:
-                if key in data and data[key] != existing_dict.get(key):
-                    needs_update = True
-            if needs_update:
-                try:
-                    update_data = data.copy()
-                    update_data["id"] = str(existing.id)
-                    result = self.client.dns_proxy.update(update_data)
-                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
-                    result_dict["__action__"] = "updated"
-                    return result_dict
-                except Exception as update_error:
-                    self._handle_api_exception("update", container_value or "unknown", f"DNS proxy '{data['name']}'", update_error)
-            else:
-                result = existing_dict
-                result["__action__"] = "no_change"
-                return result
-        else:
-            try:
-                created = self.client.dns_proxy.create(data)
-                result = json.loads(created.model_dump_json(exclude_unset=True))
-                result["__action__"] = "created"
-                return result
-            except Exception as create_error:
-                self._handle_api_exception("creating", str(container_value), f"DNS proxy '{data['name']}'", create_error)
-
-    def delete_dns_proxy(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
-        """Delete a DNS proxy."""
-        if not self.client:
-            self.logger.info(f"[Mock Mode] Would delete DNS proxy: {name}")
-            return
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        try:
-            proxy = self.client.dns_proxy.fetch(name=name, **container_kwargs)
-            self.client.dns_proxy.delete(str(proxy.id))
-            self.logger.info(f"Deleted DNS proxy: {name}")
-        except Exception as e:
-            self._handle_api_exception("deleting", folder or snippet or device or "", f"DNS proxy '{name}'", e)
-
-    def get_dns_proxy(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
-        """Get a specific DNS proxy."""
-        if not self.client:
-            return {"id": "dns-proxy-mock", "name": name, "folder": folder or "ngfw-shared", "enabled": True, "default": {"primary": "8.8.8.8"}}
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        else:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        try:
-            result = self.client.dns_proxy.fetch(name=name, **container_kwargs)
-            return json.loads(result.model_dump_json(exclude_unset=True))
-        except NotFoundError:
-            self.logger.warning(f"DNS proxy '{name}' not found")
-            return None
-        except Exception as e:
-            self._handle_api_exception("retrieving", folder or snippet or device or "", f"DNS proxy '{name}'", e)
-
-    def list_dns_proxies(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
-        """List DNS proxies in a container."""
-        if not self.client:
-            return [{"id": "dns-proxy-mock1", "folder": folder or "ngfw-shared", "name": "default-dns-proxy", "enabled": True}]
-        container_kwargs = {}
-        if folder:
-            container_kwargs["folder"] = folder
-        elif snippet:
-            container_kwargs["snippet"] = snippet
-        elif device:
-            container_kwargs["device"] = device
-        try:
-            results = self.client.dns_proxy.list(exact_match=exact_match, **container_kwargs)
-            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
-        except Exception as e:
-            self._handle_api_exception("listing", folder or snippet or device or "", "DNS proxies", e)
-
-    # ----------------------------------------------------------------------------- PBF Rules ------------------------------------------------------------------------------------
-
-    def create_pbf_rule(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Create or update a PBF rule using smart upsert logic."""
-        container_fields = ["folder", "snippet", "device"]
-        container_field = None
-        container_value = None
-        for field in container_fields:
-            if field in data and data[field] is not None:
-                container_field = field
-                container_value = data[field]
-                break
-        if not container_field:
-            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
-        if not self.client:
-            result = data.copy()
-            result["id"] = f"pbf-rule-{data['name']}"
-            result["__action__"] = "created"
-            return result
-        existing = None
-        try:
-            existing = self.client.pbf_rule.fetch(name=data["name"], **{container_field: container_value})
-            self.logger.info(f"Found existing PBF rule '{data['name']}'")
-        except NotFoundError:
-            self.logger.info(f"PBF rule '{data['name']}' not found, will create new")
-        except Exception as e:
-            self.logger.warning(f"Error fetching PBF rule '{data['name']}': {str(e)}")
-        if existing:
-            needs_update = False
-            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
-            for key in ["description", "tag", "schedule", "disabled", "from", "source", "source_user", "destination", "destination_application", "service", "application", "action", "enforce_symmetric_return"]:
                 if key in data and data[key] != existing_dict.get(key):
                     needs_update = True
             if needs_update:

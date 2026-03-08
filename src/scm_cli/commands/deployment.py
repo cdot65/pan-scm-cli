@@ -1091,11 +1091,7 @@ def set_bgp_routing(
     """
     try:
         # Parse outbound routes
-        outbound_list = (
-            [r.strip() for r in outbound_routes.split(",")]
-            if outbound_routes
-            else []
-        )
+        outbound_list = [r.strip() for r in outbound_routes.split(",")] if outbound_routes else []
 
         # Validate using Pydantic model
         bgp = BGPRouting(

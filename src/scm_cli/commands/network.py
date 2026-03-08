@@ -228,12 +228,16 @@ IPSEC_DH_GROUP_OPTION = typer.Option(
 IPSEC_LIFETIME_SECONDS_OPTION = typer.Option(None, "--lifetime-seconds", help="Lifetime in seconds (180-65535)")
 IPSEC_LIFETIME_HOURS_OPTION = typer.Option(None, "--lifetime-hours", help="Lifetime in hours (1-65535)")
 
+IKE_HASH_OPTION = typer.Option(..., "--hash", help="Hash algorithms (sha256, sha384, sha512, sha1, md5)")
+IKE_DH_GROUP_OPTION = typer.Option(..., "--dh-group", help="DH groups (group1, group2, group5, group14, group19, group20)")
+IKE_ENCRYPTION_OPTION = typer.Option(..., "--encryption", help="Encryption algorithms (aes-256-cbc, aes-128-cbc, etc.)")
+
 # ========================================================================================================================================================================================
 # HELPER FUNCTIONS
 # ========================================================================================================================================================================================
 
 
-def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
+def validate_location_params(folder: str | None = None, snippet: str | None = None, device: str | None = None) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
 
     Returns:
@@ -257,6 +261,7 @@ def validate_location_params(folder: str = None, snippet: str = None, device: st
     elif snippet:
         return "snippet", snippet
     else:
+        assert device is not None
         return "device", device
 
 
@@ -389,9 +394,9 @@ def load_ike_crypto_profile(
 @set_app.command("ike-crypto-profile", help="Create or update an IKE crypto profile.")
 def set_ike_crypto_profile(
     name: str = typer.Argument(..., help="Name of the IKE crypto profile"),
-    hash: list[str] = typer.Option(..., "--hash", help="Hash algorithms (sha256, sha384, sha512, sha1, md5)"),
-    dh_group: list[str] = typer.Option(..., "--dh-group", help="DH groups (group1, group2, group5, group14, group19, group20)"),
-    encryption: list[str] = typer.Option(..., "--encryption", help="Encryption algorithms (aes-256-cbc, aes-128-cbc, etc.)"),
+    hash: list[str] = IKE_HASH_OPTION,
+    dh_group: list[str] = IKE_DH_GROUP_OPTION,
+    encryption: list[str] = IKE_ENCRYPTION_OPTION,
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
