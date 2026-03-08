@@ -4,7 +4,7 @@ title: Home
 
 <div class="hero" markdown>
 
-![SCM CLI Banner](images/logo - banner.svg){ .hero-logo }
+![SCM CLI Logo](images/logo.svg){ .hero-logo }
 
 # pan-scm-cli
 
