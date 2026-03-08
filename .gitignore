@@ -392,3 +392,6 @@ Thumbs.db
 .claude/sdk/scm/utils/logging.py
 .claude/sdk/scm/utils/tag_colors.py
 .claude/worktrees/
+
+# Adobe Illustrator source files
+*.ai

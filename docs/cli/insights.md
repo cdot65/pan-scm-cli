@@ -14,8 +14,8 @@ The insights commands allow you to:
 
 ## Prerequisites
 
-1. Install pan-scm-cli (see [Installation](../README.md))
-2. Configure authentication (see [Authentication](authentication.md))
+1. Install pan-scm-cli (see [Installation](../about/installation.md))
+2. Configure authentication (see [Configuration](../guide/configuration.md))
 3. Ensure your user has appropriate permissions for monitoring data
 
 ## Commands
