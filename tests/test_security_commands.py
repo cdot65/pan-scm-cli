@@ -1,13 +1,18 @@
 """Tests for the security commands module."""
 
 import typer
+
 from scm_cli.commands.security import (
     delete_app,
     delete_security_rule,
+    delete_wildfire_antivirus_profile,
     load_app,
     load_security_rule,
+    load_wildfire_antivirus_profile,
     set_app,
     set_security_rule,
+    set_wildfire_antivirus_profile,
+    show_wildfire_antivirus_profile,
 )
 
 
@@ -252,3 +257,246 @@ class TestSecurityRuleCommands:
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         assert not mock_called  # Ensure the create method was not called
+
+
+class TestWildfireAntivirusProfileCommands:
+    """Test the WildFire antivirus profile commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client to avoid real API calls."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_wildfire_antivirus_profile_command(self, runner, monkeypatch):
+        """Test the set wildfire-antivirus-profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_wildfire_antivirus_profile.return_value = {
+            "id": "wfav-12345",
+            "name": "wf-test",
+            "folder": "Texas",
+            "rules": [],
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_wildfire_antivirus_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "wf-test",
+                "--description",
+                "Test WildFire profile",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created WildFire antivirus profile" in result.stdout
+        assert "wf-test" in result.stdout
+
+    def test_set_wildfire_antivirus_profile_with_rules_json(self, runner, monkeypatch):
+        """Test set wildfire-antivirus-profile with custom rules JSON."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_wildfire_antivirus_profile.return_value = {
+            "id": "wfav-12345",
+            "name": "wf-custom",
+            "folder": "Texas",
+            "rules": [],
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_wildfire_antivirus_profile)
+
+        rules = '[{"name":"Forward All","direction":"both","analysis":"public-cloud","application":["any"],"file_type":["any"]}]'
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "wf-custom",
+                "--rules",
+                rules,
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created WildFire antivirus profile" in result.stdout
+
+    def test_set_wildfire_antivirus_profile_error(self, runner, monkeypatch):
+        """Test the set wildfire-antivirus-profile command with an error."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_wildfire_antivirus_profile.side_effect = ValueError("Test error")
+
+        test_app = typer.Typer()
+        test_app.command()(set_wildfire_antivirus_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "wf-test",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating WildFire antivirus profile" in result.stdout
+
+    def test_delete_wildfire_antivirus_profile_command(self, runner, monkeypatch):
+        """Test the delete wildfire-antivirus-profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.delete_wildfire_antivirus_profile.return_value = True
+
+        test_app = typer.Typer()
+        test_app.command()(delete_wildfire_antivirus_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "wf-test",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted WildFire antivirus profile" in result.stdout
+        assert "wf-test" in result.stdout
+
+    def test_show_wildfire_antivirus_profile_list(self, runner, monkeypatch):
+        """Test the show wildfire-antivirus-profile command (list mode)."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_wildfire_antivirus_profiles.return_value = [
+            {
+                "id": "wfav-1",
+                "folder": "Texas",
+                "name": "WF Profile 1",
+                "description": "First profile",
+                "rules": [{"name": "rule1", "direction": "both"}],
+            },
+            {
+                "id": "wfav-2",
+                "folder": "Texas",
+                "name": "WF Profile 2",
+                "rules": [{"name": "rule2", "direction": "upload"}],
+            },
+        ]
+
+        test_app = typer.Typer()
+        test_app.command()(show_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "WF Profile 1" in result.stdout
+        assert "WF Profile 2" in result.stdout
+
+    def test_show_wildfire_antivirus_profile_single(self, runner, monkeypatch):
+        """Test the show wildfire-antivirus-profile command (single profile)."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.get_wildfire_antivirus_profile.return_value = {
+            "id": "wfav-1",
+            "folder": "Texas",
+            "name": "WF Test",
+            "description": "Test profile",
+            "packet_capture": True,
+            "rules": [
+                {
+                    "name": "Forward All",
+                    "direction": "both",
+                    "analysis": "public-cloud",
+                    "application": ["any"],
+                    "file_type": ["any"],
+                }
+            ],
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(show_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "WF Test"])
+
+        assert result.exit_code == 0
+        assert "WF Test" in result.stdout
+        assert "Packet Capture: Enabled" in result.stdout
+        assert "Forward All" in result.stdout
+
+    def test_load_wildfire_antivirus_profile_command(self, runner, monkeypatch, tmp_path):
+        """Test the load wildfire-antivirus-profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        call_count = {"n": 0}
+
+        def mock_create(*args, **kwargs):
+            call_count["n"] += 1
+            return {
+                "id": f"wfav-{call_count['n']}",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "rules": kwargs.get("rules", []),
+            }
+
+        mock_client.create_wildfire_antivirus_profile.side_effect = mock_create
+
+        # Create a test YAML file
+        yaml_content = """
+wildfire_antivirus_profiles:
+  - name: wf-test
+    folder: Texas
+    rules:
+      - name: Forward All
+        direction: both
+        analysis: public-cloud
+        application:
+          - any
+        file_type:
+          - any
+"""
+        test_file = tmp_path / "wf_profiles.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0
+        assert "Successfully processed" in result.stdout
+        assert call_count["n"] == 1
+
+    def test_load_wildfire_antivirus_profile_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test the load wildfire-antivirus-profile command with dry-run."""
+        mock_client = self._mock_scm_client(monkeypatch)
+
+        yaml_content = """
+wildfire_antivirus_profiles:
+  - name: wf-test
+    folder: Texas
+    rules:
+      - name: Forward All
+        direction: both
+        application:
+          - any
+        file_type:
+          - any
+"""
+        test_file = tmp_path / "wf_profiles.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--file", str(test_file), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+        mock_client.create_wildfire_antivirus_profile.assert_not_called()

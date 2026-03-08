@@ -13,7 +13,7 @@ import typer
 import yaml
 
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AntiSpywareProfile, DecryptionProfile, SecurityRule
+from ..utils.validators import AntiSpywareProfile, DecryptionProfile, SecurityRule, WildfireAntivirusProfile
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -1818,4 +1818,477 @@ def show_decryption_profile(
 
     except Exception as e:
         typer.echo(f"Error showing decryption profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# WILDFIRE ANTIVIRUS PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("wildfire-antivirus-profile")
+def backup_wildfire_antivirus_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all WildFire antivirus profiles from a container to a YAML file.
+
+    Examples:
+        # Backup from folder
+        scm backup security wildfire-antivirus-profile --folder Austin
+
+        # Backup from snippet
+        scm backup security wildfire-antivirus-profile --snippet Security-Best-Practice
+
+        # Backup from device
+        scm backup security wildfire-antivirus-profile --device austin-01
+
+        # Backup to custom filename
+        scm backup security wildfire-antivirus-profile --folder Austin --file my-profiles.yaml
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("wildfire-antivirus-profiles", location_type, location_value)
+
+    try:
+        # List all WildFire antivirus profiles with exact_match=True using kwargs pattern
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_wildfire_antivirus_profiles(**kwargs, exact_match=True)
+
+        if not profiles:
+            typer.echo(f"No WildFire antivirus profiles found in {location_type} '{location_value}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for profile in profiles:
+            # The list method already returns dicts with exclude_unset=True
+            profile_dict = profile.copy()
+            # Remove system fields that shouldn't be in backup
+            profile_dict.pop("id", None)
+
+            backup_data.append(profile_dict)
+
+        # Create the YAML structure
+        yaml_data = {"wildfire_antivirus_profiles": backup_data}
+
+        # Write to YAML file
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} WildFire antivirus profiles to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up WildFire antivirus profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("wildfire-antivirus-profile")
+def delete_wildfire_antivirus_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the WildFire antivirus profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the WildFire antivirus profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the WildFire antivirus profile"),
+    name: str = NAME_OPTION,
+):
+    """Delete a WildFire antivirus profile.
+
+    Examples:
+        # Delete from folder
+        scm delete security wildfire-antivirus-profile --folder Texas --name wf-strict
+
+        # Delete from snippet
+        scm delete security wildfire-antivirus-profile --snippet Security-Best-Practice --name wf-standard
+
+        # Delete from device
+        scm delete security wildfire-antivirus-profile --device austin-01 --name wf-local
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_wildfire_antivirus_profile(**kwargs, name=name)
+        if result:
+            typer.echo(f"Deleted WildFire antivirus profile: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(
+                f"WildFire antivirus profile not found: {name} in {location_type} {location_value}",
+                err=True,
+            )
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting WildFire antivirus profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("wildfire-antivirus-profile", help="Load WildFire antivirus profiles from a YAML file.")
+def load_wildfire_antivirus_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load WildFire antivirus profiles from a YAML file.
+
+    Examples:
+        # Load from file with original locations
+        scm load security wildfire-antivirus-profile --file config/wildfire_antivirus_profiles.yml
+
+        # Load with folder override
+        scm load security wildfire-antivirus-profile --file config/wildfire_antivirus_profiles.yml --folder Production
+
+        # Load with snippet override
+        scm load security wildfire-antivirus-profile --file config/wildfire_antivirus_profiles.yml --snippet Security-Best-Practice
+
+        # Dry run to preview changes
+        scm load security wildfire-antivirus-profile --file config/wildfire_antivirus_profiles.yml --dry-run
+
+    """
+    try:
+        # Validate container override parameters
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo(
+                "Error: Only one of --folder, --snippet, or --device can be specified",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        # Validate file exists
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data using the same pattern as other commands
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "wildfire_antivirus_profiles" not in raw_data:
+            typer.echo("No WildFire antivirus profiles found in file", err=True)
+            raise typer.Exit(code=1)
+
+        profiles = raw_data["wildfire_antivirus_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            # Show override information if applicable
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(profiles))
+            return []
+
+        # Apply each WildFire antivirus profile
+        results = []
+        created_count = 0
+        updated_count = 0
+
+        for profile_data in profiles:
+            try:
+                # Apply container override if specified
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+
+                # Validate using the Pydantic model
+                profile = WildfireAntivirusProfile(**profile_data)
+
+                # Call the SDK client to create the WildFire antivirus profile
+                sdk_data = profile.to_sdk_model()
+
+                # Extract container params
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_wildfire_antivirus_profile(**container_kwargs, **sdk_data)
+
+                results.append(result)
+
+                # Track if created or updated based on response
+                if "created" in str(result).lower():
+                    created_count += 1
+                else:
+                    updated_count += 1
+
+            except Exception as e:
+                typer.echo(
+                    f"Error processing WildFire antivirus profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    err=True,
+                )
+                # Continue processing other profiles
+                continue
+
+        # Display summary with counts
+        typer.echo(f"Successfully processed {len(results)} WildFire antivirus profile(s):")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading WildFire antivirus profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("wildfire-antivirus-profile")
+def set_wildfire_antivirus_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder path for the WildFire antivirus profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the WildFire antivirus profile"),
+    device: str = typer.Option(None, "--device", help="Device path for the WildFire antivirus profile"),
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    rules_json: str | None = typer.Option(
+        None,
+        "--rules",
+        help="JSON string of rules configuration",
+    ),
+    packet_capture: bool = typer.Option(
+        False,
+        "--packet-capture/--no-packet-capture",
+        help="Enable packet capture",
+    ),
+):
+    r"""Create or update a WildFire antivirus profile.
+
+    Examples:
+        # Create basic profile in folder with default rule
+        scm set security wildfire-antivirus-profile --folder Texas --name wf-basic \
+            --description "Basic WildFire profile"
+
+        # Create profile with custom rules (JSON)
+        scm set security wildfire-antivirus-profile --folder Texas --name wf-custom \
+            --rules '[{"name":"Forward All","direction":"both","analysis":"public-cloud","application":["any"],"file_type":["any"]}]'
+
+        # Create profile with packet capture
+        scm set security wildfire-antivirus-profile --folder Texas --name wf-capture \
+            --packet-capture
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        # Validate and create WildFire antivirus profile
+        profile_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+        }
+
+        if description:
+            profile_data["description"] = description
+        if packet_capture:
+            profile_data["packet_capture"] = packet_capture
+
+        # Parse rules from JSON if provided
+        if rules_json:
+            try:
+                profile_data["rules"] = json.loads(rules_json)
+            except json.JSONDecodeError as e:
+                typer.echo(f"Error parsing rules JSON: {str(e)}", err=True)
+                raise typer.Exit(code=1) from e
+        else:
+            # Add a default rule
+            profile_data["rules"] = [
+                {
+                    "name": "default-fwd",
+                    "direction": "both",
+                    "analysis": "public-cloud",
+                    "application": ["any"],
+                    "file_type": ["any"],
+                }
+            ]
+
+        # Validate using the Pydantic model
+        profile = WildfireAntivirusProfile(**profile_data)
+
+        # Call SDK client to create the profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_wildfire_antivirus_profile(**container_kwargs, **sdk_data)
+
+        # Format and display output
+        typer.echo(f"Created WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
+
+    except Exception as e:
+        typer.echo(f"Error creating WildFire antivirus profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("wildfire-antivirus-profile")
+def show_wildfire_antivirus_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the WildFire antivirus profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the WildFire antivirus profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the WildFire antivirus profile"),
+    name: str | None = typer.Option(None, "--name", help="Name of the WildFire antivirus profile to show"),
+):
+    """Display WildFire antivirus profiles.
+
+    Examples:
+        # List all WildFire antivirus profiles in a folder (default behavior)
+        scm show security wildfire-antivirus-profile --folder Texas
+
+        # Show a specific profile by name
+        scm show security wildfire-antivirus-profile --folder Texas --name wf-basic
+
+        # List profiles in snippet
+        scm show security wildfire-antivirus-profile --snippet Security-Best-Practice
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            # Get a specific WildFire antivirus profile by name
+            kwargs = {location_type: location_value}
+            profile = scm_client.get_wildfire_antivirus_profile(**kwargs, name=name)
+
+            typer.echo(f"\nWildFire Antivirus Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location (folder, snippet, or device)
+            if profile.get("folder"):
+                typer.echo(f"Location: Folder '{profile['folder']}'")
+            elif profile.get("snippet"):
+                typer.echo(f"Location: Snippet '{profile['snippet']}'")
+            elif profile.get("device"):
+                typer.echo(f"Location: Device '{profile['device']}'")
+
+            # Display description if present
+            if profile.get("description"):
+                typer.echo(f"Description: {profile['description']}")
+
+            # Display packet capture setting
+            if "packet_capture" in profile:
+                typer.echo(f"Packet Capture: {'Enabled' if profile['packet_capture'] else 'Disabled'}")
+
+            # Display rules in detail
+            if profile.get("rules"):
+                typer.echo(f"\nRules ({len(profile['rules'])}):")
+                for idx, rule in enumerate(profile["rules"], 1):
+                    typer.echo(f"  Rule {idx}: {rule.get('name', 'Unnamed')}")
+                    typer.echo(f"    Direction: {rule.get('direction', 'N/A')}")
+                    if rule.get("analysis"):
+                        typer.echo(f"    Analysis: {rule['analysis']}")
+                    if rule.get("application"):
+                        typer.echo(f"    Applications: {', '.join(rule['application'])}")
+                    if rule.get("file_type"):
+                        typer.echo(f"    File Types: {', '.join(rule['file_type'])}")
+
+            # Display MLAV exceptions if present
+            if profile.get("mlav_exception"):
+                typer.echo(f"\nMLAV Exceptions ({len(profile['mlav_exception'])}):")
+                for idx, exc in enumerate(profile["mlav_exception"], 1):
+                    typer.echo(f"  Exception {idx}: {exc.get('name', 'Unnamed')}")
+                    if exc.get("filename"):
+                        typer.echo(f"    Filename: {exc['filename']}")
+                    if exc.get("description"):
+                        typer.echo(f"    Description: {exc['description']}")
+
+            # Display threat exceptions if present
+            if profile.get("threat_exception"):
+                typer.echo(f"\nThreat Exceptions ({len(profile['threat_exception'])}):")
+                for idx, exc in enumerate(profile["threat_exception"], 1):
+                    typer.echo(f"  Exception {idx}: {exc.get('name', 'Unnamed')}")
+                    if exc.get("notes"):
+                        typer.echo(f"    Notes: {exc['notes']}")
+
+            # Display ID if present
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+
+            return profile
+
+        else:
+            # Default behavior: list all
+            kwargs = {location_type: location_value}
+            profiles = scm_client.list_wildfire_antivirus_profiles(**kwargs, exact_match=False)
+
+            if not profiles:
+                typer.echo(f"No WildFire antivirus profiles found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nWildFire Antivirus Profiles in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                # Display profile information
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+                elif profile.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
+                elif profile.get("device"):
+                    typer.echo(f"  Location: Device '{profile['device']}'")
+
+                # Display description if present
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+
+                # Display rules if present
+                if profile.get("rules"):
+                    typer.echo(f"  Rules: {len(profile['rules'])} configured")
+                    for rule in profile["rules"]:
+                        typer.echo(f"    - {rule.get('name', 'Unnamed')}: {rule.get('direction', 'N/A')}")
+
+                # Display packet capture setting
+                if profile.get("packet_capture"):
+                    typer.echo("  Packet Capture: Enabled")
+
+                # Display threat exceptions if present
+                if profile.get("threat_exception"):
+                    typer.echo(f"  Threat Exceptions: {len(profile['threat_exception'])}")
+
+                # Display MLAV exceptions if present
+                if profile.get("mlav_exception"):
+                    typer.echo(f"  MLAV Exceptions: {len(profile['mlav_exception'])}")
+
+                # Display ID if present
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing WildFire antivirus profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

@@ -4011,6 +4011,7 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "regions", e)
+
     # Quarantined Devices ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_quarantined_device(
@@ -6607,6 +6608,287 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container or "", "decryption profiles", e)
+
+    # --------------------------------------------------------------------------- WildFire Antivirus Profile ---------------------------------------------------------------------------
+
+    def create_wildfire_antivirus_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        packet_capture: bool | None = None,
+        rules: list[dict[str, Any]] | None = None,
+        mlav_exception: list[dict[str, Any]] | None = None,
+        threat_exception: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create a WildFire antivirus profile.
+
+        Args:
+            folder: Folder to create the profile in
+            snippet: Snippet to create the profile in
+            device: Device to create the profile in
+            name: Name of the profile
+            description: Optional description
+            packet_capture: Enable packet capture
+            rules: List of WildFire antivirus rules
+            mlav_exception: List of MLAV exceptions
+            threat_exception: List of threat exceptions
+
+        Returns:
+            dict[str, Any]: The created WildFire antivirus profile object
+
+        Note:
+            If a WildFire antivirus profile with the same name already exists in the container,
+            it will be updated with the new configuration.
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Creating or updating WildFire antivirus profile: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"wfav-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": description,
+                "packet_capture": packet_capture,
+                "rules": rules or [],
+                "mlav_exception": mlav_exception,
+                "threat_exception": threat_exception,
+            }
+
+        try:
+            # First, try to fetch the existing profile
+            existing_profile = None
+            try:
+                existing_profile = self.client.wildfire_antivirus_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+                self.logger.info(f"Found existing WildFire antivirus profile '{name}' in {container_type} '{container}', updating...")
+            except NotFoundError:
+                self.logger.info(f"WildFire antivirus profile '{name}' not found in {container_type} '{container}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching WildFire antivirus profile '{name}': {str(fetch_error)}")
+
+            # Prepare profile data
+            profile_data = {
+                "name": name,
+            }
+
+            # Add container field only if not None
+            if folder is not None:
+                profile_data["folder"] = folder
+            if snippet is not None:
+                profile_data["snippet"] = snippet
+            if device is not None:
+                profile_data["device"] = device
+
+            # Add optional fields if provided
+            if description is not None:
+                profile_data["description"] = description
+            if packet_capture is not None:
+                profile_data["packet_capture"] = packet_capture
+            if rules is not None:
+                profile_data["rules"] = rules
+            if mlav_exception is not None:
+                profile_data["mlav_exception"] = mlav_exception
+            if threat_exception is not None:
+                profile_data["threat_exception"] = threat_exception
+
+            # Create or update the profile
+            if existing_profile:
+                # Update existing profile
+                profile_data["id"] = existing_profile.id
+                from scm.models.security import WildfireAvProfileUpdateModel
+
+                update_model = WildfireAvProfileUpdateModel(**profile_data)
+                result = self.client.wildfire_antivirus_profile.update(update_model)
+            else:
+                # Create a new profile
+                result = self.client.wildfire_antivirus_profile.create(profile_data)
+
+            # Convert response to dict
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", "WildFire antivirus profile", e)
+
+    def delete_wildfire_antivirus_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a WildFire antivirus profile.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deleted successfully
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Deleting WildFire antivirus profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock success if no client is available
+            return True
+
+        try:
+            # Fetch the profile to get its ID
+            profile = self.client.wildfire_antivirus_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+
+            # Delete using the ID
+            self.client.wildfire_antivirus_profile.delete(profile.id)
+            self.logger.info(f"Successfully deleted WildFire antivirus profile '{name}' from {container_type} '{container}'")
+            return True
+        except NotFoundError:
+            self.logger.warning(f"WildFire antivirus profile '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", "WildFire antivirus profile", e)
+
+    def get_wildfire_antivirus_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a WildFire antivirus profile by name.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile
+
+        Returns:
+            dict[str, Any]: The WildFire antivirus profile object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Getting WildFire antivirus profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"wfav-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": "Mock WildFire antivirus profile",
+                "rules": [
+                    {
+                        "name": "Default Rule",
+                        "direction": "both",
+                        "analysis": "public-cloud",
+                        "application": ["any"],
+                        "file_type": ["any"],
+                    }
+                ],
+                "packet_capture": False,
+            }
+
+        try:
+            # Fetch the profile using the SDK
+            result = self.client.wildfire_antivirus_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+
+            # Convert SDK response to dict
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", "WildFire antivirus profile", e)
+
+    def list_wildfire_antivirus_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List WildFire antivirus profiles.
+
+        Args:
+            folder: Folder to list out
+            snippet: Snippet to list out
+            device: Device to list out
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of WildFire antivirus profile objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        # Build container kwargs
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing WildFire antivirus profiles in {container_type}: {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "wfav-mock1",
+                    "folder": folder or "Texas",
+                    "name": "WildFire Best Practice",
+                    "description": "Best practice WildFire antivirus profile",
+                    "rules": [
+                        {
+                            "name": "Forward All",
+                            "direction": "both",
+                            "analysis": "public-cloud",
+                            "application": ["any"],
+                            "file_type": ["any"],
+                        }
+                    ],
+                    "packet_capture": False,
+                },
+                {
+                    "id": "wfav-mock2",
+                    "folder": folder or "Texas",
+                    "name": "WildFire Upload Only",
+                    "description": "Upload-only WildFire profile",
+                    "rules": [
+                        {
+                            "name": "Upload Rule",
+                            "direction": "upload",
+                            "analysis": "public-cloud",
+                            "application": ["any"],
+                            "file_type": ["any"],
+                        }
+                    ],
+                },
+            ]
+
+        try:
+            # List profiles using the SDK
+            results = self.client.wildfire_antivirus_profile.list(**container_kwargs, exact_match=exact_match)
+
+            # Convert SDK response to a list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "WildFire antivirus profiles", e)
 
     # ======================================================================================================================================================================================
     # INSIGHTS AND MONITORING METHODS

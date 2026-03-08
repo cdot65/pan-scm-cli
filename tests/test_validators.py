@@ -2,7 +2,8 @@
 
 import pytest
 from pydantic import ValidationError
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IKECryptoProfile, QuarantinedDevice, Region, Schedule, SecurityRule, Zone
+
+from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IKECryptoProfile, QuarantinedDevice, Region, Schedule, SecurityRule, WildfireAntivirusProfile, Zone
 
 
 class TestBandwidthAllocation:
@@ -336,6 +337,7 @@ class TestSchedule:
                 time_ranges=["09:00-17:00"],
             )
 
+
 class TestRegion:
     """Test cases for the Region model."""
 
@@ -420,6 +422,8 @@ class TestRegion:
             Region(name="test", folder="Texas", longitude=181.0)
         with pytest.raises(ValidationError):
             Region(name="test", folder="Texas", longitude=-181.0)
+
+
 class TestQuarantinedDevice:
     """Test cases for the QuarantinedDevice model."""
 
@@ -530,3 +534,133 @@ class TestSecurityRule:
         assert rule.description == ""
         assert rule.tags == []
         assert rule.enabled is True
+
+
+class TestWildfireAntivirusProfile:
+    """Test cases for the WildfireAntivirusProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid WildFire antivirus profile."""
+        profile = WildfireAntivirusProfile(
+            name="wf-test",
+            folder="Texas",
+            description="Test profile",
+            rules=[
+                {
+                    "name": "Forward All",
+                    "direction": "both",
+                    "analysis": "public-cloud",
+                    "application": ["any"],
+                    "file_type": ["any"],
+                }
+            ],
+        )
+        assert profile.name == "wf-test"
+        assert profile.folder == "Texas"
+        assert len(profile.rules) == 1
+
+    def test_container_validation(self):
+        """Test that exactly one container must be specified."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                # No container
+                rules=[{"name": "r1", "direction": "both"}],
+            )
+
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                snippet="test-snippet",
+                rules=[{"name": "r1", "direction": "both"}],
+            )
+
+    def test_rule_direction_validation(self):
+        """Test rule direction validation."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "bad-rule", "direction": "invalid"}],
+            )
+
+    def test_rule_analysis_validation(self):
+        """Test rule analysis validation."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "bad-rule", "direction": "both", "analysis": "invalid"}],
+            )
+
+    def test_rule_missing_name(self):
+        """Test rule missing name validation."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"direction": "both"}],
+            )
+
+    def test_rule_missing_direction(self):
+        """Test rule missing direction validation."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "bad-rule"}],
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = WildfireAntivirusProfile(
+            name="wf-test",
+            folder="Texas",
+            description="Test profile",
+            packet_capture=True,
+            rules=[
+                {
+                    "name": "Forward All",
+                    "direction": "both",
+                    "analysis": "public-cloud",
+                }
+            ],
+            threat_exception=[{"name": "exc1", "notes": "test"}],
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "wf-test"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["description"] == "Test profile"
+        assert sdk_data["packet_capture"] is True
+        assert len(sdk_data["rules"]) == 1
+        assert sdk_data["threat_exception"] == [{"name": "exc1", "notes": "test"}]
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion with minimal fields."""
+        profile = WildfireAntivirusProfile(
+            name="wf-minimal",
+            folder="Texas",
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data == {"name": "wf-minimal", "folder": "Texas"}
+
+    def test_valid_directions(self):
+        """Test all valid direction values."""
+        for direction in ["download", "upload", "both"]:
+            profile = WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "rule1", "direction": direction}],
+            )
+            assert profile.rules[0]["direction"] == direction
+
+    def test_valid_analyses(self):
+        """Test all valid analysis values."""
+        for analysis in ["public-cloud", "private-cloud"]:
+            profile = WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "rule1", "direction": "both", "analysis": analysis}],
+            )
+            assert profile.rules[0]["analysis"] == analysis

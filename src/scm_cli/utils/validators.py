@@ -2110,6 +2110,85 @@ class DecryptionProfile(BaseModel):
         return model_data
 
 
+class WildfireAntivirusProfile(BaseModel):
+    """Model for WildFire antivirus profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the WildFire antivirus profile")
+    snippet: str | None = Field(None, description="Snippet path for the WildFire antivirus profile")
+    device: str | None = Field(None, description="Device path for the WildFire antivirus profile")
+    name: str = Field(..., description="Name of the WildFire antivirus profile")
+    description: str | None = Field(None, description="Description of the WildFire antivirus profile")
+
+    # Packet capture
+    packet_capture: bool | None = Field(None, description="Enable packet capture")
+
+    # Rules configuration
+    rules: list[dict[str, Any]] | None = Field(None, description="List of WildFire antivirus rules")
+
+    # MLAV exceptions
+    mlav_exception: list[dict[str, Any]] | None = Field(None, description="List of MLAV exceptions")
+
+    # Threat exceptions
+    threat_exception: list[dict[str, Any]] | None = Field(None, description="List of threat exceptions")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "WildfireAntivirusProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("rules")
+    def validate_rules(cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:  # noqa: N805
+        """Validate rules configuration."""
+        if v is None:
+            return v
+
+        valid_directions = ["download", "upload", "both"]
+        valid_analyses = ["public-cloud", "private-cloud"]
+
+        for idx, rule in enumerate(v):
+            if "name" not in rule:
+                raise ValueError(f"Rule {idx}: 'name' is required")
+            if "direction" not in rule:
+                raise ValueError(f"Rule {idx}: 'direction' is required")
+            if rule["direction"] not in valid_directions:
+                raise ValueError(f"Rule {idx}: Invalid direction '{rule['direction']}'")
+            if "analysis" in rule and rule["analysis"] is not None and rule["analysis"] not in valid_analyses:
+                raise ValueError(f"Rule {idx}: Invalid analysis '{rule['analysis']}'")
+
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.packet_capture is not None:
+            model_data["packet_capture"] = self.packet_capture
+        if self.rules:
+            model_data["rules"] = self.rules
+        if self.mlav_exception:
+            model_data["mlav_exception"] = self.mlav_exception
+        if self.threat_exception:
+            model_data["threat_exception"] = self.threat_exception
+
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # UTILITY FUNCTIONS
 # ========================================================================================================================================================================================
