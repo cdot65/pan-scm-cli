@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from scm_cli.utils.validators import (
     AddressGroup,
+    AggregateInterface,
     BandwidthAllocation,
     BGPRouting,
     DNSSecurityProfile,
@@ -951,6 +952,8 @@ class TestWildfireAntivirusProfile:
                 rules=[{"name": "rule1", "direction": "both", "analysis": analysis}],
             )
             assert profile.rules[0]["analysis"] == analysis
+
+
 class TestIPSecCryptoProfile:
     """Test cases for the IPSecCryptoProfile model."""
 
@@ -1685,3 +1688,81 @@ class TestAuthSetting:
         sdk_data = setting.to_sdk_model()
         assert sdk_data["auth_type"] == "ldap"
         assert sdk_data["ldap_profile"] == "corp-ldap"
+
+
+class TestAggregateInterface:
+    """Test cases for the AggregateInterface model."""
+
+    def test_valid_layer3(self):
+        """Test creating a valid layer3 aggregate interface."""
+        iface = AggregateInterface(
+            name="ae1",
+            folder="test-folder",
+            layer3={"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]},
+        )
+        assert iface.name == "ae1"
+        assert iface.folder == "test-folder"
+        assert iface.layer3 == {"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]}
+        assert iface.layer2 is None
+
+    def test_valid_layer2(self):
+        """Test creating a valid layer2 aggregate interface."""
+        iface = AggregateInterface(
+            name="ae2",
+            folder="test-folder",
+            layer2={"vlan_tag": "100"},
+        )
+        assert iface.name == "ae2"
+        assert iface.layer2 == {"vlan_tag": "100"}
+        assert iface.layer3 is None
+
+    def test_missing_name_raises(self):
+        """Test that missing name raises error."""
+        with pytest.raises(ValidationError):
+            AggregateInterface(folder="test-folder")
+
+    def test_no_container_raises(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            AggregateInterface(name="ae1")
+
+    def test_multiple_containers_raises(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            AggregateInterface(name="ae1", folder="f", snippet="s")
+
+    def test_both_modes_raises(self):
+        """Test that specifying both layer2 and layer3 raises error."""
+        with pytest.raises(ValidationError):
+            AggregateInterface(
+                name="ae1",
+                folder="test-folder",
+                layer2={"vlan_tag": "100"},
+                layer3={"mtu": 1500},
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        iface = AggregateInterface(
+            name="ae1",
+            folder="test-folder",
+            comment="test interface",
+            layer3={"mtu": 9000, "ip": [{"name": "10.0.0.1/24"}]},
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["name"] == "ae1"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["comment"] == "test interface"
+        assert sdk_data["layer3"]["mtu"] == 9000
+
+    def test_minimal_creation(self):
+        """Test minimal aggregate interface creation."""
+        iface = AggregateInterface(
+            name="ae1",
+            folder="test-folder",
+        )
+        assert iface.name == "ae1"
+        assert iface.folder == "test-folder"
+        assert iface.layer2 is None
+        assert iface.layer3 is None
+        assert iface.comment is None
