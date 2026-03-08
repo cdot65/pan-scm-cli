@@ -1702,6 +1702,65 @@ class Tag(BaseModel):
 # ========================================================================================================================================================================================
 
 
+class AggregateInterface(BaseModel):
+    """Model for aggregate interface configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the aggregate interface")
+    snippet: str | None = Field(None, description="Snippet path for the aggregate interface")
+    device: str | None = Field(None, description="Device path for the aggregate interface")
+    name: str = Field(
+        ...,
+        description="Aggregate interface name (e.g. ae1)",
+    )
+    comment: str | None = Field(None, description="Interface description/comment")
+    default_value: str | None = Field(None, description="Default interface assignment")
+    layer2: dict[str, Any] | None = Field(None, description="Layer2 configuration (vlan_tag, lacp)")
+    layer3: dict[str, Any] | None = Field(None, description="Layer3 configuration (ip, dhcp_client, mtu, arp, lacp)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "AggregateInterface":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_interface_mode(self) -> "AggregateInterface":
+        """Validate that at most one interface mode is specified."""
+        modes = [self.layer2, self.layer3]
+        configured = [m for m in modes if m is not None]
+        if len(configured) > 1:
+            raise ValueError("Only one interface mode allowed: layer2 or layer3")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.comment:
+            model_data["comment"] = self.comment
+        if self.default_value:
+            model_data["default_value"] = self.default_value
+        if self.layer2 is not None:
+            model_data["layer2"] = self.layer2
+        if self.layer3 is not None:
+            model_data["layer3"] = self.layer3
+
+        return model_data
+
+
 class NATRule(BaseModel):
     """Model for NAT rule configurations."""
 
@@ -2648,10 +2707,24 @@ class Variable(BaseModel):
     def validate_type(cls, v: str) -> str:
         """Validate that the type is one of the allowed values."""
         allowed = [
-            "percent", "count", "ip-netmask", "zone", "ip-range",
-            "ip-wildcard", "device-priority", "device-id", "egress-max",
-            "as-number", "fqdn", "port", "link-tag", "group-id",
-            "rate", "router-id", "qos-profile", "timer",
+            "percent",
+            "count",
+            "ip-netmask",
+            "zone",
+            "ip-range",
+            "ip-wildcard",
+            "device-priority",
+            "device-id",
+            "egress-max",
+            "as-number",
+            "fqdn",
+            "port",
+            "link-tag",
+            "group-id",
+            "rate",
+            "router-id",
+            "qos-profile",
+            "timer",
         ]
         if v not in allowed:
             raise ValueError(f"type must be one of {allowed}, got {v}")

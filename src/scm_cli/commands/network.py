@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import IKECryptoProfile, IKEGateway, IPSecCryptoProfile, NATRule, Zone
+from ..utils.validators import AggregateInterface, IKECryptoProfile, IKEGateway, IPSecCryptoProfile, NATRule, Zone
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -463,6 +463,259 @@ def show_ike_crypto_profile(
             return profiles
     except Exception as e:
         typer.echo(f"Error showing IKE crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# AGGREGATE INTERFACE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("aggregate-interface", help="Export aggregate interfaces to a YAML file.")
+def backup_aggregate_interface(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export aggregate interfaces from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving aggregate interfaces from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        interfaces = scm_client.list_aggregate_interfaces(**kwargs)
+        if not interfaces:
+            typer.echo(f"No aggregate interfaces found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"aggregate_interfaces": interfaces}
+        filename = Path(file or get_default_backup_filename("aggregate-interface", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(interfaces)} aggregate interfaces to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up aggregate interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("aggregate-interface", help="Delete an aggregate interface.")
+def delete_aggregate_interface(
+    name: str = typer.Argument(..., help="Name of the aggregate interface to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete an aggregate interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        iface = scm_client.get_aggregate_interface(name=name, folder=folder, snippet=snippet, device=device)
+        if not iface:
+            typer.echo(f"Aggregate interface '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete aggregate interface '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_aggregate_interface(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted aggregate interface: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting aggregate interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("aggregate-interface", help="Load aggregate interfaces from a YAML file.")
+def load_aggregate_interface(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load aggregate interfaces from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "aggregate_interfaces" not in data:
+            typer.echo("No aggregate interfaces found in file", err=True)
+            raise typer.Exit(code=1)
+        interfaces = data["aggregate_interfaces"]
+        if not isinstance(interfaces, list):
+            interfaces = [interfaces]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(interfaces))
+            return None
+
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for iface_data in interfaces:
+            try:
+                if folder:
+                    iface_data["folder"] = folder
+                    iface_data.pop("snippet", None)
+                    iface_data.pop("device", None)
+                elif snippet:
+                    iface_data["snippet"] = snippet
+                    iface_data.pop("folder", None)
+                    iface_data.pop("device", None)
+                elif device:
+                    iface_data["device"] = device
+                    iface_data.pop("folder", None)
+                    iface_data.pop("snippet", None)
+                validated_iface = AggregateInterface(**iface_data)
+                sdk_data = validated_iface.to_sdk_model()
+                result = scm_client.create_aggregate_interface(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created aggregate interface: {validated_iface.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated aggregate interface: {validated_iface.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for aggregate interface: {validated_iface.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing aggregate interface: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} aggregate interfaces")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading aggregate interfaces: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("aggregate-interface", help="Create or update an aggregate interface.")
+def set_aggregate_interface(
+    name: str = typer.Argument(..., help="Name of the aggregate interface"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    comment: str = typer.Option(None, "--comment", help="Interface description/comment"),
+    layer2_json: str = typer.Option(None, "--layer2-json", help='Layer2 config as JSON (e.g. \'{"vlan_tag": "100"}\')'),
+    layer3_json: str = typer.Option(None, "--layer3-json", help='Layer3 config as JSON (e.g. \'{"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]}\')'),
+) -> None:
+    """Create or update an aggregate interface."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+
+        iface_data: dict[str, Any] = {
+            "name": name,
+            location_type: location_value,
+        }
+
+        if comment:
+            iface_data["comment"] = comment
+
+        if layer2_json:
+            iface_data["layer2"] = json.loads(layer2_json)
+        if layer3_json:
+            iface_data["layer3"] = json.loads(layer3_json)
+
+        validated_iface = AggregateInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_aggregate_interface(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created aggregate interface: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated aggregate interface: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for aggregate interface: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating aggregate interface: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("aggregate-interface", help="Show aggregate interface details.")
+def show_aggregate_interface(
+    name: str = typer.Option(None, "--name", help="Name of specific aggregate interface to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show aggregate interface details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            iface = scm_client.get_aggregate_interface(name=name, folder=folder, snippet=snippet, device=device)
+            if not iface:
+                typer.echo(f"Aggregate interface '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nAggregate Interface: {iface['name']}")
+            typer.echo("=" * 60)
+            location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if iface.get("comment"):
+                typer.echo(f"Comment: {iface['comment']}")
+            # Interface mode
+            if iface.get("layer3"):
+                typer.echo("Mode: Layer3")
+                l3 = iface["layer3"]
+                if l3.get("mtu"):
+                    typer.echo(f"  MTU: {l3['mtu']}")
+                if l3.get("ip"):
+                    for ip_entry in l3["ip"]:
+                        typer.echo(f"  IP: {ip_entry.get('name', 'N/A')}")
+                if l3.get("interface_management_profile"):
+                    typer.echo(f"  Management Profile: {l3['interface_management_profile']}")
+                if l3.get("dhcp_client"):
+                    typer.echo("  DHCP Client: Enabled")
+            elif iface.get("layer2"):
+                typer.echo("Mode: Layer2")
+                l2 = iface["layer2"]
+                if l2.get("vlan_tag"):
+                    typer.echo(f"  VLAN Tag: {l2['vlan_tag']}")
+            if iface.get("id"):
+                typer.echo(f"\nID: {iface['id']}")
+            return iface
+        else:
+            interfaces = scm_client.list_aggregate_interfaces(folder=folder, snippet=snippet, device=device)
+            if not interfaces:
+                typer.echo("No aggregate interfaces found")
+                return
+            typer.echo("\nAggregate Interfaces:")
+            typer.echo("-" * 80)
+            for iface in interfaces:
+                location = iface.get("folder") or iface.get("snippet") or iface.get("device", "N/A")
+                typer.echo(f"Name: {iface.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if iface.get("comment"):
+                    typer.echo(f"  Comment: {iface['comment']}")
+                if iface.get("layer3"):
+                    typer.echo("  Mode: Layer3")
+                    if iface["layer3"].get("mtu"):
+                        typer.echo(f"  MTU: {iface['layer3']['mtu']}")
+                elif iface.get("layer2"):
+                    typer.echo("  Mode: Layer2")
+                    if iface["layer2"].get("vlan_tag"):
+                        typer.echo(f"  VLAN Tag: {iface['layer2']['vlan_tag']}")
+                if iface.get("id"):
+                    typer.echo(f"  ID: {iface['id']}")
+                typer.echo("-" * 80)
+            return interfaces
+    except Exception as e:
+        typer.echo(f"Error showing aggregate interface: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
