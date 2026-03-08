@@ -1702,6 +1702,104 @@ class Tag(BaseModel):
 # ========================================================================================================================================================================================
 
 
+class IKECryptoProfile(BaseModel):
+    """Model for IKE crypto profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the IKE crypto profile")
+    snippet: str | None = Field(None, description="Snippet path for the IKE crypto profile")
+    device: str | None = Field(None, description="Device path for the IKE crypto profile")
+    name: str = Field(
+        ...,
+        description="Name of the IKE crypto profile",
+        pattern=r"^[0-9a-zA-Z._-]+$",
+        max_length=31,
+    )
+    hash: list[str] = Field(..., description="Hashing algorithms (md5, sha1, sha256, sha384, sha512)")
+    dh_group: list[str] = Field(..., description="Phase-1 DH group (group1, group2, group5, group14, group19, group20)")
+    encryption: list[str] = Field(..., description="Encryption algorithms (des, 3des, aes-128-cbc, aes-192-cbc, aes-256-cbc, aes-128-gcm, aes-256-gcm)")
+    lifetime_seconds: int | None = Field(None, description="Lifetime in seconds (180-65535)", ge=180, le=65535)
+    lifetime_minutes: int | None = Field(None, description="Lifetime in minutes (3-65535)", ge=3, le=65535)
+    lifetime_hours: int | None = Field(None, description="Lifetime in hours (1-65535)", ge=1, le=65535)
+    lifetime_days: int | None = Field(None, description="Lifetime in days (1-365)", ge=1, le=365)
+    authentication_multiple: int | None = Field(None, description="IKEv2 SA reauthentication interval (0-50)", ge=0, le=50)
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "IKECryptoProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_lifetime(self) -> "IKECryptoProfile":
+        """Validate that at most one lifetime field is specified."""
+        lifetime_fields = [self.lifetime_seconds, self.lifetime_minutes, self.lifetime_hours, self.lifetime_days]
+        if sum(1 for f in lifetime_fields if f is not None) > 1:
+            raise ValueError("At most one of 'lifetime_seconds', 'lifetime_minutes', 'lifetime_hours', or 'lifetime_days' may be set")
+        return self
+
+    @field_validator("hash")
+    def validate_hash(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate hash algorithms."""
+        valid = {"md5", "sha1", "sha256", "sha384", "sha512"}
+        for h in v:
+            if h not in valid:
+                raise ValueError(f"Invalid hash algorithm '{h}'. Must be one of: {', '.join(sorted(valid))}")
+        return v
+
+    @field_validator("dh_group")
+    def validate_dh_group(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate DH group values."""
+        valid = {"group1", "group2", "group5", "group14", "group19", "group20"}
+        for g in v:
+            if g not in valid:
+                raise ValueError(f"Invalid DH group '{g}'. Must be one of: {', '.join(sorted(valid))}")
+        return v
+
+    @field_validator("encryption")
+    def validate_encryption(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate encryption algorithms."""
+        valid = {"des", "3des", "aes-128-cbc", "aes-192-cbc", "aes-256-cbc", "aes-128-gcm", "aes-256-gcm"}
+        for e in v:
+            if e not in valid:
+                raise ValueError(f"Invalid encryption algorithm '{e}'. Must be one of: {', '.join(sorted(valid))}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "hash": self.hash,
+            "dh_group": self.dh_group,
+            "encryption": self.encryption,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add lifetime if specified
+        if self.lifetime_seconds is not None:
+            model_data["lifetime"] = {"seconds": self.lifetime_seconds}
+        elif self.lifetime_minutes is not None:
+            model_data["lifetime"] = {"minutes": self.lifetime_minutes}
+        elif self.lifetime_hours is not None:
+            model_data["lifetime"] = {"hours": self.lifetime_hours}
+        elif self.lifetime_days is not None:
+            model_data["lifetime"] = {"days": self.lifetime_days}
+
+        # Add authentication_multiple if specified
+        if self.authentication_multiple is not None:
+            model_data["authentication_multiple"] = self.authentication_multiple
+
+        return model_data
+
+
 class Zone(BaseModel):
     """Model for security zone configurations with folder path."""
 

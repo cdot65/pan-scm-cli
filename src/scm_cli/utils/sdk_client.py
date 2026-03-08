@@ -5294,6 +5294,182 @@ class SCMClient:
 
     # ======================================================================================================================================================================================
 
+    # --------------------------------------------------------------------------------- IKE Crypto Profiles ---------------------------------------------------------------------------------
+
+    def create_ike_crypto_profile(self, profile_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update an IKE crypto profile using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in profile_data and profile_data[field] is not None:
+                container_field = field
+                container_value = profile_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            return profile_data
+        existing_profile = None
+        try:
+            existing_profile = self.client.ike_crypto_profile.fetch(name=profile_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing IKE crypto profile '{profile_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"IKE crypto profile '{profile_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching IKE crypto profile '{profile_data['name']}': {str(e)}")
+        if existing_profile:
+            needs_update = False
+            update_fields = []
+            if "hash" in profile_data:
+                existing_hash = [h.value if hasattr(h, "value") else str(h) for h in existing_profile.hash]
+                if set(profile_data["hash"]) != set(existing_hash):
+                    needs_update = True
+                    update_fields.append("hash")
+            if "encryption" in profile_data:
+                existing_enc = [e.value if hasattr(e, "value") else str(e) for e in existing_profile.encryption]
+                if set(profile_data["encryption"]) != set(existing_enc):
+                    needs_update = True
+                    update_fields.append("encryption")
+            if "dh_group" in profile_data:
+                existing_dh = [g.value if hasattr(g, "value") else str(g) for g in existing_profile.dh_group]
+                if set(profile_data["dh_group"]) != set(existing_dh):
+                    needs_update = True
+                    update_fields.append("dh_group")
+            if "lifetime" in profile_data:
+                existing_lifetime = existing_profile.lifetime.model_dump() if existing_profile.lifetime else None
+                if profile_data["lifetime"] != existing_lifetime:
+                    needs_update = True
+                    update_fields.append("lifetime")
+            if "authentication_multiple" in profile_data and profile_data["authentication_multiple"] != existing_profile.authentication_multiple:
+                needs_update = True
+                update_fields.append("authentication_multiple")
+            if needs_update:
+                self.logger.info(f"Updating IKE crypto profile fields: {', '.join(update_fields)}")
+                try:
+                    update_data = profile_data.copy()
+                    update_data["id"] = str(existing_profile.id)
+                    result = self.client.ike_crypto_profile.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"IKE crypto profile '{profile_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_profile.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.ike_crypto_profile.create(profile_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"IKE crypto profile '{profile_data['name']}'", create_error)
+
+    def delete_ike_crypto_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete an IKE crypto profile."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete IKE crypto profile: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            profile = self.client.ike_crypto_profile.fetch(name=name, **container_kwargs)
+            self.client.ike_crypto_profile.delete(str(profile.id))
+            self.logger.info(f"Deleted IKE crypto profile: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"IKE crypto profile '{name}'", e)
+
+    def get_ike_crypto_profile(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific IKE crypto profile."""
+        if not self.client:
+            return {
+                "id": "ike-crypto-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "hash": ["sha256"],
+                "dh_group": ["group14"],
+                "encryption": ["aes-256-cbc"],
+                "lifetime": {"hours": 8},
+                "authentication_multiple": 0,
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.ike_crypto_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"IKE crypto profile '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"IKE crypto profile '{name}'", e)
+
+    def list_ike_crypto_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List IKE crypto profiles in a container."""
+        if not self.client:
+            return [
+                {
+                    "id": "ike-crypto-mock1",
+                    "folder": folder or "ngfw-shared",
+                    "name": "default-ike-profile",
+                    "hash": ["sha256", "sha384"],
+                    "dh_group": ["group14", "group19"],
+                    "encryption": ["aes-256-cbc"],
+                    "lifetime": {"hours": 8},
+                    "authentication_multiple": 0,
+                },
+                {
+                    "id": "ike-crypto-mock2",
+                    "folder": folder or "ngfw-shared",
+                    "name": "strong-ike-profile",
+                    "hash": ["sha512"],
+                    "dh_group": ["group20"],
+                    "encryption": ["aes-256-gcm"],
+                    "lifetime": {"hours": 4},
+                    "authentication_multiple": 3,
+                },
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.ike_crypto_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "IKE crypto profiles", e)
+
     # ------------------------------------------------------------------------------------ Security Zones ----------------------------------------------------------------------------------
 
     def create_zone(

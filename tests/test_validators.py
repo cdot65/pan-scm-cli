@@ -2,7 +2,7 @@
 
 import pytest
 from pydantic import ValidationError
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, QuarantinedDevice, Region, Schedule, SecurityRule, Zone
+from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IKECryptoProfile, QuarantinedDevice, Region, Schedule, SecurityRule, Zone
 
 
 class TestBandwidthAllocation:
@@ -55,6 +55,70 @@ class TestBandwidthAllocation:
         )
         assert allocation.description == ""
         assert allocation.tags == []
+
+
+class TestIKECryptoProfile:
+    """Test cases for the IKECryptoProfile model."""
+
+    def test_valid_ike_crypto_profile(self):
+        """Test creating a valid IKE crypto profile."""
+        profile = IKECryptoProfile(name="test-profile", folder="test-folder", hash=["sha256"], dh_group=["group14"], encryption=["aes-256-cbc"], lifetime_hours=8)
+        assert profile.name == "test-profile"
+        assert profile.folder == "test-folder"
+        assert profile.hash == ["sha256"]
+        assert profile.dh_group == ["group14"]
+        assert profile.encryption == ["aes-256-cbc"]
+        assert profile.lifetime_hours == 8
+
+    def test_missing_required_fields(self):
+        """Test that required fields are enforced."""
+        with pytest.raises(ValidationError):
+            IKECryptoProfile(name="test-profile", folder="test-folder")
+
+    def test_invalid_hash(self):
+        """Test that invalid hash algorithms are rejected."""
+        with pytest.raises(ValidationError):
+            IKECryptoProfile(name="test-profile", folder="test-folder", hash=["invalid-hash"], dh_group=["group14"], encryption=["aes-256-cbc"])
+
+    def test_invalid_dh_group(self):
+        """Test that invalid DH groups are rejected."""
+        with pytest.raises(ValidationError):
+            IKECryptoProfile(name="test-profile", folder="test-folder", hash=["sha256"], dh_group=["group99"], encryption=["aes-256-cbc"])
+
+    def test_invalid_encryption(self):
+        """Test that invalid encryption algorithms are rejected."""
+        with pytest.raises(ValidationError):
+            IKECryptoProfile(name="test-profile", folder="test-folder", hash=["sha256"], dh_group=["group14"], encryption=["invalid-enc"])
+
+    def test_multiple_lifetime_rejected(self):
+        """Test that setting multiple lifetime fields is rejected."""
+        with pytest.raises(ValidationError):
+            IKECryptoProfile(name="test-profile", folder="test-folder", hash=["sha256"], dh_group=["group14"], encryption=["aes-256-cbc"], lifetime_hours=8, lifetime_days=1)
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            IKECryptoProfile(name="test-profile", hash=["sha256"], dh_group=["group14"], encryption=["aes-256-cbc"])
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = IKECryptoProfile(
+            name="test-profile", folder="test-folder", hash=["sha256", "sha384"], dh_group=["group14", "group19"], encryption=["aes-256-cbc"], lifetime_hours=8, authentication_multiple=3
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-profile"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["hash"] == ["sha256", "sha384"]
+        assert sdk_data["dh_group"] == ["group14", "group19"]
+        assert sdk_data["encryption"] == ["aes-256-cbc"]
+        assert sdk_data["lifetime"] == {"hours": 8}
+        assert sdk_data["authentication_multiple"] == 3
+
+    def test_to_sdk_model_no_lifetime(self):
+        """Test conversion to SDK model without lifetime."""
+        profile = IKECryptoProfile(name="test-profile", folder="test-folder", hash=["sha256"], dh_group=["group14"], encryption=["aes-256-cbc"])
+        sdk_data = profile.to_sdk_model()
+        assert "lifetime" not in sdk_data
 
 
 class TestZone:
