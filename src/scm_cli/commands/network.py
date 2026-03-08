@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import Zone
+from ..utils.validators import IKECryptoProfile, Zone
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -136,6 +136,222 @@ def get_default_backup_filename(object_type: str, location_type: str, location_v
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_location = location_value.lower().replace(" ", "-").replace("/", "-")
     return f"{object_type}_{location_type}_{safe_location}_{timestamp}.yaml"
+
+
+# ========================================================================================================================================================================================
+# IKE CRYPTO PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("ike-crypto-profile", help="Export IKE crypto profiles to a YAML file.")
+def backup_ike_crypto_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export IKE crypto profiles from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving IKE crypto profiles from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_ike_crypto_profiles(**kwargs)
+        if not profiles:
+            typer.echo(f"No IKE crypto profiles found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"ike_crypto_profiles": profiles}
+        filename = Path(file or get_default_backup_filename("ike-crypto-profile", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(profiles)} IKE crypto profiles to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up IKE crypto profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("ike-crypto-profile", help="Delete an IKE crypto profile.")
+def delete_ike_crypto_profile(
+    name: str = typer.Argument(..., help="Name of the IKE crypto profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete an IKE crypto profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_ike_crypto_profile(name=name, folder=folder, snippet=snippet, device=device)
+        if not profile:
+            typer.echo(f"IKE crypto profile '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete IKE crypto profile '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_ike_crypto_profile(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted IKE crypto profile: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting IKE crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("ike-crypto-profile", help="Load IKE crypto profiles from a YAML file.")
+def load_ike_crypto_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+) -> None:
+    """Load IKE crypto profiles from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "ike_crypto_profiles" not in data:
+            typer.echo("No IKE crypto profiles found in file", err=True)
+            raise typer.Exit(code=1)
+        profiles = data["ike_crypto_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+        created_count = 0
+        for profile_data in profiles:
+            try:
+                validated_profile = IKECryptoProfile(**profile_data)
+                if folder:
+                    validated_profile.folder = folder
+                    validated_profile.snippet = None
+                    validated_profile.device = None
+                elif snippet:
+                    validated_profile.snippet = snippet
+                    validated_profile.folder = None
+                    validated_profile.device = None
+                elif device:
+                    validated_profile.device = device
+                    validated_profile.folder = None
+                    validated_profile.snippet = None
+                sdk_data = validated_profile.to_sdk_model()
+                scm_client.create_ike_crypto_profile(sdk_data)
+                created_count += 1
+                container = validated_profile.folder or validated_profile.snippet or validated_profile.device
+                typer.echo(f"Created IKE crypto profile: {validated_profile.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing IKE crypto profile: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count} IKE crypto profiles")
+    except Exception as e:
+        typer.echo(f"Error loading IKE crypto profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("ike-crypto-profile", help="Create or update an IKE crypto profile.")
+def set_ike_crypto_profile(
+    name: str = typer.Argument(..., help="Name of the IKE crypto profile"),
+    hash: list[str] = typer.Option(..., "--hash", help="Hash algorithms (sha256, sha384, sha512, sha1, md5)"),
+    dh_group: list[str] = typer.Option(..., "--dh-group", help="DH groups (group1, group2, group5, group14, group19, group20)"),
+    encryption: list[str] = typer.Option(..., "--encryption", help="Encryption algorithms (aes-256-cbc, aes-128-cbc, etc.)"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    lifetime_seconds: int = typer.Option(None, "--lifetime-seconds", help="Lifetime in seconds (180-65535)"),
+    lifetime_minutes: int = typer.Option(None, "--lifetime-minutes", help="Lifetime in minutes (3-65535)"),
+    lifetime_hours: int = typer.Option(None, "--lifetime-hours", help="Lifetime in hours (1-65535)"),
+    lifetime_days: int = typer.Option(None, "--lifetime-days", help="Lifetime in days (1-365)"),
+    authentication_multiple: int = typer.Option(None, "--authentication-multiple", help="IKEv2 SA reauthentication interval (0-50)"),
+) -> None:
+    """Create or update an IKE crypto profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile_data = {"name": name, "hash": hash, "dh_group": dh_group, "encryption": encryption, location_type: location_value}
+        if lifetime_seconds is not None:
+            profile_data["lifetime_seconds"] = lifetime_seconds
+        if lifetime_minutes is not None:
+            profile_data["lifetime_minutes"] = lifetime_minutes
+        if lifetime_hours is not None:
+            profile_data["lifetime_hours"] = lifetime_hours
+        if lifetime_days is not None:
+            profile_data["lifetime_days"] = lifetime_days
+        if authentication_multiple is not None:
+            profile_data["authentication_multiple"] = authentication_multiple
+        validated_profile = IKECryptoProfile(**profile_data)
+        sdk_data = validated_profile.to_sdk_model()
+        result = scm_client.create_ike_crypto_profile(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created IKE crypto profile: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated IKE crypto profile: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for IKE crypto profile: {name} in {location_value}")
+    except Exception as e:
+        typer.echo(f"Error creating/updating IKE crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("ike-crypto-profile", help="Show IKE crypto profile details.")
+def show_ike_crypto_profile(
+    name: str = typer.Option(None, "--name", help="Name of specific IKE crypto profile to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show IKE crypto profile details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            profile = scm_client.get_ike_crypto_profile(name=name, folder=folder, snippet=snippet, device=device)
+            if not profile:
+                typer.echo(f"IKE crypto profile '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nIKE Crypto Profile: {profile['name']}")
+            typer.echo("=" * 60)
+            location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if profile.get("hash"):
+                typer.echo(f"Hash: {', '.join(profile['hash'])}")
+            if profile.get("dh_group"):
+                typer.echo(f"DH Group: {', '.join(profile['dh_group'])}")
+            if profile.get("encryption"):
+                typer.echo(f"Encryption: {', '.join(profile['encryption'])}")
+            lifetime = profile.get("lifetime")
+            if lifetime and isinstance(lifetime, dict):
+                for unit, value in lifetime.items():
+                    typer.echo(f"Lifetime: {value} {unit}")
+            if profile.get("authentication_multiple") is not None:
+                typer.echo(f"Authentication Multiple: {profile['authentication_multiple']}")
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+            return profile
+        else:
+            profiles = scm_client.list_ike_crypto_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No IKE crypto profiles found")
+                return
+            typer.echo("\nIKE Crypto Profiles:")
+            typer.echo("-" * 80)
+            for profile in profiles:
+                location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                typer.echo(f"  Hash: {', '.join(profile.get('hash', []))}")
+                typer.echo(f"  DH Group: {', '.join(profile.get('dh_group', []))}")
+                typer.echo(f"  Encryption: {', '.join(profile.get('encryption', []))}")
+                lifetime = profile.get("lifetime")
+                if lifetime and isinstance(lifetime, dict):
+                    for unit, value in lifetime.items():
+                        typer.echo(f"  Lifetime: {value} {unit}")
+                if profile.get("authentication_multiple") is not None:
+                    typer.echo(f"  Authentication Multiple: {profile['authentication_multiple']}")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 80)
+            return profiles
+    except Exception as e:
+        typer.echo(f"Error showing IKE crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
 
 
 # ========================================================================================================================================================================================

@@ -3759,6 +3759,345 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", container, "log-forwarding profiles", e)
 
+    # Regions ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_region(
+        self,
+        region_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create or update a region using smart upsert logic.
+
+        Args:
+            region_data: The region data
+
+        Returns:
+            Created/updated region data
+
+        """
+        # Determine container (folder, snippet, or device)
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+
+        for field in container_fields:
+            if field in region_data and region_data[field] is not None:
+                container_field = field
+                container_value = region_data[field]
+                break
+
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        # Return mock data if no client
+        if not self.client:
+            return region_data
+
+        # Check if the region already exists
+        existing_region = None
+        try:
+            existing_region = self.client.region.fetch(name=region_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing region '{region_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Region '{region_data['name']}' not found in {container_field} '{container_value}', will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching region '{region_data['name']}': {str(e)}")
+
+        if existing_region:
+            # Check what needs updating
+            needs_update = False
+            update_fields = []
+
+            # Compare geo_location
+            if "geo_location" in region_data and region_data["geo_location"]:
+                new_geo = region_data["geo_location"]
+                if hasattr(existing_region, "geo_location") and existing_region.geo_location:
+                    if existing_region.geo_location.latitude != new_geo.get("latitude") or existing_region.geo_location.longitude != new_geo.get("longitude"):
+                        existing_region.geo_location.latitude = new_geo["latitude"]
+                        existing_region.geo_location.longitude = new_geo["longitude"]
+                        update_fields.append("geo_location")
+                        needs_update = True
+                else:
+                    from scm.models.objects.regions import GeoLocation
+
+                    existing_region.geo_location = GeoLocation(**new_geo)
+                    update_fields.append("geo_location")
+                    needs_update = True
+
+            # Compare addresses
+            if "address" in region_data and region_data["address"] is not None:
+                existing_addresses = set(existing_region.address) if hasattr(existing_region, "address") and existing_region.address else set()
+                new_addresses = set(region_data["address"])
+                if existing_addresses != new_addresses:
+                    existing_region.address = region_data["address"]
+                    update_fields.append("address")
+                    needs_update = True
+
+            if needs_update:
+                self.logger.info(f"Updating region fields: {', '.join(update_fields)}")
+                try:
+                    updated = existing_region.update()
+                    self.logger.info(f"Successfully updated region '{region_data['name']}' in {container_field} '{container_value}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"region '{region_data['name']}'", update_error)
+            else:
+                self.logger.info(f"No changes detected for region '{region_data['name']}', skipping update")
+                result = json.loads(existing_region.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            # Create new region
+            try:
+                created = self.client.region.create(region_data)
+                self.logger.info(f"Created new region '{region_data['name']}' in {container_field} '{container_value}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception(
+                    "creating",
+                    str(container_value),
+                    f"region '{region_data['name']}'",
+                    create_error,
+                )
+
+    def delete_region(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> None:
+        """Delete a region.
+
+        Args:
+            name: Name of the region to delete
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        """
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete region: {name}")
+            return
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            # First, fetch the region to get its ID
+            region = self.client.region.fetch(name=name, **container_kwargs)
+            self.client.region.delete(str(region.id))
+            self.logger.info(f"Deleted region: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"region '{name}'", e)
+
+    def get_region(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific region.
+
+        Args:
+            name: Name of the region to retrieve
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        Returns:
+            Region data or None if not found
+
+        """
+        if not self.client:
+            return {
+                "id": "region-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "geo_location": {"latitude": 30.2672, "longitude": -97.7431},
+                "address": ["10.0.0.0/8", "192.168.1.0/24"],
+            }
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            result = self.client.region.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Region '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"region '{name}'", e)
+
+    def list_regions(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List regions in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return exact matches
+
+        Returns:
+            List of regions
+
+        """
+        if not self.client:
+            return [
+                {
+                    "id": "region-mock1",
+                    "folder": folder or "ngfw-shared",
+                    "name": "US-South",
+                    "geo_location": {"latitude": 30.2672, "longitude": -97.7431},
+                    "address": ["10.0.0.0/8"],
+                },
+                {
+                    "id": "region-mock2",
+                    "folder": folder or "ngfw-shared",
+                    "name": "US-East",
+                    "geo_location": {"latitude": 40.7128, "longitude": -74.0060},
+                    "address": ["172.16.0.0/12"],
+                },
+                {
+                    "id": "region-mock3",
+                    "folder": folder or "ngfw-shared",
+                    "name": "EU-West",
+                    "geo_location": {"latitude": 51.5074, "longitude": -0.1278},
+                    "address": ["192.168.0.0/16"],
+                },
+            ]
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            # List regions using the SDK
+            results = self.client.region.list(exact_match=exact_match, **container_kwargs)
+
+            # Convert SDK response to the list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "regions", e)
+    # Quarantined Devices ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_quarantined_device(
+        self,
+        device_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create a quarantined device entry.
+
+        Args:
+            device_data: The quarantined device data (host_id, optional serial_number)
+
+        Returns:
+            Created quarantined device data
+
+        """
+        self.logger.info(f"Creating quarantined device: {device_data.get('host_id', 'unknown')}")
+
+        if not self.client:
+            return device_data
+
+        try:
+            created = self.client.quarantined_devices.create(device_data)
+            self.logger.info(f"Created quarantined device: {device_data.get('host_id')}")
+            return json.loads(created.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("creating", "quarantined-devices", f"device '{device_data.get('host_id')}'", e)
+
+    def delete_quarantined_device(
+        self,
+        host_id: str,
+    ) -> None:
+        """Delete a quarantined device by host ID.
+
+        Args:
+            host_id: The host ID of the quarantined device to delete
+
+        """
+        self.logger.info(f"Deleting quarantined device: {host_id}")
+
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete quarantined device: {host_id}")
+            return
+
+        try:
+            self.client.quarantined_devices.delete(host_id=host_id)
+            self.logger.info(f"Deleted quarantined device: {host_id}")
+        except Exception as e:
+            self._handle_api_exception("deleting", "quarantined-devices", f"device '{host_id}'", e)
+
+    def list_quarantined_devices(
+        self,
+        host_id: str | None = None,
+        serial_number: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List quarantined devices with optional filtering.
+
+        Args:
+            host_id: Filter by device host ID
+            serial_number: Filter by device serial number
+
+        Returns:
+            List of quarantined device objects
+
+        """
+        self.logger.info(f"Listing quarantined devices (host_id={host_id}, serial_number={serial_number})")
+
+        if not self.client:
+            return [
+                {
+                    "host_id": "mock-host-001",
+                    "serial_number": "SN-001",
+                },
+                {
+                    "host_id": "mock-host-002",
+                    "serial_number": "SN-002",
+                },
+            ]
+
+        try:
+            results = self.client.quarantined_devices.list(
+                host_id=host_id,
+                serial_number=serial_number,
+            )
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "quarantined-devices", "quarantined devices", e)
+
     # Services -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_service(
@@ -4461,6 +4800,255 @@ class SCMClient:
                 e,
             )
 
+    # Schedules ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_schedule(
+        self,
+        schedule_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create or update a schedule using smart upsert logic.
+
+        Args:
+            schedule_data: The schedule data
+
+        Returns:
+            Created/updated schedule data
+
+        """
+        # Determine container (folder, snippet, or device)
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+
+        for field in container_fields:
+            if field in schedule_data and schedule_data[field] is not None:
+                container_field = field
+                container_value = schedule_data[field]
+                break
+
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        # Return mock data if no client
+        if not self.client:
+            return schedule_data
+
+        # Check if the schedule already exists
+        existing_schedule = None
+        try:
+            existing_schedule = self.client.schedule.fetch(name=schedule_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing schedule '{schedule_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Schedule '{schedule_data['name']}' not found in {container_field} '{container_value}', will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching schedule '{schedule_data['name']}': {str(e)}")
+
+        if existing_schedule:
+            # Check what needs updating
+            needs_update = False
+            update_fields = []
+
+            # Compare schedule_type
+            if "schedule_type" in schedule_data:
+                existing_data = json.loads(existing_schedule.model_dump_json(exclude_unset=True))
+                if existing_data.get("schedule_type") != schedule_data["schedule_type"]:
+                    existing_schedule.schedule_type = schedule_data["schedule_type"]
+                    update_fields.append("schedule_type")
+                    needs_update = True
+
+            if needs_update:
+                self.logger.info(f"Updating schedule fields: {', '.join(update_fields)}")
+                try:
+                    updated = existing_schedule.update()
+                    self.logger.info(f"Successfully updated schedule '{schedule_data['name']}' in {container_field} '{container_value}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"schedule '{schedule_data['name']}'", update_error)
+            else:
+                self.logger.info(f"No changes detected for schedule '{schedule_data['name']}', skipping update")
+                result = json.loads(existing_schedule.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            # Create new schedule
+            try:
+                created = self.client.schedule.create(schedule_data)
+                self.logger.info(f"Created new schedule '{schedule_data['name']}' in {container_field} '{container_value}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception(
+                    "creating",
+                    str(container_value),
+                    f"schedule '{schedule_data['name']}'",
+                    create_error,
+                )
+
+    def delete_schedule(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> None:
+        """Delete a schedule.
+
+        Args:
+            name: Name of the schedule to delete
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        """
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete schedule: {name}")
+            return
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            # First, fetch the schedule to get its ID
+            schedule = self.client.schedule.fetch(name=name, **container_kwargs)
+            self.client.schedule.delete(str(schedule.id))
+            self.logger.info(f"Deleted schedule: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"schedule '{name}'", e)
+
+    def get_schedule(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific schedule.
+
+        Args:
+            name: Name of the schedule to retrieve
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        Returns:
+            Schedule data or None if not found
+
+        """
+        if not self.client:
+            return {
+                "id": "schedule-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "schedule_type": {
+                    "recurring": {
+                        "daily": ["09:00-17:00"],
+                    },
+                },
+            }
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            result = self.client.schedule.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Schedule '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"schedule '{name}'", e)
+
+    def list_schedules(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List schedules in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return exact matches
+
+        Returns:
+            List of schedules
+
+        """
+        if not self.client:
+            return [
+                {
+                    "id": "schedule-mock1",
+                    "folder": folder or "ngfw-shared",
+                    "name": "BusinessHours",
+                    "schedule_type": {
+                        "recurring": {
+                            "daily": ["09:00-17:00"],
+                        },
+                    },
+                },
+                {
+                    "id": "schedule-mock2",
+                    "folder": folder or "ngfw-shared",
+                    "name": "Weekends",
+                    "schedule_type": {
+                        "recurring": {
+                            "weekly": {
+                                "saturday": ["00:00-23:59"],
+                                "sunday": ["00:00-23:59"],
+                            },
+                        },
+                    },
+                },
+                {
+                    "id": "schedule-mock3",
+                    "folder": folder or "ngfw-shared",
+                    "name": "MaintenanceWindow",
+                    "schedule_type": {
+                        "non_recurring": ["2026/03/15@02:00-2026/03/15@06:00"],
+                    },
+                },
+            ]
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            # List schedules using the SDK
+            results = self.client.schedule.list(exact_match=exact_match, **container_kwargs)
+
+            # Convert SDK response to the list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "schedules", e)
+
     # Tags ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_tag(
@@ -4705,6 +5293,182 @@ class SCMClient:
             self._handle_api_exception("listing", folder or snippet or device or "", "tags", e)
 
     # ======================================================================================================================================================================================
+
+    # --------------------------------------------------------------------------------- IKE Crypto Profiles ---------------------------------------------------------------------------------
+
+    def create_ike_crypto_profile(self, profile_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update an IKE crypto profile using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in profile_data and profile_data[field] is not None:
+                container_field = field
+                container_value = profile_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            return profile_data
+        existing_profile = None
+        try:
+            existing_profile = self.client.ike_crypto_profile.fetch(name=profile_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing IKE crypto profile '{profile_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"IKE crypto profile '{profile_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching IKE crypto profile '{profile_data['name']}': {str(e)}")
+        if existing_profile:
+            needs_update = False
+            update_fields = []
+            if "hash" in profile_data:
+                existing_hash = [h.value if hasattr(h, "value") else str(h) for h in existing_profile.hash]
+                if set(profile_data["hash"]) != set(existing_hash):
+                    needs_update = True
+                    update_fields.append("hash")
+            if "encryption" in profile_data:
+                existing_enc = [e.value if hasattr(e, "value") else str(e) for e in existing_profile.encryption]
+                if set(profile_data["encryption"]) != set(existing_enc):
+                    needs_update = True
+                    update_fields.append("encryption")
+            if "dh_group" in profile_data:
+                existing_dh = [g.value if hasattr(g, "value") else str(g) for g in existing_profile.dh_group]
+                if set(profile_data["dh_group"]) != set(existing_dh):
+                    needs_update = True
+                    update_fields.append("dh_group")
+            if "lifetime" in profile_data:
+                existing_lifetime = existing_profile.lifetime.model_dump() if existing_profile.lifetime else None
+                if profile_data["lifetime"] != existing_lifetime:
+                    needs_update = True
+                    update_fields.append("lifetime")
+            if "authentication_multiple" in profile_data and profile_data["authentication_multiple"] != existing_profile.authentication_multiple:
+                needs_update = True
+                update_fields.append("authentication_multiple")
+            if needs_update:
+                self.logger.info(f"Updating IKE crypto profile fields: {', '.join(update_fields)}")
+                try:
+                    update_data = profile_data.copy()
+                    update_data["id"] = str(existing_profile.id)
+                    result = self.client.ike_crypto_profile.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"IKE crypto profile '{profile_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_profile.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.ike_crypto_profile.create(profile_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"IKE crypto profile '{profile_data['name']}'", create_error)
+
+    def delete_ike_crypto_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete an IKE crypto profile."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete IKE crypto profile: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            profile = self.client.ike_crypto_profile.fetch(name=name, **container_kwargs)
+            self.client.ike_crypto_profile.delete(str(profile.id))
+            self.logger.info(f"Deleted IKE crypto profile: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"IKE crypto profile '{name}'", e)
+
+    def get_ike_crypto_profile(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific IKE crypto profile."""
+        if not self.client:
+            return {
+                "id": "ike-crypto-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "hash": ["sha256"],
+                "dh_group": ["group14"],
+                "encryption": ["aes-256-cbc"],
+                "lifetime": {"hours": 8},
+                "authentication_multiple": 0,
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.ike_crypto_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"IKE crypto profile '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"IKE crypto profile '{name}'", e)
+
+    def list_ike_crypto_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List IKE crypto profiles in a container."""
+        if not self.client:
+            return [
+                {
+                    "id": "ike-crypto-mock1",
+                    "folder": folder or "ngfw-shared",
+                    "name": "default-ike-profile",
+                    "hash": ["sha256", "sha384"],
+                    "dh_group": ["group14", "group19"],
+                    "encryption": ["aes-256-cbc"],
+                    "lifetime": {"hours": 8},
+                    "authentication_multiple": 0,
+                },
+                {
+                    "id": "ike-crypto-mock2",
+                    "folder": folder or "ngfw-shared",
+                    "name": "strong-ike-profile",
+                    "hash": ["sha512"],
+                    "dh_group": ["group20"],
+                    "encryption": ["aes-256-gcm"],
+                    "lifetime": {"hours": 4},
+                    "authentication_multiple": 3,
+                },
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.ike_crypto_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "IKE crypto profiles", e)
 
     # ------------------------------------------------------------------------------------ Security Zones ----------------------------------------------------------------------------------
 
@@ -5863,7 +6627,7 @@ class SCMClient:
 
         """
         logger.info(f"Listing alerts (will return up to {max_results} after sorting)")
-        
+
         # Always fetch more alerts than requested to ensure we get the most recent ones
         # The API might return alerts in arbitrary order, so we need to fetch enough
         # to ensure we capture recent alerts before sorting
@@ -5963,7 +6727,7 @@ class SCMClient:
                         "impacted_resources": alert_data.get("impacted_resources") or alert_data.get("primary_impacted_objects", []),
                         "metadata": alert_data.get("metadata") or alert_data.get("resource_context"),
                     }
-                    
+
                     # Remove empty fields for cleaner output
                     alert = self._remove_empty_fields(alert)
 
@@ -5986,7 +6750,7 @@ class SCMClient:
 
                 # Sort alerts by timestamp (newest first)
                 alerts.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-                
+
                 # Limit to the requested number of results
                 return alerts[:max_results]
 

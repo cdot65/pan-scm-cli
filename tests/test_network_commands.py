@@ -1,7 +1,18 @@
 """Tests for the network commands module."""
 
-import typer
-from scm_cli.commands.network import delete_app, delete_zone, load_app, load_zone, set_app, set_zone
+import typer  # noqa: I001
+from scm_cli.commands.network import (
+    delete_app,
+    delete_ike_crypto_profile,
+    delete_zone,
+    load_app,
+    load_ike_crypto_profile,
+    load_security_zone as load_zone,
+    set_app,
+    set_ike_crypto_profile,
+    set_zone,
+    show_ike_crypto_profile,
+)
 
 
 class TestNetworkCommands:
@@ -222,3 +233,133 @@ class TestZoneCommands:
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         assert not mock_called  # Ensure the create method was not called
+
+
+class TestIKECryptoProfileCommands:
+    """Test the IKE crypto profile commands."""
+
+    def test_set_ike_crypto_profile_created(self, runner, monkeypatch):
+        """Test set ike-crypto-profile command creates a new profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(profile_data):
+            result = profile_data.copy()
+            result["id"] = "ike-12345"
+            result["__action__"] = "created"
+            return result
+
+        monkeypatch.setattr(scm_client, "create_ike_crypto_profile", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_ike_crypto_profile)
+        result = runner.invoke(test_app, ["test-profile", "--hash", "sha256", "--dh-group", "group14", "--encryption", "aes-256-cbc", "--folder", "test-folder", "--lifetime-hours", "8"])
+        assert result.exit_code == 0
+        assert "Created IKE crypto profile" in result.stdout
+        assert "test-profile" in result.stdout
+
+    def test_set_ike_crypto_profile_error(self, runner, monkeypatch):
+        """Test set ike-crypto-profile command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(profile_data):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_ike_crypto_profile", mock_create_error)
+        test_app = typer.Typer()
+        test_app.command()(set_ike_crypto_profile)
+        result = runner.invoke(test_app, ["test-profile", "--hash", "sha256", "--dh-group", "group14", "--encryption", "aes-256-cbc", "--folder", "test-folder"])
+        assert result.exit_code == 1
+        assert "Error" in result.stdout
+
+    def test_show_ike_crypto_profile_list(self, runner, monkeypatch):
+        """Test show ike-crypto-profile command lists profiles."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(**kwargs):
+            return [
+                {
+                    "id": "ike-1",
+                    "name": "profile-1",
+                    "folder": "test-folder",
+                    "hash": ["sha256"],
+                    "dh_group": ["group14"],
+                    "encryption": ["aes-256-cbc"],
+                    "lifetime": {"hours": 8},
+                    "authentication_multiple": 0,
+                }
+            ]
+
+        monkeypatch.setattr(scm_client, "list_ike_crypto_profiles", mock_list)
+        test_app = typer.Typer()
+        test_app.command()(show_ike_crypto_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "profile-1" in result.stdout
+
+    def test_show_ike_crypto_profile_specific(self, runner, monkeypatch):
+        """Test show ike-crypto-profile command shows a specific profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(**kwargs):
+            return {
+                "id": "ike-1",
+                "name": "profile-1",
+                "folder": "test-folder",
+                "hash": ["sha256", "sha384"],
+                "dh_group": ["group14"],
+                "encryption": ["aes-256-cbc"],
+                "lifetime": {"hours": 8},
+                "authentication_multiple": 3,
+            }
+
+        monkeypatch.setattr(scm_client, "get_ike_crypto_profile", mock_get)
+        test_app = typer.Typer()
+        test_app.command()(show_ike_crypto_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "profile-1"])
+        assert result.exit_code == 0
+        assert "profile-1" in result.stdout
+        assert "sha256" in result.stdout
+
+    def test_delete_ike_crypto_profile_command(self, runner, monkeypatch):
+        """Test delete ike-crypto-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(**kwargs):
+            return {"id": "ike-1", "name": "test-profile", "folder": "test-folder"}
+
+        def mock_delete(**kwargs):
+            return None
+
+        monkeypatch.setattr(scm_client, "get_ike_crypto_profile", mock_get)
+        monkeypatch.setattr(scm_client, "delete_ike_crypto_profile", mock_delete)
+        test_app = typer.Typer()
+        test_app.command()(delete_ike_crypto_profile)
+        result = runner.invoke(test_app, ["test-profile", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted IKE crypto profile" in result.stdout
+
+    def test_load_ike_crypto_profile_command(self, runner, monkeypatch, tmp_path):
+        """Test load ike-crypto-profile command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {
+            "ike_crypto_profiles": [{"name": "test-profile", "folder": "test-folder", "hash": ["sha256"], "dh_group": ["group14"], "encryption": ["aes-256-cbc"], "lifetime_hours": 8}]
+        }
+        yaml_file = tmp_path / "ike-profiles.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        def mock_create(profile_data):
+            result = profile_data.copy()
+            result["id"] = "ike-12345"
+            result["__action__"] = "created"
+            return result
+
+        monkeypatch.setattr(scm_client, "create_ike_crypto_profile", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(load_ike_crypto_profile)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created IKE crypto profile" in result.stdout
+        assert "test-profile" in result.stdout
