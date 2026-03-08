@@ -20,6 +20,7 @@ from ..utils.validators import (
     Application,
     ApplicationFilter,
     ApplicationGroup,
+    AutoTagAction,
     DynamicUserGroup,
     ExternalDynamicList,
     HIPObject,
@@ -7104,4 +7105,274 @@ def show_tag(
 
     except Exception as e:
         typer.echo(f"Error showing tag: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# AUTO TAG ACTION COMMANDS
+# ========================================================================================================================================================================================
+
+
+@set_app.command("auto-tag-action", help="Create or update an auto tag action.")
+def set_auto_tag_action(
+    name: str = typer.Argument(..., help="Name of the auto tag action"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    description: str = typer.Option(None, "--description", help="Description"),
+    log_type: str = typer.Option(None, "--log-type", help="Log type (traffic, threat, etc.)"),
+    filter_expr: str = typer.Option(None, "--filter", help="Filter expression"),
+    tags: list[str] = TAGS_OPTION,
+    send_to_panorama: bool = typer.Option(None, "--send-to-panorama", help="Send to Panorama"),
+    quarantine: bool = typer.Option(None, "--quarantine", help="Enable quarantine"),
+) -> None:
+    """Create or update an auto tag action."""
+    try:
+        if not any([folder, snippet, device]):
+            folder = "Texas"
+
+        tag_data: dict[str, Any] = {"name": name}
+        if folder:
+            tag_data["folder"] = folder
+        elif snippet:
+            tag_data["snippet"] = snippet
+        elif device:
+            tag_data["device"] = device
+        if description:
+            tag_data["description"] = description
+        if log_type:
+            tag_data["log_type"] = log_type
+        if filter_expr:
+            tag_data["filter"] = filter_expr
+        if tags:
+            tag_data["tags"] = tags
+        if send_to_panorama is not None:
+            tag_data["send_to_panorama"] = send_to_panorama
+        if quarantine is not None:
+            tag_data["quarantine"] = quarantine
+
+        validated = AutoTagAction(**tag_data)
+        sdk_data = validated.to_sdk_model()
+
+        result = scm_client.create_auto_tag_action(sdk_data)
+        action = result.pop("__action__", "created")
+
+        container = folder or snippet or device
+        if action == "created":
+            typer.echo(f"Created auto tag action: {name} in {container}")
+        elif action == "updated":
+            typer.echo(f"Updated auto tag action: {name} in {container}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for auto tag action: {name} in {container}")
+
+    except Exception as e:
+        typer.echo(f"Error creating/updating auto tag action: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("auto-tag-action", help="Delete an auto tag action.")
+def delete_auto_tag_action(
+    name: str = typer.Argument(..., help="Name of the auto tag action to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Delete an auto tag action."""
+    try:
+        if not any([folder, snippet, device]):
+            folder = "Texas"
+
+        scm_client.delete_auto_tag_action(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+        container = folder or snippet or device
+        typer.echo(f"Deleted auto tag action: {name} from {container}")
+
+    except Exception as e:
+        typer.echo(f"Error deleting auto tag action: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("auto-tag-action", help="Load auto tag actions from a YAML file.")
+def load_auto_tag_action(
+    file: str = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load auto tag actions from a YAML file."""
+    try:
+        if not file:
+            typer.echo("Error: --file is required", err=True)
+            raise typer.Exit(code=1)
+
+        file_path = Path(file)
+        if not file_path.exists():
+            typer.echo(f"Error: File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        with open(file_path) as f:
+            config = yaml.safe_load(f)
+
+        if "auto_tag_actions" not in config:
+            typer.echo("Error: Missing 'auto_tag_actions' section in YAML file", err=True)
+            raise typer.Exit(code=1)
+
+        created_count = 0
+        for entry in config["auto_tag_actions"]:
+            try:
+                validated = AutoTagAction(**entry)
+                sdk_data = validated.to_sdk_model()
+
+                if dry_run:
+                    typer.echo(f"[DRY RUN] Would create auto tag action: {validated.name}")
+                    created_count += 1
+                    continue
+
+                scm_client.create_auto_tag_action(sdk_data)
+                created_count += 1
+                container = entry.get("folder") or entry.get("snippet") or entry.get("device")
+                typer.echo(f"Created auto tag action: {validated.name} in {container}")
+
+            except Exception as e:
+                typer.echo(f"Error processing auto tag action: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\nSummary: Processed {created_count} auto tag actions")
+
+    except Exception as e:
+        typer.echo(f"Error loading auto tag actions: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("auto-tag-action", help="Show auto tag action details.")
+def show_auto_tag_action(
+    name: str = typer.Option(None, "--name", help="Name of specific auto tag action to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show auto tag action details.
+
+    Examples
+    --------
+        scm show object auto-tag-action --folder Texas
+        scm show object auto-tag-action --folder Texas --name my-action
+
+    """
+    try:
+        if not any([folder, snippet, device]):
+            folder = "Texas"
+
+        if name:
+            action = scm_client.get_auto_tag_action(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not action:
+                typer.echo(f"Auto tag action '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+
+            typer.echo(f"\nAuto Tag Action: {action['name']}")
+            typer.echo("=" * 60)
+
+            location = action.get("folder") or action.get("snippet") or action.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+
+            if action.get("description"):
+                typer.echo(f"Description: {action['description']}")
+            if action.get("log_type"):
+                typer.echo(f"Log Type: {action['log_type']}")
+            if action.get("filter"):
+                typer.echo(f"Filter: {action['filter']}")
+            if action.get("actions"):
+                typer.echo(f"Actions: {action['actions']}")
+            if action.get("tags"):
+                typer.echo(f"Tags: {', '.join(action['tags'])}")
+            if action.get("id"):
+                typer.echo(f"\nID: {action['id']}")
+
+            return action
+
+        else:
+            actions = scm_client.list_auto_tag_actions(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not actions:
+                typer.echo("No auto tag actions found")
+                return
+
+            typer.echo("\nAuto Tag Actions:")
+            typer.echo("-" * 80)
+
+            for action in actions:
+                location = action.get("folder") or action.get("snippet") or action.get("device", "N/A")
+                typer.echo(f"\nName: {action['name']}")
+                typer.echo(f"Location: {location}")
+                if action.get("description"):
+                    typer.echo(f"Description: {action['description']}")
+                if action.get("log_type"):
+                    typer.echo(f"Log Type: {action['log_type']}")
+
+            typer.echo(f"\nTotal: {len(actions)} auto tag actions")
+
+    except Exception as e:
+        typer.echo(f"Error showing auto tag action: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@backup_app.command("auto-tag-action", help="Backup auto tag actions to YAML.")
+def backup_auto_tag_action(
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    file: str = typer.Option(None, "--file", help="Output file path"),
+) -> None:
+    """Backup auto tag actions to a YAML file."""
+    try:
+        if not any([folder, snippet, device]):
+            folder = "Texas"
+
+        actions = scm_client.list_auto_tag_actions(
+            folder=folder,
+            snippet=snippet,
+            device=device,
+            exact_match=True,
+        )
+
+        if not actions:
+            container = folder or snippet or device
+            typer.echo(f"No auto tag actions found in {container}")
+            return
+
+        backup_data = []
+        for action in actions:
+            action_dict = action.copy()
+            action_dict.pop("id", None)
+            backup_data.append(action_dict)
+
+        yaml_data = {"auto_tag_actions": backup_data}
+
+        if not file:
+            from datetime import datetime
+
+            container = folder or snippet or device
+            safe_name = container.lower().replace(" ", "-").replace("/", "-")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file = f"auto-tag-actions_{safe_name}_{timestamp}.yaml"
+
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Backed up {len(backup_data)} auto tag actions to {file}")
+
+    except Exception as e:
+        typer.echo(f"Error backing up auto tag actions: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
