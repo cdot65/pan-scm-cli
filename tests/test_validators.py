@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IKECryptoProfile, QuarantinedDevice, Region, Schedule, SecurityRule, WildfireAntivirusProfile, Zone
+from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, DNSSecurityProfile, IKECryptoProfile, QuarantinedDevice, Region, Schedule, SecurityRule, WildfireAntivirusProfile, Zone
 from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IPSecCryptoProfile, SecurityRule, Zone
 
 
@@ -773,3 +773,83 @@ class TestIPSecCryptoProfile:
                 folder="Texas",
                 snippet="my-snippet",
             )
+
+
+class TestDNSSecurityProfile:
+    """Test cases for the DNSSecurityProfile model."""
+
+    def test_valid_dns_security_profile(self):
+        """Test creating a valid DNS security profile."""
+        profile = DNSSecurityProfile(
+            name="dns-sec-default",
+            folder="Texas",
+            description="Default DNS security profile",
+            botnet_domains={
+                "dns_security_categories": [
+                    {"name": "pan-dns-sec-malware", "action": "sinkhole", "log_level": "default"},
+                ],
+                "sinkhole": {"ipv4_address": "pan-sinkhole-default-ip", "ipv6_address": "::1"},
+            },
+        )
+        assert profile.name == "dns-sec-default"
+        assert profile.folder == "Texas"
+        assert profile.description == "Default DNS security profile"
+        assert profile.botnet_domains is not None
+        assert len(profile.botnet_domains["dns_security_categories"]) == 1
+
+    def test_missing_name(self):
+        """Test that name is required."""
+        with pytest.raises(ValidationError):
+            DNSSecurityProfile(folder="Texas")
+
+    def test_no_container(self):
+        """Test that at least one container is required."""
+        with pytest.raises(ValidationError):
+            DNSSecurityProfile(name="test-profile")
+
+    def test_multiple_containers(self):
+        """Test that only one container is allowed."""
+        with pytest.raises(ValidationError):
+            DNSSecurityProfile(name="test-profile", folder="Texas", snippet="MySnippet")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = DNSSecurityProfile(
+            name="dns-sec-test",
+            folder="Texas",
+            description="Test profile",
+            botnet_domains={
+                "dns_security_categories": [
+                    {"name": "pan-dns-sec-malware", "action": "sinkhole"},
+                ],
+            },
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "dns-sec-test"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["description"] == "Test profile"
+        assert "botnet_domains" in sdk_data
+        assert len(sdk_data["botnet_domains"]["dns_security_categories"]) == 1
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion with minimal fields."""
+        profile = DNSSecurityProfile(name="dns-sec-minimal", folder="Texas")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "dns-sec-minimal"
+        assert sdk_data["folder"] == "Texas"
+        assert "description" not in sdk_data
+        assert "botnet_domains" not in sdk_data
+
+    def test_snippet_container(self):
+        """Test using snippet as container."""
+        profile = DNSSecurityProfile(name="dns-sec-snippet", snippet="MySnippet")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["snippet"] == "MySnippet"
+        assert "folder" not in sdk_data
+
+    def test_device_container(self):
+        """Test using device as container."""
+        profile = DNSSecurityProfile(name="dns-sec-device", device="fw-01")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["device"] == "fw-01"
+        assert "folder" not in sdk_data

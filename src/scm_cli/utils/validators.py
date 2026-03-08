@@ -2286,6 +2286,49 @@ class WildfireAntivirusProfile(BaseModel):
         return model_data
 
 
+class DNSSecurityProfile(BaseModel):
+    """Model for DNS security profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the DNS security profile")
+    snippet: str | None = Field(None, description="Snippet path for the DNS security profile")
+    device: str | None = Field(None, description="Device path for the DNS security profile")
+    name: str = Field(..., description="Name of the DNS security profile")
+    description: str | None = Field(None, description="Description of the DNS security profile")
+
+    # Botnet domains configuration (passed as JSON)
+    botnet_domains: dict[str, Any] | None = Field(None, description="Botnet domains settings as dict")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "DNSSecurityProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.botnet_domains:
+            model_data["botnet_domains"] = self.botnet_domains
+
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # UTILITY FUNCTIONS
 # ========================================================================================================================================================================================

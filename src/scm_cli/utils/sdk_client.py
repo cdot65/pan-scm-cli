@@ -7151,6 +7151,305 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", container or "", "WildFire antivirus profiles", e)
 
+    # ------------------------------------------------------------------------------- DNS Security Profile ---------------------------------------------------------------------------
+
+    def create_dns_security_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        **profile_data,
+    ) -> dict[str, Any]:
+        """Create or update a DNS security profile.
+
+        Args:
+            folder: Folder to create the profile in
+            snippet: Snippet to create the profile in
+            device: Device to create the profile in
+            **profile_data: Additional profile configuration data
+
+        Returns:
+            dict[str, Any]: Created/updated DNS security profile object
+
+        """
+        name = profile_data.get("name")
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Creating/updating DNS security profile: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"dns-sec-{name}",
+                "name": name,
+                container_type: container,
+                "description": profile_data.get("description", ""),
+                "botnet_domains": profile_data.get("botnet_domains", {}),
+                "__action__": "created",
+            }
+
+        try:
+            # Check if the profile already exists
+            existing_profile = None
+            try:
+                if folder:
+                    existing_profile = self.client.dns_security_profile.fetch(name=name, folder=folder)
+                elif snippet:
+                    existing_profile = self.client.dns_security_profile.fetch(name=name, snippet=snippet)
+                elif device:
+                    existing_profile = self.client.dns_security_profile.fetch(name=name, device=device)
+            except NotFoundError:
+                self.logger.info(f"DNS security profile '{name}' not found. Creating new profile.")
+
+            if existing_profile:
+                # Update existing profile
+                self.logger.info(f"DNS security profile '{name}' exists. Updating.")
+
+                # Update with new data
+                for key, value in profile_data.items():
+                    if value is not None and hasattr(existing_profile, key):
+                        setattr(existing_profile, key, value)
+
+                # Update the profile
+                result = self.client.dns_security_profile.update(existing_profile)
+                self.logger.info(f"Successfully updated DNS security profile '{name}'")
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "updated"
+                return result_dict
+            else:
+                # Create a new profile
+                profile_dict = {container_type: container}
+                profile_dict.update(profile_data)
+
+                result = self.client.dns_security_profile.create(profile_dict)
+                self.logger.info(f"Successfully created DNS security profile '{name}'")
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "created"
+                return result_dict
+        except Exception as e:
+            self._handle_api_exception("creation/update", container or "", name or "", e)
+
+    def delete_dns_security_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a DNS security profile.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Deleting DNS security profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return a mock result if no client is available
+            return True
+
+        try:
+            # Get the profile first to get its ID
+            profile = None
+            if folder:
+                profile = self.client.dns_security_profile.fetch(name=name, folder=folder)
+            elif snippet:
+                profile = self.client.dns_security_profile.fetch(name=name, snippet=snippet)
+            elif device:
+                profile = self.client.dns_security_profile.fetch(name=name, device=device)
+
+            # Delete using the ID
+            if profile is None:
+                raise ValueError(f"DNS security profile '{name}' not found")
+            self.client.dns_security_profile.delete(str(profile.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", container or "", name or "", e)
+
+    def get_dns_security_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a DNS security profile by name.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to get
+
+        Returns:
+            dict[str, Any]: The DNS security profile object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Getting DNS security profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"dns-sec-{name}",
+                container_type: container,
+                "name": name,
+                "description": "Mock DNS security profile",
+                "botnet_domains": {
+                    "dns_security_categories": [
+                        {
+                            "name": "pan-dns-sec-grayware",
+                            "action": "default",
+                            "log_level": "default",
+                            "packet_capture": "disable",
+                        },
+                        {
+                            "name": "pan-dns-sec-malware",
+                            "action": "sinkhole",
+                            "log_level": "default",
+                            "packet_capture": "single-packet",
+                        },
+                    ],
+                    "sinkhole": {
+                        "ipv4_address": "pan-sinkhole-default-ip",
+                        "ipv6_address": "::1",
+                    },
+                    "whitelist": [
+                        {
+                            "name": "example.com",
+                            "description": "Whitelisted domain",
+                        },
+                    ],
+                },
+            }
+
+        try:
+            # Fetch the profile using the SDK
+            result = None
+            if folder:
+                result = self.client.dns_security_profile.fetch(name=name, folder=folder)
+            elif snippet:
+                result = self.client.dns_security_profile.fetch(name=name, snippet=snippet)
+            elif device:
+                result = self.client.dns_security_profile.fetch(name=name, device=device)
+
+            # Convert SDK response to dict for compatibility
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"DNS security profile '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", "DNS security profile", e)
+
+    def list_dns_security_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List DNS security profiles.
+
+        Args:
+            folder: Folder to list from
+            snippet: Snippet to list from
+            device: Device to list from
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of DNS security profile objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        # Build container kwargs
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing DNS security profiles in {container_type}: {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "dns-sec-mock1",
+                    "folder": folder or "Texas",
+                    "name": "DNS-Security-Default",
+                    "description": "Default DNS security profile",
+                    "botnet_domains": {
+                        "dns_security_categories": [
+                            {
+                                "name": "pan-dns-sec-grayware",
+                                "action": "default",
+                                "log_level": "default",
+                            },
+                            {
+                                "name": "pan-dns-sec-malware",
+                                "action": "sinkhole",
+                                "log_level": "default",
+                                "packet_capture": "single-packet",
+                            },
+                        ],
+                        "sinkhole": {
+                            "ipv4_address": "pan-sinkhole-default-ip",
+                            "ipv6_address": "::1",
+                        },
+                    },
+                },
+                {
+                    "id": "dns-sec-mock2",
+                    "folder": folder or "Texas",
+                    "name": "DNS-Security-Strict",
+                    "description": "Strict DNS security profile",
+                    "botnet_domains": {
+                        "dns_security_categories": [
+                            {
+                                "name": "pan-dns-sec-grayware",
+                                "action": "block",
+                                "log_level": "high",
+                            },
+                            {
+                                "name": "pan-dns-sec-malware",
+                                "action": "sinkhole",
+                                "log_level": "critical",
+                                "packet_capture": "extended-capture",
+                            },
+                        ],
+                        "sinkhole": {
+                            "ipv4_address": "pan-sinkhole-default-ip",
+                            "ipv6_address": "::1",
+                        },
+                    },
+                },
+            ]
+
+        try:
+            # List profiles using the SDK
+            results = self.client.dns_security_profile.list(**container_kwargs, exact_match=exact_match)
+
+            # Convert SDK response to a list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "DNS security profiles", e)
+
     # ======================================================================================================================================================================================
     # INSIGHTS AND MONITORING METHODS
     # ======================================================================================================================================================================================

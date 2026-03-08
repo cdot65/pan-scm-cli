@@ -4,14 +4,17 @@ import typer
 
 from scm_cli.commands.security import (
     delete_app,
+    delete_dns_security_profile,
     delete_security_rule,
     delete_wildfire_antivirus_profile,
     load_app,
     load_security_rule,
     load_wildfire_antivirus_profile,
     set_app,
+    set_dns_security_profile,
     set_security_rule,
     set_wildfire_antivirus_profile,
+    show_dns_security_profile,
     show_wildfire_antivirus_profile,
 )
 
@@ -500,3 +503,124 @@ wildfire_antivirus_profiles:
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         mock_client.create_wildfire_antivirus_profile.assert_not_called()
+
+
+class TestDNSSecurityProfileCommands:
+    """Test the DNS security profile commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client to avoid real API calls."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_dns_security_profile_command(self, runner, monkeypatch):
+        """Test the set DNS security profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_dns_security_profile.return_value = {
+            "id": "dns-sec-12345",
+            "name": "dns-sec-test",
+            "folder": "Texas",
+            "botnet_domains": {},
+            "__action__": "created",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_dns_security_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "dns-sec-test",
+                "--description",
+                "Test DNS security profile",
+                "--botnet-domains",
+                '{"dns_security_categories": [{"name": "pan-dns-sec-malware", "action": "sinkhole"}]}',
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created DNS security profile" in result.stdout
+        assert "dns-sec-test" in result.stdout
+
+    def test_set_dns_security_profile_error(self, runner, monkeypatch):
+        """Test the set DNS security profile command with an error."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_dns_security_profile.side_effect = ValueError("Test error")
+
+        test_app = typer.Typer()
+        test_app.command()(set_dns_security_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "dns-sec-test",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating DNS security profile" in result.stdout
+
+    def test_delete_dns_security_profile_command(self, runner, monkeypatch):
+        """Test the delete DNS security profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.delete_dns_security_profile.return_value = True
+
+        test_app = typer.Typer()
+        test_app.command()(delete_dns_security_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "dns-sec-test",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted DNS security profile" in result.stdout
+        assert "dns-sec-test" in result.stdout
+
+    def test_show_dns_security_profile_list(self, runner, monkeypatch):
+        """Test the show DNS security profile command listing all profiles."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_dns_security_profiles.return_value = [
+            {
+                "id": "dns-sec-mock1",
+                "name": "DNS-Security-Default",
+                "folder": "Texas",
+                "description": "Default DNS security profile",
+                "botnet_domains": {
+                    "dns_security_categories": [
+                        {"name": "pan-dns-sec-malware", "action": "sinkhole"},
+                    ],
+                    "sinkhole": {"ipv4_address": "pan-sinkhole-default-ip", "ipv6_address": "::1"},
+                },
+            },
+        ]
+
+        test_app = typer.Typer()
+        test_app.command()(show_dns_security_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "DNS-Security-Default" in result.stdout

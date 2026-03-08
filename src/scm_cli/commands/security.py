@@ -13,7 +13,7 @@ import typer
 import yaml
 
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AntiSpywareProfile, DecryptionProfile, SecurityRule, WildfireAntivirusProfile
+from ..utils.validators import AntiSpywareProfile, DecryptionProfile, DNSSecurityProfile, SecurityRule, WildfireAntivirusProfile
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -2291,4 +2291,468 @@ def show_wildfire_antivirus_profile(
 
     except Exception as e:
         typer.echo(f"Error showing WildFire antivirus profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# DNS SECURITY PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+# Module-level option constants for dns-security-profile list types (avoids B008 lint errors)
+DNS_SEC_FOLDER_OPTION = typer.Option(None, "--folder", help="Folder containing the DNS security profile")
+DNS_SEC_SNIPPET_OPTION = typer.Option(None, "--snippet", help="Snippet containing the DNS security profile")
+DNS_SEC_DEVICE_OPTION = typer.Option(None, "--device", help="Device containing the DNS security profile")
+
+
+@backup_app.command("dns-security-profile")
+def backup_dns_security_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all DNS security profiles from a container to a YAML file.
+
+    Examples:
+        # Backup from folder
+        scm backup security dns-security-profile --folder Austin
+
+        # Backup from snippet
+        scm backup security dns-security-profile --snippet DNS-Best-Practice
+
+        # Backup to custom filename
+        scm backup security dns-security-profile --folder Austin --file my-dns-profiles.yaml
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("dns-security-profiles", location_type, location_value)
+
+    try:
+        # List all DNS security profiles with exact_match=True using kwargs pattern
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_dns_security_profiles(**kwargs, exact_match=True)
+
+        if not profiles:
+            typer.echo(f"No DNS security profiles found in {location_type} '{location_value}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for profile in profiles:
+            # The list method already returns dicts with exclude_unset=True
+            profile_dict = profile.copy()
+            # Remove system fields that shouldn't be in backup
+            profile_dict.pop("id", None)
+
+            backup_data.append(profile_dict)
+
+        # Create the YAML structure
+        yaml_data = {"dns_security_profiles": backup_data}
+
+        # Write to YAML file
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} DNS security profiles to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up DNS security profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("dns-security-profile")
+def delete_dns_security_profile(
+    folder: str = DNS_SEC_FOLDER_OPTION,
+    snippet: str = DNS_SEC_SNIPPET_OPTION,
+    device: str = DNS_SEC_DEVICE_OPTION,
+    name: str = NAME_OPTION,
+):
+    """Delete a DNS security profile.
+
+    Examples:
+        # Delete from folder
+        scm delete security dns-security-profile --folder Texas --name dns-sec-default
+
+        # Delete from snippet
+        scm delete security dns-security-profile --snippet DNS-Best-Practice --name dns-sec-strict
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_dns_security_profile(**kwargs, name=name)
+        if result:
+            typer.echo(f"Deleted DNS security profile: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(
+                f"DNS security profile not found: {name} in {location_type} {location_value}",
+                err=True,
+            )
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting DNS security profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("dns-security-profile", help="Load DNS security profiles from a YAML file.")
+def load_dns_security_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load DNS security profiles from a YAML file.
+
+    Examples:
+        # Load from file with original locations
+        scm load security dns-security-profile --file config/dns_security_profiles.yml
+
+        # Load with folder override
+        scm load security dns-security-profile --file config/dns_security_profiles.yml --folder Production
+
+        # Dry run to preview changes
+        scm load security dns-security-profile --file config/dns_security_profiles.yml --dry-run
+
+    """
+    try:
+        # Validate container override parameters
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo(
+                "Error: Only one of --folder, --snippet, or --device can be specified",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        # Validate file exists
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data using the same pattern as other commands
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "dns_security_profiles" not in raw_data:
+            typer.echo("No DNS security profiles found in file", err=True)
+            raise typer.Exit(code=1)
+
+        profiles = raw_data["dns_security_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            # Show override information if applicable
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(profiles))
+            return []
+
+        # Apply each DNS security profile
+        results = []
+        created_count = 0
+        updated_count = 0
+
+        for profile_data in profiles:
+            try:
+                # Apply container override if specified
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+
+                # Validate using the Pydantic model
+                profile = DNSSecurityProfile(**profile_data)
+
+                # Call the SDK client to create the DNS security profile
+                sdk_data = profile.to_sdk_model()
+
+                # Extract container params
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_dns_security_profile(**container_kwargs, **sdk_data)
+
+                results.append(result)
+
+                # Track if created or updated based on __action__ field
+                action = result.get("__action__", "")
+                if action == "created":
+                    created_count += 1
+                elif action == "updated":
+                    updated_count += 1
+
+            except Exception as e:
+                typer.echo(
+                    f"Error processing DNS security profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    err=True,
+                )
+                # Continue processing other profiles
+                continue
+
+        # Display summary with counts
+        typer.echo(f"Successfully processed {len(results)} DNS security profile(s):")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading DNS security profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("dns-security-profile")
+def set_dns_security_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder path for the DNS security profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the DNS security profile"),
+    device: str = typer.Option(None, "--device", help="Device path for the DNS security profile"),
+    name: str = NAME_OPTION,
+    description: str | None = typer.Option(
+        None,
+        "--description",
+        help="Description of the DNS security profile",
+    ),
+    botnet_domains: str | None = typer.Option(
+        None,
+        "--botnet-domains",
+        help="Botnet domains settings as JSON string",
+    ),
+):
+    r"""Create or update a DNS security profile.
+
+    Examples:
+        # Create basic DNS security profile with sinkhole
+        scm set security dns-security-profile --folder Texas --name dns-sec-default \
+            --botnet-domains '{"dns_security_categories": [{"name": "pan-dns-sec-malware", "action": "sinkhole"}]}'
+
+        # Create profile with whitelist
+        scm set security dns-security-profile --folder Texas --name dns-sec-custom \
+            --botnet-domains '{"whitelist": [{"name": "example.com"}]}'
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        # Build profile data
+        profile_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+        }
+
+        # Add optional description
+        if description:
+            profile_data["description"] = description
+
+        # Parse JSON string for botnet domains
+        if botnet_domains:
+            profile_data["botnet_domains"] = json.loads(botnet_domains)
+
+        # Validate using the Pydantic model
+        profile = DNSSecurityProfile(**profile_data)
+
+        # Call SDK client to create the profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_dns_security_profile(**container_kwargs, **sdk_data)
+
+        # Format and display output based on action
+        action = result.get("__action__", "created")
+        if action == "updated":
+            typer.echo(f"Updated DNS security profile: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes to DNS security profile: {result['name']} in {location_type} {location_value}")
+        else:
+            typer.echo(f"Created DNS security profile: {result['name']} in {location_type} {location_value}")
+
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON settings: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating DNS security profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("dns-security-profile")
+def show_dns_security_profile(
+    folder: str = DNS_SEC_FOLDER_OPTION,
+    snippet: str = DNS_SEC_SNIPPET_OPTION,
+    device: str = DNS_SEC_DEVICE_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the DNS security profile to show"),
+):
+    """Display DNS security profiles.
+
+    Examples:
+        # List all DNS security profiles in a folder (default behavior)
+        scm show security dns-security-profile --folder Texas
+
+        # Show a specific DNS security profile by name
+        scm show security dns-security-profile --folder Texas --name dns-sec-default
+
+        # List profiles in snippet
+        scm show security dns-security-profile --snippet Security-Best-Practice
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            # Get a specific DNS security profile by name
+            kwargs = {location_type: location_value}
+            profile = scm_client.get_dns_security_profile(**kwargs, name=name)
+
+            typer.echo(f"\nDNS Security Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location (folder, snippet, or device)
+            if profile.get("folder"):
+                typer.echo(f"Location: Folder '{profile['folder']}'")
+            elif profile.get("snippet"):
+                typer.echo(f"Location: Snippet '{profile['snippet']}'")
+            elif profile.get("device"):
+                typer.echo(f"Location: Device '{profile['device']}'")
+
+            # Display description if present
+            if profile.get("description"):
+                typer.echo(f"Description: {profile['description']}")
+
+            # Display botnet domains settings
+            botnet = profile.get("botnet_domains")
+            if botnet:
+                # Display DNS security categories
+                categories = botnet.get("dns_security_categories")
+                if categories:
+                    typer.echo("\nDNS Security Categories:")
+                    for cat in categories:
+                        typer.echo(f"  Name: {cat.get('name', 'N/A')}")
+                        typer.echo(f"    Action: {cat.get('action', 'N/A')}")
+                        if cat.get("log_level"):
+                            typer.echo(f"    Log Level: {cat['log_level']}")
+                        if cat.get("packet_capture"):
+                            typer.echo(f"    Packet Capture: {cat['packet_capture']}")
+
+                # Display lists
+                lists = botnet.get("lists")
+                if lists:
+                    typer.echo("\nDNS Lists:")
+                    for lst in lists:
+                        typer.echo(f"  Name: {lst.get('name', 'N/A')}")
+                        if lst.get("action"):
+                            typer.echo(f"    Action: {lst['action']}")
+                        if lst.get("packet_capture"):
+                            typer.echo(f"    Packet Capture: {lst['packet_capture']}")
+
+                # Display sinkhole settings
+                sinkhole = botnet.get("sinkhole")
+                if sinkhole:
+                    typer.echo("\nSinkhole Settings:")
+                    typer.echo(f"  IPv4 Address: {sinkhole.get('ipv4_address', 'N/A')}")
+                    typer.echo(f"  IPv6 Address: {sinkhole.get('ipv6_address', 'N/A')}")
+
+                # Display whitelist
+                whitelist = botnet.get("whitelist")
+                if whitelist:
+                    typer.echo("\nWhitelist:")
+                    for entry in whitelist:
+                        typer.echo(f"  Domain: {entry.get('name', 'N/A')}")
+                        if entry.get("description"):
+                            typer.echo(f"    Description: {entry['description']}")
+
+            # Display ID if present
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+
+            return profile
+
+        else:
+            # Default behavior: list all
+            kwargs = {location_type: location_value}
+            profiles = scm_client.list_dns_security_profiles(**kwargs, exact_match=False)
+
+            if not profiles:
+                typer.echo(f"No DNS security profiles found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nDNS Security Profiles in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                # Display profile information
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+                elif profile.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
+                elif profile.get("device"):
+                    typer.echo(f"  Location: Device '{profile['device']}'")
+
+                # Display description if present
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+
+                # Display DNS security categories count
+                botnet = profile.get("botnet_domains")
+                if botnet:
+                    categories = botnet.get("dns_security_categories")
+                    if categories:
+                        typer.echo(f"  DNS Security Categories: {len(categories)}")
+
+                    # Show sinkhole config
+                    if botnet.get("sinkhole"):
+                        sinkhole = botnet["sinkhole"]
+                        typer.echo(f"  Sinkhole: IPv4={sinkhole.get('ipv4_address', 'N/A')}, IPv6={sinkhole.get('ipv6_address', 'N/A')}")
+
+                    # Show whitelist count
+                    whitelist = botnet.get("whitelist")
+                    if whitelist:
+                        typer.echo(f"  Whitelist Entries: {len(whitelist)}")
+
+                # Display ID if present
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing DNS security profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
