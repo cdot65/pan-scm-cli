@@ -5471,6 +5471,171 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "IKE crypto profiles", e)
 
+    # ---------------------------------------------------------------------------------- Aggregate Interfaces ---------------------------------------------------------------------------------
+
+    def create_aggregate_interface(self, iface_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update an aggregate interface using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in iface_data and iface_data[field] is not None:
+                container_field = field
+                container_value = iface_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = iface_data.copy()
+            result["id"] = f"ae-{iface_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_iface = None
+        try:
+            existing_iface = self.client.aggregate_interface.fetch(name=iface_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing aggregate interface '{iface_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Aggregate interface '{iface_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching aggregate interface '{iface_data['name']}': {str(e)}")
+        if existing_iface:
+            needs_update = False
+            update_fields = []
+            # Compare comment
+            if "comment" in iface_data:
+                existing_comment = getattr(existing_iface, "comment", None)
+                if iface_data["comment"] != existing_comment:
+                    needs_update = True
+                    update_fields.append("comment")
+            # Compare layer2
+            if "layer2" in iface_data:
+                existing_layer2 = json.loads(existing_iface.layer2.model_dump_json(exclude_unset=True)) if existing_iface.layer2 else None
+                if iface_data["layer2"] != existing_layer2:
+                    needs_update = True
+                    update_fields.append("layer2")
+            # Compare layer3
+            if "layer3" in iface_data:
+                existing_layer3 = json.loads(existing_iface.layer3.model_dump_json(exclude_unset=True)) if existing_iface.layer3 else None
+                if iface_data["layer3"] != existing_layer3:
+                    needs_update = True
+                    update_fields.append("layer3")
+            if needs_update:
+                self.logger.info(f"Updating aggregate interface fields: {', '.join(update_fields)}")
+                try:
+                    update_data = iface_data.copy()
+                    update_data["id"] = str(existing_iface.id)
+                    result = self.client.aggregate_interface.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"aggregate interface '{iface_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_iface.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.aggregate_interface.create(iface_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"aggregate interface '{iface_data['name']}'", create_error)
+
+    def delete_aggregate_interface(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete an aggregate interface."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete aggregate interface: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            iface = self.client.aggregate_interface.fetch(name=name, **container_kwargs)
+            self.client.aggregate_interface.delete(str(iface.id))
+            self.logger.info(f"Deleted aggregate interface: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"aggregate interface '{name}'", e)
+
+    def get_aggregate_interface(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific aggregate interface."""
+        if not self.client:
+            return {
+                "id": "ae-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "comment": "Mock aggregate interface",
+                "layer3": {"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]},
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.aggregate_interface.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Aggregate interface '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"aggregate interface '{name}'", e)
+
+    def list_aggregate_interfaces(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List aggregate interfaces in a container."""
+        if not self.client:
+            return [
+                {
+                    "id": "ae-mock1",
+                    "folder": folder or "ngfw-shared",
+                    "name": "ae1",
+                    "comment": "Mock aggregate interface 1",
+                    "layer3": {"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]},
+                },
+                {
+                    "id": "ae-mock2",
+                    "folder": folder or "ngfw-shared",
+                    "name": "ae2",
+                    "comment": "Mock aggregate interface 2",
+                    "layer2": {"vlan_tag": "100"},
+                },
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.aggregate_interface.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "aggregate interfaces", e)
+
     # --------------------------------------------------------------------------------------- IKE Gateways -----------------------------------------------------------------------------------
 
     def create_ike_gateway(self, gateway_data: dict[str, Any]) -> dict[str, Any]:
@@ -8582,10 +8747,7 @@ class SCMClient:
                         jobs.append({"id": str(job)})
                 return jobs
             elif isinstance(result, list):
-                return [
-                    json.loads(j.model_dump_json(exclude_unset=True)) if hasattr(j, "model_dump_json") else {"id": str(j)}
-                    for j in result[:max_results]
-                ]
+                return [json.loads(j.model_dump_json(exclude_unset=True)) if hasattr(j, "model_dump_json") else {"id": str(j)} for j in result[:max_results]]
             return []
         except Exception as e:
             self._handle_api_exception("listing", "", "jobs", e)
@@ -8889,6 +9051,7 @@ class SCMClient:
                 if needs_update:
                     self.logger.info(f"Updating internal DNS server fields: {', '.join(update_fields)}")
                     from scm.models.deployment import InternalDnsServersUpdateModel
+
                     update_data = {
                         "id": str(existing.id),
                         "name": name,
