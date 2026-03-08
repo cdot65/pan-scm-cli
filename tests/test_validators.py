@@ -2,7 +2,7 @@
 
 import pytest
 from pydantic import ValidationError
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, Schedule, SecurityRule, Zone
+from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, Region, Schedule, SecurityRule, Zone
 
 
 class TestBandwidthAllocation:
@@ -271,6 +271,91 @@ class TestSchedule:
                 schedule_type="recurring-daily",
                 time_ranges=["09:00-17:00"],
             )
+
+class TestRegion:
+    """Test cases for the Region model."""
+
+    def test_valid_region(self):
+        """Test creating a valid region."""
+        region = Region(
+            name="US-South",
+            folder="Texas",
+            latitude=30.2672,
+            longitude=-97.7431,
+            addresses=["10.0.0.0/8", "192.168.1.0/24"],
+        )
+        assert region.name == "US-South"
+        assert region.folder == "Texas"
+        assert region.latitude == 30.2672
+        assert region.longitude == -97.7431
+        assert region.addresses == ["10.0.0.0/8", "192.168.1.0/24"]
+
+    def test_missing_required_fields(self):
+        """Test that required fields are enforced."""
+        with pytest.raises(ValidationError):
+            Region(
+                name="US-South",
+                # Missing folder
+            )
+
+        with pytest.raises(ValidationError):
+            Region(
+                # Missing name
+                folder="Texas",
+            )
+
+    def test_default_values(self):
+        """Test that default values are applied correctly."""
+        region = Region(name="US-South", folder="Texas")
+        assert region.latitude is None
+        assert region.longitude is None
+        assert region.addresses is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        region = Region(
+            name="US-South",
+            folder="Texas",
+            latitude=30.2672,
+            longitude=-97.7431,
+            addresses=["10.0.0.0/8"],
+        )
+        sdk_data = region.to_sdk_model()
+        assert sdk_data["name"] == "US-South"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["geo_location"] == {"latitude": 30.2672, "longitude": -97.7431}
+        assert sdk_data["address"] == ["10.0.0.0/8"]
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion to SDK model with minimal fields."""
+        region = Region(name="US-South", folder="Texas")
+        sdk_data = region.to_sdk_model()
+        assert sdk_data == {"name": "US-South", "folder": "Texas"}
+        assert "geo_location" not in sdk_data
+        assert "address" not in sdk_data
+
+    def test_container_validation(self):
+        """Test that exactly one container must be set."""
+        with pytest.raises(ValidationError):
+            Region(
+                name="US-South",
+                folder="Texas",
+                snippet="test-snippet",
+            )
+
+    def test_latitude_range(self):
+        """Test latitude validation range."""
+        with pytest.raises(ValidationError):
+            Region(name="test", folder="Texas", latitude=91.0)
+        with pytest.raises(ValidationError):
+            Region(name="test", folder="Texas", latitude=-91.0)
+
+    def test_longitude_range(self):
+        """Test longitude validation range."""
+        with pytest.raises(ValidationError):
+            Region(name="test", folder="Texas", longitude=181.0)
+        with pytest.raises(ValidationError):
+            Region(name="test", folder="Texas", longitude=-181.0)
 
 
 class TestSecurityRule:

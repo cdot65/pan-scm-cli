@@ -26,6 +26,7 @@ from ..utils.validators import (
     HIPProfile,
     HTTPServerProfile,
     LogForwardingProfile,
+    Region,
     Schedule,
     Service,
     ServiceGroup,
@@ -329,6 +330,12 @@ FILTER_EXPRESSION_OPTION = typer.Option(
     ...,
     "--filter",
     help="Tag-based filter expression (e.g., \"tag.Department='IT' and tag.Role='Admin'\")",
+)
+
+REGION_ADDRESSES_OPTION = typer.Option(
+    None,
+    "--address",
+    help="Address CIDRs for the region",
 )
 
 # Standardized backup command options
@@ -4815,6 +4822,333 @@ def show_log_forwarding_profile(
 
     except Exception as e:
         typer.echo(f"Error showing log forwarding profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# REGION COMMANDS
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+@backup_app.command("region", help="Export regions to a YAML file.")
+def backup_region(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export regions from a specified location to a YAML file.
+
+    Examples
+    --------
+        # Backup from a folder
+        scm backup object region --folder Austin
+
+        # Backup with custom output file
+        scm backup object region --folder Austin --file regions.yaml
+
+    """
+    try:
+        # Validate location parameters
+        location_type, location_value = validate_location_params(folder, snippet, device)
+
+        # List all regions based on location type
+        typer.echo(f"Retrieving regions from {location_type} '{location_value}'...")
+
+        # Build kwargs based on location type
+        kwargs = {location_type: location_value}
+        regions = scm_client.list_regions(**kwargs)
+
+        if not regions:
+            typer.echo(f"No regions found in {location_type} '{location_value}'", err=True)
+            return
+
+        # Prepare data for export
+        export_data = {"regions": regions}
+
+        # Generate filename if not provided
+        filename = Path(file or get_default_backup_filename("region", location_type, location_value))
+
+        # Write to file
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(regions)} regions to {filename}")
+
+    except Exception as e:
+        typer.echo(f"Error backing up regions: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("region", help="Delete a region.")
+def delete_region(
+    name: str = typer.Argument(..., help="Name of the region to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a region."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Retrieve the region first to confirm it exists
+        region = scm_client.get_region(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        if not region:
+            typer.echo(f"Region '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+
+        # Confirm deletion
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete region '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+
+        # Delete the region
+        scm_client.delete_region(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        container = folder or snippet or device
+        typer.echo(f"Deleted region: {name} from {container}")
+
+    except Exception as e:
+        typer.echo(f"Error deleting region: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("region", help="Load regions from a YAML file.")
+def load_region(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+) -> None:
+    """Load regions from a YAML file."""
+    try:
+        # Validate file exists
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+
+        if not data or "regions" not in data:
+            typer.echo("No regions found in file", err=True)
+            raise typer.Exit(code=1)
+
+        regions = data["regions"]
+        if not isinstance(regions, list):
+            regions = [regions]
+
+        # Process each region
+        created_count = 0
+        for region_data in regions:
+            try:
+                # Validate with Pydantic model
+                validated_region = Region(**region_data)
+
+                # Override container if specified
+                if folder:
+                    validated_region.folder = folder
+                    validated_region.snippet = None
+                    validated_region.device = None
+                elif snippet:
+                    validated_region.snippet = snippet
+                    validated_region.folder = None
+                    validated_region.device = None
+                elif device:
+                    validated_region.device = device
+                    validated_region.folder = None
+                    validated_region.snippet = None
+
+                # Convert to SDK format
+                sdk_data = validated_region.to_sdk_model()
+
+                # Create/update the region
+                scm_client.create_region(sdk_data)
+
+                created_count += 1
+
+                container = validated_region.folder or validated_region.snippet or validated_region.device
+                typer.echo(f"Created region: {validated_region.name} in {container}")
+
+            except Exception as e:
+                typer.echo(f"Error processing region: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\nSummary: Processed {created_count} regions")
+
+    except Exception as e:
+        typer.echo(f"Error loading regions: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("region", help="Create or update a region.")
+def set_region(
+    name: str = typer.Argument(..., help="Name of the region"),
+    latitude: float = typer.Option(None, "--latitude", help="Latitude of the region (-90 to 90)"),
+    longitude: float = typer.Option(None, "--longitude", help="Longitude of the region (-180 to 180)"),
+    addresses: list[str] | None = REGION_ADDRESSES_OPTION,
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Create or update a region."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Build region data
+        region_data: dict[str, Any] = {
+            "name": name,
+        }
+
+        # Add container
+        if folder:
+            region_data["folder"] = folder
+        elif snippet:
+            region_data["snippet"] = snippet
+        elif device:
+            region_data["device"] = device
+
+        # Add optional fields
+        if latitude is not None:
+            region_data["latitude"] = latitude
+        if longitude is not None:
+            region_data["longitude"] = longitude
+        if addresses:
+            region_data["addresses"] = addresses
+
+        # Validate with Pydantic model
+        validated_region = Region(**region_data)
+
+        # Convert to SDK format
+        sdk_data = validated_region.to_sdk_model()
+
+        # Create/update the region
+        result = scm_client.create_region(sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        container = folder or snippet or device
+        if action == "created":
+            typer.echo(f"Created region: {name} in {container}")
+        elif action == "updated":
+            typer.echo(f"Updated region: {name} in {container}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for region: {name} in {container}")
+
+    except Exception as e:
+        typer.echo(f"Error creating/updating region: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("region", help="Show region details.")
+def show_region(
+    name: str = typer.Option(None, "--name", help="Name of specific region to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show region details.
+
+    Examples
+    --------
+        # List all regions (default behavior)
+        scm show object region
+
+        # Show a specific region by name
+        scm show object region --name US-South
+
+    """
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        if name:
+            # Show specific region
+            region = scm_client.get_region(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not region:
+                typer.echo(f"Region '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+
+            # Display detailed information
+            typer.echo(f"\nRegion: {region['name']}")
+            typer.echo("=" * 40)
+
+            location = region.get("folder") or region.get("snippet") or region.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+
+            if region.get("geo_location"):
+                geo = region["geo_location"]
+                typer.echo(f"Latitude: {geo.get('latitude', 'N/A')}")
+                typer.echo(f"Longitude: {geo.get('longitude', 'N/A')}")
+
+            if region.get("address"):
+                typer.echo(f"Addresses: {', '.join(region['address'])}")
+
+            # Display ID if present
+            if region.get("id"):
+                typer.echo(f"\nID: {region['id']}")
+
+            return region
+
+        else:
+            # Default behavior: list all regions
+            regions = scm_client.list_regions(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not regions:
+                typer.echo("No regions found")
+                return
+
+            # Display in table format
+            typer.echo("\nRegions:")
+            typer.echo("-" * 80)
+
+            for region in regions:
+                location = region.get("folder") or region.get("snippet") or region.get("device", "N/A")
+
+                typer.echo(f"\nName: {region['name']}")
+                typer.echo(f"Location: {location}")
+                if region.get("geo_location"):
+                    geo = region["geo_location"]
+                    typer.echo(f"Geo: ({geo.get('latitude', 'N/A')}, {geo.get('longitude', 'N/A')})")
+                if region.get("address"):
+                    typer.echo(f"Addresses: {', '.join(region['address'])}")
+
+            typer.echo(f"\nTotal: {len(regions)} regions")
+
+    except Exception as e:
+        typer.echo(f"Error showing region: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 

@@ -4,13 +4,17 @@ import typer
 from scm_cli.commands.objects import (
     delete_address_group,
     delete_app,
+    delete_region,
     delete_schedule,
     load_address_group,
     load_app,
+    load_region,
     set_address_group,
     set_app,
+    set_region,
     set_schedule,
     show_app,
+    show_region,
     show_schedule,
 )
 
@@ -497,6 +501,21 @@ class TestScheduleCommands:
 
         test_app = typer.Typer()
         test_app.command()(set_schedule)
+class TestRegionCommands:
+    """Test the region commands."""
+
+    def test_set_region_command(self, runner, monkeypatch):
+        """Test the set region command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(region_data):
+            result = {**region_data, "__action__": "created"}
+            return result
+
+        monkeypatch.setattr(scm_client, "create_region", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_region)
 
         result = runner.invoke(
             test_app,
@@ -508,6 +527,15 @@ class TestScheduleCommands:
                 "09:00-17:00",
                 "--folder",
                 "Texas",
+                "US-South",
+                "--folder",
+                "Texas",
+                "--latitude",
+                "30.2672",
+                "--longitude",
+                "-97.7431",
+                "--address",
+                "10.0.0.0/8",
             ],
         )
 
@@ -526,6 +554,20 @@ class TestScheduleCommands:
 
         test_app = typer.Typer()
         test_app.command()(set_schedule)
+        assert "Created region" in result.stdout
+        assert "US-South" in result.stdout
+
+    def test_set_region_error(self, runner, monkeypatch):
+        """Test the set region command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(region_data):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_region", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_region)
 
         result = runner.invoke(
             test_app,
@@ -535,6 +577,7 @@ class TestScheduleCommands:
                 "recurring-daily",
                 "--time-range",
                 "09:00-17:00",
+                "US-South",
                 "--folder",
                 "Texas",
             ],
@@ -545,6 +588,40 @@ class TestScheduleCommands:
 
     def test_show_schedule_list(self, runner, monkeypatch):
         """Test the show schedule command listing all."""
+        assert "Error creating/updating region" in result.stdout
+
+    def test_delete_region_command(self, runner, monkeypatch):
+        """Test the delete region command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {"id": "region-123", "name": "US-South", "folder": "Texas"}
+
+        def mock_delete(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(scm_client, "get_region", mock_get)
+        monkeypatch.setattr(scm_client, "delete_region", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_region)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "US-South",
+                "--folder",
+                "Texas",
+                "--force",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted region" in result.stdout
+        assert "US-South" in result.stdout
+
+    def test_show_region_list(self, runner, monkeypatch):
+        """Test the show region command listing all regions."""
         from scm_cli.utils.sdk_client import scm_client
 
         def mock_list(*args, **kwargs):
@@ -560,6 +637,22 @@ class TestScheduleCommands:
 
         test_app = typer.Typer()
         test_app.command()(show_schedule)
+                    "name": "US-South",
+                    "folder": "Texas",
+                    "geo_location": {"latitude": 30.2672, "longitude": -97.7431},
+                    "address": ["10.0.0.0/8"],
+                },
+                {
+                    "name": "US-East",
+                    "folder": "Texas",
+                    "geo_location": {"latitude": 40.7128, "longitude": -74.006},
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_regions", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_region)
 
         result = runner.invoke(test_app, ["--folder", "Texas"])
 
@@ -569,6 +662,12 @@ class TestScheduleCommands:
 
     def test_show_schedule_by_name(self, runner, monkeypatch):
         """Test the show schedule command by name."""
+        assert "US-South" in result.stdout
+        assert "US-East" in result.stdout
+        assert "Total: 2 regions" in result.stdout
+
+    def test_show_region_by_name(self, runner, monkeypatch):
+        """Test the show region command with --name flag."""
         from scm_cli.utils.sdk_client import scm_client
 
         def mock_get(*args, **kwargs):
@@ -612,3 +711,70 @@ class TestScheduleCommands:
         assert result.exit_code == 0
         assert "Deleted schedule" in result.stdout
         assert "old-sched" in result.stdout
+                "id": "region-123",
+                "name": "US-South",
+                "folder": "Texas",
+                "geo_location": {"latitude": 30.2672, "longitude": -97.7431},
+                "address": ["10.0.0.0/8", "192.168.1.0/24"],
+            }
+
+        monkeypatch.setattr(scm_client, "get_region", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_region)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "US-South"])
+
+        assert result.exit_code == 0
+        assert "Region: US-South" in result.stdout
+        assert "Latitude: 30.2672" in result.stdout
+        assert "Longitude: -97.7431" in result.stdout
+        assert "10.0.0.0/8" in result.stdout
+
+    def test_show_region_empty_list(self, runner, monkeypatch):
+        """Test the show region command when no regions exist."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return []
+
+        monkeypatch.setattr(scm_client, "list_regions", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_region)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "No regions found" in result.stdout
+
+    def test_load_region_command(self, runner, monkeypatch, tmp_path):
+        """Test the load region command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        # Create a test YAML file
+        yaml_content = """
+regions:
+  - name: US-South
+    folder: Texas
+    latitude: 30.2672
+    longitude: -97.7431
+    addresses:
+      - 10.0.0.0/8
+"""
+        test_file = tmp_path / "test_regions.yml"
+        test_file.write_text(yaml_content)
+
+        def mock_create(region_data):
+            return {**region_data, "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_region", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(load_region)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0
+        assert "Created region" in result.stdout
+        assert "US-South" in result.stdout

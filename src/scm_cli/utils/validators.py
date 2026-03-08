@@ -1079,6 +1079,78 @@ class LogForwardingProfile(BaseModel):
         return model_data
 
 
+class Region(BaseModel):
+    """Model for region configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the region")
+    name: str = Field(
+        ...,
+        description="Name of the region",
+        max_length=64,
+    )
+    latitude: float | None = Field(None, description="Latitude of the region (-90 to 90)", ge=-90, le=90)
+    longitude: float | None = Field(None, description="Longitude of the region (-180 to 180)", ge=-180, le=180)
+    addresses: list[str] | None = Field(None, description="List of address CIDRs")
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+
+    @field_validator("folder", "snippet", "device")
+    def validate_container(
+        cls,
+        v: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
+        """Validate that exactly one container field is set."""
+        if v is not None:
+            values = info.data
+            containers = ["folder", "snippet", "device"]
+            field_name = info.field_name
+            other_containers = [c for c in containers if c != field_name]
+
+            for container in other_containers:
+                if values.get(container) is not None:
+                    raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return v
+
+    @model_validator(mode="after")
+    def check_container_set(self) -> "Region":
+        """Ensure exactly one container field is set."""
+        containers_set = sum(1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None)
+
+        if containers_set != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add geo_location if latitude/longitude provided
+        if self.latitude is not None and self.longitude is not None:
+            model_data["geo_location"] = {
+                "latitude": self.latitude,
+                "longitude": self.longitude,
+            }
+
+        # Add addresses
+        if self.addresses:
+            model_data["address"] = self.addresses
+
+        return model_data
+
+
 class Service(BaseModel):
     """Model for service configurations with folder path."""
 

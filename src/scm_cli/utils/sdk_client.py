@@ -3759,6 +3759,259 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", container, "log-forwarding profiles", e)
 
+    # Regions ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_region(
+        self,
+        region_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create or update a region using smart upsert logic.
+
+        Args:
+            region_data: The region data
+
+        Returns:
+            Created/updated region data
+
+        """
+        # Determine container (folder, snippet, or device)
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+
+        for field in container_fields:
+            if field in region_data and region_data[field] is not None:
+                container_field = field
+                container_value = region_data[field]
+                break
+
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        # Return mock data if no client
+        if not self.client:
+            return region_data
+
+        # Check if the region already exists
+        existing_region = None
+        try:
+            existing_region = self.client.region.fetch(name=region_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing region '{region_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Region '{region_data['name']}' not found in {container_field} '{container_value}', will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching region '{region_data['name']}': {str(e)}")
+
+        if existing_region:
+            # Check what needs updating
+            needs_update = False
+            update_fields = []
+
+            # Compare geo_location
+            if "geo_location" in region_data and region_data["geo_location"]:
+                new_geo = region_data["geo_location"]
+                if hasattr(existing_region, "geo_location") and existing_region.geo_location:
+                    if existing_region.geo_location.latitude != new_geo.get("latitude") or existing_region.geo_location.longitude != new_geo.get("longitude"):
+                        existing_region.geo_location.latitude = new_geo["latitude"]
+                        existing_region.geo_location.longitude = new_geo["longitude"]
+                        update_fields.append("geo_location")
+                        needs_update = True
+                else:
+                    from scm.models.objects.regions import GeoLocation
+
+                    existing_region.geo_location = GeoLocation(**new_geo)
+                    update_fields.append("geo_location")
+                    needs_update = True
+
+            # Compare addresses
+            if "address" in region_data and region_data["address"] is not None:
+                existing_addresses = set(existing_region.address) if hasattr(existing_region, "address") and existing_region.address else set()
+                new_addresses = set(region_data["address"])
+                if existing_addresses != new_addresses:
+                    existing_region.address = region_data["address"]
+                    update_fields.append("address")
+                    needs_update = True
+
+            if needs_update:
+                self.logger.info(f"Updating region fields: {', '.join(update_fields)}")
+                try:
+                    updated = existing_region.update()
+                    self.logger.info(f"Successfully updated region '{region_data['name']}' in {container_field} '{container_value}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"region '{region_data['name']}'", update_error)
+            else:
+                self.logger.info(f"No changes detected for region '{region_data['name']}', skipping update")
+                result = json.loads(existing_region.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            # Create new region
+            try:
+                created = self.client.region.create(region_data)
+                self.logger.info(f"Created new region '{region_data['name']}' in {container_field} '{container_value}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception(
+                    "creating",
+                    str(container_value),
+                    f"region '{region_data['name']}'",
+                    create_error,
+                )
+
+    def delete_region(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> None:
+        """Delete a region.
+
+        Args:
+            name: Name of the region to delete
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        """
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete region: {name}")
+            return
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            # First, fetch the region to get its ID
+            region = self.client.region.fetch(name=name, **container_kwargs)
+            self.client.region.delete(str(region.id))
+            self.logger.info(f"Deleted region: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"region '{name}'", e)
+
+    def get_region(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific region.
+
+        Args:
+            name: Name of the region to retrieve
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        Returns:
+            Region data or None if not found
+
+        """
+        if not self.client:
+            return {
+                "id": "region-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "geo_location": {"latitude": 30.2672, "longitude": -97.7431},
+                "address": ["10.0.0.0/8", "192.168.1.0/24"],
+            }
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            result = self.client.region.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Region '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"region '{name}'", e)
+
+    def list_regions(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List regions in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return exact matches
+
+        Returns:
+            List of regions
+
+        """
+        if not self.client:
+            return [
+                {
+                    "id": "region-mock1",
+                    "folder": folder or "ngfw-shared",
+                    "name": "US-South",
+                    "geo_location": {"latitude": 30.2672, "longitude": -97.7431},
+                    "address": ["10.0.0.0/8"],
+                },
+                {
+                    "id": "region-mock2",
+                    "folder": folder or "ngfw-shared",
+                    "name": "US-East",
+                    "geo_location": {"latitude": 40.7128, "longitude": -74.0060},
+                    "address": ["172.16.0.0/12"],
+                },
+                {
+                    "id": "region-mock3",
+                    "folder": folder or "ngfw-shared",
+                    "name": "EU-West",
+                    "geo_location": {"latitude": 51.5074, "longitude": -0.1278},
+                    "address": ["192.168.0.0/16"],
+                },
+            ]
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            # List regions using the SDK
+            results = self.client.region.list(exact_match=exact_match, **container_kwargs)
+
+            # Convert SDK response to the list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "regions", e)
+
     # Services -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_service(
