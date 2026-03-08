@@ -3,7 +3,21 @@
 import pytest
 from pydantic import ValidationError
 
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, DNSSecurityProfile, IKECryptoProfile, IPSecCryptoProfile, NATRule, QuarantinedDevice, Region, Schedule, SecurityRule, WildfireAntivirusProfile, Zone
+from scm_cli.utils.validators import (
+    AddressGroup,
+    BandwidthAllocation,
+    DNSSecurityProfile,
+    IKECryptoProfile,
+    IPSecCryptoProfile,
+    NATRule,
+    QuarantinedDevice,
+    Region,
+    Schedule,
+    SecurityRule,
+    VulnerabilityProtectionProfile,
+    WildfireAntivirusProfile,
+    Zone,
+)
 
 
 class TestBandwidthAllocation:
@@ -962,3 +976,188 @@ class TestDNSSecurityProfile:
         sdk_data = profile.to_sdk_model()
         assert sdk_data["device"] == "fw-01"
         assert "folder" not in sdk_data
+
+
+class TestVulnerabilityProtectionProfile:
+    """Test cases for the VulnerabilityProtectionProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid vulnerability protection profile."""
+        profile = VulnerabilityProtectionProfile(
+            name="test-vuln-profile",
+            folder="Texas",
+            description="Test vulnerability protection",
+            rules=[
+                {
+                    "name": "Block Critical",
+                    "severity": ["critical", "high"],
+                    "category": "any",
+                    "host": "any",
+                    "action": {"alert": {}},
+                }
+            ],
+        )
+        assert profile.name == "test-vuln-profile"
+        assert profile.folder == "Texas"
+        assert profile.description == "Test vulnerability protection"
+        assert len(profile.rules) == 1
+
+    def test_missing_container(self):
+        """Test that missing container raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any"}],
+            )
+
+    def test_multiple_containers(self):
+        """Test that multiple containers raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                snippet="test-snippet",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any"}],
+            )
+
+    def test_rule_missing_name(self):
+        """Test that rule without name raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"severity": ["critical"], "host": "any"}],
+            )
+
+    def test_rule_missing_severity(self):
+        """Test that rule without severity raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "host": "any"}],
+            )
+
+    def test_rule_missing_host(self):
+        """Test that rule without host raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"]}],
+            )
+
+    def test_rule_invalid_severity(self):
+        """Test that invalid severity raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["invalid"], "host": "any"}],
+            )
+
+    def test_rule_invalid_host(self):
+        """Test that invalid host raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "invalid"}],
+            )
+
+    def test_rule_invalid_category(self):
+        """Test that invalid category raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any", "category": "invalid"}],
+            )
+
+    def test_rule_invalid_action(self):
+        """Test that invalid action raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any", "action": "invalid"}],
+            )
+
+    def test_rule_invalid_packet_capture(self):
+        """Test that invalid packet_capture raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any", "packet_capture": "invalid"}],
+            )
+
+    def test_to_sdk_model(self):
+        """Test converting profile to SDK model format."""
+        profile = VulnerabilityProtectionProfile(
+            name="test-vuln-profile",
+            folder="Texas",
+            description="Test profile",
+            rules=[
+                {
+                    "name": "Block Critical",
+                    "severity": ["critical"],
+                    "host": "any",
+                    "action": {"default": {}},
+                }
+            ],
+            threat_exceptions=[{"name": "exception-1", "notes": "Test exception"}],
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-vuln-profile"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["description"] == "Test profile"
+        assert len(sdk_data["rules"]) == 1
+        assert sdk_data["threat_exception"][0]["name"] == "exception-1"
+
+    def test_to_sdk_model_minimal(self):
+        """Test converting minimal profile to SDK model."""
+        profile = VulnerabilityProtectionProfile(
+            name="minimal",
+            folder="Texas",
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "minimal"
+        assert sdk_data["folder"] == "Texas"
+        assert "description" not in sdk_data
+        assert "rules" not in sdk_data
+        assert "threat_exception" not in sdk_data
+
+    def test_valid_all_severities(self):
+        """Test profile with all valid severity values."""
+        profile = VulnerabilityProtectionProfile(
+            name="all-sev",
+            folder="Texas",
+            rules=[
+                {
+                    "name": "all-severities",
+                    "severity": ["critical", "high", "medium", "low", "informational"],
+                    "host": "client",
+                    "category": "sql-injection",
+                    "action": "drop",
+                    "packet_capture": "extended-capture",
+                }
+            ],
+        )
+        assert len(profile.rules[0]["severity"]) == 5
+
+    def test_dict_action_allowed(self):
+        """Test that dict-style action (block_ip) is allowed."""
+        profile = VulnerabilityProtectionProfile(
+            name="block-ip-test",
+            folder="Texas",
+            rules=[
+                {
+                    "name": "block-rule",
+                    "severity": ["critical"],
+                    "host": "any",
+                    "action": {"block_ip": {"track_by": "source", "duration": 300}},
+                }
+            ],
+        )
+        assert profile.rules[0]["action"]["block_ip"]["duration"] == 300

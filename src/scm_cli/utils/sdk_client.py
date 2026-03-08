@@ -7826,6 +7826,276 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", container or "", "DNS security profiles", e)
 
+    # --------------------------------------------------------------------------- Vulnerability Protection Profile ---------------------------------------------------------------------------
+
+    def create_vulnerability_protection_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        threat_exception: list[dict[str, Any]] | None = None,
+        rules: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create a vulnerability protection profile.
+
+        Args:
+            folder: Folder to create the profile in
+            snippet: Snippet to create the profile in
+            device: Device to create the profile in
+            name: Name of the profile
+            description: Optional description
+            threat_exception: List of threat exceptions
+            rules: List of vulnerability protection rules
+
+        Returns:
+            dict[str, Any]: The created vulnerability protection profile object
+
+        Note:
+            If a vulnerability protection profile with the same name already exists in the container,
+            it will be updated with the new configuration.
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Creating or updating vulnerability protection profile: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"vpp-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": description,
+                "threat_exception": threat_exception or [],
+                "rules": rules or [],
+            }
+
+        try:
+            # First, try to fetch the existing vulnerability protection profile
+            existing_profile = None
+            try:
+                existing_profile = self.client.vulnerability_protection_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+                self.logger.info(f"Found existing vulnerability protection profile '{name}' in {container_type} '{container}', updating...")
+            except NotFoundError:
+                self.logger.info(f"Vulnerability protection profile '{name}' not found in {container_type} '{container}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching vulnerability protection profile '{name}': {str(fetch_error)}")
+
+            # Prepare profile data
+            profile_data = {
+                "name": name,
+            }
+
+            # Add container field only if not None
+            if folder is not None:
+                profile_data["folder"] = folder
+            if snippet is not None:
+                profile_data["snippet"] = snippet
+            if device is not None:
+                profile_data["device"] = device
+
+            # Add optional fields if provided
+            if description is not None:
+                profile_data["description"] = description
+            if threat_exception is not None:
+                profile_data["threat_exception"] = threat_exception
+            if rules is not None:
+                profile_data["rules"] = rules
+
+            # Create or update the profile
+            if existing_profile:
+                # Update existing profile
+                profile_data["id"] = existing_profile.id
+                from scm.models.security import VulnerabilityProfileUpdateModel
+
+                update_model = VulnerabilityProfileUpdateModel(**profile_data)
+                result = self.client.vulnerability_protection_profile.update(update_model)
+            else:
+                # Create a new profile
+                result = self.client.vulnerability_protection_profile.create(profile_data)
+
+            # Convert response to dict
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", "vulnerability protection profile", e)
+
+    def delete_vulnerability_protection_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a vulnerability protection profile.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deleted successfully
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Deleting vulnerability protection profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock success if no client is available
+            return True
+
+        try:
+            # Fetch the profile to get its ID
+            profile = self.client.vulnerability_protection_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+
+            # Delete using the ID
+            self.client.vulnerability_protection_profile.delete(profile.id)
+            self.logger.info(f"Successfully deleted vulnerability protection profile '{name}' from {container_type} '{container}'")
+            return True
+        except NotFoundError:
+            self.logger.warning(f"Vulnerability protection profile '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", "vulnerability protection profile", e)
+
+    def get_vulnerability_protection_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a vulnerability protection profile by name.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile
+
+        Returns:
+            dict[str, Any]: The vulnerability protection profile object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Getting vulnerability protection profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"vpp-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": "Mock vulnerability protection profile",
+                "rules": [
+                    {
+                        "name": "Block Critical Vulnerabilities",
+                        "severity": ["critical", "high"],
+                        "category": "any",
+                        "host": "any",
+                        "action": {"alert": {}},
+                        "packet_capture": "single-packet",
+                    }
+                ],
+            }
+
+        try:
+            # Fetch the profile using the SDK
+            result = self.client.vulnerability_protection_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+
+            # Convert SDK response to dict
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", "vulnerability protection profile", e)
+
+    def list_vulnerability_protection_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List vulnerability protection profiles.
+
+        Args:
+            folder: Folder to list out
+            snippet: Snippet to list out
+            device: Device to list out
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of vulnerability protection profile objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        # Build container kwargs
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing vulnerability protection profiles in {container_type}: {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "vpp-mock1",
+                    "folder": folder or "Texas",
+                    "name": "Strict Vulnerability Protection",
+                    "description": "Block all critical and high severity vulnerabilities",
+                    "rules": [
+                        {
+                            "name": "Block Critical",
+                            "severity": ["critical", "high"],
+                            "category": "any",
+                            "host": "any",
+                            "action": {"alert": {}},
+                        }
+                    ],
+                },
+                {
+                    "id": "vpp-mock2",
+                    "folder": folder or "Texas",
+                    "name": "Standard Vulnerability Protection",
+                    "description": "Standard vulnerability protection",
+                    "rules": [
+                        {
+                            "name": "Alert Medium",
+                            "severity": ["medium"],
+                            "category": "any",
+                            "host": "any",
+                            "action": {"default": {}},
+                        }
+                    ],
+                },
+            ]
+
+        try:
+            # List profiles using the SDK
+            results = self.client.vulnerability_protection_profile.list(**container_kwargs, exact_match=exact_match)
+
+            # Convert SDK response to a list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "vulnerability protection profiles", e)
+
     # ======================================================================================================================================================================================
     # INSIGHTS AND MONITORING METHODS
     # ======================================================================================================================================================================================

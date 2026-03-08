@@ -2448,6 +2448,138 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
     return validated_items
 
 
+class VulnerabilityProtectionProfile(BaseModel):
+    """Model for vulnerability protection profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the vulnerability protection profile")
+    snippet: str | None = Field(None, description="Snippet path for the vulnerability protection profile")
+    device: str | None = Field(None, description="Device path for the vulnerability protection profile")
+    name: str = Field(..., description="Name of the vulnerability protection profile")
+    description: str | None = Field(None, description="Description of the vulnerability protection profile")
+
+    # Threat exceptions
+    threat_exceptions: list[dict[str, Any]] | None = Field(None, description="List of threat exceptions")
+
+    # Rules configuration
+    rules: list[dict[str, Any]] | None = Field(None, description="List of vulnerability protection rules")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "VulnerabilityProtectionProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("rules")
+    def validate_rules(cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:  # noqa: N805
+        """Validate rules configuration."""
+        if v is None:
+            return v
+
+        for idx, rule in enumerate(v):
+            # Required fields
+            if "name" not in rule:
+                raise ValueError(f"Rule {idx}: 'name' is required")
+            if "severity" not in rule:
+                raise ValueError(f"Rule {idx}: 'severity' is required")
+            if "host" not in rule:
+                raise ValueError(f"Rule {idx}: 'host' is required")
+
+            # Validate severity
+            valid_severities = [
+                "critical",
+                "high",
+                "medium",
+                "low",
+                "informational",
+                "any",
+            ]
+            if isinstance(rule["severity"], list):
+                for sev in rule["severity"]:
+                    if sev not in valid_severities:
+                        raise ValueError(f"Rule {idx}: Invalid severity '{sev}'")
+            elif rule["severity"] not in valid_severities:
+                raise ValueError(f"Rule {idx}: Invalid severity '{rule['severity']}'")
+
+            # Validate host if present
+            valid_hosts = ["any", "client", "server"]
+            if rule["host"] not in valid_hosts:
+                raise ValueError(f"Rule {idx}: Invalid host '{rule['host']}'")
+
+            # Validate action if present
+            if "action" in rule:
+                valid_actions = [
+                    "allow",
+                    "alert",
+                    "drop",
+                    "reset-client",
+                    "reset-server",
+                    "reset-both",
+                    "block-ip",
+                    "default",
+                ]
+                action = rule["action"]
+                if isinstance(action, dict):
+                    # Action is a dict like {"block_ip": {"track_by": "source", "duration": 300}}
+                    pass
+                elif action not in valid_actions:
+                    raise ValueError(f"Rule {idx}: Invalid action '{action}'")
+
+            # Validate packet_capture if present
+            if "packet_capture" in rule:
+                valid_captures = ["disable", "single-packet", "extended-capture"]
+                if rule["packet_capture"] not in valid_captures:
+                    raise ValueError(f"Rule {idx}: Invalid packet_capture '{rule['packet_capture']}'")
+
+            # Validate category if present
+            if "category" in rule:
+                valid_categories = [
+                    "any",
+                    "brute-force",
+                    "code-execution",
+                    "code-obfuscation",
+                    "command-execution",
+                    "dos",
+                    "exploit-kit",
+                    "info-leak",
+                    "insecure-credentials",
+                    "overflow",
+                    "phishing",
+                    "protocol-anomaly",
+                    "scan",
+                    "sql-injection",
+                ]
+                if rule["category"] not in valid_categories:
+                    raise ValueError(f"Rule {idx}: Invalid category '{rule['category']}'")
+
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.threat_exceptions:
+            model_data["threat_exception"] = self.threat_exceptions
+        if self.rules:
+            model_data["rules"] = self.rules
+
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # INSIGHTS AND MONITORING MODELS
 # ========================================================================================================================================================================================
