@@ -2,24 +2,28 @@
 
 import typer  # noqa: I001
 from scm_cli.commands.network import (
+    delete_aggregate_interface,
     delete_app,
     delete_ike_crypto_profile,
     delete_ike_gateway,
     delete_ipsec_crypto_profile,
     delete_nat_rule,
     delete_zone,
+    load_aggregate_interface,
     load_app,
     load_ike_crypto_profile,
     load_ike_gateway,
     load_ipsec_crypto_profile,
     load_nat_rule,
     load_security_zone as load_zone,
+    set_aggregate_interface,
     set_app,
     set_ike_crypto_profile,
     set_ike_gateway,
     set_ipsec_crypto_profile,
     set_nat_rule,
     set_zone,
+    show_aggregate_interface,
     show_ike_crypto_profile,
     show_ike_gateway,
     show_ipsec_crypto_profile,
@@ -393,14 +397,22 @@ class TestIKEGatewayCommands:
         monkeypatch.setattr(scm_client, "create_ike_gateway", mock_create)
         test_app = typer.Typer()
         test_app.command()(set_ike_gateway)
-        result = runner.invoke(test_app, [
-            "test-gw",
-            "--folder", "test-folder",
-            "--pre-shared-key", "my-secret",
-            "--peer-address-ip", "203.0.113.1",
-            "--protocol-version", "ikev2-preferred",
-            "--ike-crypto-profile", "default",
-        ])
+        result = runner.invoke(
+            test_app,
+            [
+                "test-gw",
+                "--folder",
+                "test-folder",
+                "--pre-shared-key",
+                "my-secret",
+                "--peer-address-ip",
+                "203.0.113.1",
+                "--protocol-version",
+                "ikev2-preferred",
+                "--ike-crypto-profile",
+                "default",
+            ],
+        )
         assert result.exit_code == 0
         assert "Created IKE gateway" in result.stdout
         assert "test-gw" in result.stdout
@@ -415,12 +427,18 @@ class TestIKEGatewayCommands:
         monkeypatch.setattr(scm_client, "create_ike_gateway", mock_create_error)
         test_app = typer.Typer()
         test_app.command()(set_ike_gateway)
-        result = runner.invoke(test_app, [
-            "test-gw",
-            "--folder", "test-folder",
-            "--pre-shared-key", "my-secret",
-            "--peer-address-ip", "203.0.113.1",
-        ])
+        result = runner.invoke(
+            test_app,
+            [
+                "test-gw",
+                "--folder",
+                "test-folder",
+                "--pre-shared-key",
+                "my-secret",
+                "--peer-address-ip",
+                "203.0.113.1",
+            ],
+        )
         assert result.exit_code == 1
         assert "Error" in result.stdout
 
@@ -428,22 +446,32 @@ class TestIKEGatewayCommands:
         """Test set ike-gateway command requires authentication."""
         test_app = typer.Typer()
         test_app.command()(set_ike_gateway)
-        result = runner.invoke(test_app, [
-            "test-gw",
-            "--folder", "test-folder",
-            "--peer-address-ip", "203.0.113.1",
-        ])
+        result = runner.invoke(
+            test_app,
+            [
+                "test-gw",
+                "--folder",
+                "test-folder",
+                "--peer-address-ip",
+                "203.0.113.1",
+            ],
+        )
         assert result.exit_code == 1
 
     def test_set_ike_gateway_missing_peer_address(self, runner, monkeypatch):
         """Test set ike-gateway command requires peer address."""
         test_app = typer.Typer()
         test_app.command()(set_ike_gateway)
-        result = runner.invoke(test_app, [
-            "test-gw",
-            "--folder", "test-folder",
-            "--pre-shared-key", "my-secret",
-        ])
+        result = runner.invoke(
+            test_app,
+            [
+                "test-gw",
+                "--folder",
+                "test-folder",
+                "--pre-shared-key",
+                "my-secret",
+            ],
+        )
         assert result.exit_code == 1
 
     def test_show_ike_gateway_list(self, runner, monkeypatch):
@@ -519,13 +547,15 @@ class TestIKEGatewayCommands:
         from scm_cli.utils.sdk_client import scm_client
 
         yaml_data = {
-            "ike_gateways": [{
-                "name": "test-gw",
-                "folder": "test-folder",
-                "authentication": {"pre_shared_key": {"key": "secret"}},
-                "peer_address": {"ip": "203.0.113.1"},
-                "protocol": {"version": "ikev2-preferred", "ikev1": {"ike_crypto_profile": "default"}, "ikev2": {"ike_crypto_profile": "default"}},
-            }]
+            "ike_gateways": [
+                {
+                    "name": "test-gw",
+                    "folder": "test-folder",
+                    "authentication": {"pre_shared_key": {"key": "secret"}},
+                    "peer_address": {"ip": "203.0.113.1"},
+                    "protocol": {"version": "ikev2-preferred", "ikev1": {"ike_crypto_profile": "default"}, "ikev2": {"ike_crypto_profile": "default"}},
+                }
+            ]
         }
         yaml_file = tmp_path / "ike-gateways.yaml"
         with yaml_file.open("w") as f:
@@ -552,13 +582,15 @@ class TestIKEGatewayCommands:
         from scm_cli.utils.sdk_client import scm_client
 
         yaml_data = {
-            "ike_gateways": [{
-                "name": "test-gw",
-                "folder": "test-folder",
-                "authentication": {"pre_shared_key": {"key": "secret"}},
-                "peer_address": {"ip": "203.0.113.1"},
-                "protocol": {"version": "ikev2", "ikev2": {"ike_crypto_profile": "default"}},
-            }]
+            "ike_gateways": [
+                {
+                    "name": "test-gw",
+                    "folder": "test-folder",
+                    "authentication": {"pre_shared_key": {"key": "secret"}},
+                    "peer_address": {"ip": "203.0.113.1"},
+                    "protocol": {"version": "ikev2", "ikev2": {"ike_crypto_profile": "default"}},
+                }
+            ]
         }
         yaml_file = tmp_path / "ike-gateways.yaml"
         with yaml_file.open("w") as f:
@@ -1096,6 +1128,187 @@ class TestNATRuleCommands:
 
         result = runner.invoke(test_app, ["--file", str(mock_nat_rules_yaml_file), "--dry-run"])
 
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+        assert not mock_called
+
+
+class TestAggregateInterfaceCommands:
+    """Test the aggregate interface commands."""
+
+    def test_set_aggregate_interface_created(self, runner, monkeypatch):
+        """Test set aggregate-interface command creates a new interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(iface_data):
+            result = iface_data.copy()
+            result["id"] = "ae-12345"
+            result["__action__"] = "created"
+            return result
+
+        monkeypatch.setattr(scm_client, "create_aggregate_interface", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_aggregate_interface)
+        result = runner.invoke(
+            test_app,
+            [
+                "ae1",
+                "--folder",
+                "test-folder",
+                "--layer3-json",
+                '{"mtu": 1500}',
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Created aggregate interface" in result.stdout
+        assert "ae1" in result.stdout
+
+    def test_set_aggregate_interface_error(self, runner, monkeypatch):
+        """Test set aggregate-interface command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(iface_data):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_aggregate_interface", mock_create_error)
+        test_app = typer.Typer()
+        test_app.command()(set_aggregate_interface)
+        result = runner.invoke(
+            test_app,
+            [
+                "ae1",
+                "--folder",
+                "test-folder",
+                "--layer3-json",
+                '{"mtu": 1500}',
+            ],
+        )
+        assert result.exit_code == 1
+        assert "Error" in result.stdout
+
+    def test_show_aggregate_interface_list(self, runner, monkeypatch):
+        """Test show aggregate-interface command lists interfaces."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(**kwargs):
+            return [
+                {
+                    "id": "ae-1",
+                    "name": "ae1",
+                    "folder": "test-folder",
+                    "layer3": {"mtu": 1500},
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_aggregate_interfaces", mock_list)
+        test_app = typer.Typer()
+        test_app.command()(show_aggregate_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "ae1" in result.stdout
+
+    def test_show_aggregate_interface_specific(self, runner, monkeypatch):
+        """Test show aggregate-interface command shows a specific interface."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(**kwargs):
+            return {
+                "id": "ae-1",
+                "name": "ae1",
+                "folder": "test-folder",
+                "comment": "test interface",
+                "layer3": {"mtu": 9000, "ip": [{"name": "10.0.0.1/24"}]},
+            }
+
+        monkeypatch.setattr(scm_client, "get_aggregate_interface", mock_get)
+        test_app = typer.Typer()
+        test_app.command()(show_aggregate_interface)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "ae1"])
+        assert result.exit_code == 0
+        assert "ae1" in result.stdout
+        assert "9000" in result.stdout
+
+    def test_delete_aggregate_interface_command(self, runner, monkeypatch):
+        """Test delete aggregate-interface command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(**kwargs):
+            return {"id": "ae-1", "name": "ae1", "folder": "test-folder"}
+
+        def mock_delete(**kwargs):
+            return None
+
+        monkeypatch.setattr(scm_client, "get_aggregate_interface", mock_get)
+        monkeypatch.setattr(scm_client, "delete_aggregate_interface", mock_delete)
+        test_app = typer.Typer()
+        test_app.command()(delete_aggregate_interface)
+        result = runner.invoke(test_app, ["ae1", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted aggregate interface" in result.stdout
+
+    def test_load_aggregate_interface_command(self, runner, monkeypatch, tmp_path):
+        """Test load aggregate-interface command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {
+            "aggregate_interfaces": [
+                {
+                    "name": "ae1",
+                    "folder": "test-folder",
+                    "layer3": {"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]},
+                }
+            ]
+        }
+        yaml_file = tmp_path / "aggregate-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        def mock_create(iface_data):
+            result = iface_data.copy()
+            result["id"] = "ae-12345"
+            result["__action__"] = "created"
+            return result
+
+        monkeypatch.setattr(scm_client, "create_aggregate_interface", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(load_aggregate_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created aggregate interface" in result.stdout
+        assert "ae1" in result.stdout
+
+    def test_load_aggregate_interface_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load aggregate-interface command with dry-run."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {
+            "aggregate_interfaces": [
+                {
+                    "name": "ae1",
+                    "folder": "test-folder",
+                    "layer3": {"mtu": 1500},
+                }
+            ]
+        }
+        yaml_file = tmp_path / "aggregate-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        mock_called = False
+
+        def mock_create(iface_data):
+            nonlocal mock_called
+            mock_called = True
+            return {}
+
+        monkeypatch.setattr(scm_client, "create_aggregate_interface", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(load_aggregate_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         assert not mock_called
