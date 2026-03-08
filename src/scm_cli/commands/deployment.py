@@ -12,7 +12,7 @@ import yaml
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import BandwidthAllocation, RemoteNetwork, ServiceConnection
+from ..utils.validators import BandwidthAllocation, BGPRouting, InternalDNSServer, RemoteNetwork, ServiceConnection
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -1025,4 +1025,439 @@ def show_remote_network(
 
     except Exception as e:
         typer.echo(f"Error showing remote network: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# BGP ROUTING COMMANDS
+# ========================================================================================================================================================================================
+
+# BGP Routing option constants
+BGP_BACKBONE_OPTION = typer.Option(
+    ...,
+    "--backbone-routing",
+    help="Backbone routing mode (no-asymmetric-routing, asymmetric-routing-only, asymmetric-routing-with-load-share)",
+)
+BGP_ROUTING_PREF_OPTION = typer.Option(None, "--routing-preference", help="Routing preference (default, hot_potato_routing)")
+BGP_ACCEPT_SC_OPTION = typer.Option(False, "--accept-route-over-sc", help="Accept routes over service connections")
+BGP_OUTBOUND_ROUTES_OPTION = typer.Option(None, "--outbound-routes", help="Outbound routes for services (comma-separated CIDR)")
+BGP_HOST_ROUTE_OPTION = typer.Option(False, "--add-host-route-to-ike-peer", help="Add host route to IKE peer")
+BGP_WITHDRAW_STATIC_OPTION = typer.Option(False, "--withdraw-static-route", help="Withdraw static routes")
+
+
+@delete_app.command("bgp-routing")
+def delete_bgp_routing():
+    """Reset BGP routing configuration to defaults.
+
+    Example:
+    -------
+    scm delete sase bgp-routing
+
+    Note: BGP routing is a singleton; delete resets to defaults.
+
+    """
+    try:
+        result = scm_client.delete_bgp_routing()
+        if result:
+            typer.echo("Reset BGP routing configuration to defaults")
+        else:
+            typer.echo("Error resetting BGP routing configuration", err=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error resetting BGP routing: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("bgp-routing")
+def set_bgp_routing(
+    backbone_routing: str = BGP_BACKBONE_OPTION,
+    routing_preference: str | None = BGP_ROUTING_PREF_OPTION,
+    accept_route_over_sc: bool = BGP_ACCEPT_SC_OPTION,
+    outbound_routes: str | None = BGP_OUTBOUND_ROUTES_OPTION,
+    add_host_route_to_ike_peer: bool = BGP_HOST_ROUTE_OPTION,
+    withdraw_static_route: bool = BGP_WITHDRAW_STATIC_OPTION,
+):
+    r"""Create or update BGP routing configuration.
+
+    Example:
+    -------
+    scm set sase bgp-routing \
+        --backbone-routing no-asymmetric-routing \
+        --routing-preference default \
+        --accept-route-over-sc
+
+    Note: BGP routing is a singleton configuration object.
+
+    """
+    try:
+        # Parse outbound routes
+        outbound_list = (
+            [r.strip() for r in outbound_routes.split(",")]
+            if outbound_routes
+            else []
+        )
+
+        # Validate using Pydantic model
+        bgp = BGPRouting(
+            backbone_routing=backbone_routing,
+            routing_preference=routing_preference,
+            accept_route_over_sc=accept_route_over_sc,
+            outbound_routes_for_services=outbound_list,
+            add_host_route_to_ike_peer=add_host_route_to_ike_peer,
+            withdraw_static_route=withdraw_static_route,
+        )
+
+        # Convert to SDK model format
+        sdk_data = bgp.to_sdk_model()
+
+        # Call the SDK client
+        result = scm_client.create_bgp_routing(**sdk_data)
+
+        # Show appropriate message based on action taken
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created BGP routing configuration (backbone: {result.get('backbone_routing', 'N/A')})")
+        elif action == "updated":
+            typer.echo(f"Updated BGP routing configuration (backbone: {result.get('backbone_routing', 'N/A')})")
+        else:
+            typer.echo("BGP routing configuration already up to date")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating BGP routing: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("bgp-routing")
+def show_bgp_routing():
+    """Display BGP routing configuration.
+
+    Example:
+    -------
+    scm show sase bgp-routing
+
+    Note: BGP routing is a singleton; always shows the current configuration.
+
+    """
+    try:
+        config = scm_client.get_bgp_routing()
+
+        typer.echo("BGP Routing Configuration:")
+        typer.echo("-" * 60)
+        typer.echo(f"Backbone Routing: {config.get('backbone_routing', 'N/A')}")
+
+        # Display routing preference
+        routing_pref = config.get("routing_preference")
+        if routing_pref:
+            if isinstance(routing_pref, dict):
+                pref_type = "default" if "default" in routing_pref else "hot_potato_routing" if "hot_potato_routing" in routing_pref else str(routing_pref)
+            else:
+                pref_type = str(routing_pref)
+            typer.echo(f"Routing Preference: {pref_type}")
+
+        typer.echo(f"Accept Route Over SC: {config.get('accept_route_over_SC', False)}")
+
+        outbound = config.get("outbound_routes_for_services", [])
+        if outbound:
+            typer.echo(f"Outbound Routes: {', '.join(outbound)}")
+        else:
+            typer.echo("Outbound Routes: None")
+
+        typer.echo(f"Add Host Route to IKE Peer: {config.get('add_host_route_to_ike_peer', False)}")
+        typer.echo(f"Withdraw Static Route: {config.get('withdraw_static_route', False)}")
+
+        return config
+
+    except Exception as e:
+        typer.echo(f"Error showing BGP routing: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# INTERNAL DNS SERVER COMMANDS
+# ========================================================================================================================================================================================
+
+# Internal DNS Server option constants
+DNS_NAME_OPTION = typer.Option(..., "--name", help="Name of the internal DNS server")
+DNS_DOMAIN_OPTION = typer.Option(..., "--domain-name", help="DNS domain name(s) (comma-separated if multiple)")
+DNS_PRIMARY_OPTION = typer.Option(..., "--primary", help="Primary DNS server IP address")
+DNS_SECONDARY_OPTION = typer.Option(None, "--secondary", help="Secondary DNS server IP address")
+DNS_FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
+DNS_DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
+
+
+@backup_app.command("internal-dns-server")
+def backup_internal_dns_server():
+    """Back up all internal DNS servers to a YAML file.
+
+    The backup file will be named 'internal-dns-servers.yaml' in the current directory.
+
+    Example:
+    -------
+    scm backup sase internal-dns-server
+
+    """
+    try:
+        servers = scm_client.list_internal_dns_servers()
+
+        if not servers:
+            typer.echo("No internal DNS servers found")
+            return None
+
+        backup_data = []
+        for server in servers:
+            server_dict = {k: v for k, v in server.items() if v is not None}
+            server_dict.pop("id", None)
+            backup_data.append(server_dict)
+
+        yaml_data = {"internal_dns_servers": backup_data}
+        filename = "internal-dns-servers.yaml"
+
+        with open(filename, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} internal DNS servers to {filename}")
+        return filename
+
+    except Exception as e:
+        typer.echo(f"Error backing up internal DNS servers: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("internal-dns-server")
+def delete_internal_dns_server(
+    name: str = DNS_NAME_OPTION,
+):
+    """Delete an internal DNS server.
+
+    Example:
+    -------
+    scm delete sase internal-dns-server --name my-dns-server
+
+    """
+    try:
+        result = scm_client.delete_internal_dns_server(name=name)
+        if result:
+            typer.echo(f"Deleted internal DNS server: {name}")
+        else:
+            typer.echo(f"Internal DNS server not found: {name}", err=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error deleting internal DNS server: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("internal-dns-server")
+def load_internal_dns_server(
+    file: Path = DNS_FILE_OPTION,
+    dry_run: bool = DNS_DRY_RUN_OPTION,
+):
+    """Load internal DNS servers from a YAML file.
+
+    Example: scm load sase internal-dns-server --file config/internal_dns_servers.yml
+    """
+    try:
+        try:
+            config = load_from_yaml(str(file), "internal_dns_servers")
+        except ValueError as ve:
+            typer.echo(f"Error loading internal DNS servers: {str(ve)}", err=True)
+            raise typer.Exit(code=1) from ve
+
+        if dry_run:
+            typer.echo("DRY RUN: Would apply the following configurations:")
+            for server_data in config["internal_dns_servers"]:
+                typer.echo(f"Would create internal DNS server: {server_data['name']}")
+            typer.echo(yaml.dump(config["internal_dns_servers"]))
+            return None
+
+        results = []
+        for server_data in config["internal_dns_servers"]:
+            server = InternalDNSServer(**server_data)
+            sdk_data = server.to_sdk_model()
+            result = scm_client.create_internal_dns_server(**sdk_data)
+
+            results.append(result)
+            action = result.get("__action__", "created")
+            if action == "created":
+                typer.echo(f"Created internal DNS server: {result['name']}")
+            elif action == "updated":
+                typer.echo(f"Updated internal DNS server: {result['name']}")
+            else:
+                typer.echo(f"Internal DNS server '{result['name']}' already up to date")
+
+        typer.echo(f"Loaded {len(results)} internal DNS server(s)")
+        return results
+    except Exception as e:
+        typer.echo(f"Error loading internal DNS servers: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("internal-dns-server")
+def set_internal_dns_server(
+    name: str = DNS_NAME_OPTION,
+    domain_name: str = DNS_DOMAIN_OPTION,
+    primary: str = DNS_PRIMARY_OPTION,
+    secondary: str | None = DNS_SECONDARY_OPTION,
+):
+    r"""Create or update an internal DNS server.
+
+    Example:
+    -------
+    scm set sase internal-dns-server \
+        --name corp-dns \
+        --domain-name corp.example.com \
+        --primary 10.0.0.1 \
+        --secondary 10.0.0.2
+
+    """
+    try:
+        # Parse comma-separated domain names
+        domain_list = [d.strip() for d in domain_name.split(",")]
+
+        # Validate using Pydantic model
+        server = InternalDNSServer(
+            name=name,
+            domain_name=domain_list,
+            primary=primary,
+            secondary=secondary,
+        )
+
+        # Convert to SDK model format
+        sdk_data = server.to_sdk_model()
+
+        # Call the SDK client
+        result = scm_client.create_internal_dns_server(**sdk_data)
+
+        # Show appropriate message based on action taken
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created internal DNS server: {result['name']}")
+        elif action == "updated":
+            typer.echo(f"Updated internal DNS server: {result['name']}")
+        else:
+            typer.echo(f"Internal DNS server '{result['name']}' already up to date")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating internal DNS server: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("internal-dns-server")
+def show_internal_dns_server(
+    name: str | None = typer.Option(None, "--name", help="Name of the internal DNS server to show"),
+):
+    """Display internal DNS servers.
+
+    Example:
+    -------
+        # List all internal DNS servers
+        scm show sase internal-dns-server
+
+        # Show a specific internal DNS server by name
+        scm show sase internal-dns-server --name corp-dns
+
+    """
+    try:
+        if name:
+            server = scm_client.get_internal_dns_server(name=name)
+
+            typer.echo(f"Internal DNS Server: {server.get('name', 'N/A')}")
+            typer.echo(f"Domain Names: {', '.join(server.get('domain_name', []))}")
+            typer.echo(f"Primary: {server.get('primary', 'N/A')}")
+
+            if server.get("secondary"):
+                typer.echo(f"Secondary: {server['secondary']}")
+
+            if server.get("id"):
+                typer.echo(f"ID: {server['id']}")
+
+            return server
+
+        else:
+            servers = scm_client.list_internal_dns_servers()
+
+            if not servers:
+                typer.echo("No internal DNS servers found")
+                return None
+
+            typer.echo("Internal DNS Servers:")
+            typer.echo("-" * 60)
+
+            for server in servers:
+                typer.echo(f"Name: {server.get('name', 'N/A')}")
+                typer.echo(f"  Domain Names: {', '.join(server.get('domain_name', []))}")
+                typer.echo(f"  Primary: {server.get('primary', 'N/A')}")
+
+                if server.get("secondary"):
+                    typer.echo(f"  Secondary: {server['secondary']}")
+
+                if server.get("id"):
+                    typer.echo(f"  ID: {server['id']}")
+
+                typer.echo("-" * 60)
+
+            return servers
+
+    except Exception as e:
+        typer.echo(f"Error showing internal DNS server: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# NETWORK LOCATION COMMANDS
+# ========================================================================================================================================================================================
+
+
+@show_app.command("network-location")
+def show_network_location(
+    value: str | None = typer.Option(None, "--value", help="System value of the network location (e.g., us-west-1)"),
+):
+    """Display network locations (read-only).
+
+    Example:
+    -------
+        # List all network locations
+        scm show sase network-location
+
+        # Show a specific network location by value
+        scm show sase network-location --value us-west-1
+
+    """
+    try:
+        if value:
+            location = scm_client.get_network_location(value=value)
+
+            typer.echo(f"Network Location: {location.get('display', 'N/A')}")
+            typer.echo(f"Value: {location.get('value', 'N/A')}")
+            typer.echo(f"Continent: {location.get('continent', 'N/A')}")
+            typer.echo(f"Region: {location.get('region', 'N/A')}")
+            typer.echo(f"Aggregate Region: {location.get('aggregate_region', 'N/A')}")
+
+            if location.get("latitude") is not None:
+                typer.echo(f"Latitude: {location['latitude']}")
+            if location.get("longitude") is not None:
+                typer.echo(f"Longitude: {location['longitude']}")
+
+            return location
+
+        else:
+            locations = scm_client.list_network_locations()
+
+            if not locations:
+                typer.echo("No network locations found")
+                return None
+
+            typer.echo("Network Locations:")
+            typer.echo("-" * 60)
+
+            for location in locations:
+                typer.echo(f"Value: {location.get('value', 'N/A')}")
+                typer.echo(f"  Display: {location.get('display', 'N/A')}")
+                typer.echo(f"  Continent: {location.get('continent', 'N/A')}")
+                typer.echo(f"  Region: {location.get('region', 'N/A')}")
+                typer.echo("-" * 60)
+
+            return locations
+
+    except Exception as e:
+        typer.echo(f"Error showing network location: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
