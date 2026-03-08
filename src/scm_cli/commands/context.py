@@ -89,15 +89,20 @@ def show_command(
             console.print("[green]Status: Active[/green]")
 
         console.print("\n[bold]Configuration:[/bold]")
-        console.print(f"  Client ID: {config.get('client_id', 'Not set')}")
-        console.print(f"  TSG ID: {config.get('tsg_id', 'Not set')}")
-        console.print(f"  Log Level: {config.get('log_level', 'INFO')}")
 
-        # Don't show the secret, just indicate if it's set
-        if config.get("client_secret"):
-            console.print("  Client Secret: [dim]***** (configured)[/dim]")
+        if config.get("access_token"):
+            console.print("  Auth Mode: Bearer Token")
+            console.print("  Access Token: [dim]***** (configured)[/dim]")
         else:
-            console.print("  Client Secret: [red]Not set[/red]")
+            console.print("  Auth Mode: OAuth2")
+            console.print(f"  Client ID: {config.get('client_id', 'Not set')}")
+            console.print(f"  TSG ID: {config.get('tsg_id', 'Not set')}")
+            if config.get("client_secret"):
+                console.print("  Client Secret: [dim]***** (configured)[/dim]")
+            else:
+                console.print("  Client Secret: [red]Not set[/red]")
+
+        console.print(f"  Log Level: {config.get('log_level', 'INFO')}")
 
     except ValueError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -111,26 +116,28 @@ def show_command(
 def create_command(
     context_name: str = typer.Argument(..., help="Name for the new context"),
     client_id: str = typer.Option(
-        ...,
+        None,
         "--client-id",
         "-i",
-        prompt=True,
-        help="SCM client ID",
+        help="SCM client ID (required for OAuth2 mode)",
     ),
     client_secret: str = typer.Option(
-        ...,
+        None,
         "--client-secret",
         "-s",
-        prompt=True,
-        hide_input=True,
-        help="SCM client secret",
+        help="SCM client secret (required for OAuth2 mode)",
     ),
     tsg_id: str = typer.Option(
-        ...,
+        None,
         "--tsg-id",
         "-t",
-        prompt=True,
-        help="Tenant Service Group ID",
+        help="Tenant Service Group ID (required for OAuth2 mode)",
+    ),
+    access_token: str = typer.Option(
+        None,
+        "--access-token",
+        "-a",
+        help="Bearer access token for direct authentication (alternative to OAuth2)",
     ),
     log_level: str = typer.Option(
         "INFO",
@@ -144,14 +151,41 @@ def create_command(
         help="Set as current context after creation",
     ),
 ):
-    """Create a new authentication context."""
+    """Create a new authentication context.
+
+    Either provide OAuth2 credentials (--client-id, --client-secret, --tsg-id)
+    or a bearer token (--access-token).
+    """
+    has_oauth = any([client_id, client_secret, tsg_id])
+    has_bearer = access_token is not None
+
+    if not has_oauth and not has_bearer:
+        console.print("[red]Error: Provide either OAuth2 credentials (--client-id, --client-secret, --tsg-id) or --access-token[/red]")
+        raise typer.Exit(1)
+
+    if has_oauth and has_bearer:
+        console.print("[red]Error: Cannot use both OAuth2 credentials and --access-token[/red]")
+        raise typer.Exit(1)
+
+    if has_oauth and not all([client_id, client_secret, tsg_id]):
+        missing = []
+        if not client_id:
+            missing.append("--client-id")
+        if not client_secret:
+            missing.append("--client-secret")
+        if not tsg_id:
+            missing.append("--tsg-id")
+        console.print(f"[red]Error: Missing required OAuth2 fields: {', '.join(missing)}[/red]")
+        raise typer.Exit(1)
+
     try:
         create_context(
             context_name=context_name,
-            client_id=client_id,
-            client_secret=client_secret,
-            tsg_id=tsg_id,
+            client_id=client_id or "",
+            client_secret=client_secret or "",
+            tsg_id=tsg_id or "",
             log_level=log_level,
+            access_token=access_token,
         )
 
         console.print(f"[green]✓ Context '{context_name}' created successfully[/green]")

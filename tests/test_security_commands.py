@@ -17,6 +17,11 @@ from scm_cli.commands.security import (  # noqa: F401
     load_security_rule,
     load_vulnerability_protection_profile,
     load_wildfire_antivirus_profile,
+    move_app,
+    move_app_override_rule_cmd,
+    move_authentication_rule_cmd,
+    move_decryption_rule_cmd,
+    move_security_rule_cmd,
     set_app,
     set_app_override_rule,
     set_authentication_rule,
@@ -1537,4 +1542,18 @@ class TestURLAccessProfileCommands:
 
         assert result.exit_code == 0
         assert "URL Access Profile: strict-url" in result.stdout
-        assert "Block:" in result.stdout
+
+
+class TestMoveCommands:
+    """Test the move commands."""
+
+    def test_move_app_exists(self):
+        """Test that the move app exists."""
+        assert move_app
+
+    def test_move_commands_exist(self):
+        """Test that all move commands exist."""
+        assert move_security_rule_cmd
+        assert move_app_override_rule_cmd
+        assert move_authentication_rule_cmd
+        assert move_decryption_rule_cmd

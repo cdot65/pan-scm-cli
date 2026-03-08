@@ -168,7 +168,7 @@ def show_alerts(
             filters = {}
             if severity:
                 filters["severity"] = severity
-            
+
             # Time filtering
             if start_time:
                 filters["start_time"] = start_time.isoformat()
@@ -179,7 +179,7 @@ def show_alerts(
                 filters["start_time"] = seven_days_ago.isoformat()
                 typer.echo(f"Note: Showing up to {max_results} most recent alerts from the last 7 days (since {seven_days_ago.strftime('%Y-%m-%d %H:%M:%S')})")
                 typer.echo("Tip: Use --max-results to change the number of alerts shown.")
-                
+
             if end_time:
                 filters["end_time"] = end_time.isoformat()
 

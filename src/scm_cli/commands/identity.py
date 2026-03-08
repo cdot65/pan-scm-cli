@@ -62,7 +62,7 @@ ALLOW_LIST_OPTION = typer.Option(None, "--allow-list", help="Allow list entries"
 # ==============================================================================================================================================================================================
 
 
-def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
+def validate_location_params(folder: str | None = None, snippet: str | None = None, device: str | None = None) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
 
     Returns:
@@ -83,6 +83,7 @@ def validate_location_params(folder: str = None, snippet: str = None, device: st
     elif snippet:
         return "snippet", snippet
     else:
+        assert device is not None
         return "device", device
 
 

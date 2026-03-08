@@ -9,6 +9,7 @@ from scm_cli.utils.validators import (
     AppOverrideRule,
     AuthenticationProfile,
     AuthenticationRule,
+    AutoTagAction,
     BandwidthAllocation,
     BgpAddressFamilyProfile,
     BgpAuthProfile,
@@ -19,6 +20,7 @@ from scm_cli.utils.validators import (
     BGPRouting,
     DecryptionRule,
     DhcpInterface,
+    DnsProxy,
     DNSSecurityProfile,
     EthernetInterface,
     IKECryptoProfile,
@@ -32,6 +34,9 @@ from scm_cli.utils.validators import (
     LoopbackInterface,
     NATRule,
     OspfAuthProfile,
+    PbfRule,
+    QosProfile,
+    QosRule,
     QuarantinedDevice,
     RadiusServerProfile,
     Region,
@@ -49,6 +54,52 @@ from scm_cli.utils.validators import (
     WildfireAntivirusProfile,
     Zone,
 )
+
+
+class TestAutoTagAction:
+    """Test cases for the AutoTagAction model."""
+
+    def test_valid_auto_tag_action(self):
+        """Test creating a valid auto tag action."""
+        action = AutoTagAction(
+            name="test-action",
+            folder="Texas",
+            description="Test auto tag action",
+            log_type="traffic",
+            tags=["auto-tagged"],
+        )
+        assert action.name == "test-action"
+        assert action.folder == "Texas"
+        assert action.log_type == "traffic"
+
+    def test_missing_name(self):
+        """Test that name is required."""
+        with pytest.raises(ValidationError):
+            AutoTagAction(folder="Texas")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        action = AutoTagAction(
+            name="test-action",
+            folder="Texas",
+            description="Test",
+            log_type="threat",
+            tags=["suspicious"],
+        )
+        sdk_data = action.to_sdk_model()
+        assert sdk_data["name"] == "test-action"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["log_type"] == "threat"
+        assert sdk_data["tags"] == ["suspicious"]
+
+    def test_to_sdk_model_optional_fields(self):
+        """Test SDK model omits unset optional fields."""
+        action = AutoTagAction(name="minimal", folder="Texas")
+        sdk_data = action.to_sdk_model()
+        assert sdk_data["name"] == "minimal"
+        assert sdk_data["folder"] == "Texas"
+        assert "description" not in sdk_data
+        assert "log_type" not in sdk_data
 
 
 class TestBandwidthAllocation:
@@ -3201,3 +3252,169 @@ class TestTacacsServerProfile:
         assert sdk_data["protocol"] == "CHAP"
         assert sdk_data["timeout"] == 5
         assert sdk_data["use_single_connection"] is True
+
+
+class TestDnsProxy:
+    """Test cases for the DnsProxy model."""
+
+    def test_valid_proxy(self):
+        """Test creating a valid DNS proxy."""
+        proxy = DnsProxy(name="test-dns", folder="test-folder", enabled=True, default={"primary": "8.8.8.8"})
+        assert proxy.name == "test-dns"
+        assert proxy.enabled is True
+        assert proxy.default == {"primary": "8.8.8.8"}
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            DnsProxy(name="test-dns")
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            DnsProxy(name="test-dns", folder="f", snippet="s")
+
+    def test_minimal_creation(self):
+        """Test minimal creation without optional fields."""
+        proxy = DnsProxy(name="test-dns", folder="test-folder")
+        assert proxy.enabled is None
+        assert proxy.default is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        proxy = DnsProxy(name="test-dns", folder="test-folder", enabled=True, default={"primary": "8.8.8.8"})
+        sdk_data = proxy.to_sdk_model()
+        assert sdk_data["name"] == "test-dns"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["enabled"] is True
+        assert sdk_data["default"] == {"primary": "8.8.8.8"}
+
+    def test_to_sdk_model_snippet(self):
+        """Test SDK model with snippet container."""
+        proxy = DnsProxy(name="test-dns", snippet="test-snippet")
+        sdk_data = proxy.to_sdk_model()
+        assert sdk_data["snippet"] == "test-snippet"
+        assert "folder" not in sdk_data
+
+
+class TestPbfRule:
+    """Test cases for the PbfRule model."""
+
+    def test_valid_rule(self):
+        """Test creating a valid PBF rule."""
+        rule = PbfRule(name="test-pbf", folder="test-folder", description="test", action={"forward": {"egress_interface": "eth1/1"}})
+        assert rule.name == "test-pbf"
+        assert rule.description == "test"
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            PbfRule(name="test-pbf")
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            PbfRule(name="test-pbf", folder="f", snippet="s")
+
+    def test_minimal_creation(self):
+        """Test minimal creation without optional fields."""
+        rule = PbfRule(name="test-pbf", folder="test-folder")
+        assert rule.description is None
+        assert rule.action is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        rule = PbfRule(name="test-pbf", folder="test-folder", description="test", action={"forward": {"egress_interface": "eth1/1"}})
+        sdk_data = rule.to_sdk_model()
+        assert sdk_data["name"] == "test-pbf"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["description"] == "test"
+        assert sdk_data["action"] == {"forward": {"egress_interface": "eth1/1"}}
+
+    def test_to_sdk_model_with_from(self):
+        """Test SDK model with from field alias."""
+        rule = PbfRule(name="test-pbf", folder="test-folder", **{"from": {"zone": ["trust"]}})
+        sdk_data = rule.to_sdk_model()
+        assert sdk_data["from"] == {"zone": ["trust"]}
+
+
+class TestQosProfile:
+    """Test cases for the QosProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid QoS profile."""
+        profile = QosProfile(name="test-qos", folder="test-folder", aggregate_bandwidth={"egress_max": 100})
+        assert profile.name == "test-qos"
+        assert profile.aggregate_bandwidth == {"egress_max": 100}
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            QosProfile(name="test-qos")
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            QosProfile(name="test-qos", folder="f", snippet="s")
+
+    def test_minimal_creation(self):
+        """Test minimal creation without optional fields."""
+        profile = QosProfile(name="test-qos", folder="test-folder")
+        assert profile.aggregate_bandwidth is None
+        assert profile.class_bandwidth_type is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = QosProfile(name="test-qos", folder="test-folder", aggregate_bandwidth={"egress_max": 100})
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-qos"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["aggregate_bandwidth"] == {"egress_max": 100}
+
+    def test_to_sdk_model_snippet(self):
+        """Test SDK model with snippet container."""
+        profile = QosProfile(name="test-qos", snippet="test-snippet")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["snippet"] == "test-snippet"
+        assert "folder" not in sdk_data
+
+
+class TestQosRule:
+    """Test cases for the QosRule model."""
+
+    def test_valid_rule(self):
+        """Test creating a valid QoS rule."""
+        rule = QosRule(name="test-qos-rule", folder="test-folder", description="test", action={"class": "class1"})
+        assert rule.name == "test-qos-rule"
+        assert rule.action == {"class": "class1"}
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            QosRule(name="test-qos-rule")
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            QosRule(name="test-qos-rule", folder="f", snippet="s")
+
+    def test_minimal_creation(self):
+        """Test minimal creation without optional fields."""
+        rule = QosRule(name="test-qos-rule", folder="test-folder")
+        assert rule.description is None
+        assert rule.action is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        rule = QosRule(name="test-qos-rule", folder="test-folder", description="test", action={"class": "class1"})
+        sdk_data = rule.to_sdk_model()
+        assert sdk_data["name"] == "test-qos-rule"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["description"] == "test"
+        assert sdk_data["action"] == {"class": "class1"}
+
+    def test_to_sdk_model_with_schedule(self):
+        """Test SDK model with schedule."""
+        rule = QosRule(name="test-qos-rule", folder="test-folder", schedule="business-hours")
+        sdk_data = rule.to_sdk_model()
+        assert sdk_data["schedule"] == "business-hours"

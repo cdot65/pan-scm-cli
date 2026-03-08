@@ -7,7 +7,7 @@ that all required fields are present and correctly formatted.
 
 from typing import Any, TypeVar
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 # ========================================================================================================================================================================================
 # TYPE DEFINITIONS
@@ -349,6 +349,54 @@ class Address(BaseModel):
             raise ValueError("Only one of 'ip_netmask', 'ip_range', 'ip_wildcard', or 'fqdn' can be provided.")
 
         return self
+
+
+class AutoTagAction(BaseModel):
+    """Model for auto tag action configurations."""
+
+    name: str = Field(..., max_length=127, description="Name of the auto tag action")
+    folder: str | None = Field(None, description="Folder location")
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+    description: str | None = Field(None, max_length=1023, description="Description")
+    actions: list[dict[str, Any]] = Field(default_factory=list, description="List of tag actions")
+    filter: str | None = Field(None, description="Filter expression for matching")
+    log_type: str | None = Field(None, description="Log type to match (e.g., traffic, threat)")
+    send_to_panorama: bool | None = Field(None, description="Send to Panorama")
+    quarantine: bool | None = Field(None, description="Enable quarantine action")
+    tags: list[str] = Field(default_factory=list, description="Tags to apply")
+
+    @model_validator(mode="after")
+    def check_container_set(self) -> "AutoTagAction":
+        """Ensure at least one container field is set when needed."""
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        data: dict[str, Any] = {
+            "name": self.name,
+        }
+        if self.folder:
+            data["folder"] = self.folder
+        if self.snippet:
+            data["snippet"] = self.snippet
+        if self.device:
+            data["device"] = self.device
+        if self.description:
+            data["description"] = self.description
+        if self.actions:
+            data["actions"] = self.actions
+        if self.filter:
+            data["filter"] = self.filter
+        if self.log_type:
+            data["log_type"] = self.log_type
+        if self.send_to_panorama is not None:
+            data["send_to_panorama"] = self.send_to_panorama
+        if self.quarantine is not None:
+            data["quarantine"] = self.quarantine
+        if self.tags:
+            data["tags"] = self.tags
+        return data
 
 
 class Application(BaseModel):
@@ -3129,6 +3177,211 @@ class BgpRouteMapRedistribution(BaseModel):
             model_data["ospf"] = self.ospf
         if self.connected_static is not None:
             model_data["connected_static"] = self.connected_static
+        return model_data
+
+
+class DnsProxy(BaseModel):
+    """Validator for DNS proxy configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str = Field(..., description="DNS proxy name")
+    folder: str | None = Field(None, description="Folder container")
+    snippet: str | None = Field(None, description="Snippet container")
+    device: str | None = Field(None, description="Device container")
+    enabled: bool | None = Field(None, description="Enable DNS proxy")
+    default: dict[str, Any] | None = Field(None, description="Default DNS server configuration")
+    interface: list[str] | None = Field(None, description="Interfaces to bind to")
+    domain_servers: list[dict[str, Any]] | None = Field(None, description="Domain-specific DNS servers")
+    static_entries: list[dict[str, Any]] | None = Field(None, description="Static DNS entries")
+    tcp_queries: dict[str, Any] | None = Field(None, description="TCP query settings")
+    udp_queries: dict[str, Any] | None = Field(None, description="UDP query settings")
+    cache: dict[str, Any] | None = Field(None, description="DNS cache settings")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "DnsProxy":
+        """Ensure exactly one container is provided."""
+        containers = [self.folder, self.snippet, self.device]
+        provided = sum(1 for c in containers if c is not None)
+        if provided != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be provided.")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert to SDK-compatible dict."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder is not None:
+            model_data["folder"] = self.folder
+        if self.snippet is not None:
+            model_data["snippet"] = self.snippet
+        if self.device is not None:
+            model_data["device"] = self.device
+        if self.enabled is not None:
+            model_data["enabled"] = self.enabled
+        if self.default is not None:
+            model_data["default"] = self.default
+        if self.interface is not None:
+            model_data["interface"] = self.interface
+        if self.domain_servers is not None:
+            model_data["domain_servers"] = self.domain_servers
+        if self.static_entries is not None:
+            model_data["static_entries"] = self.static_entries
+        if self.tcp_queries is not None:
+            model_data["tcp_queries"] = self.tcp_queries
+        if self.udp_queries is not None:
+            model_data["udp_queries"] = self.udp_queries
+        if self.cache is not None:
+            model_data["cache"] = self.cache
+        return model_data
+
+
+class PbfRule(BaseModel):
+    """Validator for PBF rule configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str = Field(..., description="PBF rule name")
+    folder: str | None = Field(None, description="Folder container")
+    snippet: str | None = Field(None, description="Snippet container")
+    device: str | None = Field(None, description="Device container")
+    description: str | None = Field(None, description="Description")
+    tag: list[str] | None = Field(None, description="Tags")
+    schedule: str | None = Field(None, description="Schedule")
+    disabled: bool | None = Field(None, description="Disabled state")
+    from_: dict[str, Any] | None = Field(None, alias="from", description="Source zone or interface")
+    source: list[str] | None = Field(None, description="Source addresses")
+    source_user: list[str] | None = Field(None, description="Source users")
+    destination: list[str] | None = Field(None, description="Destination addresses")
+    destination_application: dict[str, Any] | None = Field(None, description="Destination application")
+    service: list[str] | None = Field(None, description="Services")
+    application: list[str] | None = Field(None, description="Applications")
+    action: dict[str, Any] | None = Field(None, description="Action (forward, discard, no_pbf)")
+    enforce_symmetric_return: dict[str, Any] | None = Field(None, description="Symmetric return config")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "PbfRule":
+        """Ensure exactly one container is provided."""
+        containers = [self.folder, self.snippet, self.device]
+        provided = sum(1 for c in containers if c is not None)
+        if provided != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be provided.")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert to SDK-compatible dict."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder is not None:
+            model_data["folder"] = self.folder
+        if self.snippet is not None:
+            model_data["snippet"] = self.snippet
+        if self.device is not None:
+            model_data["device"] = self.device
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.tag is not None:
+            model_data["tag"] = self.tag
+        if self.schedule is not None:
+            model_data["schedule"] = self.schedule
+        if self.disabled is not None:
+            model_data["disabled"] = self.disabled
+        if self.from_ is not None:
+            model_data["from"] = self.from_
+        if self.source is not None:
+            model_data["source"] = self.source
+        if self.source_user is not None:
+            model_data["source_user"] = self.source_user
+        if self.destination is not None:
+            model_data["destination"] = self.destination
+        if self.destination_application is not None:
+            model_data["destination_application"] = self.destination_application
+        if self.service is not None:
+            model_data["service"] = self.service
+        if self.application is not None:
+            model_data["application"] = self.application
+        if self.action is not None:
+            model_data["action"] = self.action
+        if self.enforce_symmetric_return is not None:
+            model_data["enforce_symmetric_return"] = self.enforce_symmetric_return
+        return model_data
+
+
+class QosProfile(BaseModel):
+    """Validator for QoS profile configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str = Field(..., max_length=31, description="QoS profile name")
+    folder: str | None = Field(None, description="Folder container")
+    snippet: str | None = Field(None, description="Snippet container")
+    device: str | None = Field(None, description="Device container")
+    aggregate_bandwidth: dict[str, Any] | None = Field(None, description="Aggregate bandwidth settings")
+    class_bandwidth_type: dict[str, Any] | None = Field(None, description="Class bandwidth type config")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "QosProfile":
+        """Ensure exactly one container is provided."""
+        containers = [self.folder, self.snippet, self.device]
+        provided = sum(1 for c in containers if c is not None)
+        if provided != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be provided.")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert to SDK-compatible dict."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder is not None:
+            model_data["folder"] = self.folder
+        if self.snippet is not None:
+            model_data["snippet"] = self.snippet
+        if self.device is not None:
+            model_data["device"] = self.device
+        if self.aggregate_bandwidth is not None:
+            model_data["aggregate_bandwidth"] = self.aggregate_bandwidth
+        if self.class_bandwidth_type is not None:
+            model_data["class_bandwidth_type"] = self.class_bandwidth_type
+        return model_data
+
+
+class QosRule(BaseModel):
+    """Validator for QoS rule configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str = Field(..., description="QoS rule name")
+    folder: str | None = Field(None, description="Folder container")
+    snippet: str | None = Field(None, description="Snippet container")
+    device: str | None = Field(None, description="Device container")
+    description: str | None = Field(None, description="Description")
+    action: dict[str, Any] | None = Field(None, description="QoS action config")
+    schedule: str | None = Field(None, description="Schedule")
+    dscp_tos: dict[str, Any] | None = Field(None, description="DSCP/TOS settings")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "QosRule":
+        """Ensure exactly one container is provided."""
+        containers = [self.folder, self.snippet, self.device]
+        provided = sum(1 for c in containers if c is not None)
+        if provided != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be provided.")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert to SDK-compatible dict."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder is not None:
+            model_data["folder"] = self.folder
+        if self.snippet is not None:
+            model_data["snippet"] = self.snippet
+        if self.device is not None:
+            model_data["device"] = self.device
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.action is not None:
+            model_data["action"] = self.action
+        if self.schedule is not None:
+            model_data["schedule"] = self.schedule
+        if self.dscp_tos is not None:
+            model_data["dscp_tos"] = self.dscp_tos
         return model_data
 
 

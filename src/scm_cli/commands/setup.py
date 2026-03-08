@@ -149,6 +149,7 @@ def validate_container_params(folder: str | None = None, snippet: str | None = N
     elif snippet:
         return "snippet", snippet
     else:
+        assert device is not None
         return "device", device
 
 
