@@ -11,6 +11,7 @@ from scm_cli.commands.network import (
     delete_bgp_route_map,
     delete_bgp_route_map_redistribution,
     delete_dhcp_interface,
+    delete_dns_proxy,
     delete_ethernet_interface,
     delete_ike_crypto_profile,
     delete_ike_gateway,
@@ -20,6 +21,9 @@ from scm_cli.commands.network import (
     delete_loopback_interface,
     delete_nat_rule,
     delete_ospf_auth_profile,
+    delete_pbf_rule,
+    delete_qos_profile,
+    delete_qos_rule,
     delete_route_access_list,
     delete_route_prefix_list,
     delete_tunnel_interface,
@@ -33,6 +37,7 @@ from scm_cli.commands.network import (
     load_bgp_route_map,
     load_bgp_route_map_redistribution,
     load_dhcp_interface,
+    load_dns_proxy,
     load_ethernet_interface,
     load_ike_crypto_profile,
     load_ike_gateway,
@@ -42,6 +47,9 @@ from scm_cli.commands.network import (
     load_loopback_interface,
     load_nat_rule,
     load_ospf_auth_profile,
+    load_pbf_rule,
+    load_qos_profile,
+    load_qos_rule,
     load_route_access_list,
     load_route_prefix_list,
     load_security_zone as load_zone,
@@ -56,6 +64,7 @@ from scm_cli.commands.network import (
     set_bgp_route_map,
     set_bgp_route_map_redistribution,
     set_dhcp_interface,
+    set_dns_proxy,
     set_ethernet_interface,
     set_ike_crypto_profile,
     set_ike_gateway,
@@ -65,6 +74,9 @@ from scm_cli.commands.network import (
     set_loopback_interface,
     set_nat_rule,
     set_ospf_auth_profile,
+    set_pbf_rule,
+    set_qos_profile,
+    set_qos_rule,
     set_route_access_list,
     set_route_prefix_list,
     set_tunnel_interface,
@@ -78,6 +90,7 @@ from scm_cli.commands.network import (
     show_bgp_route_map,
     show_bgp_route_map_redistribution,
     show_dhcp_interface,
+    show_dns_proxy,
     show_ethernet_interface,
     show_ike_crypto_profile,
     show_ike_gateway,
@@ -87,6 +100,9 @@ from scm_cli.commands.network import (
     show_loopback_interface,
     show_nat_rule,
     show_ospf_auth_profile,
+    show_pbf_rule,
+    show_qos_profile,
+    show_qos_rule,
     show_route_access_list,
     show_route_prefix_list,
     show_tunnel_interface,
@@ -2528,3 +2544,263 @@ class TestBgpRouteMapRedistributionCommands:
         test_app.command()(load_bgp_route_map_redistribution)
         result = runner.invoke(test_app, ["--file", str(yaml_file)])
         assert result.exit_code == 0
+
+
+class TestDnsProxyCommands:
+    """Test the DNS proxy commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set dns-proxy creates a new proxy."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_dns_proxy", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_dns_proxy)
+        result = runner.invoke(test_app, ["test-dns", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created DNS proxy" in result.stdout
+
+    def test_set_error(self, runner, monkeypatch):
+        """Test set dns-proxy handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_dns_proxy", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_dns_proxy)
+        result = runner.invoke(test_app, ["test-dns", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show dns-proxy lists proxies."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_dns_proxies", lambda **kw: [{"id": "1", "name": "dns1", "folder": "test-folder"}])
+        test_app = typer.Typer()
+        test_app.command()(show_dns_proxy)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "dns1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete dns-proxy command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_dns_proxy", lambda **kw: {"id": "1", "name": "test-dns"})
+        monkeypatch.setattr(scm_client, "delete_dns_proxy", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_dns_proxy)
+        result = runner.invoke(test_app, ["test-dns", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted DNS proxy" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load dns-proxy command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"dns_proxies": [{"name": "dns1", "folder": "test-folder", "enabled": True}]}
+        yaml_file = tmp_path / "dns.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_dns_proxy", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_dns_proxy)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created DNS proxy" in result.stdout
+
+
+class TestPbfRuleCommands:
+    """Test the PBF rule commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set pbf-rule creates a new rule."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_pbf_rule", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_pbf_rule)
+        result = runner.invoke(test_app, ["test-pbf", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created PBF rule" in result.stdout
+
+    def test_set_error(self, runner, monkeypatch):
+        """Test set pbf-rule handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_pbf_rule", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_pbf_rule)
+        result = runner.invoke(test_app, ["test-pbf", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show pbf-rule lists rules."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_pbf_rules", lambda **kw: [{"id": "1", "name": "pbf1", "folder": "test-folder"}])
+        test_app = typer.Typer()
+        test_app.command()(show_pbf_rule)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "pbf1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete pbf-rule command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_pbf_rule", lambda **kw: {"id": "1", "name": "test-pbf"})
+        monkeypatch.setattr(scm_client, "delete_pbf_rule", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_pbf_rule)
+        result = runner.invoke(test_app, ["test-pbf", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted PBF rule" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load pbf-rule command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"pbf_rules": [{"name": "pbf1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "pbf.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_pbf_rule", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_pbf_rule)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created PBF rule" in result.stdout
+
+
+class TestQosProfileCommands:
+    """Test the QoS profile commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set qos-profile creates a new profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_qos_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_qos_profile)
+        result = runner.invoke(test_app, ["test-qos", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created QoS profile" in result.stdout
+
+    def test_set_error(self, runner, monkeypatch):
+        """Test set qos-profile handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_qos_profile", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_qos_profile)
+        result = runner.invoke(test_app, ["test-qos", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show qos-profile lists profiles."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_qos_profiles", lambda **kw: [{"id": "1", "name": "qos1", "folder": "test-folder"}])
+        test_app = typer.Typer()
+        test_app.command()(show_qos_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "qos1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete qos-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_qos_profile", lambda **kw: {"id": "1", "name": "test-qos"})
+        monkeypatch.setattr(scm_client, "delete_qos_profile", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_qos_profile)
+        result = runner.invoke(test_app, ["test-qos", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted QoS profile" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load qos-profile command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"qos_profiles": [{"name": "qos1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "qos.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_qos_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_qos_profile)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created QoS profile" in result.stdout
+
+
+class TestQosRuleCommands:
+    """Test the QoS rule commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set qos-rule creates a new rule."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_qos_rule", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_qos_rule)
+        result = runner.invoke(test_app, ["test-qos-rule", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created QoS rule" in result.stdout
+
+    def test_set_error(self, runner, monkeypatch):
+        """Test set qos-rule handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_qos_rule", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_qos_rule)
+        result = runner.invoke(test_app, ["test-qos-rule", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show qos-rule lists rules."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_qos_rules", lambda **kw: [{"id": "1", "name": "qr1", "folder": "test-folder"}])
+        test_app = typer.Typer()
+        test_app.command()(show_qos_rule)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "qr1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete qos-rule command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_qos_rule", lambda **kw: {"id": "1", "name": "test-qos-rule"})
+        monkeypatch.setattr(scm_client, "delete_qos_rule", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_qos_rule)
+        result = runner.invoke(test_app, ["test-qos-rule", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted QoS rule" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load qos-rule command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"qos_rules": [{"name": "qr1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "qos-rules.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_qos_rule", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_qos_rule)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created QoS rule" in result.stdout
