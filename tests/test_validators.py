@@ -8,17 +8,24 @@ from scm_cli.utils.validators import (
     AggregateInterface,
     BandwidthAllocation,
     BGPRouting,
+    DhcpInterface,
     DNSSecurityProfile,
+    EthernetInterface,
     IKECryptoProfile,
     IKEGateway,
     InternalDNSServer,
     IPSecCryptoProfile,
+    Layer2Subinterface,
+    Layer3Subinterface,
+    LoopbackInterface,
     NATRule,
     QuarantinedDevice,
     Region,
     Schedule,
     SecurityRule,
+    TunnelInterface,
     URLCategory,
+    VlanInterface,
     VulnerabilityProtectionProfile,
     WildfireAntivirusProfile,
     Zone,
@@ -1766,3 +1773,488 @@ class TestAggregateInterface:
         assert iface.layer2 is None
         assert iface.layer3 is None
         assert iface.comment is None
+
+
+class TestDhcpInterface:
+    """Test cases for the DhcpInterface model."""
+
+    def test_valid_server(self):
+        """Test creating a valid DHCP server interface."""
+        iface = DhcpInterface(
+            name="ethernet1/1",
+            folder="test-folder",
+            server={"mode": "auto", "ip_pool": ["10.0.0.10-10.0.0.100"]},
+        )
+        assert iface.name == "ethernet1/1"
+        assert iface.server is not None
+        assert iface.relay is None
+
+    def test_valid_relay(self):
+        """Test creating a valid DHCP relay interface."""
+        iface = DhcpInterface(
+            name="ethernet1/2",
+            folder="test-folder",
+            relay={"ip": {"enabled": True, "server": ["10.0.0.1"]}},
+        )
+        assert iface.relay is not None
+        assert iface.server is None
+
+    def test_missing_name_raises(self):
+        """Test that missing name raises error."""
+        with pytest.raises(ValidationError):
+            DhcpInterface(folder="test-folder")
+
+    def test_no_container_raises(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            DhcpInterface(name="ethernet1/1")
+
+    def test_multiple_containers_raises(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            DhcpInterface(name="ethernet1/1", folder="f", snippet="s")
+
+    def test_both_server_relay_raises(self):
+        """Test that specifying both server and relay raises error."""
+        with pytest.raises(ValidationError):
+            DhcpInterface(
+                name="ethernet1/1",
+                folder="test-folder",
+                server={"mode": "auto"},
+                relay={"ip": {"enabled": True, "server": ["10.0.0.1"]}},
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        iface = DhcpInterface(
+            name="ethernet1/1",
+            folder="test-folder",
+            server={"mode": "auto", "ip_pool": ["10.0.0.10-10.0.0.100"]},
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["name"] == "ethernet1/1"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["server"]["mode"] == "auto"
+
+    def test_minimal_creation(self):
+        """Test minimal DHCP interface creation."""
+        iface = DhcpInterface(name="ethernet1/1", folder="test-folder")
+        assert iface.name == "ethernet1/1"
+        assert iface.server is None
+        assert iface.relay is None
+
+
+class TestEthernetInterface:
+    """Test cases for the EthernetInterface model."""
+
+    def test_valid_layer3(self):
+        """Test creating a valid layer3 ethernet interface."""
+        iface = EthernetInterface(
+            name="$eth1",
+            folder="test-folder",
+            layer3={"mtu": 1500, "ip": [{"name": "10.0.0.1/24"}]},
+        )
+        assert iface.name == "$eth1"
+        assert iface.layer3 is not None
+        assert iface.layer2 is None
+
+    def test_valid_layer2(self):
+        """Test creating a valid layer2 ethernet interface."""
+        iface = EthernetInterface(
+            name="$eth2",
+            folder="test-folder",
+            layer2={"vlan_tag": "100"},
+        )
+        assert iface.layer2 is not None
+        assert iface.layer3 is None
+
+    def test_missing_name_raises(self):
+        """Test that missing name raises error."""
+        with pytest.raises(ValidationError):
+            EthernetInterface(folder="test-folder")
+
+    def test_no_container_raises(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            EthernetInterface(name="$eth1")
+
+    def test_multiple_containers_raises(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            EthernetInterface(name="$eth1", folder="f", snippet="s")
+
+    def test_multiple_modes_raises(self):
+        """Test that specifying multiple modes raises error."""
+        with pytest.raises(ValidationError):
+            EthernetInterface(
+                name="$eth1",
+                folder="test-folder",
+                layer2={"vlan_tag": "100"},
+                layer3={"mtu": 1500},
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        iface = EthernetInterface(
+            name="$eth1",
+            folder="test-folder",
+            comment="test eth",
+            layer3={"mtu": 9000},
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["name"] == "$eth1"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["comment"] == "test eth"
+        assert sdk_data["layer3"]["mtu"] == 9000
+
+    def test_minimal_creation(self):
+        """Test minimal ethernet interface creation."""
+        iface = EthernetInterface(name="$eth1", folder="test-folder")
+        assert iface.name == "$eth1"
+        assert iface.layer2 is None
+        assert iface.layer3 is None
+        assert iface.tap is None
+
+
+class TestLayer2Subinterface:
+    """Test cases for the Layer2Subinterface model."""
+
+    def test_valid_creation(self):
+        """Test creating a valid layer2 subinterface."""
+        iface = Layer2Subinterface(
+            name="ethernet1/1.100",
+            folder="test-folder",
+            vlan_tag="100",
+        )
+        assert iface.name == "ethernet1/1.100"
+        assert iface.vlan_tag == "100"
+
+    def test_with_parent(self):
+        """Test layer2 subinterface with parent interface."""
+        iface = Layer2Subinterface(
+            name="ethernet1/1.100",
+            folder="test-folder",
+            vlan_tag="100",
+            parent_interface="ethernet1/1",
+        )
+        assert iface.parent_interface == "ethernet1/1"
+
+    def test_missing_vlan_tag_raises(self):
+        """Test that missing vlan_tag raises error."""
+        with pytest.raises(ValidationError):
+            Layer2Subinterface(name="ethernet1/1.100", folder="test-folder")
+
+    def test_missing_name_raises(self):
+        """Test that missing name raises error."""
+        with pytest.raises(ValidationError):
+            Layer2Subinterface(folder="test-folder", vlan_tag="100")
+
+    def test_no_container_raises(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            Layer2Subinterface(name="ethernet1/1.100", vlan_tag="100")
+
+    def test_multiple_containers_raises(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            Layer2Subinterface(name="ethernet1/1.100", vlan_tag="100", folder="f", snippet="s")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        iface = Layer2Subinterface(
+            name="ethernet1/1.100",
+            folder="test-folder",
+            vlan_tag="100",
+            parent_interface="ethernet1/1",
+            comment="test sub",
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["name"] == "ethernet1/1.100"
+        assert sdk_data["vlan_tag"] == "100"
+        assert sdk_data["parent_interface"] == "ethernet1/1"
+        assert sdk_data["comment"] == "test sub"
+
+    def test_minimal_creation(self):
+        """Test minimal layer2 subinterface creation."""
+        iface = Layer2Subinterface(name="ethernet1/1.100", folder="test-folder", vlan_tag="100")
+        assert iface.parent_interface is None
+        assert iface.comment is None
+
+
+class TestLayer3Subinterface:
+    """Test cases for the Layer3Subinterface model."""
+
+    def test_valid_static_ip(self):
+        """Test creating a layer3 subinterface with static IP."""
+        iface = Layer3Subinterface(
+            name="ethernet1/1.100",
+            folder="test-folder",
+            tag=100,
+            ip=[{"name": "10.0.1.1/24"}],
+        )
+        assert iface.tag == 100
+        assert iface.ip == [{"name": "10.0.1.1/24"}]
+
+    def test_valid_dhcp(self):
+        """Test creating a layer3 subinterface with DHCP."""
+        iface = Layer3Subinterface(
+            name="ethernet1/1.200",
+            folder="test-folder",
+            dhcp_client={"enable": True},
+        )
+        assert iface.dhcp_client is not None
+        assert iface.ip is None
+
+    def test_missing_name_raises(self):
+        """Test that missing name raises error."""
+        with pytest.raises(ValidationError):
+            Layer3Subinterface(folder="test-folder")
+
+    def test_no_container_raises(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            Layer3Subinterface(name="ethernet1/1.100")
+
+    def test_multiple_containers_raises(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            Layer3Subinterface(name="ethernet1/1.100", folder="f", snippet="s")
+
+    def test_both_ip_modes_raises(self):
+        """Test that specifying both IP and DHCP raises error."""
+        with pytest.raises(ValidationError):
+            Layer3Subinterface(
+                name="ethernet1/1.100",
+                folder="test-folder",
+                ip=[{"name": "10.0.1.1/24"}],
+                dhcp_client={"enable": True},
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        iface = Layer3Subinterface(
+            name="ethernet1/1.100",
+            folder="test-folder",
+            tag=100,
+            mtu=9000,
+            ip=[{"name": "10.0.1.1/24"}],
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["name"] == "ethernet1/1.100"
+        assert sdk_data["tag"] == 100
+        assert sdk_data["mtu"] == 9000
+
+    def test_minimal_creation(self):
+        """Test minimal layer3 subinterface creation."""
+        iface = Layer3Subinterface(name="ethernet1/1.100", folder="test-folder")
+        assert iface.tag is None
+        assert iface.ip is None
+        assert iface.dhcp_client is None
+
+
+class TestLoopbackInterface:
+    """Test cases for the LoopbackInterface model."""
+
+    def test_valid_creation(self):
+        """Test creating a valid loopback interface."""
+        iface = LoopbackInterface(
+            name="$lo1",
+            folder="test-folder",
+            ip=[{"name": "10.0.0.1/32"}],
+        )
+        assert iface.name == "$lo1"
+        assert iface.ip == [{"name": "10.0.0.1/32"}]
+
+    def test_with_mtu(self):
+        """Test loopback interface with MTU."""
+        iface = LoopbackInterface(
+            name="$lo1",
+            folder="test-folder",
+            mtu=9000,
+        )
+        assert iface.mtu == 9000
+
+    def test_missing_name_raises(self):
+        """Test that missing name raises error."""
+        with pytest.raises(ValidationError):
+            LoopbackInterface(folder="test-folder")
+
+    def test_no_container_raises(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            LoopbackInterface(name="$lo1")
+
+    def test_multiple_containers_raises(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            LoopbackInterface(name="$lo1", folder="f", snippet="s")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        iface = LoopbackInterface(
+            name="$lo1",
+            folder="test-folder",
+            comment="test lo",
+            ip=[{"name": "10.0.0.1/32"}],
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["name"] == "$lo1"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["comment"] == "test lo"
+
+    def test_to_sdk_model_with_ipv6(self):
+        """Test conversion with IPv6 config."""
+        iface = LoopbackInterface(
+            name="$lo1",
+            folder="test-folder",
+            ipv6={"enabled": True},
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["ipv6"] == {"enabled": True}
+
+    def test_minimal_creation(self):
+        """Test minimal loopback interface creation."""
+        iface = LoopbackInterface(name="$lo1", folder="test-folder")
+        assert iface.ip is None
+        assert iface.mtu is None
+        assert iface.comment is None
+
+
+class TestTunnelInterface:
+    """Test cases for the TunnelInterface model."""
+
+    def test_valid_creation(self):
+        """Test creating a valid tunnel interface."""
+        iface = TunnelInterface(
+            name="tunnel1",
+            folder="test-folder",
+            ip=[{"name": "10.0.0.1/30"}],
+        )
+        assert iface.name == "tunnel1"
+        assert iface.ip == [{"name": "10.0.0.1/30"}]
+
+    def test_with_mtu(self):
+        """Test tunnel interface with MTU."""
+        iface = TunnelInterface(
+            name="tunnel1",
+            folder="test-folder",
+            mtu=1400,
+        )
+        assert iface.mtu == 1400
+
+    def test_missing_name_raises(self):
+        """Test that missing name raises error."""
+        with pytest.raises(ValidationError):
+            TunnelInterface(folder="test-folder")
+
+    def test_no_container_raises(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            TunnelInterface(name="tunnel1")
+
+    def test_multiple_containers_raises(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            TunnelInterface(name="tunnel1", folder="f", snippet="s")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        iface = TunnelInterface(
+            name="tunnel1",
+            folder="test-folder",
+            comment="test tunnel",
+            mtu=1400,
+            ip=[{"name": "10.0.0.1/30"}],
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["name"] == "tunnel1"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["mtu"] == 1400
+
+    def test_to_sdk_model_default_value(self):
+        """Test conversion with default_value."""
+        iface = TunnelInterface(
+            name="tunnel1",
+            folder="test-folder",
+            default_value="tunnel.1",
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["default_value"] == "tunnel.1"
+
+    def test_minimal_creation(self):
+        """Test minimal tunnel interface creation."""
+        iface = TunnelInterface(name="tunnel1", folder="test-folder")
+        assert iface.ip is None
+        assert iface.mtu is None
+        assert iface.comment is None
+
+
+class TestVlanInterface:
+    """Test cases for the VlanInterface model."""
+
+    def test_valid_static_ip(self):
+        """Test creating a VLAN interface with static IP."""
+        iface = VlanInterface(
+            name="vlan1",
+            folder="test-folder",
+            vlan_tag="100",
+            ip=[{"name": "10.0.10.1/24"}],
+        )
+        assert iface.vlan_tag == "100"
+        assert iface.ip == [{"name": "10.0.10.1/24"}]
+
+    def test_valid_dhcp(self):
+        """Test creating a VLAN interface with DHCP."""
+        iface = VlanInterface(
+            name="vlan2",
+            folder="test-folder",
+            dhcp_client={"enable": True},
+        )
+        assert iface.dhcp_client is not None
+        assert iface.ip is None
+
+    def test_missing_name_raises(self):
+        """Test that missing name raises error."""
+        with pytest.raises(ValidationError):
+            VlanInterface(folder="test-folder")
+
+    def test_no_container_raises(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            VlanInterface(name="vlan1")
+
+    def test_multiple_containers_raises(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            VlanInterface(name="vlan1", folder="f", snippet="s")
+
+    def test_both_ip_modes_raises(self):
+        """Test that specifying both IP and DHCP raises error."""
+        with pytest.raises(ValidationError):
+            VlanInterface(
+                name="vlan1",
+                folder="test-folder",
+                ip=[{"name": "10.0.10.1/24"}],
+                dhcp_client={"enable": True},
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        iface = VlanInterface(
+            name="vlan1",
+            folder="test-folder",
+            vlan_tag="100",
+            comment="test vlan",
+            ip=[{"name": "10.0.10.1/24"}],
+        )
+        sdk_data = iface.to_sdk_model()
+        assert sdk_data["name"] == "vlan1"
+        assert sdk_data["vlan_tag"] == "100"
+        assert sdk_data["comment"] == "test vlan"
+
+    def test_minimal_creation(self):
+        """Test minimal VLAN interface creation."""
+        iface = VlanInterface(name="vlan1", folder="test-folder")
+        assert iface.vlan_tag is None
+        assert iface.ip is None
+        assert iface.dhcp_client is None
