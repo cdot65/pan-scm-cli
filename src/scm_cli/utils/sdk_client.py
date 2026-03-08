@@ -7266,6 +7266,49 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", container, "security rules", e)
 
+    def move_security_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+        destination: str = "top",
+        destination_rule: str | None = None,
+    ) -> None:
+        """Move a security rule to a new position.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule to move
+            rulebase: Rulebase (pre or post)
+            destination: Where to move (top, bottom, before, after)
+            destination_rule: UUID of reference rule for before/after
+
+        """
+        container = folder or snippet or device
+        self.logger.info(f"Moving security rule: {name} to {destination}")
+
+        if not self.client:
+            return
+
+        try:
+            rule = self.client.security_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            move_data = {"destination": destination, "rulebase": rulebase}
+            if destination_rule:
+                move_data["destination_rule"] = destination_rule
+            self.client.security_rule.move(rule.id, move_data)
+        except Exception as e:
+            self._handle_api_exception("moving", container or "", f"security rule '{name}'", e)
+
     # ---------------------------------------------------------------------------------- Anti-Spyware Profiles ---------------------------------------------------------------------------------
 
     def create_anti_spyware_profile(

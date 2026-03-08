@@ -37,6 +37,7 @@ delete_app = typer.Typer(help="Remove security configurations")
 load_app = typer.Typer(help="Load security configurations from YAML files")
 show_app = typer.Typer(help="Display security configurations")
 backup_app = typer.Typer(help="Backup security configurations to YAML files")
+move_app = typer.Typer(help="Move security rules to a new position")
 
 # ========================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -4890,4 +4891,171 @@ def show_url_access_profile(
 
     except Exception as e:
         typer.echo(f"Error showing URL access profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# MOVE COMMANDS
+# ========================================================================================================================================================================================
+
+MOVE_FOLDER_OPTION = typer.Option(None, "--folder", help="Folder containing the rule")
+MOVE_SNIPPET_OPTION = typer.Option(None, "--snippet", help="Snippet containing the rule")
+MOVE_DEVICE_OPTION = typer.Option(None, "--device", help="Device containing the rule")
+MOVE_NAME_OPTION = typer.Option(..., "--name", help="Name of the rule to move")
+MOVE_DESTINATION_OPTION = typer.Option(..., "--destination", help="Where to move (top, bottom, before, after)")
+MOVE_RULEBASE_OPTION = typer.Option("pre", "--rulebase", help="Rulebase (pre or post)")
+MOVE_DESTINATION_RULE_OPTION = typer.Option(None, "--destination-rule", help="UUID of reference rule for before/after")
+
+
+@move_app.command("rule")
+def move_security_rule_cmd(
+    folder: str = MOVE_FOLDER_OPTION,
+    snippet: str = MOVE_SNIPPET_OPTION,
+    device: str = MOVE_DEVICE_OPTION,
+    name: str = MOVE_NAME_OPTION,
+    destination: str = MOVE_DESTINATION_OPTION,
+    rulebase: str = MOVE_RULEBASE_OPTION,
+    destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
+):
+    """Move a security rule to a new position.
+
+    Examples:
+        scm move security rule --folder Texas --name "Allow Web" --destination top --rulebase pre
+        scm move security rule --folder Texas --name "Allow Web" --destination after --destination-rule <uuid>
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if destination in ("before", "after") and not destination_rule:
+        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        kwargs = {location_type: location_value}
+        scm_client.move_security_rule(
+            **kwargs,
+            name=name,
+            rulebase=rulebase,
+            destination=destination,
+            destination_rule=destination_rule,
+        )
+        typer.echo(f"Moved security rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+
+    except Exception as e:
+        typer.echo(f"Error moving security rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@move_app.command("app-override-rule")
+def move_app_override_rule_cmd(
+    folder: str = MOVE_FOLDER_OPTION,
+    snippet: str = MOVE_SNIPPET_OPTION,
+    device: str = MOVE_DEVICE_OPTION,
+    name: str = MOVE_NAME_OPTION,
+    destination: str = MOVE_DESTINATION_OPTION,
+    rulebase: str = MOVE_RULEBASE_OPTION,
+    destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
+):
+    """Move an app override rule to a new position.
+
+    Examples:
+        scm move security app-override-rule --folder Texas --name override-https --destination top
+        scm move security app-override-rule --folder Texas --name override-https --destination before --destination-rule <uuid>
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if destination in ("before", "after") and not destination_rule:
+        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        kwargs = {location_type: location_value}
+        scm_client.move_app_override_rule(
+            **kwargs,
+            name=name,
+            rulebase=rulebase,
+            destination=destination,
+            destination_rule=destination_rule,
+        )
+        typer.echo(f"Moved app override rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+
+    except Exception as e:
+        typer.echo(f"Error moving app override rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@move_app.command("authentication-rule")
+def move_authentication_rule_cmd(
+    folder: str = MOVE_FOLDER_OPTION,
+    snippet: str = MOVE_SNIPPET_OPTION,
+    device: str = MOVE_DEVICE_OPTION,
+    name: str = MOVE_NAME_OPTION,
+    destination: str = MOVE_DESTINATION_OPTION,
+    rulebase: str = MOVE_RULEBASE_OPTION,
+    destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
+):
+    """Move an authentication rule to a new position.
+
+    Examples:
+        scm move security authentication-rule --folder Texas --name auth-rule --destination bottom
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if destination in ("before", "after") and not destination_rule:
+        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        kwargs = {location_type: location_value}
+        scm_client.move_authentication_rule(
+            **kwargs,
+            name=name,
+            rulebase=rulebase,
+            destination=destination,
+            destination_rule=destination_rule,
+        )
+        typer.echo(f"Moved authentication rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+
+    except Exception as e:
+        typer.echo(f"Error moving authentication rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@move_app.command("decryption-rule")
+def move_decryption_rule_cmd(
+    folder: str = MOVE_FOLDER_OPTION,
+    snippet: str = MOVE_SNIPPET_OPTION,
+    device: str = MOVE_DEVICE_OPTION,
+    name: str = MOVE_NAME_OPTION,
+    destination: str = MOVE_DESTINATION_OPTION,
+    rulebase: str = MOVE_RULEBASE_OPTION,
+    destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
+):
+    """Move a decryption rule to a new position.
+
+    Examples:
+        scm move security decryption-rule --folder Texas --name decrypt-rule --destination top
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if destination in ("before", "after") and not destination_rule:
+        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        kwargs = {location_type: location_value}
+        scm_client.move_decryption_rule(
+            **kwargs,
+            name=name,
+            rulebase=rulebase,
+            destination=destination,
+            destination_rule=destination_rule,
+        )
+        typer.echo(f"Moved decryption rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+
+    except Exception as e:
+        typer.echo(f"Error moving decryption rule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
