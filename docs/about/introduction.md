@@ -1,39 +1,49 @@
 # Introduction
 
+The `pan-scm-cli` is a command-line interface for managing Palo Alto Networks Strata Cloud Manager (SCM) configurations directly from your terminal.
+
 ## Overview
 
-The `pan-scm-cli` is a command-line interface tool designed to simplify interactions with Palo Alto Networks Strata Cloud Manager (SCM). It provides a consistent and intuitive way to manage SCM configurations directly from your terminal, allowing for efficient management of security objects and policies.
+The CLI provides a consistent and intuitive way to:
+
+- Create, update, and delete SCM configuration objects with simple commands
+- Bulk import configurations from YAML files for efficient batch processing
+- Back up existing configurations for migration or disaster recovery
+- Validate input before applying changes to your environment
+- Preview changes with dry run mode before committing
 
 ## Why Use pan-scm-cli?
 
-Manually managing configurations in the SCM web interface can be time-consuming and prone to errors. The CLI provides a streamlined way to automate these tasks, ensuring consistency and efficiency. It's especially valuable for:
+Manually managing configurations in the SCM web interface can be time-consuming and error-prone. The CLI streamlines these tasks, ensuring consistency and efficiency. It is especially valuable for:
 
-- Bulk operations that would be tedious to perform in the web interface
-- Integrating SCM management into scripts and automation workflows
-- Consistent application of configuration changes across multiple environments
+- **Bulk Operations**: Apply hundreds of configuration changes that would be tedious in the web interface
+- **Automation Workflows**: Integrate SCM management into CI/CD pipelines and scripts
+- **Multi-Environment Consistency**: Apply the same configurations across multiple tenants using contexts
+- **Auditability**: Track configuration changes through version-controlled YAML files
 
 ## Key Features
 
-- **Consistent Command Structure**: Standardized command patterns for easy learning and usage
+- **Consistent Command Structure**: Standardized `scm <action> <category> <resource>` pattern for easy learning
 - **Resource Management**: Create, update, delete, and list SCM objects using simple commands
 - **Bulk Operations**: Apply configurations from YAML files for efficient batch processing
-- **Validated Input**: Built-in validation ensures configurations are properly formatted
+- **Validated Input**: Built-in Pydantic validation ensures configurations are properly formatted
 - **Error Handling**: Clear error messages to help identify and resolve issues
 - **Dry Run Mode**: Preview changes before applying them to your environment
+- **Mock Mode**: Test commands without connecting to the SCM API
 
 ## Command Structure
 
 Commands in `pan-scm-cli` follow a consistent structure:
 
 ```bash
-scm <action> <resource-type> <resource> [options]
+scm <action> <category> <resource> [options]
 ```
 
 Where:
 
-- `<action>`: The operation to perform (set, delete, load)
-- `<resource-type>`: The category of resource (objects, deployment, network, security)
-- `<resource>`: The specific resource type (address, address-group, zone, etc.)
+- `<action>`: The operation to perform (`set`, `delete`, `load`, `show`, `backup`)
+- `<category>`: The category of resource (`object`, `network`, `security`, `sase`)
+- `<resource>`: The specific resource type (`address`, `address-group`, `security-zone`, etc.)
 - `[options]`: Resource-specific parameters and global options
 
 ## Who Should Use This CLI?
@@ -51,4 +61,4 @@ Where:
 
 ## Next Steps
 
-Proceed to the [Getting Started Guide](getting-started.md) to set up `pan-scm-cli` and begin managing your SCM configurations.
+Proceed to the [Installation Guide](installation.md) to install `pan-scm-cli`, then follow the [Getting Started Guide](getting-started.md) to begin managing your SCM configurations.
