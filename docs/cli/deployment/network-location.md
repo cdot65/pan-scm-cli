@@ -1,8 +1,12 @@
 # Network Location
 
-Network locations are read-only resources representing available SASE deployment regions with geographic information.
+Network locations are read-only resources representing available SASE deployment regions with geographic information. Network location management is read-only through the CLI.
 
 ## Show Network Location
+
+Display available SASE network locations.
+
+### Syntax
 
 ```bash
 scm show sase network-location [OPTIONS]
@@ -16,13 +20,37 @@ scm show sase network-location [OPTIONS]
 
 ### Examples
 
-```bash
-# List all network locations
-$ scm show sase network-location
+#### List All Network Locations
 
-# Show a specific location
+```bash
+$ scm show sase network-location
+---> 100%
+Network Locations:
+------------------------------------------------------------
+Value: us-east-1
+  Display: US East
+  Continent: North America
+------------------------------------------------------------
+Value: us-west-1
+  Display: US West
+  Continent: North America
+------------------------------------------------------------
+Value: eu-west-1
+  Display: EU West
+  Continent: Europe
+------------------------------------------------------------
+```
+
+#### Show a Specific Network Location
+
+```bash
 $ scm show sase network-location --value us-west-1
+---> 100%
+Network Location: us-west-1
+  Display: US West
+  Continent: North America
 ```
 
 !!! note
-    Network locations are read-only. They cannot be created, updated, or deleted.
+    Network locations are read-only. They cannot be created, updated, or deleted
+    through the CLI.
