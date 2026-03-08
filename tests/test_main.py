@@ -23,9 +23,9 @@ def test_set_command_help(runner):
     result = runner.invoke(app, ["set", "--help"])
     assert result.exit_code == 0
     assert "Usage:" in result.stdout
-    assert "deployment" in result.stdout
+    assert "sase" in result.stdout
     assert "network" in result.stdout
-    assert "objects" in result.stdout
+    assert "object" in result.stdout
     assert "security" in result.stdout
 
 
@@ -34,9 +34,9 @@ def test_delete_command_help(runner):
     result = runner.invoke(app, ["delete", "--help"])
     assert result.exit_code == 0
     assert "Usage:" in result.stdout
-    assert "deployment" in result.stdout
+    assert "sase" in result.stdout
     assert "network" in result.stdout
-    assert "objects" in result.stdout
+    assert "object" in result.stdout
     assert "security" in result.stdout
 
 
@@ -45,7 +45,7 @@ def test_load_command_help(runner):
     result = runner.invoke(app, ["load", "--help"])
     assert result.exit_code == 0
     assert "Usage:" in result.stdout
-    assert "deployment" in result.stdout
+    assert "sase" in result.stdout
     assert "network" in result.stdout
-    assert "objects" in result.stdout
+    assert "object" in result.stdout
     assert "security" in result.stdout

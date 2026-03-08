@@ -6,12 +6,19 @@ This file contains fixtures and configuration for testing the scm-cli applicatio
 import os
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
 # Add the src directory to the path so we can import the package
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
+# Patch Scm SDK client before any test modules import it, preventing real HTTP auth calls.
+# This must happen at module level (not in a fixture) because test module collection
+# triggers imports of command modules which import sdk_client.
+_scm_patcher = patch("scm.client.Scm", return_value=MagicMock())
+_scm_patcher.start()
 
 
 @pytest.fixture(autouse=True)
@@ -25,6 +32,21 @@ def mock_dynaconf_settings(monkeypatch):
     monkeypatch.setenv("SCM_SCM_CLIENT_SECRET", "test-client-secret")
     monkeypatch.setenv("SCM_SCM_TSG_ID", "test-tsg-id")
     monkeypatch.setenv("SCM_LOG_LEVEL", "DEBUG")
+
+
+@pytest.fixture(autouse=True)
+def reset_scm_client():
+    """Reset the LazyClient between tests so each test gets a fresh client."""
+    import scm_cli.utils.sdk_client as sdk_module
+
+    if hasattr(sdk_module, "scm_client"):
+        sdk_module.scm_client._client = None
+
+
+@pytest.fixture
+def env():
+    """Return the current environment name for environment-parametrized tests."""
+    return "dev"
 
 
 @pytest.fixture
@@ -45,8 +67,9 @@ def mock_yaml_file(test_config_path, tmp_path):
     yaml_content = """
     bandwidth_allocations:
       - name: test-allocation
-        folder: test-folder
         bandwidth: 1000
+        spn_name_list:
+          - spn1
         description: Test allocation
         tags:
           - test
@@ -61,12 +84,12 @@ def mock_yaml_file(test_config_path, tmp_path):
 def mock_zones_yaml_file(test_config_path, tmp_path):
     """Create a mock YAML file for zones testing."""
     yaml_content = """
-    zones:
+    security_zones:
       - name: test-zone
         folder: test-folder
-        mode: L3
-        interfaces:
-          - ethernet1/1
+        network:
+          layer3:
+            - ethernet1/1
         description: Test zone
         tags:
           - test

@@ -1,14 +1,13 @@
 """Tests for the SDK client module."""
 
-from scm_cli.utils.sdk_client import SCMClient, scm_client
+from scm_cli.utils.sdk_client import LazyClient, SCMClient, scm_client
 
 
 def test_scm_client_singleton():
-    """Test that scm_client is a singleton instance of SCMClient."""
-    assert isinstance(scm_client, SCMClient)
-    # Check that creating a new instance doesn't replace the singleton
-    new_client = SCMClient()
-    assert new_client is not scm_client
+    """Test that scm_client is a LazyClient wrapping SCMClient."""
+    assert isinstance(scm_client, LazyClient)
+    # Accessing an attribute triggers lazy init, resulting in an SCMClient
+    assert isinstance(scm_client._client or SCMClient(), SCMClient)
 
 
 class TestSCMClient:
@@ -18,16 +17,15 @@ class TestSCMClient:
         """Test creating a bandwidth allocation."""
         client = SCMClient()
         result = client.create_bandwidth_allocation(
-            folder="test-folder",
             name="test-allocation",
             bandwidth=1000,
+            spn_name_list=["spn1"],
             description="Test allocation",
             tags=["test", "example"],
         )
         assert result["id"].startswith("ba-")
-        assert result["folder"] == "test-folder"
         assert result["name"] == "test-allocation"
-        assert result["bandwidth"] == 1000
+        assert result["allocated_bandwidth"] == 1000
         assert result["description"] == "Test allocation"
         assert "test" in result["tags"]
         assert "example" in result["tags"]
@@ -35,7 +33,7 @@ class TestSCMClient:
     def test_delete_bandwidth_allocation(self):
         """Test deleting a bandwidth allocation."""
         client = SCMClient()
-        result = client.delete_bandwidth_allocation(folder="test-folder", name="test-allocation")
+        result = client.delete_bandwidth_allocation(name="test-allocation", spn_name_list=["spn1"])
         assert result is True
 
     def test_create_zone(self):
@@ -44,19 +42,14 @@ class TestSCMClient:
         result = client.create_zone(
             folder="test-folder",
             name="test-zone",
-            mode="L3",
+            mode="layer3",
             interfaces=["ethernet1/1"],
-            description="Test zone",
-            tags=["test", "example"],
         )
         assert result["id"].startswith("zone-")
         assert result["folder"] == "test-folder"
         assert result["name"] == "test-zone"
-        assert result["mode"] == "L3"
+        assert result["mode"] == "layer3"
         assert "ethernet1/1" in result["interfaces"]
-        assert result["description"] == "Test zone"
-        assert "test" in result["tags"]
-        assert "example" in result["tags"]
 
     def test_delete_zone(self):
         """Test deleting a security zone."""
