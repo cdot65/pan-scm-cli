@@ -1,149 +1,114 @@
 ---
-hide:
-  - navigation
+title: Home
 ---
 
-<style>
-.md-content .md-typeset h1 { display: none; }
-</style>
+<div class="hero" markdown>
 
-<p align="center">
-    <a href="https://paloaltonetworks.com"><img src="images/logo.svg" alt="PaloAltoNetworks"></a>
-</p>
-<p align="center">
-    <em><code>pan-scm-cli</code>: Command-line interface for managing Palo Alto Networks Strata Cloud Manager configurations</em>
-</p>
-<p align="center">
-<a href="https://github.com/cdot65/pan-scm-cli/graphs/contributors" target="_blank">
-    <img src="https://img.shields.io/github/contributors/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="Contributors">
-</a>
-<a href="https://github.com/cdot65/pan-scm-cli/network/members" target="_blank">
-    <img src="https://img.shields.io/github/forks/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="Forks">
-</a>
-<a href="https://github.com/cdot65/pan-scm-cli/stargazers" target="_blank">
-    <img src="https://img.shields.io/github/stars/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="Stars">
-</a>
-<a href="https://github.com/cdot65/pan-scm-cli/issues" target="_blank">
-    <img src="https://img.shields.io/github/issues/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="Issues">
-</a>
-<a href="https://github.com/cdot65/pan-scm-cli/blob/main/LICENSE" target="_blank">
-    <img src="https://img.shields.io/github/license/cdot65/pan-scm-cli.svg?style=for-the-badge" alt="License">
-</a>
-</p>
+![SCM CLI Banner](images/logo - banner.svg){ .hero-logo }
+
+# pan-scm-cli
+
+**Command-line interface for Palo Alto Networks Strata Cloud Manager**
+
+[![CI](https://github.com/cdot65/pan-scm-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/cdot65/pan-scm-cli/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.12+](https://img.shields.io/badge/python-%3E%3D3.12-brightgreen.svg)](https://www.python.org/)
+
+</div>
 
 ---
 
-**Documentation**: <a href="https://cdot65.github.io/pan-scm-cli/" target="_blank">https://cdot65.github.io/pan-scm-cli/</a>
+Manage your entire Strata Cloud Manager configuration from the terminal. Create, update, and delete objects, network configs, security policies, and more with a consistent, scriptable CLI. Context-based authentication supports multiple tenants, and YAML bulk operations make large deployments easy.
 
-**Source Code**: <a href="https://github.com/cdot65/pan-scm-cli" target="_blank">https://github.com/cdot65/pan-scm-cli</a>
+<div class="grid cards" markdown>
+
+-   :material-console:{ .lg .middle } **Intuitive CLI**
+
+    ---
+
+    Consistent `scm <action> <category> <resource>` structure across 60+ resource types. Easy to learn, easy to script.
+
+-   :material-file-document-multiple:{ .lg .middle } **Bulk Operations**
+
+    ---
+
+    Load configurations from YAML files for efficient batch processing. Dry-run mode previews changes before applying.
+
+-   :material-shield-check:{ .lg .middle } **Validated Input**
+
+    ---
+
+    Pydantic models validate every field before sending to the API. Clear error messages when something is wrong.
+
+-   :material-account-multiple:{ .lg .middle } **Multi-Tenant Contexts**
+
+    ---
+
+    Named authentication contexts let you switch between SCM tenants instantly. Environment variable overrides for CI/CD.
+
+-   :material-network:{ .lg .middle } **Full Coverage**
+
+    ---
+
+    Objects, network, security, deployment, identity, setup, mobile agent, insights, jobs, and commit operations.
+
+-   :material-docker:{ .lg .middle } **Docker Ready**
+
+    ---
+
+    Multi-platform Docker images for AMD64 and ARM64. Mount your contexts and run anywhere.
+
+</div>
 
 ---
 
-`pan-scm-cli` is a command-line interface tool for managing Palo Alto Networks Strata Cloud Manager configurations.
+## How It Works
 
-## Installation
-
-**Requirements**:
-
-- Python 3.10 or higher
-
-```bash
-$ pip install pan-scm-cli
----> 100%
-Successfully installed pan-scm-cli
+```mermaid
+flowchart LR
+    A["Create\nContext"] --> B["Authenticate\nto SCM"]
+    B --> C["Run CLI\nCommands"]
+    C --> D["Validate\nInput"]
+    D --> E["Call\nSCM API"]
+    E --> F["Display\nResults"]
 ```
 
-## Key Features
+---
 
-- **Intuitive CLI Structure**: Standardized command structure for easy learning and usage
-- **Resource Management**: Create, update, and delete SCM objects using simple commands
-- **Bulk Operations**: Apply configurations from YAML files for efficient batch processing
-- **Validated Input**: Built-in validation ensures configurations are properly formatted
-- **Consistent Output**: Standardized output format for all operations
-- **Error Handling**: Clear error messages to help identify and resolve issues
-- **Dry Run Mode**: Preview changes before applying them to your environment
+## Get Started
 
-## Quick Start
+<div class="grid cards" markdown>
 
-### Setting up authentication:
+-   :material-download:{ .lg .middle } **Install**
 
-```bash
-# Create a context for your SCM tenant
-$ scm context create my-tenant \
-  --client-id "app@123456789.iam.panserviceaccount.com" \
-  --client-secret "your-secret-key" \
-  --tsg-id "123456789"
-✓ Context 'my-tenant' created successfully
-✓ Context 'my-tenant' set as current
+    ---
 
-# Test the connection
-$ scm context test
-Testing authentication for context: my-tenant
-✓ Authentication successful!
-  Client ID: app@123456789.iam.panserviceaccount.com
-  TSG ID: 123456789
-✓ API connectivity verified (found 25 address objects in Shared folder)
-```
+    Prerequisites, installation, and credential setup.
 
-### Example: Creating an Address Object
+    [:octicons-arrow-right-24: Installation](about/installation.md)
 
-```bash
-$ scm set object address \
-    --folder Texas \
-    --name webserver \
-    --ip-netmask 192.168.1.100/32 \
-    --description "Web server" \
-    --tags ["server", "web"]
-[INFO] Using authentication context: my-tenant
-Created address: webserver in folder Texas
-```
+-   :material-rocket-launch:{ .lg .middle } **Quick Start**
 
-### Example: Deleting an Address Object
+    ---
 
-```bash
-$ scm delete object address --folder Texas --name webserver
----> 100%
-Deleted address: webserver from folder Texas
-```
+    Create a context and run your first command in minutes.
 
-### Example: Loading Multiple Objects from YAML
+    [:octicons-arrow-right-24: Getting Started](about/getting-started.md)
 
-```bash
-$ scm load object address --file config/addresses.yml
----> 100%
-Loading addresses from config/addresses.yml
-Applied address: webserver in folder Texas
-Applied address: database in folder Texas
-Applied address: loadbalancer in folder Texas
-Successfully applied 3 address objects
-```
+-   :material-cog:{ .lg .middle } **Configure**
 
-## Command Structure
+    ---
 
-Commands in pan-scm-cli follow a consistent structure:
+    Authentication contexts, environment variables, and Docker setup.
 
-```bash
-scm <action> <resource-type> <resource> [options]
-```
+    [:octicons-arrow-right-24: Configuration](guide/configuration.md)
 
-Where:
+-   :material-book-open-variant:{ .lg .middle } **CLI Reference**
 
-- `<action>`: The operation to perform (set, delete, load)
-- `<resource-type>`: The category of resource (objects, deployment, network, security)
-- `<resource>`: The specific resource type (address, address-group, zone, etc.)
-- `[options]`: Resource-specific parameters and global options
+    ---
 
-## Getting Started
+    Complete command reference for all 60+ resource types.
 
-To begin using pan-scm-cli, check out the [Getting Started Guide](about/getting-started.md) which covers installation, configuration, and basic usage examples.
+    [:octicons-arrow-right-24: CLI Reference](cli/index.md)
 
-For detailed information about each command, refer to the [CLI Reference](cli/index.md) section.
-
-## Contributing
-
-Contributions are welcome and greatly appreciated. Visit the [Contributing](about/contributing.md) page for guidelines
-on how to contribute.
-
-## License
-
-This project is licensed under the Apache 2.0 License - see the [License](about/license.md) page for details.
+</div>
