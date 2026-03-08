@@ -1,19 +1,24 @@
 """Tests for the objects commands module."""
 
 import typer
+
 from scm_cli.commands.objects import (
     delete_address_group,
     delete_app,
+    delete_quarantined_device,
     delete_region,
     delete_schedule,
     load_address_group,
     load_app,
+    load_quarantined_device,
     load_region,
     set_address_group,
     set_app,
+    set_quarantined_device,
     set_region,
     set_schedule,
     show_app,
+    show_quarantined_device,
     show_region,
     show_schedule,
 )
@@ -772,9 +777,137 @@ regions:
 
         test_app = typer.Typer()
         test_app.command()(load_region)
+class TestQuarantinedDeviceCommands:
+    """Test the quarantined device commands."""
+
+    def test_set_quarantined_device_command(self, runner, monkeypatch):
+        """Test the set quarantined-device command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(device_data):
+            return device_data
+
+        monkeypatch.setattr(scm_client, "create_quarantined_device", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_quarantined_device)
+
+        result = runner.invoke(test_app, ["host-123", "--serial-number", "SN-456"])
+
+        assert result.exit_code == 0
+        assert "Created quarantined device: host-123" in result.stdout
+
+    def test_set_quarantined_device_no_serial(self, runner, monkeypatch):
+        """Test the set quarantined-device command without serial number."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(device_data):
+            return device_data
+
+        monkeypatch.setattr(scm_client, "create_quarantined_device", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_quarantined_device)
+
+        result = runner.invoke(test_app, ["host-789"])
+
+        assert result.exit_code == 0
+        assert "Created quarantined device: host-789" in result.stdout
+
+    def test_delete_quarantined_device_command(self, runner, monkeypatch):
+        """Test the delete quarantined-device command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete(host_id):
+            pass
+
+        monkeypatch.setattr(scm_client, "delete_quarantined_device", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_quarantined_device)
+
+        result = runner.invoke(test_app, ["host-123"])
+
+        assert result.exit_code == 0
+        assert "Deleted quarantined device: host-123" in result.stdout
+
+    def test_show_quarantined_device_list(self, runner, monkeypatch):
+        """Test the show quarantined-device command listing all devices."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(host_id=None, serial_number=None):
+            return [
+                {"host_id": "host-001", "serial_number": "SN-001"},
+                {"host_id": "host-002", "serial_number": "SN-002"},
+            ]
+
+        monkeypatch.setattr(scm_client, "list_quarantined_devices", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_quarantined_device)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "Host ID: host-001" in result.stdout
+        assert "Serial Number: SN-001" in result.stdout
+        assert "Host ID: host-002" in result.stdout
+        assert "Total: 2 quarantined devices" in result.stdout
+
+    def test_show_quarantined_device_empty(self, runner, monkeypatch):
+        """Test the show quarantined-device command when no devices found."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(host_id=None, serial_number=None):
+            return []
+
+        monkeypatch.setattr(scm_client, "list_quarantined_devices", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_quarantined_device)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "No quarantined devices found" in result.stdout
+
+    def test_load_quarantined_device_command(self, runner, monkeypatch, tmp_path):
+        """Test the load quarantined-device command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(device_data):
+            return device_data
+
+        monkeypatch.setattr(scm_client, "create_quarantined_device", mock_create)
+
+        # Create test YAML file
+        yaml_content = """
+quarantined_devices:
+  - host_id: host-001
+    serial_number: SN-001
+  - host_id: host-002
+"""
+        test_file = tmp_path / "quarantined_devices.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_quarantined_device)
 
         result = runner.invoke(test_app, ["--file", str(test_file)])
 
         assert result.exit_code == 0
         assert "Created region" in result.stdout
         assert "US-South" in result.stdout
+        assert "Created quarantined device: host-001" in result.stdout
+        assert "Created quarantined device: host-002" in result.stdout
+        assert "Processed 2 quarantined devices" in result.stdout
+
+    def test_load_quarantined_device_file_not_found(self, runner):
+        """Test the load quarantined-device command with missing file."""
+        test_app = typer.Typer()
+        test_app.command()(load_quarantined_device)
+
+        result = runner.invoke(test_app, ["--file", "/nonexistent/file.yml"])
+
+        assert result.exit_code == 1
+        assert "File not found" in result.stdout

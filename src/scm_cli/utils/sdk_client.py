@@ -4011,6 +4011,92 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "regions", e)
+    # Quarantined Devices ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_quarantined_device(
+        self,
+        device_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create a quarantined device entry.
+
+        Args:
+            device_data: The quarantined device data (host_id, optional serial_number)
+
+        Returns:
+            Created quarantined device data
+
+        """
+        self.logger.info(f"Creating quarantined device: {device_data.get('host_id', 'unknown')}")
+
+        if not self.client:
+            return device_data
+
+        try:
+            created = self.client.quarantined_devices.create(device_data)
+            self.logger.info(f"Created quarantined device: {device_data.get('host_id')}")
+            return json.loads(created.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("creating", "quarantined-devices", f"device '{device_data.get('host_id')}'", e)
+
+    def delete_quarantined_device(
+        self,
+        host_id: str,
+    ) -> None:
+        """Delete a quarantined device by host ID.
+
+        Args:
+            host_id: The host ID of the quarantined device to delete
+
+        """
+        self.logger.info(f"Deleting quarantined device: {host_id}")
+
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete quarantined device: {host_id}")
+            return
+
+        try:
+            self.client.quarantined_devices.delete(host_id=host_id)
+            self.logger.info(f"Deleted quarantined device: {host_id}")
+        except Exception as e:
+            self._handle_api_exception("deleting", "quarantined-devices", f"device '{host_id}'", e)
+
+    def list_quarantined_devices(
+        self,
+        host_id: str | None = None,
+        serial_number: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List quarantined devices with optional filtering.
+
+        Args:
+            host_id: Filter by device host ID
+            serial_number: Filter by device serial number
+
+        Returns:
+            List of quarantined device objects
+
+        """
+        self.logger.info(f"Listing quarantined devices (host_id={host_id}, serial_number={serial_number})")
+
+        if not self.client:
+            return [
+                {
+                    "host_id": "mock-host-001",
+                    "serial_number": "SN-001",
+                },
+                {
+                    "host_id": "mock-host-002",
+                    "serial_number": "SN-002",
+                },
+            ]
+
+        try:
+            results = self.client.quarantined_devices.list(
+                host_id=host_id,
+                serial_number=serial_number,
+            )
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "quarantined-devices", "quarantined devices", e)
 
     # Services -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

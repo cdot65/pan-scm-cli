@@ -1151,6 +1151,24 @@ class Region(BaseModel):
         return model_data
 
 
+class QuarantinedDevice(BaseModel):
+    """Model for quarantined device configurations."""
+
+    host_id: str = Field(..., description="Device host ID")
+    serial_number: str | None = Field(None, description="Device serial number")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "host_id": self.host_id,
+        }
+
+        if self.serial_number:
+            model_data["serial_number"] = self.serial_number
+
+        return model_data
+
+
 class Service(BaseModel):
     """Model for service configurations with folder path."""
 

@@ -2,7 +2,7 @@
 
 import pytest
 from pydantic import ValidationError
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, Region, Schedule, SecurityRule, Zone
+from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, QuarantinedDevice, Region, Schedule, SecurityRule, Zone
 
 
 class TestBandwidthAllocation:
@@ -356,6 +356,40 @@ class TestRegion:
             Region(name="test", folder="Texas", longitude=181.0)
         with pytest.raises(ValidationError):
             Region(name="test", folder="Texas", longitude=-181.0)
+class TestQuarantinedDevice:
+    """Test cases for the QuarantinedDevice model."""
+
+    def test_valid_quarantined_device(self):
+        """Test creating a valid quarantined device."""
+        device = QuarantinedDevice(
+            host_id="host-123",
+            serial_number="SN-456",
+        )
+        assert device.host_id == "host-123"
+        assert device.serial_number == "SN-456"
+
+    def test_missing_host_id(self):
+        """Test that host_id is required."""
+        with pytest.raises(ValidationError):
+            QuarantinedDevice()
+
+    def test_optional_serial_number(self):
+        """Test that serial_number is optional."""
+        device = QuarantinedDevice(host_id="host-123")
+        assert device.host_id == "host-123"
+        assert device.serial_number is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        device = QuarantinedDevice(host_id="host-123", serial_number="SN-456")
+        sdk_data = device.to_sdk_model()
+        assert sdk_data == {"host_id": "host-123", "serial_number": "SN-456"}
+
+    def test_to_sdk_model_no_serial(self):
+        """Test conversion to SDK model format without serial number."""
+        device = QuarantinedDevice(host_id="host-123")
+        sdk_data = device.to_sdk_model()
+        assert sdk_data == {"host_id": "host-123"}
 
 
 class TestSecurityRule:

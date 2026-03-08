@@ -26,6 +26,7 @@ from ..utils.validators import (
     HIPProfile,
     HTTPServerProfile,
     LogForwardingProfile,
+    QuarantinedDevice,
     Region,
     Schedule,
     Service,
@@ -4999,6 +5000,77 @@ def load_region(
         raise typer.Exit(code=1) from e
 
 
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# QUARANTINED DEVICE COMMANDS
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+@delete_app.command("quarantined-device", help="Delete a quarantined device.")
+def delete_quarantined_device(
+    host_id: str = typer.Argument(..., help="Host ID of the quarantined device to delete"),
+) -> None:
+    """Delete a quarantined device by host ID."""
+    try:
+        show_context_info()
+
+        scm_client.delete_quarantined_device(host_id=host_id)
+        typer.echo(f"Deleted quarantined device: {host_id}")
+
+    except Exception as e:
+        typer.echo(f"Error deleting quarantined device: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("quarantined-device", help="Load quarantined devices from a YAML file.")
+def load_quarantined_device(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+) -> None:
+    """Load quarantined devices from a YAML file."""
+    try:
+        # Validate file exists
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+
+        if not data or "quarantined_devices" not in data:
+            typer.echo("No quarantined_devices found in file", err=True)
+            raise typer.Exit(code=1)
+
+        devices = data["quarantined_devices"]
+        if not isinstance(devices, list):
+            devices = [devices]
+
+        # Process each device
+        created_count = 0
+        for device_data in devices:
+            try:
+                # Validate with Pydantic model
+                validated_device = QuarantinedDevice(**device_data)
+
+                # Convert to SDK format
+                sdk_data = validated_device.to_sdk_model()
+
+                # Create the quarantined device
+                scm_client.create_quarantined_device(sdk_data)
+
+                created_count += 1
+                typer.echo(f"Created quarantined device: {validated_device.host_id}")
+
+            except Exception as e:
+                typer.echo(f"Error processing quarantined device: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\nSummary: Processed {created_count} quarantined devices")
+
+    except Exception as e:
+        typer.echo(f"Error loading quarantined devices: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
 @set_app.command("region", help="Create or update a region.")
 def set_region(
     name: str = typer.Argument(..., help="Name of the region"),
@@ -5149,6 +5221,83 @@ def show_region(
 
     except Exception as e:
         typer.echo(f"Error showing region: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("quarantined-device", help="Create a quarantined device entry.")
+def set_quarantined_device(
+    host_id: str = typer.Argument(..., help="Host ID of the device to quarantine"),
+    serial_number: str = typer.Option(None, "--serial-number", help="Serial number of the device"),
+) -> None:
+    """Create a quarantined device entry."""
+    try:
+        show_context_info()
+
+        # Build device data
+        device_data: dict[str, Any] = {
+            "host_id": host_id,
+        }
+
+        if serial_number:
+            device_data["serial_number"] = serial_number
+
+        # Validate with Pydantic model
+        validated_device = QuarantinedDevice(**device_data)
+
+        # Convert to SDK format
+        sdk_data = validated_device.to_sdk_model()
+
+        # Create the quarantined device
+        scm_client.create_quarantined_device(sdk_data)
+
+        typer.echo(f"Created quarantined device: {host_id}")
+
+    except Exception as e:
+        typer.echo(f"Error creating quarantined device: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("quarantined-device", help="Show quarantined devices.")
+def show_quarantined_device(
+    host_id: str = typer.Option(None, "--host-id", help="Filter by host ID"),
+    serial_number: str = typer.Option(None, "--serial-number", help="Filter by serial number"),
+) -> None:
+    """Show quarantined devices.
+
+    Examples
+    --------
+        # List all quarantined devices
+        scm show object quarantined-device
+
+        # Filter by host ID
+        scm show object quarantined-device --host-id abc123
+
+    """
+    try:
+        show_context_info()
+
+        devices = scm_client.list_quarantined_devices(
+            host_id=host_id,
+            serial_number=serial_number,
+        )
+
+        if not devices:
+            typer.echo("No quarantined devices found")
+            return
+
+        # Display in table format
+        typer.echo("\nQuarantined Devices:")
+        typer.echo("-" * 80)
+
+        for device in devices:
+            typer.echo(f"\nHost ID: {device.get('host_id', 'N/A')}")
+            if device.get("serial_number"):
+                typer.echo(f"Serial Number: {device['serial_number']}")
+
+        typer.echo(f"\nTotal: {len(devices)} quarantined devices")
+
+    except Exception as e:
+        typer.echo(f"Error showing quarantined devices: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
