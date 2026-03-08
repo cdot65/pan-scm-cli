@@ -8686,6 +8686,1002 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", container or "", "URL categories", e)
 
+    # ---------------------------------------------------------------------------- App Override Rule ---------------------------------------------------------------------------------
+
+    def create_app_override_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        **rule_data,
+    ) -> dict[str, Any]:
+        """Create or update an app override rule.
+
+        Args:
+            folder: Folder to create the rule in
+            snippet: Snippet to create the rule in
+            device: Device to create the rule in
+            **rule_data: Additional rule configuration data
+
+        Returns:
+            dict[str, Any]: Created/updated app override rule object
+
+        """
+        name = rule_data.get("name")
+        rulebase = rule_data.pop("rulebase", "pre")
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Creating/updating app override rule: {name} in {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"aor-{name}",
+                "name": name,
+                container_type: container,
+                "application": rule_data.get("application", "web-browsing"),
+                "port": rule_data.get("port", "443"),
+                "protocol": rule_data.get("protocol", "tcp"),
+            }
+
+        try:
+            # Check if rule already exists
+            existing_rule = None
+            try:
+                existing_rule = self.client.app_override_rule.fetch(
+                    name=name,
+                    folder=folder,
+                    snippet=snippet,
+                    device=device,
+                    rulebase=rulebase,
+                )
+            except NotFoundError:
+                self.logger.info(f"App override rule '{name}' not found. Creating new rule.")
+
+            if existing_rule:
+                # Update existing rule
+                update_data = rule_data.copy()
+                update_data["id"] = str(existing_rule.id)
+                update_data[container_type] = container
+                from scm.models.security import AppOverrideRuleUpdateModel
+
+                update_model = AppOverrideRuleUpdateModel(**update_data)
+                result = self.client.app_override_rule.update(update_model, rulebase=rulebase)
+            else:
+                # Create new rule
+                create_data = rule_data.copy()
+                create_data[container_type] = container
+                result = self.client.app_override_rule.create(create_data, rulebase=rulebase)
+
+            return json.loads(result.model_dump_json(exclude_unset=True, by_alias=True))
+        except Exception as e:
+            self._handle_api_exception("creating/updating", container or "", f"app override rule '{name}'", e)
+
+    def delete_app_override_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+    ) -> bool:
+        """Delete an app override rule.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule to delete
+            rulebase: Rulebase (pre or post)
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Deleting app override rule: {name} from {container_type} {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            rule = self.client.app_override_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            self.client.app_override_rule.delete(str(rule.id), rulebase=rulebase)
+            return True
+        except NotFoundError:
+            self.logger.warning(f"App override rule '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", f"app override rule '{name}'", e)
+
+    def get_app_override_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+    ) -> dict[str, Any]:
+        """Get an app override rule by name.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule
+            rulebase: Rulebase (pre or post)
+
+        Returns:
+            dict[str, Any]: The app override rule object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Getting app override rule: {name} from {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"aor-{name}",
+                container_type: container,
+                "name": name,
+                "application": "web-browsing",
+                "port": "443",
+                "protocol": "tcp",
+                "from": ["any"],
+                "to": ["any"],
+                "source": ["any"],
+                "destination": ["any"],
+            }
+
+        try:
+            result = self.client.app_override_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            return json.loads(result.model_dump_json(exclude_unset=True, by_alias=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", f"app override rule '{name}'", e)
+
+    def list_app_override_rules(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        rulebase: str = "pre",
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List app override rules.
+
+        Args:
+            folder: Folder to list from
+            snippet: Snippet to list from
+            device: Device to list from
+            rulebase: Rulebase (pre or post)
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of app override rule objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing app override rules in {container_type}: {container}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "aor-mock1",
+                    "folder": folder or "Texas",
+                    "name": "Override Web",
+                    "application": "web-browsing",
+                    "port": "443",
+                    "protocol": "tcp",
+                    "from": ["any"],
+                    "to": ["any"],
+                },
+            ]
+
+        try:
+            results = self.client.app_override_rule.list(
+                **container_kwargs,
+                rulebase=rulebase,
+                exact_match=exact_match,
+            )
+            return [json.loads(result.model_dump_json(exclude_unset=True, by_alias=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "app override rules", e)
+
+    def move_app_override_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+        destination: str = "top",
+        destination_rule: str | None = None,
+    ) -> None:
+        """Move an app override rule to a new position.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule to move
+            rulebase: Rulebase (pre or post)
+            destination: Where to move (top, bottom, before, after)
+            destination_rule: UUID of reference rule for before/after
+
+        """
+        container = folder or snippet or device
+        self.logger.info(f"Moving app override rule: {name} to {destination}")
+
+        if not self.client:
+            return
+
+        try:
+            rule = self.client.app_override_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            move_data = {"destination": destination, "rulebase": rulebase}
+            if destination_rule:
+                move_data["destination_rule"] = destination_rule
+            self.client.app_override_rule.move(rule.id, move_data)
+        except Exception as e:
+            self._handle_api_exception("moving", container or "", f"app override rule '{name}'", e)
+
+    # -------------------------------------------------------------------------- Authentication Rule -----------------------------------------------------------------------------------
+
+    def create_authentication_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        **rule_data,
+    ) -> dict[str, Any]:
+        """Create or update an authentication rule.
+
+        Args:
+            folder: Folder to create the rule in
+            snippet: Snippet to create the rule in
+            device: Device to create the rule in
+            **rule_data: Additional rule configuration data
+
+        Returns:
+            dict[str, Any]: Created/updated authentication rule object
+
+        """
+        name = rule_data.get("name")
+        rulebase = rule_data.pop("rulebase", "pre")
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Creating/updating authentication rule: {name} in {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"authr-{name}",
+                "name": name,
+                container_type: container,
+                "from": rule_data.get("from", ["any"]),
+                "to": rule_data.get("to", ["any"]),
+            }
+
+        try:
+            existing_rule = None
+            try:
+                existing_rule = self.client.authentication_rule.fetch(
+                    name=name,
+                    folder=folder,
+                    snippet=snippet,
+                    device=device,
+                    rulebase=rulebase,
+                )
+            except NotFoundError:
+                self.logger.info(f"Authentication rule '{name}' not found. Creating new rule.")
+
+            if existing_rule:
+                update_data = rule_data.copy()
+                update_data["id"] = str(existing_rule.id)
+                update_data[container_type] = container
+                from scm.models.security import AuthenticationRuleUpdateModel
+
+                update_model = AuthenticationRuleUpdateModel(**update_data)
+                result = self.client.authentication_rule.update(update_model, rulebase=rulebase)
+            else:
+                create_data = rule_data.copy()
+                create_data[container_type] = container
+                result = self.client.authentication_rule.create(create_data, rulebase=rulebase)
+
+            return json.loads(result.model_dump_json(exclude_unset=True, by_alias=True))
+        except Exception as e:
+            self._handle_api_exception("creating/updating", container or "", f"authentication rule '{name}'", e)
+
+    def delete_authentication_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+    ) -> bool:
+        """Delete an authentication rule.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule to delete
+            rulebase: Rulebase (pre or post)
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Deleting authentication rule: {name} from {container_type} {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            rule = self.client.authentication_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            self.client.authentication_rule.delete(str(rule.id), rulebase=rulebase)
+            return True
+        except NotFoundError:
+            self.logger.warning(f"Authentication rule '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", f"authentication rule '{name}'", e)
+
+    def get_authentication_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+    ) -> dict[str, Any]:
+        """Get an authentication rule by name.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule
+            rulebase: Rulebase (pre or post)
+
+        Returns:
+            dict[str, Any]: The authentication rule object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Getting authentication rule: {name} from {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"authr-{name}",
+                container_type: container,
+                "name": name,
+                "from": ["any"],
+                "to": ["any"],
+                "source": ["any"],
+                "destination": ["any"],
+                "service": ["any"],
+                "category": ["any"],
+            }
+
+        try:
+            result = self.client.authentication_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            return json.loads(result.model_dump_json(exclude_unset=True, by_alias=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", f"authentication rule '{name}'", e)
+
+    def list_authentication_rules(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        rulebase: str = "pre",
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List authentication rules.
+
+        Args:
+            folder: Folder to list from
+            snippet: Snippet to list from
+            device: Device to list from
+            rulebase: Rulebase (pre or post)
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of authentication rule objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing authentication rules in {container_type}: {container}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "authr-mock1",
+                    "folder": folder or "Texas",
+                    "name": "Auth Rule 1",
+                    "from": ["any"],
+                    "to": ["any"],
+                    "source": ["any"],
+                    "destination": ["any"],
+                },
+            ]
+
+        try:
+            results = self.client.authentication_rule.list(
+                **container_kwargs,
+                rulebase=rulebase,
+                exact_match=exact_match,
+            )
+            return [json.loads(result.model_dump_json(exclude_unset=True, by_alias=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "authentication rules", e)
+
+    def move_authentication_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+        destination: str = "top",
+        destination_rule: str | None = None,
+    ) -> None:
+        """Move an authentication rule to a new position.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule to move
+            rulebase: Rulebase (pre or post)
+            destination: Where to move (top, bottom, before, after)
+            destination_rule: UUID of reference rule for before/after
+
+        """
+        container = folder or snippet or device
+        self.logger.info(f"Moving authentication rule: {name} to {destination}")
+
+        if not self.client:
+            return
+
+        try:
+            rule = self.client.authentication_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            move_data = {"destination": destination, "rulebase": rulebase}
+            if destination_rule:
+                move_data["destination_rule"] = destination_rule
+            self.client.authentication_rule.move(rule.id, move_data)
+        except Exception as e:
+            self._handle_api_exception("moving", container or "", f"authentication rule '{name}'", e)
+
+    # ---------------------------------------------------------------------------- Decryption Rule -------------------------------------------------------------------------------------
+
+    def create_decryption_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        **rule_data,
+    ) -> dict[str, Any]:
+        """Create or update a decryption rule.
+
+        Args:
+            folder: Folder to create the rule in
+            snippet: Snippet to create the rule in
+            device: Device to create the rule in
+            **rule_data: Additional rule configuration data
+
+        Returns:
+            dict[str, Any]: Created/updated decryption rule object
+
+        """
+        name = rule_data.get("name")
+        rulebase = rule_data.pop("rulebase", "pre")
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Creating/updating decryption rule: {name} in {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"decr-{name}",
+                "name": name,
+                container_type: container,
+                "action": rule_data.get("action", "no-decrypt"),
+                "from": rule_data.get("from", ["any"]),
+                "to": rule_data.get("to", ["any"]),
+            }
+
+        try:
+            existing_rule = None
+            try:
+                existing_rule = self.client.decryption_rule.fetch(
+                    name=name,
+                    folder=folder,
+                    snippet=snippet,
+                    device=device,
+                    rulebase=rulebase,
+                )
+            except NotFoundError:
+                self.logger.info(f"Decryption rule '{name}' not found. Creating new rule.")
+
+            if existing_rule:
+                update_data = rule_data.copy()
+                update_data["id"] = str(existing_rule.id)
+                update_data[container_type] = container
+                from scm.models.security import DecryptionRuleUpdateModel
+
+                update_model = DecryptionRuleUpdateModel(**update_data)
+                result = self.client.decryption_rule.update(update_model, rulebase=rulebase)
+            else:
+                create_data = rule_data.copy()
+                create_data[container_type] = container
+                result = self.client.decryption_rule.create(create_data, rulebase=rulebase)
+
+            return json.loads(result.model_dump_json(exclude_unset=True, by_alias=True))
+        except Exception as e:
+            self._handle_api_exception("creating/updating", container or "", f"decryption rule '{name}'", e)
+
+    def delete_decryption_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+    ) -> bool:
+        """Delete a decryption rule.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule to delete
+            rulebase: Rulebase (pre or post)
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Deleting decryption rule: {name} from {container_type} {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            rule = self.client.decryption_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            self.client.decryption_rule.delete(str(rule.id), rulebase=rulebase)
+            return True
+        except NotFoundError:
+            self.logger.warning(f"Decryption rule '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", f"decryption rule '{name}'", e)
+
+    def get_decryption_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+    ) -> dict[str, Any]:
+        """Get a decryption rule by name.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule
+            rulebase: Rulebase (pre or post)
+
+        Returns:
+            dict[str, Any]: The decryption rule object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Getting decryption rule: {name} from {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"decr-{name}",
+                container_type: container,
+                "name": name,
+                "action": "no-decrypt",
+                "from": ["any"],
+                "to": ["any"],
+                "source": ["any"],
+                "destination": ["any"],
+            }
+
+        try:
+            result = self.client.decryption_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            return json.loads(result.model_dump_json(exclude_unset=True, by_alias=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", f"decryption rule '{name}'", e)
+
+    def list_decryption_rules(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        rulebase: str = "pre",
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List decryption rules.
+
+        Args:
+            folder: Folder to list from
+            snippet: Snippet to list from
+            device: Device to list from
+            rulebase: Rulebase (pre or post)
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of decryption rule objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing decryption rules in {container_type}: {container}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "decr-mock1",
+                    "folder": folder or "Texas",
+                    "name": "Decrypt Rule 1",
+                    "action": "no-decrypt",
+                    "from": ["any"],
+                    "to": ["any"],
+                },
+            ]
+
+        try:
+            results = self.client.decryption_rule.list(
+                **container_kwargs,
+                rulebase=rulebase,
+                exact_match=exact_match,
+            )
+            return [json.loads(result.model_dump_json(exclude_unset=True, by_alias=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "decryption rules", e)
+
+    def move_decryption_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        rulebase: str = "pre",
+        destination: str = "top",
+        destination_rule: str | None = None,
+    ) -> None:
+        """Move a decryption rule to a new position.
+
+        Args:
+            folder: Folder containing the rule
+            snippet: Snippet containing the rule
+            device: Device containing the rule
+            name: Name of the rule to move
+            rulebase: Rulebase (pre or post)
+            destination: Where to move (top, bottom, before, after)
+            destination_rule: UUID of reference rule for before/after
+
+        """
+        container = folder or snippet or device
+        self.logger.info(f"Moving decryption rule: {name} to {destination}")
+
+        if not self.client:
+            return
+
+        try:
+            rule = self.client.decryption_rule.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+                rulebase=rulebase,
+            )
+            move_data = {"destination": destination, "rulebase": rulebase}
+            if destination_rule:
+                move_data["destination_rule"] = destination_rule
+            self.client.decryption_rule.move(rule.id, move_data)
+        except Exception as e:
+            self._handle_api_exception("moving", container or "", f"decryption rule '{name}'", e)
+
+    # --------------------------------------------------------------------------- URL Access Profile -----------------------------------------------------------------------------------
+
+    def create_url_access_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        **profile_data,
+    ) -> dict[str, Any]:
+        """Create or update a URL access profile.
+
+        Args:
+            folder: Folder to create the profile in
+            snippet: Snippet to create the profile in
+            device: Device to create the profile in
+            **profile_data: Additional profile configuration data
+
+        Returns:
+            dict[str, Any]: Created/updated URL access profile object
+
+        """
+        name = profile_data.get("name")
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Creating/updating URL access profile: {name} in {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"uap-{name}",
+                "name": name,
+                container_type: container,
+                "block": profile_data.get("block", []),
+                "alert": profile_data.get("alert", []),
+                "allow": profile_data.get("allow", []),
+            }
+
+        try:
+            existing_profile = None
+            try:
+                existing_profile = self.client.url_access_profile.fetch(
+                    name=name,
+                    folder=folder,
+                    snippet=snippet,
+                    device=device,
+                )
+            except NotFoundError:
+                self.logger.info(f"URL access profile '{name}' not found. Creating new profile.")
+
+            if existing_profile:
+                update_data = profile_data.copy()
+                update_data["id"] = str(existing_profile.id)
+                update_data[container_type] = container
+                from scm.models.security import URLAccessProfileUpdateModel
+
+                update_model = URLAccessProfileUpdateModel(**update_data)
+                result = self.client.url_access_profile.update(update_model)
+            else:
+                create_data = profile_data.copy()
+                create_data[container_type] = container
+                result = self.client.url_access_profile.create(create_data)
+
+            return json.loads(result.model_dump_json(exclude_unset=True, by_alias=True))
+        except Exception as e:
+            self._handle_api_exception("creating/updating", container or "", f"URL access profile '{name}'", e)
+
+    def delete_url_access_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a URL access profile.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Deleting URL access profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            profile = self.client.url_access_profile.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+            self.client.url_access_profile.delete(str(profile.id))
+            return True
+        except NotFoundError:
+            self.logger.warning(f"URL access profile '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", f"URL access profile '{name}'", e)
+
+    def get_url_access_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a URL access profile by name.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile
+
+        Returns:
+            dict[str, Any]: The URL access profile object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Getting URL access profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"uap-{name}",
+                container_type: container,
+                "name": name,
+                "block": ["adult", "malware"],
+                "alert": ["hacking"],
+                "allow": ["business-and-economy"],
+            }
+
+        try:
+            result = self.client.url_access_profile.fetch(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+            return json.loads(result.model_dump_json(exclude_unset=True, by_alias=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", f"URL access profile '{name}'", e)
+
+    def list_url_access_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List URL access profiles.
+
+        Args:
+            folder: Folder to list from
+            snippet: Snippet to list from
+            device: Device to list from
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of URL access profile objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing URL access profiles in {container_type}: {container}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "uap-mock1",
+                    "folder": folder or "Texas",
+                    "name": "URL Profile 1",
+                    "block": ["adult", "malware"],
+                    "alert": ["hacking"],
+                },
+            ]
+
+        try:
+            results = self.client.url_access_profile.list(**container_kwargs, exact_match=exact_match)
+            return [json.loads(result.model_dump_json(exclude_unset=True, by_alias=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "URL access profiles", e)
+
     # ======================================================================================================================================================================================
     # JOBS AND COMMIT METHODS
     # ======================================================================================================================================================================================
@@ -12268,6 +13264,1770 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "VLAN interfaces", e)
+
+    # --------------------------------------------------------------------------- BGP Address Family Profiles ---------------------------------------------------------------------------
+
+    def create_bgp_address_family_profile(self, profile_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a BGP address family profile using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in profile_data and profile_data[field] is not None:
+                container_field = field
+                container_value = profile_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = profile_data.copy()
+            result["id"] = f"bgp-af-{profile_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.bgp_address_family_profile.fetch(name=profile_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing BGP address family profile '{profile_data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"BGP address family profile '{profile_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching BGP address family profile '{profile_data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            for key in ["ipv4"]:
+                if key in profile_data and profile_data[key] != existing_dict.get(key):
+                    needs_update = True
+            if needs_update:
+                try:
+                    update_data = profile_data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.bgp_address_family_profile.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"BGP address family profile '{profile_data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.bgp_address_family_profile.create(profile_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"BGP address family profile '{profile_data['name']}'", create_error)
+
+    def delete_bgp_address_family_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a BGP address family profile."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete BGP address family profile: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            profile = self.client.bgp_address_family_profile.fetch(name=name, **container_kwargs)
+            self.client.bgp_address_family_profile.delete(str(profile.id))
+            self.logger.info(f"Deleted BGP address family profile: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"BGP address family profile '{name}'", e)
+
+    def get_bgp_address_family_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific BGP address family profile."""
+        if not self.client:
+            return {"id": "bgp-af-mock", "name": name, "folder": folder or "ngfw-shared", "ipv4": {"unicast": {"enable": True}}}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.bgp_address_family_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"BGP address family profile '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"BGP address family profile '{name}'", e)
+
+    def list_bgp_address_family_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List BGP address family profiles in a container."""
+        if not self.client:
+            return [{"id": "bgp-af-mock1", "folder": folder or "ngfw-shared", "name": "default-af-profile", "ipv4": {"unicast": {"enable": True}}}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.bgp_address_family_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "BGP address family profiles", e)
+
+    # ------------------------------------------------------------------------------- BGP Auth Profiles ---------------------------------------------------------------------------------
+
+    def create_bgp_auth_profile(self, profile_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a BGP auth profile using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in profile_data and profile_data[field] is not None:
+                container_field = field
+                container_value = profile_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = profile_data.copy()
+            result["id"] = f"bgp-auth-{profile_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.bgp_auth_profile.fetch(name=profile_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing BGP auth profile '{profile_data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"BGP auth profile '{profile_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching BGP auth profile '{profile_data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            if "secret" in profile_data and profile_data["secret"] != existing_dict.get("secret"):
+                needs_update = True
+            if needs_update:
+                try:
+                    update_data = profile_data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.bgp_auth_profile.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"BGP auth profile '{profile_data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.bgp_auth_profile.create(profile_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"BGP auth profile '{profile_data['name']}'", create_error)
+
+    def delete_bgp_auth_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a BGP auth profile."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete BGP auth profile: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            profile = self.client.bgp_auth_profile.fetch(name=name, **container_kwargs)
+            self.client.bgp_auth_profile.delete(str(profile.id))
+            self.logger.info(f"Deleted BGP auth profile: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"BGP auth profile '{name}'", e)
+
+    def get_bgp_auth_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific BGP auth profile."""
+        if not self.client:
+            return {"id": "bgp-auth-mock", "name": name, "folder": folder or "ngfw-shared", "secret": "mock-secret"}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.bgp_auth_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"BGP auth profile '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"BGP auth profile '{name}'", e)
+
+    def list_bgp_auth_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List BGP auth profiles in a container."""
+        if not self.client:
+            return [{"id": "bgp-auth-mock1", "folder": folder or "ngfw-shared", "name": "default-bgp-auth", "secret": "mock-secret"}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.bgp_auth_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "BGP auth profiles", e)
+
+    # ------------------------------------------------------------------------------ OSPF Auth Profiles ---------------------------------------------------------------------------------
+
+    def create_ospf_auth_profile(self, profile_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update an OSPF auth profile using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in profile_data and profile_data[field] is not None:
+                container_field = field
+                container_value = profile_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = profile_data.copy()
+            result["id"] = f"ospf-auth-{profile_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.ospf_auth_profile.fetch(name=profile_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing OSPF auth profile '{profile_data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"OSPF auth profile '{profile_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching OSPF auth profile '{profile_data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            for key in ["password", "md5"]:
+                if key in profile_data and profile_data[key] != existing_dict.get(key):
+                    needs_update = True
+            if needs_update:
+                try:
+                    update_data = profile_data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.ospf_auth_profile.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"OSPF auth profile '{profile_data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.ospf_auth_profile.create(profile_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"OSPF auth profile '{profile_data['name']}'", create_error)
+
+    def delete_ospf_auth_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete an OSPF auth profile."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete OSPF auth profile: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            profile = self.client.ospf_auth_profile.fetch(name=name, **container_kwargs)
+            self.client.ospf_auth_profile.delete(str(profile.id))
+            self.logger.info(f"Deleted OSPF auth profile: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"OSPF auth profile '{name}'", e)
+
+    def get_ospf_auth_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific OSPF auth profile."""
+        if not self.client:
+            return {"id": "ospf-auth-mock", "name": name, "folder": folder or "ngfw-shared", "password": "mock-password"}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.ospf_auth_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"OSPF auth profile '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"OSPF auth profile '{name}'", e)
+
+    def list_ospf_auth_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List OSPF auth profiles in a container."""
+        if not self.client:
+            return [{"id": "ospf-auth-mock1", "folder": folder or "ngfw-shared", "name": "default-ospf-auth", "password": "mock-password"}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.ospf_auth_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "OSPF auth profiles", e)
+
+    # ------------------------------------------------------------------------------ Route Access Lists ---------------------------------------------------------------------------------
+
+    def create_route_access_list(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a route access list using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in data and data[field] is not None:
+                container_field = field
+                container_value = data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = data.copy()
+            result["id"] = f"ral-{data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.route_access_list.fetch(name=data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing route access list '{data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"Route access list '{data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching route access list '{data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            for key in ["description", "type"]:
+                if key in data and data[key] != existing_dict.get(key):
+                    needs_update = True
+            if needs_update:
+                try:
+                    update_data = data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.route_access_list.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"route access list '{data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.route_access_list.create(data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"route access list '{data['name']}'", create_error)
+
+    def delete_route_access_list(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a route access list."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete route access list: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            obj = self.client.route_access_list.fetch(name=name, **container_kwargs)
+            self.client.route_access_list.delete(str(obj.id))
+            self.logger.info(f"Deleted route access list: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"route access list '{name}'", e)
+
+    def get_route_access_list(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific route access list."""
+        if not self.client:
+            return {"id": "ral-mock", "name": name, "folder": folder or "ngfw-shared", "description": "Mock route access list"}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.route_access_list.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Route access list '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"route access list '{name}'", e)
+
+    def list_route_access_lists(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List route access lists in a container."""
+        if not self.client:
+            return [{"id": "ral-mock1", "folder": folder or "ngfw-shared", "name": "default-acl", "description": "Mock route access list"}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.route_access_list.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "route access lists", e)
+
+    # ------------------------------------------------------------------------------ Route Prefix Lists ---------------------------------------------------------------------------------
+
+    def create_route_prefix_list(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a route prefix list using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in data and data[field] is not None:
+                container_field = field
+                container_value = data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = data.copy()
+            result["id"] = f"rpl-{data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.route_prefix_list.fetch(name=data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing route prefix list '{data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"Route prefix list '{data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching route prefix list '{data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            for key in ["description", "ipv4"]:
+                if key in data and data[key] != existing_dict.get(key):
+                    needs_update = True
+            if needs_update:
+                try:
+                    update_data = data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.route_prefix_list.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"route prefix list '{data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.route_prefix_list.create(data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"route prefix list '{data['name']}'", create_error)
+
+    def delete_route_prefix_list(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a route prefix list."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete route prefix list: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            obj = self.client.route_prefix_list.fetch(name=name, **container_kwargs)
+            self.client.route_prefix_list.delete(str(obj.id))
+            self.logger.info(f"Deleted route prefix list: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"route prefix list '{name}'", e)
+
+    def get_route_prefix_list(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific route prefix list."""
+        if not self.client:
+            return {"id": "rpl-mock", "name": name, "folder": folder or "ngfw-shared", "description": "Mock route prefix list"}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.route_prefix_list.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Route prefix list '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"route prefix list '{name}'", e)
+
+    def list_route_prefix_lists(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List route prefix lists in a container."""
+        if not self.client:
+            return [{"id": "rpl-mock1", "folder": folder or "ngfw-shared", "name": "default-prefix-list", "description": "Mock route prefix list"}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.route_prefix_list.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "route prefix lists", e)
+
+    # --------------------------------------------------------------------------- BGP Filtering Profiles --------------------------------------------------------------------------------
+
+    def create_bgp_filtering_profile(self, profile_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a BGP filtering profile using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in profile_data and profile_data[field] is not None:
+                container_field = field
+                container_value = profile_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = profile_data.copy()
+            result["id"] = f"bgp-filter-{profile_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.bgp_filtering_profile.fetch(name=profile_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing BGP filtering profile '{profile_data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"BGP filtering profile '{profile_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching BGP filtering profile '{profile_data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            for key in ["ipv4"]:
+                if key in profile_data and profile_data[key] != existing_dict.get(key):
+                    needs_update = True
+            if needs_update:
+                try:
+                    update_data = profile_data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.bgp_filtering_profile.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"BGP filtering profile '{profile_data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.bgp_filtering_profile.create(profile_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"BGP filtering profile '{profile_data['name']}'", create_error)
+
+    def delete_bgp_filtering_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a BGP filtering profile."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete BGP filtering profile: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            profile = self.client.bgp_filtering_profile.fetch(name=name, **container_kwargs)
+            self.client.bgp_filtering_profile.delete(str(profile.id))
+            self.logger.info(f"Deleted BGP filtering profile: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"BGP filtering profile '{name}'", e)
+
+    def get_bgp_filtering_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific BGP filtering profile."""
+        if not self.client:
+            return {"id": "bgp-filter-mock", "name": name, "folder": folder or "ngfw-shared", "ipv4": {"unicast": {"filter_list": {"inbound": "test"}}}}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.bgp_filtering_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"BGP filtering profile '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"BGP filtering profile '{name}'", e)
+
+    def list_bgp_filtering_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List BGP filtering profiles in a container."""
+        if not self.client:
+            return [{"id": "bgp-filter-mock1", "folder": folder or "ngfw-shared", "name": "default-filter", "ipv4": {"unicast": {}}}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.bgp_filtering_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "BGP filtering profiles", e)
+
+    # -------------------------------------------------------------------------- BGP Redistribution Profiles ----------------------------------------------------------------------------
+
+    def create_bgp_redistribution_profile(self, profile_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a BGP redistribution profile using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in profile_data and profile_data[field] is not None:
+                container_field = field
+                container_value = profile_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = profile_data.copy()
+            result["id"] = f"bgp-redist-{profile_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.bgp_redistribution_profile.fetch(name=profile_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing BGP redistribution profile '{profile_data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"BGP redistribution profile '{profile_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching BGP redistribution profile '{profile_data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            for key in ["ipv4"]:
+                if key in profile_data and profile_data[key] != existing_dict.get(key):
+                    needs_update = True
+            if needs_update:
+                try:
+                    update_data = profile_data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.bgp_redistribution_profile.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"BGP redistribution profile '{profile_data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.bgp_redistribution_profile.create(profile_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"BGP redistribution profile '{profile_data['name']}'", create_error)
+
+    def delete_bgp_redistribution_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a BGP redistribution profile."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete BGP redistribution profile: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            profile = self.client.bgp_redistribution_profile.fetch(name=name, **container_kwargs)
+            self.client.bgp_redistribution_profile.delete(str(profile.id))
+            self.logger.info(f"Deleted BGP redistribution profile: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"BGP redistribution profile '{name}'", e)
+
+    def get_bgp_redistribution_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific BGP redistribution profile."""
+        if not self.client:
+            return {"id": "bgp-redist-mock", "name": name, "folder": folder or "ngfw-shared", "ipv4": {"unicast": {"static": {"enable": True}}}}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.bgp_redistribution_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"BGP redistribution profile '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"BGP redistribution profile '{name}'", e)
+
+    def list_bgp_redistribution_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List BGP redistribution profiles in a container."""
+        if not self.client:
+            return [{"id": "bgp-redist-mock1", "folder": folder or "ngfw-shared", "name": "default-redist", "ipv4": {"unicast": {"static": {"enable": True}}}}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.bgp_redistribution_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "BGP redistribution profiles", e)
+
+    # ------------------------------------------------------------------------------- BGP Route Maps ------------------------------------------------------------------------------------
+
+    def create_bgp_route_map(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a BGP route map using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in data and data[field] is not None:
+                container_field = field
+                container_value = data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = data.copy()
+            result["id"] = f"bgp-rm-{data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.bgp_route_map.fetch(name=data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing BGP route map '{data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"BGP route map '{data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching BGP route map '{data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            for key in ["route_map"]:
+                if key in data and data[key] != existing_dict.get(key):
+                    needs_update = True
+            if needs_update:
+                try:
+                    update_data = data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.bgp_route_map.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"BGP route map '{data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.bgp_route_map.create(data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"BGP route map '{data['name']}'", create_error)
+
+    def delete_bgp_route_map(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a BGP route map."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete BGP route map: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            obj = self.client.bgp_route_map.fetch(name=name, **container_kwargs)
+            self.client.bgp_route_map.delete(str(obj.id))
+            self.logger.info(f"Deleted BGP route map: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"BGP route map '{name}'", e)
+
+    def get_bgp_route_map(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific BGP route map."""
+        if not self.client:
+            return {"id": "bgp-rm-mock", "name": name, "folder": folder or "ngfw-shared", "route_map": [{"name": 10, "action": "permit"}]}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.bgp_route_map.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"BGP route map '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"BGP route map '{name}'", e)
+
+    def list_bgp_route_maps(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List BGP route maps in a container."""
+        if not self.client:
+            return [{"id": "bgp-rm-mock1", "folder": folder or "ngfw-shared", "name": "default-route-map", "route_map": [{"name": 10, "action": "permit"}]}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.bgp_route_map.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "BGP route maps", e)
+
+    # ----------------------------------------------------------------------- BGP Route Map Redistributions -----------------------------------------------------------------------------
+
+    def create_bgp_route_map_redistribution(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a BGP route map redistribution using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in data and data[field] is not None:
+                container_field = field
+                container_value = data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = data.copy()
+            result["id"] = f"bgp-rmr-{data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing = None
+        try:
+            existing = self.client.bgp_route_map_redistribution.fetch(name=data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing BGP route map redistribution '{data['name']}'")
+        except NotFoundError:
+            self.logger.info(f"BGP route map redistribution '{data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching BGP route map redistribution '{data['name']}': {str(e)}")
+        if existing:
+            needs_update = False
+            existing_dict = json.loads(existing.model_dump_json(exclude_unset=True))
+            for key in ["bgp", "ospf", "connected_static"]:
+                if key in data and data[key] != existing_dict.get(key):
+                    needs_update = True
+            if needs_update:
+                try:
+                    update_data = data.copy()
+                    update_data["id"] = str(existing.id)
+                    result = self.client.bgp_route_map_redistribution.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"BGP route map redistribution '{data['name']}'", update_error)
+            else:
+                result = existing_dict
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.bgp_route_map_redistribution.create(data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"BGP route map redistribution '{data['name']}'", create_error)
+
+    def delete_bgp_route_map_redistribution(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete a BGP route map redistribution."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete BGP route map redistribution: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            obj = self.client.bgp_route_map_redistribution.fetch(name=name, **container_kwargs)
+            self.client.bgp_route_map_redistribution.delete(str(obj.id))
+            self.logger.info(f"Deleted BGP route map redistribution: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"BGP route map redistribution '{name}'", e)
+
+    def get_bgp_route_map_redistribution(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any] | None:
+        """Get a specific BGP route map redistribution."""
+        if not self.client:
+            return {"id": "bgp-rmr-mock", "name": name, "folder": folder or "ngfw-shared", "bgp": {"ospf": {"route_map": [{"name": 10, "action": "permit"}]}}}
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.bgp_route_map_redistribution.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"BGP route map redistribution '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"BGP route map redistribution '{name}'", e)
+
+    def list_bgp_route_map_redistributions(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List BGP route map redistributions in a container."""
+        if not self.client:
+            return [{"id": "bgp-rmr-mock1", "folder": folder or "ngfw-shared", "name": "default-rmr", "bgp": {"ospf": {"route_map": [{"name": 10, "action": "permit"}]}}}]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.bgp_route_map_redistribution.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "BGP route map redistributions", e)
+
+    # ===========================================================================================================================================================================================
+    # IDENTITY CONFIGURATION METHODS
+    # ===========================================================================================================================================================================================
+
+    # --------------------------------------------------------------------------- Authentication Profile ---------------------------------------------------------------------------
+
+    def create_authentication_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None, **kwargs) -> dict[str, Any]:
+        """Create or update an authentication profile using smart upsert logic."""
+        container = folder or snippet or device
+        self.logger.info(f"Creating/updating authentication profile '{name}' in {container}")
+
+        if not self.client:
+            result = {"id": f"auth-profile-{name}", "name": name, "__action__": "created"}
+            if folder:
+                result["folder"] = folder
+            result.update(kwargs)
+            return result
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            try:
+                existing = self.client.authentication_profile.fetch(name=name, **container_kwargs)
+                if existing:
+                    for key, value in kwargs.items():
+                        if value is not None:
+                            setattr(existing, key, value)
+                    updated = self.client.authentication_profile.update(existing)
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+            except Exception:
+                pass
+
+            create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
+            created = self.client.authentication_profile.create(create_data)
+            result = json.loads(created.model_dump_json(exclude_unset=True))
+            result["__action__"] = "created"
+            return result
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", name, e)
+
+    def delete_authentication_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> bool:
+        """Delete an authentication profile."""
+        container = folder or snippet or device
+        self.logger.info(f"Deleting authentication profile '{name}' from {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            profile = self.client.authentication_profile.fetch(name=name, **container_kwargs)
+            self.client.authentication_profile.delete(str(profile.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", name, e)
+
+    def get_authentication_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any]:
+        """Get an authentication profile by name."""
+        container = folder or snippet or device
+        self.logger.info(f"Getting authentication profile '{name}' from {container}")
+
+        if not self.client:
+            return {"id": f"auth-profile-{name}", "name": name, "folder": folder or "Texas", "method": {"local_database": {}}, "allow_list": ["all"]}
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            result = self.client.authentication_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", name, e)
+
+    def list_authentication_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List authentication profiles in a container."""
+        self.logger.info(f"Listing authentication profiles in {folder=}, {snippet=}, {device=}")
+
+        if not self.client:
+            return [
+                {"id": "auth-profile-mock1", "folder": folder or "Texas", "name": "local-auth", "method": {"local_database": {}}, "allow_list": ["all"]},
+                {"id": "auth-profile-mock2", "folder": folder or "Texas", "name": "ldap-auth", "method": {"ldap": {"server_profile": "corp-ldap"}}, "allow_list": ["all"]},
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.authentication_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "authentication profiles", e)
+
+    # --------------------------------------------------------------------------- Kerberos Server Profile ---------------------------------------------------------------------------
+
+    def create_kerberos_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None, **kwargs) -> dict[str, Any]:
+        """Create or update a Kerberos server profile using smart upsert logic."""
+        container = folder or snippet or device
+        self.logger.info(f"Creating/updating Kerberos server profile '{name}' in {container}")
+
+        if not self.client:
+            result = {"id": f"kerberos-{name}", "name": name, "__action__": "created"}
+            if folder:
+                result["folder"] = folder
+            result.update(kwargs)
+            return result
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            try:
+                existing = self.client.kerberos_server_profile.fetch(name=name, **container_kwargs)
+                if existing:
+                    for key, value in kwargs.items():
+                        if value is not None:
+                            setattr(existing, key, value)
+                    updated = self.client.kerberos_server_profile.update(existing)
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+            except Exception:
+                pass
+
+            create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
+            created = self.client.kerberos_server_profile.create(create_data)
+            result = json.loads(created.model_dump_json(exclude_unset=True))
+            result["__action__"] = "created"
+            return result
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", name, e)
+
+    def delete_kerberos_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> bool:
+        """Delete a Kerberos server profile."""
+        container = folder or snippet or device
+        self.logger.info(f"Deleting Kerberos server profile '{name}' from {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            profile = self.client.kerberos_server_profile.fetch(name=name, **container_kwargs)
+            self.client.kerberos_server_profile.delete(str(profile.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", name, e)
+
+    def get_kerberos_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any]:
+        """Get a Kerberos server profile by name."""
+        container = folder or snippet or device
+        self.logger.info(f"Getting Kerberos server profile '{name}' from {container}")
+
+        if not self.client:
+            return {"id": f"kerberos-{name}", "name": name, "folder": folder or "Texas", "server": [{"name": "kdc1", "host": "kdc1.example.com", "port": 88}]}
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            result = self.client.kerberos_server_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", name, e)
+
+    def list_kerberos_server_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List Kerberos server profiles in a container."""
+        self.logger.info(f"Listing Kerberos server profiles in {folder=}, {snippet=}, {device=}")
+
+        if not self.client:
+            return [
+                {"id": "kerberos-mock1", "folder": folder or "Texas", "name": "corp-kerberos", "server": [{"name": "kdc1", "host": "kdc1.example.com", "port": 88}]},
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.kerberos_server_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "Kerberos server profiles", e)
+
+    # --------------------------------------------------------------------------- LDAP Server Profile ---------------------------------------------------------------------------
+
+    def create_ldap_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None, **kwargs) -> dict[str, Any]:
+        """Create or update an LDAP server profile using smart upsert logic."""
+        container = folder or snippet or device
+        self.logger.info(f"Creating/updating LDAP server profile '{name}' in {container}")
+
+        if not self.client:
+            result = {"id": f"ldap-{name}", "name": name, "__action__": "created"}
+            if folder:
+                result["folder"] = folder
+            result.update(kwargs)
+            return result
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            try:
+                existing = self.client.ldap_server_profile.fetch(name=name, **container_kwargs)
+                if existing:
+                    for key, value in kwargs.items():
+                        if value is not None:
+                            setattr(existing, key, value)
+                    updated = self.client.ldap_server_profile.update(existing)
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+            except Exception:
+                pass
+
+            create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
+            created = self.client.ldap_server_profile.create(create_data)
+            result = json.loads(created.model_dump_json(exclude_unset=True))
+            result["__action__"] = "created"
+            return result
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", name, e)
+
+    def delete_ldap_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> bool:
+        """Delete an LDAP server profile."""
+        container = folder or snippet or device
+        self.logger.info(f"Deleting LDAP server profile '{name}' from {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            profile = self.client.ldap_server_profile.fetch(name=name, **container_kwargs)
+            self.client.ldap_server_profile.delete(str(profile.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", name, e)
+
+    def get_ldap_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any]:
+        """Get an LDAP server profile by name."""
+        container = folder or snippet or device
+        self.logger.info(f"Getting LDAP server profile '{name}' from {container}")
+
+        if not self.client:
+            return {
+                "id": f"ldap-{name}",
+                "name": name,
+                "folder": folder or "Texas",
+                "server": [{"name": "ldap1", "address": "ldap.example.com", "port": 389}],
+                "ldap_type": "active-directory",
+                "base": "dc=example,dc=com",
+            }
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            result = self.client.ldap_server_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", name, e)
+
+    def list_ldap_server_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List LDAP server profiles in a container."""
+        self.logger.info(f"Listing LDAP server profiles in {folder=}, {snippet=}, {device=}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "ldap-mock1",
+                    "folder": folder or "Texas",
+                    "name": "corp-ldap",
+                    "server": [{"name": "ldap1", "address": "ldap.example.com", "port": 389}],
+                    "ldap_type": "active-directory",
+                },
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.ldap_server_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "LDAP server profiles", e)
+
+    # --------------------------------------------------------------------------- RADIUS Server Profile ---------------------------------------------------------------------------
+
+    def create_radius_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None, **kwargs) -> dict[str, Any]:
+        """Create or update a RADIUS server profile using smart upsert logic."""
+        container = folder or snippet or device
+        self.logger.info(f"Creating/updating RADIUS server profile '{name}' in {container}")
+
+        if not self.client:
+            result = {"id": f"radius-{name}", "name": name, "__action__": "created"}
+            if folder:
+                result["folder"] = folder
+            result.update(kwargs)
+            return result
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            try:
+                existing = self.client.radius_server_profile.fetch(name=name, **container_kwargs)
+                if existing:
+                    for key, value in kwargs.items():
+                        if value is not None:
+                            setattr(existing, key, value)
+                    updated = self.client.radius_server_profile.update(existing)
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+            except Exception:
+                pass
+
+            create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
+            created = self.client.radius_server_profile.create(create_data)
+            result = json.loads(created.model_dump_json(exclude_unset=True))
+            result["__action__"] = "created"
+            return result
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", name, e)
+
+    def delete_radius_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> bool:
+        """Delete a RADIUS server profile."""
+        container = folder or snippet or device
+        self.logger.info(f"Deleting RADIUS server profile '{name}' from {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            profile = self.client.radius_server_profile.fetch(name=name, **container_kwargs)
+            self.client.radius_server_profile.delete(str(profile.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", name, e)
+
+    def get_radius_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any]:
+        """Get a RADIUS server profile by name."""
+        container = folder or snippet or device
+        self.logger.info(f"Getting RADIUS server profile '{name}' from {container}")
+
+        if not self.client:
+            return {
+                "id": f"radius-{name}",
+                "name": name,
+                "folder": folder or "Texas",
+                "server": [{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812, "secret": "***"}],
+                "protocol": {"CHAP": {}},
+                "timeout": 5,
+                "retries": 3,
+            }
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            result = self.client.radius_server_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", name, e)
+
+    def list_radius_server_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List RADIUS server profiles in a container."""
+        self.logger.info(f"Listing RADIUS server profiles in {folder=}, {snippet=}, {device=}")
+
+        if not self.client:
+            return [
+                {"id": "radius-mock1", "folder": folder or "Texas", "name": "corp-radius", "server": [{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812}], "protocol": {"CHAP": {}}},
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.radius_server_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "RADIUS server profiles", e)
+
+    # --------------------------------------------------------------------------- SAML Server Profile ---------------------------------------------------------------------------
+
+    def create_saml_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None, **kwargs) -> dict[str, Any]:
+        """Create or update a SAML server profile using smart upsert logic."""
+        container = folder or snippet or device
+        self.logger.info(f"Creating/updating SAML server profile '{name}' in {container}")
+
+        if not self.client:
+            result = {"id": f"saml-{name}", "name": name, "__action__": "created"}
+            if folder:
+                result["folder"] = folder
+            result.update(kwargs)
+            return result
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            try:
+                existing = self.client.saml_server_profile.fetch(name=name, **container_kwargs)
+                if existing:
+                    for key, value in kwargs.items():
+                        if value is not None:
+                            setattr(existing, key, value)
+                    updated = self.client.saml_server_profile.update(existing)
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+            except Exception:
+                pass
+
+            create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
+            created = self.client.saml_server_profile.create(create_data)
+            result = json.loads(created.model_dump_json(exclude_unset=True))
+            result["__action__"] = "created"
+            return result
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", name, e)
+
+    def delete_saml_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> bool:
+        """Delete a SAML server profile."""
+        container = folder or snippet or device
+        self.logger.info(f"Deleting SAML server profile '{name}' from {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            profile = self.client.saml_server_profile.fetch(name=name, **container_kwargs)
+            self.client.saml_server_profile.delete(str(profile.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", name, e)
+
+    def get_saml_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any]:
+        """Get a SAML server profile by name."""
+        container = folder or snippet or device
+        self.logger.info(f"Getting SAML server profile '{name}' from {container}")
+
+        if not self.client:
+            return {
+                "id": f"saml-{name}",
+                "name": name,
+                "folder": folder or "Texas",
+                "entity_id": "https://idp.example.com",
+                "certificate": "idp-cert",
+                "sso_url": "https://idp.example.com/sso",
+                "sso_bindings": "post",
+            }
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            result = self.client.saml_server_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", name, e)
+
+    def list_saml_server_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List SAML server profiles in a container."""
+        self.logger.info(f"Listing SAML server profiles in {folder=}, {snippet=}, {device=}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "saml-mock1",
+                    "folder": folder or "Texas",
+                    "name": "corp-saml",
+                    "entity_id": "https://idp.example.com",
+                    "certificate": "idp-cert",
+                    "sso_url": "https://idp.example.com/sso",
+                    "sso_bindings": "post",
+                },
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.saml_server_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "SAML server profiles", e)
+
+    # --------------------------------------------------------------------------- TACACS+ Server Profile ---------------------------------------------------------------------------
+
+    def create_tacacs_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None, **kwargs) -> dict[str, Any]:
+        """Create or update a TACACS+ server profile using smart upsert logic."""
+        container = folder or snippet or device
+        self.logger.info(f"Creating/updating TACACS+ server profile '{name}' in {container}")
+
+        if not self.client:
+            result = {"id": f"tacacs-{name}", "name": name, "__action__": "created"}
+            if folder:
+                result["folder"] = folder
+            result.update(kwargs)
+            return result
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            try:
+                existing = self.client.tacacs_server_profile.fetch(name=name, **container_kwargs)
+                if existing:
+                    for key, value in kwargs.items():
+                        if value is not None:
+                            setattr(existing, key, value)
+                    updated = self.client.tacacs_server_profile.update(existing)
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+            except Exception:
+                pass
+
+            create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
+            created = self.client.tacacs_server_profile.create(create_data)
+            result = json.loads(created.model_dump_json(exclude_unset=True))
+            result["__action__"] = "created"
+            return result
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", name, e)
+
+    def delete_tacacs_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> bool:
+        """Delete a TACACS+ server profile."""
+        container = folder or snippet or device
+        self.logger.info(f"Deleting TACACS+ server profile '{name}' from {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            profile = self.client.tacacs_server_profile.fetch(name=name, **container_kwargs)
+            self.client.tacacs_server_profile.delete(str(profile.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", name, e)
+
+    def get_tacacs_server_profile(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> dict[str, Any]:
+        """Get a TACACS+ server profile by name."""
+        container = folder or snippet or device
+        self.logger.info(f"Getting TACACS+ server profile '{name}' from {container}")
+
+        if not self.client:
+            return {
+                "id": f"tacacs-{name}",
+                "name": name,
+                "folder": folder or "Texas",
+                "server": [{"name": "tac1", "address": "10.0.0.1", "port": 49}],
+                "protocol": "CHAP",
+                "timeout": 5,
+            }
+
+        try:
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            result = self.client.tacacs_server_profile.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieving", container or "", name, e)
+
+    def list_tacacs_server_profiles(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, exact_match: bool = False) -> list[dict[str, Any]]:
+        """List TACACS+ server profiles in a container."""
+        self.logger.info(f"Listing TACACS+ server profiles in {folder=}, {snippet=}, {device=}")
+
+        if not self.client:
+            return [
+                {"id": "tacacs-mock1", "folder": folder or "Texas", "name": "corp-tacacs", "server": [{"name": "tac1", "address": "10.0.0.1", "port": 49}], "protocol": "CHAP"},
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.tacacs_server_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "TACACS+ server profiles", e)
 
 
 class LazyClient:

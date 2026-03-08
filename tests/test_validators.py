@@ -6,8 +6,17 @@ from pydantic import ValidationError
 from scm_cli.utils.validators import (
     AddressGroup,
     AggregateInterface,
+    AppOverrideRule,
+    AuthenticationRule,
     BandwidthAllocation,
+    BgpAddressFamilyProfile,
+    BgpAuthProfile,
+    BgpFilteringProfile,
+    BgpRedistributionProfile,
+    BgpRouteMap,
+    BgpRouteMapRedistribution,
     BGPRouting,
+    DecryptionRule,
     DhcpInterface,
     DNSSecurityProfile,
     EthernetInterface,
@@ -19,11 +28,15 @@ from scm_cli.utils.validators import (
     Layer3Subinterface,
     LoopbackInterface,
     NATRule,
+    OspfAuthProfile,
     QuarantinedDevice,
     Region,
+    RouteAccessList,
+    RoutePrefixList,
     Schedule,
     SecurityRule,
     TunnelInterface,
+    URLAccessProfile,
     URLCategory,
     VlanInterface,
     VulnerabilityProtectionProfile,
@@ -2258,3 +2271,927 @@ class TestVlanInterface:
         assert iface.vlan_tag is None
         assert iface.ip is None
         assert iface.dhcp_client is None
+
+
+class TestBgpAddressFamilyProfile:
+    """Test cases for the BgpAddressFamilyProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid BGP address family profile."""
+        profile = BgpAddressFamilyProfile(name="test-af", folder="test-folder", ipv4={"unicast": {"enable": True}})
+        assert profile.name == "test-af"
+        assert profile.folder == "test-folder"
+        assert profile.ipv4 == {"unicast": {"enable": True}}
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            BgpAddressFamilyProfile(name="test-af")
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            BgpAddressFamilyProfile(name="test-af", folder="f", snippet="s")
+
+    def test_minimal_creation(self):
+        """Test minimal creation without optional fields."""
+        profile = BgpAddressFamilyProfile(name="test-af", folder="test-folder")
+        assert profile.ipv4 is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = BgpAddressFamilyProfile(name="test-af", folder="test-folder", ipv4={"unicast": {"enable": True}})
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-af"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["ipv4"] == {"unicast": {"enable": True}}
+
+    def test_to_sdk_model_snippet(self):
+        """Test SDK model with snippet container."""
+        profile = BgpAddressFamilyProfile(name="test-af", snippet="test-snippet")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["snippet"] == "test-snippet"
+        assert "folder" not in sdk_data
+
+
+class TestBgpAuthProfile:
+    """Test cases for the BgpAuthProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid BGP auth profile."""
+        profile = BgpAuthProfile(name="test-auth", folder="test-folder", secret="my-secret")
+        assert profile.name == "test-auth"
+        assert profile.secret == "my-secret"
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            BgpAuthProfile(name="test-auth")
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            BgpAuthProfile(name="test-auth", folder="f", snippet="s")
+
+    def test_minimal_creation(self):
+        """Test minimal creation without optional fields."""
+        profile = BgpAuthProfile(name="test-auth", folder="test-folder")
+        assert profile.secret is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = BgpAuthProfile(name="test-auth", folder="test-folder", secret="my-secret")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-auth"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["secret"] == "my-secret"
+
+    def test_to_sdk_model_no_secret(self):
+        """Test SDK model without secret."""
+        profile = BgpAuthProfile(name="test-auth", folder="test-folder")
+        sdk_data = profile.to_sdk_model()
+        assert "secret" not in sdk_data
+
+
+class TestOspfAuthProfile:
+    """Test cases for the OspfAuthProfile model."""
+
+    def test_valid_password_profile(self):
+        """Test creating an OSPF auth profile with password."""
+        profile = OspfAuthProfile(name="test-ospf", folder="test-folder", password="my-pass")
+        assert profile.name == "test-ospf"
+        assert profile.password == "my-pass"
+
+    def test_valid_md5_profile(self):
+        """Test creating an OSPF auth profile with MD5."""
+        profile = OspfAuthProfile(name="test-ospf", folder="test-folder", md5=[{"name": 1, "key": "abc123"}])
+        assert profile.md5 == [{"name": 1, "key": "abc123"}]
+
+    def test_password_md5_mutually_exclusive(self):
+        """Test that password and MD5 are mutually exclusive."""
+        with pytest.raises(ValidationError):
+            OspfAuthProfile(name="test-ospf", folder="test-folder", password="pass", md5=[{"name": 1, "key": "abc"}])
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            OspfAuthProfile(name="test-ospf")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = OspfAuthProfile(name="test-ospf", folder="test-folder", password="my-pass")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-ospf"
+        assert sdk_data["password"] == "my-pass"
+
+    def test_minimal_creation(self):
+        """Test minimal creation without auth fields."""
+        profile = OspfAuthProfile(name="test-ospf", folder="test-folder")
+        assert profile.password is None
+        assert profile.md5 is None
+
+
+class TestRouteAccessList:
+    """Test cases for the RouteAccessList model."""
+
+    def test_valid_route_access_list(self):
+        """Test creating a valid route access list."""
+        acl = RouteAccessList(name="test-acl", folder="test-folder", description="Test ACL")
+        assert acl.name == "test-acl"
+        assert acl.description == "Test ACL"
+
+    def test_with_type_config(self):
+        """Test creating with type configuration."""
+        acl = RouteAccessList(name="test-acl", folder="test-folder", type={"ipv4": {"ipv4_entry": [{"name": 10, "action": "permit"}]}})
+        assert acl.type is not None
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            RouteAccessList(name="test-acl")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        acl = RouteAccessList(name="test-acl", folder="test-folder", description="Test", type={"ipv4": {}})
+        sdk_data = acl.to_sdk_model()
+        assert sdk_data["name"] == "test-acl"
+        assert sdk_data["description"] == "Test"
+        assert sdk_data["type"] == {"ipv4": {}}
+
+    def test_minimal_creation(self):
+        """Test minimal creation."""
+        acl = RouteAccessList(name="test-acl", folder="test-folder")
+        assert acl.description is None
+        assert acl.type is None
+
+    def test_device_container(self):
+        """Test with device container."""
+        acl = RouteAccessList(name="test-acl", device="test-device")
+        sdk_data = acl.to_sdk_model()
+        assert sdk_data["device"] == "test-device"
+
+
+class TestRoutePrefixList:
+    """Test cases for the RoutePrefixList model."""
+
+    def test_valid_prefix_list(self):
+        """Test creating a valid route prefix list."""
+        pl = RoutePrefixList(name="test-pl", folder="test-folder", description="Test PL")
+        assert pl.name == "test-pl"
+        assert pl.description == "Test PL"
+
+    def test_with_ipv4_config(self):
+        """Test creating with IPv4 configuration."""
+        pl = RoutePrefixList(name="test-pl", folder="test-folder", ipv4={"ipv4_entry": [{"name": 10, "action": "permit"}]})
+        assert pl.ipv4 is not None
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            RoutePrefixList(name="test-pl")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        pl = RoutePrefixList(name="test-pl", folder="test-folder", description="Test", ipv4={"ipv4_entry": []})
+        sdk_data = pl.to_sdk_model()
+        assert sdk_data["name"] == "test-pl"
+        assert sdk_data["description"] == "Test"
+        assert sdk_data["ipv4"] == {"ipv4_entry": []}
+
+    def test_minimal_creation(self):
+        """Test minimal creation."""
+        pl = RoutePrefixList(name="test-pl", folder="test-folder")
+        assert pl.description is None
+        assert pl.ipv4 is None
+
+    def test_snippet_container(self):
+        """Test with snippet container."""
+        pl = RoutePrefixList(name="test-pl", snippet="test-snippet")
+        sdk_data = pl.to_sdk_model()
+        assert sdk_data["snippet"] == "test-snippet"
+
+
+class TestBgpFilteringProfile:
+    """Test cases for the BgpFilteringProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid BGP filtering profile."""
+        profile = BgpFilteringProfile(name="test-filter", folder="test-folder", ipv4={"unicast": {"filter_list": {"inbound": "test"}}})
+        assert profile.name == "test-filter"
+        assert profile.ipv4 is not None
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            BgpFilteringProfile(name="test-filter")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = BgpFilteringProfile(name="test-filter", folder="test-folder", ipv4={"unicast": {}})
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-filter"
+        assert sdk_data["ipv4"] == {"unicast": {}}
+
+    def test_minimal_creation(self):
+        """Test minimal creation."""
+        profile = BgpFilteringProfile(name="test-filter", folder="test-folder")
+        assert profile.ipv4 is None
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            BgpFilteringProfile(name="test-filter", folder="f", device="d")
+
+    def test_to_sdk_model_device(self):
+        """Test SDK model with device container."""
+        profile = BgpFilteringProfile(name="test-filter", device="dev1")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["device"] == "dev1"
+
+
+class TestBgpRedistributionProfile:
+    """Test cases for the BgpRedistributionProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid BGP redistribution profile."""
+        profile = BgpRedistributionProfile(name="test-redist", folder="test-folder", ipv4={"unicast": {"static": {"enable": True}}})
+        assert profile.name == "test-redist"
+        assert profile.ipv4 is not None
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            BgpRedistributionProfile(name="test-redist")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = BgpRedistributionProfile(name="test-redist", folder="test-folder", ipv4={"unicast": {"static": {"enable": True}}})
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-redist"
+        assert sdk_data["ipv4"]["unicast"]["static"]["enable"] is True
+
+    def test_minimal_creation(self):
+        """Test minimal creation."""
+        profile = BgpRedistributionProfile(name="test-redist", folder="test-folder")
+        assert profile.ipv4 is None
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            BgpRedistributionProfile(name="test-redist", folder="f", snippet="s")
+
+    def test_to_sdk_model_snippet(self):
+        """Test SDK model with snippet container."""
+        profile = BgpRedistributionProfile(name="test-redist", snippet="test-snippet")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["snippet"] == "test-snippet"
+
+
+class TestBgpRouteMap:
+    """Test cases for the BgpRouteMap model."""
+
+    def test_valid_route_map(self):
+        """Test creating a valid BGP route map."""
+        rm = BgpRouteMap(name="test-rm", folder="test-folder", route_map=[{"name": 10, "action": "permit"}])
+        assert rm.name == "test-rm"
+        assert len(rm.route_map) == 1
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            BgpRouteMap(name="test-rm")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        rm = BgpRouteMap(name="test-rm", folder="test-folder", route_map=[{"name": 10, "action": "permit"}])
+        sdk_data = rm.to_sdk_model()
+        assert sdk_data["name"] == "test-rm"
+        assert sdk_data["route_map"] == [{"name": 10, "action": "permit"}]
+
+    def test_minimal_creation(self):
+        """Test minimal creation."""
+        rm = BgpRouteMap(name="test-rm", folder="test-folder")
+        assert rm.route_map is None
+
+    def test_multiple_containers_rejected(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            BgpRouteMap(name="test-rm", folder="f", device="d")
+
+    def test_to_sdk_model_no_entries(self):
+        """Test SDK model without route map entries."""
+        rm = BgpRouteMap(name="test-rm", folder="test-folder")
+        sdk_data = rm.to_sdk_model()
+        assert "route_map" not in sdk_data
+
+
+class TestBgpRouteMapRedistribution:
+    """Test cases for the BgpRouteMapRedistribution model."""
+
+    def test_valid_bgp_source(self):
+        """Test creating with BGP as source protocol."""
+        rmr = BgpRouteMapRedistribution(name="test-rmr", folder="test-folder", bgp={"ospf": {"route_map": []}})
+        assert rmr.name == "test-rmr"
+        assert rmr.bgp is not None
+
+    def test_valid_ospf_source(self):
+        """Test creating with OSPF as source protocol."""
+        rmr = BgpRouteMapRedistribution(name="test-rmr", folder="test-folder", ospf={"bgp": {"route_map": []}})
+        assert rmr.ospf is not None
+
+    def test_multiple_sources_rejected(self):
+        """Test that multiple source protocols are rejected."""
+        with pytest.raises(ValidationError):
+            BgpRouteMapRedistribution(name="test-rmr", folder="test-folder", bgp={"ospf": {}}, ospf={"bgp": {}})
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            BgpRouteMapRedistribution(name="test-rmr")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        rmr = BgpRouteMapRedistribution(name="test-rmr", folder="test-folder", bgp={"ospf": {"route_map": []}})
+        sdk_data = rmr.to_sdk_model()
+        assert sdk_data["name"] == "test-rmr"
+        assert sdk_data["bgp"] == {"ospf": {"route_map": []}}
+
+    def test_minimal_creation(self):
+        """Test minimal creation without source protocol."""
+        rmr = BgpRouteMapRedistribution(name="test-rmr", folder="test-folder")
+        assert rmr.bgp is None
+        assert rmr.ospf is None
+        assert rmr.connected_static is None
+
+    def test_connected_static_source(self):
+        """Test creating with connected_static as source protocol."""
+        rmr = BgpRouteMapRedistribution(name="test-rmr", folder="test-folder", connected_static={"bgp": {"route_map": []}})
+        sdk_data = rmr.to_sdk_model()
+        assert sdk_data["connected_static"] == {"bgp": {"route_map": []}}
+
+
+class TestAppOverrideRule:
+    """Test cases for the AppOverrideRule model."""
+
+    def test_valid_rule(self):
+        """Test creating a valid app override rule."""
+        rule = AppOverrideRule(
+            name="test-override",
+            folder="Texas",
+            application="ssl",
+            port="8443",
+            protocol="tcp",
+        )
+        assert rule.name == "test-override"
+        assert rule.application == "ssl"
+        assert rule.port == "8443"
+        assert rule.protocol == "tcp"
+        assert rule.rulebase == "pre"
+
+    def test_missing_required_fields(self):
+        """Test that required fields are enforced."""
+        with pytest.raises(ValidationError):
+            AppOverrideRule(name="test", folder="Texas", port="443", protocol="tcp")  # missing application
+
+    def test_invalid_protocol(self):
+        """Test invalid protocol value."""
+        with pytest.raises(ValidationError):
+            AppOverrideRule(name="test", folder="Texas", application="ssl", port="443", protocol="icmp")
+
+    def test_invalid_rulebase(self):
+        """Test invalid rulebase value."""
+        with pytest.raises(ValidationError):
+            AppOverrideRule(name="test", folder="Texas", application="ssl", port="443", protocol="tcp", rulebase="invalid")
+
+    def test_container_validation(self):
+        """Test container validation."""
+        with pytest.raises(ValidationError):
+            AppOverrideRule(name="test", application="ssl", port="443", protocol="tcp")  # no container
+
+    def test_default_values(self):
+        """Test default values."""
+        rule = AppOverrideRule(name="test", folder="Texas", application="ssl", port="443", protocol="tcp")
+        assert rule.from_zones == ["any"]
+        assert rule.to_zones == ["any"]
+        assert rule.source == ["any"]
+        assert rule.destination == ["any"]
+        assert rule.disabled is False
+
+    def test_to_sdk_model(self):
+        """Test SDK model conversion."""
+        rule = AppOverrideRule(
+            name="test",
+            folder="Texas",
+            application="ssl",
+            port="8443",
+            protocol="tcp",
+            description="Test rule",
+            tag=["web"],
+        )
+        sdk = rule.to_sdk_model()
+        assert sdk["name"] == "test"
+        assert sdk["application"] == "ssl"
+        assert sdk["port"] == "8443"
+        assert sdk["protocol"] == "tcp"
+        assert sdk["folder"] == "Texas"
+        assert sdk["from"] == ["any"]
+        assert sdk["to"] == ["any"]
+        assert sdk["description"] == "Test rule"
+        assert sdk["tag"] == ["web"]
+
+    def test_to_sdk_model_no_optional(self):
+        """Test SDK model conversion without optional fields."""
+        rule = AppOverrideRule(name="test", folder="Texas", application="ssl", port="443", protocol="udp")
+        sdk = rule.to_sdk_model()
+        assert "description" not in sdk
+        assert "tag" not in sdk
+        assert "disabled" not in sdk
+
+
+class TestAuthenticationRule:
+    """Test cases for the AuthenticationRule model."""
+
+    def test_valid_rule(self):
+        """Test creating a valid authentication rule."""
+        rule = AuthenticationRule(name="auth-web", folder="Texas")
+        assert rule.name == "auth-web"
+        assert rule.folder == "Texas"
+        assert rule.rulebase == "pre"
+
+    def test_missing_name(self):
+        """Test that name is required."""
+        with pytest.raises(ValidationError):
+            AuthenticationRule(folder="Texas")
+
+    def test_container_validation(self):
+        """Test container validation."""
+        with pytest.raises(ValidationError):
+            AuthenticationRule(name="test")
+
+    def test_invalid_rulebase(self):
+        """Test invalid rulebase value."""
+        with pytest.raises(ValidationError):
+            AuthenticationRule(name="test", folder="Texas", rulebase="default")
+
+    def test_default_values(self):
+        """Test default values."""
+        rule = AuthenticationRule(name="test", folder="Texas")
+        assert rule.from_zones == ["any"]
+        assert rule.to_zones == ["any"]
+        assert rule.source == ["any"]
+        assert rule.destination == ["any"]
+        assert rule.service == ["any"]
+        assert rule.category == ["any"]
+        assert rule.disabled is False
+
+    def test_to_sdk_model(self):
+        """Test SDK model conversion."""
+        rule = AuthenticationRule(
+            name="auth-web",
+            folder="Texas",
+            description="Auth rule",
+            authentication_enforcement="default-auth",
+            tag=["auth"],
+        )
+        sdk = rule.to_sdk_model()
+        assert sdk["name"] == "auth-web"
+        assert sdk["folder"] == "Texas"
+        assert sdk["description"] == "Auth rule"
+        assert sdk["authentication_enforcement"] == "default-auth"
+        assert sdk["tag"] == ["auth"]
+
+    def test_to_sdk_model_with_all_fields(self):
+        """Test SDK model with all optional fields."""
+        rule = AuthenticationRule(
+            name="test",
+            folder="Texas",
+            timeout=60,
+            log_setting="default",
+            log_authentication_timeout=True,
+        )
+        sdk = rule.to_sdk_model()
+        assert sdk["timeout"] == 60
+        assert sdk["log_setting"] == "default"
+        assert sdk["log_authentication_timeout"] is True
+
+
+class TestDecryptionRule:
+    """Test cases for the DecryptionRule model."""
+
+    def test_valid_rule(self):
+        """Test creating a valid decryption rule."""
+        rule = DecryptionRule(name="no-decrypt-internal", folder="Texas", action="no-decrypt")
+        assert rule.name == "no-decrypt-internal"
+        assert rule.action == "no-decrypt"
+        assert rule.rulebase == "pre"
+
+    def test_missing_action(self):
+        """Test that action is required."""
+        with pytest.raises(ValidationError):
+            DecryptionRule(name="test", folder="Texas")
+
+    def test_invalid_action(self):
+        """Test invalid action value."""
+        with pytest.raises(ValidationError):
+            DecryptionRule(name="test", folder="Texas", action="allow")
+
+    def test_container_validation(self):
+        """Test container validation."""
+        with pytest.raises(ValidationError):
+            DecryptionRule(name="test", action="decrypt")
+
+    def test_default_values(self):
+        """Test default values."""
+        rule = DecryptionRule(name="test", folder="Texas", action="decrypt")
+        assert rule.from_zones == ["any"]
+        assert rule.to_zones == ["any"]
+        assert rule.disabled is False
+
+    def test_to_sdk_model(self):
+        """Test SDK model conversion."""
+        rule = DecryptionRule(
+            name="decrypt-out",
+            folder="Texas",
+            action="decrypt",
+            profile="ssl-profile",
+            tag=["decrypt"],
+            type={"ssl_forward_proxy": {}},
+        )
+        sdk = rule.to_sdk_model()
+        assert sdk["name"] == "decrypt-out"
+        assert sdk["action"] == "decrypt"
+        assert sdk["folder"] == "Texas"
+        assert sdk["profile"] == "ssl-profile"
+        assert sdk["tag"] == ["decrypt"]
+        assert sdk["type"] == {"ssl_forward_proxy": {}}
+
+    def test_to_sdk_model_minimal(self):
+        """Test SDK model with minimal fields."""
+        rule = DecryptionRule(name="test", folder="Texas", action="no-decrypt")
+        sdk = rule.to_sdk_model()
+        assert "profile" not in sdk
+        assert "type" not in sdk
+        assert "tag" not in sdk
+
+    def test_decrypt_action_case_insensitive(self):
+        """Test action is case-normalized."""
+        rule = DecryptionRule(name="test", folder="Texas", action="NO-DECRYPT")
+        assert rule.action == "no-decrypt"
+
+
+class TestURLAccessProfile:
+    """Test cases for the URLAccessProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid URL access profile."""
+        profile = URLAccessProfile(name="strict-url", folder="Texas")
+        assert profile.name == "strict-url"
+        assert profile.folder == "Texas"
+
+    def test_missing_name(self):
+        """Test that name is required."""
+        with pytest.raises(ValidationError):
+            URLAccessProfile(folder="Texas")
+
+    def test_container_validation(self):
+        """Test container validation."""
+        with pytest.raises(ValidationError):
+            URLAccessProfile(name="test")
+
+    def test_with_categories(self):
+        """Test with URL category lists."""
+        profile = URLAccessProfile(
+            name="test",
+            folder="Texas",
+            block=["adult", "malware"],
+            alert=["hacking"],
+            allow=["business-and-economy"],
+        )
+        assert profile.block == ["adult", "malware"]
+        assert profile.alert == ["hacking"]
+        assert profile.allow == ["business-and-economy"]
+
+    def test_to_sdk_model(self):
+        """Test SDK model conversion."""
+        profile = URLAccessProfile(
+            name="strict",
+            folder="Texas",
+            block=["adult", "malware"],
+            alert=["hacking"],
+            description="Strict URL filtering",
+            cloud_inline_cat=True,
+            safe_search_enforcement=True,
+        )
+        sdk = profile.to_sdk_model()
+        assert sdk["name"] == "strict"
+        assert sdk["folder"] == "Texas"
+        assert sdk["block"] == ["adult", "malware"]
+        assert sdk["alert"] == ["hacking"]
+        assert sdk["description"] == "Strict URL filtering"
+        assert sdk["cloud_inline_cat"] is True
+        assert sdk["safe_search_enforcement"] is True
+
+    def test_to_sdk_model_continue_categories(self):
+        """Test SDK model conversion with continue categories."""
+        profile = URLAccessProfile(
+            name="test",
+            folder="Texas",
+            continue_categories=["streaming-media"],
+        )
+        sdk = profile.to_sdk_model()
+        assert sdk["continue"] == ["streaming-media"]
+
+    def test_to_sdk_model_minimal(self):
+        """Test SDK model with minimal fields."""
+        profile = URLAccessProfile(name="test", folder="Texas")
+        sdk = profile.to_sdk_model()
+        assert sdk["name"] == "test"
+        assert sdk["folder"] == "Texas"
+        assert "block" not in sdk
+        assert "alert" not in sdk
+
+
+# ========================================================================================================================================================================================
+# IDENTITY CONFIGURATION MODEL TESTS
+# ========================================================================================================================================================================================
+
+
+class TestAuthenticationProfile:
+    """Test cases for the AuthenticationProfile model."""
+
+    def test_valid_authentication_profile(self):
+        """Test creating a valid authentication profile."""
+        profile = AuthenticationProfile(
+            name="test-auth",
+            folder="Texas",
+            method={"local_database": {}},
+            allow_list=["all"],
+        )
+        assert profile.name == "test-auth"
+        assert profile.folder == "Texas"
+        assert profile.method == {"local_database": {}}
+
+    def test_container_validation(self):
+        """Test container field validation."""
+        with pytest.raises(ValidationError):
+            AuthenticationProfile(
+                name="test-auth",
+                folder="Texas",
+                snippet="MySnippet",
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = AuthenticationProfile(
+            name="test-auth",
+            folder="Texas",
+            method={"ldap": {"server_profile": "corp-ldap"}},
+            user_domain="example.com",
+            allow_list=["all"],
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-auth"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["method"] == {"ldap": {"server_profile": "corp-ldap"}}
+        assert sdk_data["user_domain"] == "example.com"
+        assert sdk_data["allow_list"] == ["all"]
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion with minimal fields."""
+        profile = AuthenticationProfile(name="test-auth", folder="Texas")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data == {"name": "test-auth", "folder": "Texas"}
+
+
+class TestKerberosServerProfile:
+    """Test cases for the KerberosServerProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid Kerberos server profile."""
+        profile = KerberosServerProfile(
+            name="corp-kerberos",
+            folder="Texas",
+            servers=[{"name": "kdc1", "host": "kdc1.example.com", "port": 88}],
+        )
+        assert profile.name == "corp-kerberos"
+        assert len(profile.servers) == 1
+
+    def test_container_validation(self):
+        """Test container field validation."""
+        with pytest.raises(ValidationError):
+            KerberosServerProfile(name="test", folder="Texas", snippet="MySnippet")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = KerberosServerProfile(
+            name="corp-kerberos",
+            folder="Texas",
+            servers=[{"name": "kdc1", "host": "kdc1.example.com", "port": 88}],
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "corp-kerberos"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["server"] == [{"name": "kdc1", "host": "kdc1.example.com", "port": 88}]
+
+
+class TestLdapServerProfile:
+    """Test cases for the LdapServerProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid LDAP server profile."""
+        profile = LdapServerProfile(
+            name="corp-ldap",
+            folder="Texas",
+            servers=[{"name": "ldap1", "address": "ldap.example.com", "port": 389}],
+            base="dc=example,dc=com",
+            ldap_type="active-directory",
+        )
+        assert profile.name == "corp-ldap"
+        assert profile.ldap_type == "active-directory"
+
+    def test_invalid_ldap_type(self):
+        """Test invalid LDAP type."""
+        with pytest.raises(ValidationError):
+            LdapServerProfile(name="test", folder="Texas", ldap_type="invalid-type")
+
+    def test_container_validation(self):
+        """Test container field validation."""
+        with pytest.raises(ValidationError):
+            LdapServerProfile(name="test", folder="Texas", snippet="MySnippet")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = LdapServerProfile(
+            name="corp-ldap",
+            folder="Texas",
+            servers=[{"name": "ldap1", "address": "ldap.example.com", "port": 389}],
+            base="dc=example,dc=com",
+            ldap_type="active-directory",
+            ssl=True,
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "corp-ldap"
+        assert sdk_data["server"] == [{"name": "ldap1", "address": "ldap.example.com", "port": 389}]
+        assert sdk_data["base"] == "dc=example,dc=com"
+        assert sdk_data["ldap_type"] == "active-directory"
+        assert sdk_data["ssl"] is True
+
+
+class TestRadiusServerProfile:
+    """Test cases for the RadiusServerProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid RADIUS server profile."""
+        profile = RadiusServerProfile(
+            name="corp-radius",
+            folder="Texas",
+            servers=[{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812, "secret": "s3cret"}],
+            protocol={"CHAP": {}},
+            timeout=5,
+            retries=3,
+        )
+        assert profile.name == "corp-radius"
+        assert profile.timeout == 5
+        assert profile.retries == 3
+
+    def test_timeout_range(self):
+        """Test timeout validation range."""
+        with pytest.raises(ValidationError):
+            RadiusServerProfile(name="test", folder="Texas", timeout=121)
+
+    def test_retries_range(self):
+        """Test retries validation range."""
+        with pytest.raises(ValidationError):
+            RadiusServerProfile(name="test", folder="Texas", retries=6)
+
+    def test_container_validation(self):
+        """Test container field validation."""
+        with pytest.raises(ValidationError):
+            RadiusServerProfile(name="test", folder="Texas", snippet="MySnippet")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = RadiusServerProfile(
+            name="corp-radius",
+            folder="Texas",
+            servers=[{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812}],
+            protocol={"CHAP": {}},
+            timeout=5,
+            retries=3,
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "corp-radius"
+        assert sdk_data["server"] == [{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812}]
+        assert sdk_data["protocol"] == {"CHAP": {}}
+        assert sdk_data["timeout"] == 5
+        assert sdk_data["retries"] == 3
+
+
+class TestSamlServerProfile:
+    """Test cases for the SamlServerProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid SAML server profile."""
+        profile = SamlServerProfile(
+            name="corp-saml",
+            folder="Texas",
+            entity_id="https://idp.example.com",
+            certificate="idp-cert",
+            sso_url="https://idp.example.com/sso",
+            sso_bindings="post",
+        )
+        assert profile.name == "corp-saml"
+        assert profile.sso_bindings == "post"
+
+    def test_invalid_sso_bindings(self):
+        """Test invalid SSO bindings."""
+        with pytest.raises(ValidationError):
+            SamlServerProfile(
+                name="test",
+                folder="Texas",
+                entity_id="https://idp.example.com",
+                certificate="cert",
+                sso_url="https://idp.example.com/sso",
+                sso_bindings="invalid",
+            )
+
+    def test_container_validation(self):
+        """Test container field validation."""
+        with pytest.raises(ValidationError):
+            SamlServerProfile(
+                name="test",
+                folder="Texas",
+                snippet="MySnippet",
+                entity_id="https://idp.example.com",
+                certificate="cert",
+                sso_url="https://idp.example.com/sso",
+                sso_bindings="post",
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = SamlServerProfile(
+            name="corp-saml",
+            folder="Texas",
+            entity_id="https://idp.example.com",
+            certificate="idp-cert",
+            sso_url="https://idp.example.com/sso",
+            sso_bindings="post",
+            slo_bindings="redirect",
+            max_clock_skew=60,
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "corp-saml"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["entity_id"] == "https://idp.example.com"
+        assert sdk_data["sso_bindings"] == "post"
+        assert sdk_data["slo_bindings"] == "redirect"
+        assert sdk_data["max_clock_skew"] == 60
+
+
+class TestTacacsServerProfile:
+    """Test cases for the TacacsServerProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid TACACS+ server profile."""
+        profile = TacacsServerProfile(
+            name="corp-tacacs",
+            folder="Texas",
+            servers=[{"name": "tac1", "address": "10.0.0.1", "port": 49, "secret": "s3cret"}],
+            protocol="CHAP",
+            timeout=5,
+        )
+        assert profile.name == "corp-tacacs"
+        assert profile.protocol == "CHAP"
+
+    def test_invalid_protocol(self):
+        """Test invalid protocol."""
+        with pytest.raises(ValidationError):
+            TacacsServerProfile(name="test", folder="Texas", protocol="INVALID")
+
+    def test_timeout_range(self):
+        """Test timeout validation range."""
+        with pytest.raises(ValidationError):
+            TacacsServerProfile(name="test", folder="Texas", timeout=31)
+
+    def test_container_validation(self):
+        """Test container field validation."""
+        with pytest.raises(ValidationError):
+            TacacsServerProfile(name="test", folder="Texas", snippet="MySnippet")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = TacacsServerProfile(
+            name="corp-tacacs",
+            folder="Texas",
+            servers=[{"name": "tac1", "address": "10.0.0.1", "port": 49}],
+            protocol="CHAP",
+            timeout=5,
+            use_single_connection=True,
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "corp-tacacs"
+        assert sdk_data["server"] == [{"name": "tac1", "address": "10.0.0.1", "port": 49}]
+        assert sdk_data["protocol"] == "CHAP"
+        assert sdk_data["timeout"] == 5
+        assert sdk_data["use_single_connection"] is True

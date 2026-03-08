@@ -1698,6 +1698,309 @@ class Tag(BaseModel):
 
 
 # ========================================================================================================================================================================================
+# IDENTITY CONFIGURATION MODELS
+# ========================================================================================================================================================================================
+
+
+class AuthenticationProfile(BaseModel):
+    """Model for authentication profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the authentication profile")
+    snippet: str | None = Field(None, description="Snippet path for the authentication profile")
+    device: str | None = Field(None, description="Device path for the authentication profile")
+    name: str = Field(..., description="Name of the authentication profile")
+    method: dict[str, Any] | None = Field(None, description="Authentication method configuration as dict")
+    user_domain: str | None = Field(None, description="User domain")
+    username_modifier: str | None = Field(None, description="Username modifier pattern")
+    lockout: dict[str, Any] | None = Field(None, description="Account lockout configuration")
+    allow_list: list[str] | None = Field(None, description="Allow list entries")
+    multi_factor_auth: dict[str, Any] | None = Field(None, description="Multi-factor auth configuration")
+    single_sign_on: dict[str, Any] | None = Field(None, description="Single sign-on configuration")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "AuthenticationProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        if self.method:
+            model_data["method"] = self.method
+        if self.user_domain:
+            model_data["user_domain"] = self.user_domain
+        if self.username_modifier:
+            model_data["username_modifier"] = self.username_modifier
+        if self.lockout:
+            model_data["lockout"] = self.lockout
+        if self.allow_list:
+            model_data["allow_list"] = self.allow_list
+        if self.multi_factor_auth:
+            model_data["multi_factor_auth"] = self.multi_factor_auth
+        if self.single_sign_on:
+            model_data["single_sign_on"] = self.single_sign_on
+
+        return model_data
+
+
+class KerberosServerProfile(BaseModel):
+    """Model for Kerberos server profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the Kerberos server profile")
+    snippet: str | None = Field(None, description="Snippet path for the Kerberos server profile")
+    device: str | None = Field(None, description="Device path for the Kerberos server profile")
+    name: str = Field(..., description="Name of the Kerberos server profile")
+    servers: list[dict[str, Any]] | None = Field(None, description="List of Kerberos server configurations")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "KerberosServerProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        if self.servers:
+            model_data["server"] = self.servers
+
+        return model_data
+
+
+class LdapServerProfile(BaseModel):
+    """Model for LDAP server profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the LDAP server profile")
+    snippet: str | None = Field(None, description="Snippet path for the LDAP server profile")
+    device: str | None = Field(None, description="Device path for the LDAP server profile")
+    name: str = Field(..., description="Name of the LDAP server profile")
+    servers: list[dict[str, Any]] | None = Field(None, description="List of LDAP server configurations")
+    base: str | None = Field(None, description="Base distinguished name", max_length=255)
+    bind_dn: str | None = Field(None, description="Bind distinguished name", max_length=255)
+    bind_password: str | None = Field(None, description="Bind password", max_length=121)
+    ldap_type: str | None = Field(None, description="LDAP type (active-directory, e-directory, sun, other)")
+    ssl: bool | None = Field(None, description="Enable SSL")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "LdapServerProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_ldap_type(self) -> "LdapServerProfile":
+        """Validate ldap_type if provided."""
+        if self.ldap_type and self.ldap_type not in ["active-directory", "e-directory", "sun", "other"]:
+            raise ValueError("ldap_type must be one of: active-directory, e-directory, sun, other")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        if self.servers:
+            model_data["server"] = self.servers
+        if self.base:
+            model_data["base"] = self.base
+        if self.bind_dn:
+            model_data["bind_dn"] = self.bind_dn
+        if self.bind_password:
+            model_data["bind_password"] = self.bind_password
+        if self.ldap_type:
+            model_data["ldap_type"] = self.ldap_type
+        if self.ssl is not None:
+            model_data["ssl"] = self.ssl
+
+        return model_data
+
+
+class RadiusServerProfile(BaseModel):
+    """Model for RADIUS server profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the RADIUS server profile")
+    snippet: str | None = Field(None, description="Snippet path for the RADIUS server profile")
+    device: str | None = Field(None, description="Device path for the RADIUS server profile")
+    name: str = Field(..., description="Name of the RADIUS server profile")
+    servers: list[dict[str, Any]] | None = Field(None, description="List of RADIUS server configurations")
+    protocol: dict[str, Any] | None = Field(None, description="Protocol configuration (e.g. {'CHAP': {}})")
+    timeout: int | None = Field(None, description="Timeout in seconds", ge=1, le=120)
+    retries: int | None = Field(None, description="Number of retries", ge=1, le=5)
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "RadiusServerProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        if self.servers:
+            model_data["server"] = self.servers
+        if self.protocol:
+            model_data["protocol"] = self.protocol
+        if self.timeout is not None:
+            model_data["timeout"] = self.timeout
+        if self.retries is not None:
+            model_data["retries"] = self.retries
+
+        return model_data
+
+
+class SamlServerProfile(BaseModel):
+    """Model for SAML server profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the SAML server profile")
+    snippet: str | None = Field(None, description="Snippet path for the SAML server profile")
+    device: str | None = Field(None, description="Device path for the SAML server profile")
+    name: str = Field(..., description="Name of the SAML server profile")
+    entity_id: str = Field(..., description="Entity ID", max_length=1024)
+    certificate: str = Field(..., description="Certificate name", max_length=63)
+    sso_url: str = Field(..., description="Single Sign-On URL", max_length=255)
+    sso_bindings: str = Field(..., description="SSO binding type (post, redirect)")
+    slo_bindings: str | None = Field(None, description="SLO binding type (post, redirect)")
+    max_clock_skew: int | None = Field(None, description="Maximum clock skew in seconds", ge=1, le=900)
+    validate_idp_certificate: bool | None = Field(None, description="Validate IDP certificate")
+    want_auth_requests_signed: bool | None = Field(None, description="Want auth requests signed")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "SamlServerProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_bindings(self) -> "SamlServerProfile":
+        """Validate binding types."""
+        valid_bindings = ["post", "redirect"]
+        if self.sso_bindings not in valid_bindings:
+            raise ValueError(f"sso_bindings must be one of: {valid_bindings}")
+        if self.slo_bindings and self.slo_bindings not in valid_bindings:
+            raise ValueError(f"slo_bindings must be one of: {valid_bindings}")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "entity_id": self.entity_id,
+            "certificate": self.certificate,
+            "sso_url": self.sso_url,
+            "sso_bindings": self.sso_bindings,
+        }
+
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        if self.slo_bindings:
+            model_data["slo_bindings"] = self.slo_bindings
+        if self.max_clock_skew is not None:
+            model_data["max_clock_skew"] = self.max_clock_skew
+        if self.validate_idp_certificate is not None:
+            model_data["validate_idp_certificate"] = self.validate_idp_certificate
+        if self.want_auth_requests_signed is not None:
+            model_data["want_auth_requests_signed"] = self.want_auth_requests_signed
+
+        return model_data
+
+
+class TacacsServerProfile(BaseModel):
+    """Model for TACACS+ server profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the TACACS+ server profile")
+    snippet: str | None = Field(None, description="Snippet path for the TACACS+ server profile")
+    device: str | None = Field(None, description="Device path for the TACACS+ server profile")
+    name: str = Field(..., description="Name of the TACACS+ server profile")
+    servers: list[dict[str, Any]] | None = Field(None, description="List of TACACS+ server configurations")
+    protocol: str | None = Field(None, description="Protocol type (CHAP, PAP)")
+    timeout: int | None = Field(None, description="Timeout in seconds", ge=1, le=30)
+    use_single_connection: bool | None = Field(None, description="Use single connection")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "TacacsServerProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_protocol(self) -> "TacacsServerProfile":
+        """Validate protocol if provided."""
+        if self.protocol and self.protocol not in ["CHAP", "PAP"]:
+            raise ValueError("protocol must be one of: CHAP, PAP")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        if self.servers:
+            model_data["server"] = self.servers
+        if self.protocol:
+            model_data["protocol"] = self.protocol
+        if self.timeout is not None:
+            model_data["timeout"] = self.timeout
+        if self.use_single_connection is not None:
+            model_data["use_single_connection"] = self.use_single_connection
+
+        return model_data
+
+
+# ========================================================================================================================================================================================
 # NETWORK CONFIGURATION MODELS
 # ========================================================================================================================================================================================
 
@@ -2520,6 +2823,315 @@ class IPSecCryptoProfile(BaseModel):
         return model_data
 
 
+class BgpAddressFamilyProfile(BaseModel):
+    """Model for BGP address family profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Profile name")
+    ipv4: dict[str, Any] | None = Field(None, description="IPv4 address family configuration (unicast/multicast)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "BgpAddressFamilyProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.ipv4 is not None:
+            model_data["ipv4"] = self.ipv4
+        return model_data
+
+
+class BgpAuthProfile(BaseModel):
+    """Model for BGP authentication profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Profile name")
+    secret: str | None = Field(None, description="BGP authentication key")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "BgpAuthProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.secret is not None:
+            model_data["secret"] = self.secret
+        return model_data
+
+
+class OspfAuthProfile(BaseModel):
+    """Model for OSPF authentication profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Profile name")
+    password: str | None = Field(None, description="Simple password authentication")
+    md5: list[dict[str, Any]] | None = Field(None, description="MD5 authentication keys")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "OspfAuthProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_auth_type(self) -> "OspfAuthProfile":
+        """Validate that password and md5 are mutually exclusive."""
+        if self.password is not None and self.md5 is not None:
+            raise ValueError("'password' and 'md5' are mutually exclusive")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.password is not None:
+            model_data["password"] = self.password
+        if self.md5 is not None:
+            model_data["md5"] = self.md5
+        return model_data
+
+
+class RouteAccessList(BaseModel):
+    """Model for route access list configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Route access list name")
+    description: str | None = Field(None, description="Description")
+    type: dict[str, Any] | None = Field(None, description="Access list type configuration (ipv4)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "RouteAccessList":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.type is not None:
+            model_data["type"] = self.type
+        return model_data
+
+
+class RoutePrefixList(BaseModel):
+    """Model for route prefix list configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Filter prefix list name")
+    description: str | None = Field(None, description="Description")
+    ipv4: dict[str, Any] | None = Field(None, description="IPv4 prefix list configuration")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "RoutePrefixList":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.ipv4 is not None:
+            model_data["ipv4"] = self.ipv4
+        return model_data
+
+
+class BgpFilteringProfile(BaseModel):
+    """Model for BGP filtering profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Profile name")
+    ipv4: dict[str, Any] | None = Field(None, description="IPv4 filtering configuration (unicast/multicast)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "BgpFilteringProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.ipv4 is not None:
+            model_data["ipv4"] = self.ipv4
+        return model_data
+
+
+class BgpRedistributionProfile(BaseModel):
+    """Model for BGP redistribution profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Profile name")
+    ipv4: dict[str, Any] | None = Field(None, description="IPv4 redistribution configuration")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "BgpRedistributionProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.ipv4 is not None:
+            model_data["ipv4"] = self.ipv4
+        return model_data
+
+
+class BgpRouteMap(BaseModel):
+    """Model for BGP route map configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Route map name")
+    route_map: list[dict[str, Any]] | None = Field(None, description="List of route map entries")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "BgpRouteMap":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.route_map is not None:
+            model_data["route_map"] = self.route_map
+        return model_data
+
+
+class BgpRouteMapRedistribution(BaseModel):
+    """Model for BGP route map redistribution configurations."""
+
+    folder: str | None = Field(None, description="Folder path")
+    snippet: str | None = Field(None, description="Snippet path")
+    device: str | None = Field(None, description="Device path")
+    name: str = Field(..., description="Redistribution name")
+    bgp: dict[str, Any] | None = Field(None, description="BGP as source protocol")
+    ospf: dict[str, Any] | None = Field(None, description="OSPF as source protocol")
+    connected_static: dict[str, Any] | None = Field(None, description="Connected/Static as source protocol")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "BgpRouteMapRedistribution":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_source_protocol(self) -> "BgpRouteMapRedistribution":
+        """Validate that at most one source protocol is specified."""
+        sources = [self.bgp, self.ospf, self.connected_static]
+        if sum(1 for s in sources if s is not None) > 1:
+            raise ValueError("At most one of 'bgp', 'ospf', or 'connected_static' can be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {"name": self.name}
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+        if self.bgp is not None:
+            model_data["bgp"] = self.bgp
+        if self.ospf is not None:
+            model_data["ospf"] = self.ospf
+        if self.connected_static is not None:
+            model_data["connected_static"] = self.connected_static
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # SECURITY CONFIGURATION MODELS
 # ========================================================================================================================================================================================
@@ -2952,6 +3564,398 @@ class URLCategory(BaseModel):
             model_data["type"] = self.type
         if self.url_list:
             model_data["list"] = self.url_list
+
+        return model_data
+
+
+class AppOverrideRule(BaseModel):
+    """Model for app override rule configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the app override rule")
+    snippet: str | None = Field(None, description="Snippet path for the app override rule")
+    device: str | None = Field(None, description="Device path for the app override rule")
+    name: str = Field(..., description="Name of the app override rule")
+    description: str | None = Field(None, description="Description of the app override rule")
+    application: str = Field(..., description="Application to override")
+    port: str = Field(..., description="Port(s) for the rule")
+    protocol: str = Field(..., description="Protocol (tcp or udp)")
+    rulebase: str = Field("pre", description="Rulebase (pre or post)")
+
+    # Zone and address fields
+    from_zones: list[str] = Field(default_factory=lambda: ["any"], description="Source security zones")
+    to_zones: list[str] = Field(default_factory=lambda: ["any"], description="Destination security zones")
+    source: list[str] = Field(default_factory=lambda: ["any"], description="Source addresses")
+    destination: list[str] = Field(default_factory=lambda: ["any"], description="Destination addresses")
+
+    # Optional fields
+    disabled: bool = Field(False, description="Whether the rule is disabled")
+    negate_source: bool = Field(False, description="Negate source addresses")
+    negate_destination: bool = Field(False, description="Negate destination addresses")
+    tag: list[str] | None = Field(None, description="Tags for the rule")
+    group_tag: str | None = Field(None, description="Group tag for the rule")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "AppOverrideRule":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("protocol")
+    @classmethod
+    def validate_protocol(cls, v: str) -> str:
+        """Validate protocol value."""
+        if v.lower() not in ("tcp", "udp"):
+            raise ValueError("Protocol must be 'tcp' or 'udp'")
+        return v.lower()
+
+    @field_validator("rulebase")
+    @classmethod
+    def validate_rulebase(cls, v: str) -> str:
+        """Validate rulebase value."""
+        if v.lower() not in ("pre", "post"):
+            raise ValueError("Rulebase must be 'pre' or 'post'")
+        return v.lower()
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "application": self.application,
+            "port": self.port,
+            "protocol": self.protocol,
+            "rulebase": self.rulebase,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add zone/address fields
+        model_data["from"] = self.from_zones
+        model_data["to"] = self.to_zones
+        model_data["source"] = self.source
+        model_data["destination"] = self.destination
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.disabled:
+            model_data["disabled"] = self.disabled
+        if self.negate_source:
+            model_data["negate_source"] = self.negate_source
+        if self.negate_destination:
+            model_data["negate_destination"] = self.negate_destination
+        if self.tag:
+            model_data["tag"] = self.tag
+        if self.group_tag:
+            model_data["group_tag"] = self.group_tag
+
+        return model_data
+
+
+class AuthenticationRule(BaseModel):
+    """Model for authentication rule configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the authentication rule")
+    snippet: str | None = Field(None, description="Snippet path for the authentication rule")
+    device: str | None = Field(None, description="Device path for the authentication rule")
+    name: str = Field(..., description="Name of the authentication rule")
+    description: str | None = Field(None, description="Description of the authentication rule")
+    rulebase: str = Field("pre", description="Rulebase (pre or post)")
+
+    # Zone and address fields
+    from_zones: list[str] = Field(default_factory=lambda: ["any"], description="Source security zones")
+    to_zones: list[str] = Field(default_factory=lambda: ["any"], description="Destination security zones")
+    source: list[str] = Field(default_factory=lambda: ["any"], description="Source addresses")
+    destination: list[str] = Field(default_factory=lambda: ["any"], description="Destination addresses")
+    source_user: list[str] = Field(default_factory=lambda: ["any"], description="Source users")
+    source_hip: list[str] = Field(default_factory=lambda: ["any"], description="Source HIP profiles")
+    destination_hip: list[str] = Field(default_factory=lambda: ["any"], description="Destination HIP profiles")
+    service: list[str] = Field(default_factory=lambda: ["any"], description="Services")
+    category: list[str] = Field(default_factory=lambda: ["any"], description="URL categories")
+
+    # Optional fields
+    disabled: bool = Field(False, description="Whether the rule is disabled")
+    negate_source: bool = Field(False, description="Negate source addresses")
+    negate_destination: bool = Field(False, description="Negate destination addresses")
+    tag: list[str] | None = Field(None, description="Tags for the rule")
+    group_tag: str | None = Field(None, description="Group tag for the rule")
+    authentication_enforcement: str | None = Field(None, description="Authentication profile name")
+    timeout: int | None = Field(None, description="Auth session timeout in minutes")
+    log_setting: str | None = Field(None, description="Log forwarding profile")
+    log_authentication_timeout: bool = Field(False, description="Log authentication timeouts")
+    hip_profiles: list[str] | None = Field(None, description="HIP profiles")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "AuthenticationRule":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("rulebase")
+    @classmethod
+    def validate_rulebase(cls, v: str) -> str:
+        """Validate rulebase value."""
+        if v.lower() not in ("pre", "post"):
+            raise ValueError("Rulebase must be 'pre' or 'post'")
+        return v.lower()
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "rulebase": self.rulebase,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add zone/address fields
+        model_data["from"] = self.from_zones
+        model_data["to"] = self.to_zones
+        model_data["source"] = self.source
+        model_data["destination"] = self.destination
+        model_data["source_user"] = self.source_user
+        model_data["source_hip"] = self.source_hip
+        model_data["destination_hip"] = self.destination_hip
+        model_data["service"] = self.service
+        model_data["category"] = self.category
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.disabled:
+            model_data["disabled"] = self.disabled
+        if self.negate_source:
+            model_data["negate_source"] = self.negate_source
+        if self.negate_destination:
+            model_data["negate_destination"] = self.negate_destination
+        if self.tag:
+            model_data["tag"] = self.tag
+        if self.group_tag:
+            model_data["group_tag"] = self.group_tag
+        if self.authentication_enforcement:
+            model_data["authentication_enforcement"] = self.authentication_enforcement
+        if self.timeout is not None:
+            model_data["timeout"] = self.timeout
+        if self.log_setting:
+            model_data["log_setting"] = self.log_setting
+        if self.log_authentication_timeout:
+            model_data["log_authentication_timeout"] = self.log_authentication_timeout
+        if self.hip_profiles:
+            model_data["hip_profiles"] = self.hip_profiles
+
+        return model_data
+
+
+class DecryptionRule(BaseModel):
+    """Model for decryption rule configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the decryption rule")
+    snippet: str | None = Field(None, description="Snippet path for the decryption rule")
+    device: str | None = Field(None, description="Device path for the decryption rule")
+    name: str = Field(..., description="Name of the decryption rule")
+    description: str | None = Field(None, description="Description of the decryption rule")
+    action: str = Field(..., description="Action (decrypt or no-decrypt)")
+    rulebase: str = Field("pre", description="Rulebase (pre or post)")
+
+    # Zone and address fields
+    from_zones: list[str] = Field(default_factory=lambda: ["any"], description="Source security zones")
+    to_zones: list[str] = Field(default_factory=lambda: ["any"], description="Destination security zones")
+    source: list[str] = Field(default_factory=lambda: ["any"], description="Source addresses")
+    destination: list[str] = Field(default_factory=lambda: ["any"], description="Destination addresses")
+    source_user: list[str] = Field(default_factory=lambda: ["any"], description="Source users")
+    source_hip: list[str] = Field(default_factory=lambda: ["any"], description="Source HIP profiles")
+    destination_hip: list[str] = Field(default_factory=lambda: ["any"], description="Destination HIP profiles")
+    service: list[str] = Field(default_factory=lambda: ["any"], description="Services")
+    category: list[str] = Field(default_factory=lambda: ["any"], description="URL categories")
+
+    # Optional fields
+    disabled: bool = Field(False, description="Whether the rule is disabled")
+    negate_source: bool = Field(False, description="Negate source addresses")
+    negate_destination: bool = Field(False, description="Negate destination addresses")
+    tag: list[str] | None = Field(None, description="Tags for the rule")
+    profile: str | None = Field(None, description="Decryption profile")
+    type: dict[str, Any] | None = Field(None, description="Decryption type (ssl_forward_proxy or ssl_inbound_inspection)")
+    log_setting: str | None = Field(None, description="Log forwarding profile")
+    log_fail: bool | None = Field(None, description="Log failed decryption events")
+    log_success: bool | None = Field(None, description="Log successful decryption events")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "DecryptionRule":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("action")
+    @classmethod
+    def validate_action(cls, v: str) -> str:
+        """Validate action value."""
+        if v.lower() not in ("decrypt", "no-decrypt"):
+            raise ValueError("Action must be 'decrypt' or 'no-decrypt'")
+        return v.lower()
+
+    @field_validator("rulebase")
+    @classmethod
+    def validate_rulebase(cls, v: str) -> str:
+        """Validate rulebase value."""
+        if v.lower() not in ("pre", "post"):
+            raise ValueError("Rulebase must be 'pre' or 'post'")
+        return v.lower()
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "action": self.action,
+            "rulebase": self.rulebase,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add zone/address fields
+        model_data["from"] = self.from_zones
+        model_data["to"] = self.to_zones
+        model_data["source"] = self.source
+        model_data["destination"] = self.destination
+        model_data["source_user"] = self.source_user
+        model_data["source_hip"] = self.source_hip
+        model_data["destination_hip"] = self.destination_hip
+        model_data["service"] = self.service
+        model_data["category"] = self.category
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.disabled:
+            model_data["disabled"] = self.disabled
+        if self.negate_source:
+            model_data["negate_source"] = self.negate_source
+        if self.negate_destination:
+            model_data["negate_destination"] = self.negate_destination
+        if self.tag:
+            model_data["tag"] = self.tag
+        if self.profile:
+            model_data["profile"] = self.profile
+        if self.type:
+            model_data["type"] = self.type
+        if self.log_setting:
+            model_data["log_setting"] = self.log_setting
+        if self.log_fail is not None:
+            model_data["log_fail"] = self.log_fail
+        if self.log_success is not None:
+            model_data["log_success"] = self.log_success
+
+        return model_data
+
+
+class URLAccessProfile(BaseModel):
+    """Model for URL access profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the URL access profile")
+    snippet: str | None = Field(None, description="Snippet path for the URL access profile")
+    device: str | None = Field(None, description="Device path for the URL access profile")
+    name: str = Field(..., description="Name of the URL access profile")
+    description: str | None = Field(None, description="Description of the URL access profile")
+
+    # URL category action lists
+    alert: list[str] | None = Field(None, description="URL categories for alert action")
+    allow: list[str] | None = Field(None, description="URL categories for allow action")
+    block: list[str] | None = Field(None, description="URL categories for block action")
+    continue_categories: list[str] | None = Field(None, description="URL categories for continue action")
+    redirect: list[str] | None = Field(None, description="URL categories for redirect action")
+
+    # Inline categorization
+    cloud_inline_cat: bool | None = Field(None, description="Enable cloud inline categorization")
+    local_inline_cat: bool | None = Field(None, description="Enable local inline categorization")
+
+    # Credential enforcement (as JSON dict)
+    credential_enforcement: dict[str, Any] | None = Field(None, description="Credential enforcement settings")
+
+    # Logging options
+    log_container_page_only: bool | None = Field(None, description="Log container page only")
+    log_http_hdr_referer: bool | None = Field(None, description="Log HTTP header referer")
+    log_http_hdr_user_agent: bool | None = Field(None, description="Log HTTP header user agent")
+    log_http_hdr_xff: bool | None = Field(None, description="Log HTTP header X-Forwarded-For")
+
+    # Other options
+    safe_search_enforcement: bool | None = Field(None, description="Enable safe search enforcement")
+    mlav_category_exception: list[str] | None = Field(None, description="MLAV category exceptions")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "URLAccessProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.alert:
+            model_data["alert"] = self.alert
+        if self.allow:
+            model_data["allow"] = self.allow
+        if self.block:
+            model_data["block"] = self.block
+        if self.continue_categories:
+            model_data["continue"] = self.continue_categories
+        if self.redirect:
+            model_data["redirect"] = self.redirect
+        if self.cloud_inline_cat is not None:
+            model_data["cloud_inline_cat"] = self.cloud_inline_cat
+        if self.local_inline_cat is not None:
+            model_data["local_inline_cat"] = self.local_inline_cat
+        if self.credential_enforcement:
+            model_data["credential_enforcement"] = self.credential_enforcement
+        if self.log_container_page_only is not None:
+            model_data["log_container_page_only"] = self.log_container_page_only
+        if self.log_http_hdr_referer is not None:
+            model_data["log_http_hdr_referer"] = self.log_http_hdr_referer
+        if self.log_http_hdr_user_agent is not None:
+            model_data["log_http_hdr_user_agent"] = self.log_http_hdr_user_agent
+        if self.log_http_hdr_xff is not None:
+            model_data["log_http_hdr_xff"] = self.log_http_hdr_xff
+        if self.safe_search_enforcement is not None:
+            model_data["safe_search_enforcement"] = self.safe_search_enforcement
+        if self.mlav_category_exception:
+            model_data["mlav_category_exception"] = self.mlav_category_exception
 
         return model_data
 
