@@ -4,14 +4,18 @@ import typer  # noqa: I001
 from scm_cli.commands.network import (
     delete_app,
     delete_ike_crypto_profile,
+    delete_ipsec_crypto_profile,
     delete_zone,
     load_app,
     load_ike_crypto_profile,
+    load_ipsec_crypto_profile,
     load_security_zone as load_zone,
     set_app,
     set_ike_crypto_profile,
+    set_ipsec_crypto_profile,
     set_zone,
     show_ike_crypto_profile,
+    show_ipsec_crypto_profile,
 )
 
 
@@ -363,3 +367,239 @@ class TestIKECryptoProfileCommands:
         assert result.exit_code == 0
         assert "Created IKE crypto profile" in result.stdout
         assert "test-profile" in result.stdout
+class TestIPsecCryptoProfileCommands:
+    """Test the IPsec crypto profile commands."""
+
+    def test_set_ipsec_crypto_profile_command(self, runner, monkeypatch):
+        """Test the set ipsec-crypto-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "ipsec-crypto-12345",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "esp": {
+                    "encryption": kwargs.get("esp_encryption", ["aes-256-cbc"]),
+                    "authentication": kwargs.get("esp_authentication", ["sha256"]),
+                },
+                "dh_group": kwargs.get("dh_group", "group14"),
+                "lifetime": kwargs.get("lifetime", {"hours": 1}),
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_ipsec_crypto_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-profile",
+                "--esp-encryption",
+                "aes-256-cbc",
+                "--esp-authentication",
+                "sha256",
+                "--dh-group",
+                "group14",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "test-profile" in result.stdout
+        assert "created" in result.stdout
+
+    def test_set_ipsec_crypto_profile_error(self, runner, monkeypatch):
+        """Test the set ipsec-crypto-profile command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(*args, **kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_ipsec_crypto_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-profile",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating IPsec crypto profile" in result.stdout
+
+    def test_delete_ipsec_crypto_profile_command(self, runner, monkeypatch):
+        """Test the delete ipsec-crypto-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(scm_client, "delete_ipsec_crypto_profile", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_ipsec_crypto_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-profile",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted IPsec crypto profile" in result.stdout
+        assert "test-profile" in result.stdout
+
+    def test_show_ipsec_crypto_profile_single(self, runner, monkeypatch):
+        """Test the show ipsec-crypto-profile command for a single profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {
+                "id": "ipsec-crypto-12345",
+                "name": "test-profile",
+                "folder": "Texas",
+                "esp": {
+                    "encryption": ["aes-256-cbc"],
+                    "authentication": ["sha256"],
+                },
+                "dh_group": "group14",
+                "lifetime": {"hours": 1},
+            }
+
+        monkeypatch.setattr(scm_client, "get_ipsec_crypto_profile", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_ipsec_crypto_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-profile",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "test-profile" in result.stdout
+        assert "aes-256-cbc" in result.stdout
+        assert "group14" in result.stdout
+
+    def test_show_ipsec_crypto_profile_list(self, runner, monkeypatch):
+        """Test the show ipsec-crypto-profile command for listing."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return [
+                {
+                    "id": "ipsec-crypto-1",
+                    "name": "profile-1",
+                    "folder": "Texas",
+                    "esp": {
+                        "encryption": ["aes-256-cbc"],
+                        "authentication": ["sha256"],
+                    },
+                    "dh_group": "group14",
+                    "lifetime": {"hours": 1},
+                },
+                {
+                    "id": "ipsec-crypto-2",
+                    "name": "profile-2",
+                    "folder": "Texas",
+                    "esp": {
+                        "encryption": ["aes-128-cbc"],
+                        "authentication": ["sha1"],
+                    },
+                    "dh_group": "group2",
+                    "lifetime": {"seconds": 3600},
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_ipsec_crypto_profiles", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_ipsec_crypto_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "profile-1" in result.stdout
+        assert "profile-2" in result.stdout
+
+    def test_load_ipsec_crypto_profile_command(self, runner, monkeypatch, mock_ipsec_crypto_profiles_yaml_file):
+        """Test the load ipsec-crypto-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        created_profiles = []
+
+        def mock_create(*args, **kwargs):
+            result = {
+                "id": f"ipsec-crypto-{len(created_profiles) + 1}",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "esp": {
+                    "encryption": kwargs.get("esp_encryption", ["aes-256-cbc"]),
+                    "authentication": kwargs.get("esp_authentication", ["sha256"]),
+                },
+                "dh_group": kwargs.get("dh_group", "group14"),
+                "lifetime": kwargs.get("lifetime", {"hours": 1}),
+                "__action__": "created",
+            }
+            created_profiles.append(result)
+            return result
+
+        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(load_ipsec_crypto_profile)
+
+        result = runner.invoke(test_app, ["--file", str(mock_ipsec_crypto_profiles_yaml_file)])
+
+        assert result.exit_code == 0
+        assert "test-ipsec-profile" in result.stdout
+        assert "created" in result.stdout
+        assert len(created_profiles) == 1
+
+    def test_load_ipsec_crypto_profile_dry_run(self, runner, monkeypatch, mock_ipsec_crypto_profiles_yaml_file):
+        """Test the load ipsec-crypto-profile command with dry-run."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called = False
+
+        def mock_create(*args, **kwargs):
+            nonlocal mock_called
+            mock_called = True
+            return {}
+
+        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(load_ipsec_crypto_profile)
+
+        result = runner.invoke(test_app, ["--file", str(mock_ipsec_crypto_profiles_yaml_file), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+        assert not mock_called

@@ -1856,6 +1856,103 @@ class Zone(BaseModel):
         return model_data
 
 
+class IPSecCryptoProfile(BaseModel):
+    """Model for IPsec crypto profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the IPsec crypto profile")
+    snippet: str | None = Field(None, description="Snippet path for the IPsec crypto profile")
+    device: str | None = Field(None, description="Device path for the IPsec crypto profile")
+    name: str = Field(..., description="Name of the IPsec crypto profile")
+    esp_encryption: list[str] = Field(default_factory=lambda: ["aes-256-cbc"], description="ESP encryption algorithms")
+    esp_authentication: list[str] = Field(default_factory=lambda: ["sha256"], description="ESP authentication algorithms")
+    dh_group: str = Field("group14", description="DH group for PFS")
+    lifetime_seconds: int | None = Field(None, description="Lifetime in seconds (180-65535)")
+    lifetime_minutes: int | None = Field(None, description="Lifetime in minutes (3-65535)")
+    lifetime_hours: int | None = Field(None, description="Lifetime in hours (1-65535)")
+    lifetime_days: int | None = Field(None, description="Lifetime in days (1-365)")
+    lifesize_kb: int | None = Field(None, description="Lifesize in KB (1-65535)")
+    lifesize_mb: int | None = Field(None, description="Lifesize in MB (1-65535)")
+    lifesize_gb: int | None = Field(None, description="Lifesize in GB (1-65535)")
+    lifesize_tb: int | None = Field(None, description="Lifesize in TB (1-65535)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "IPSecCryptoProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("esp_encryption")
+    def validate_esp_encryption(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate ESP encryption algorithms."""
+        valid = ["des", "3des", "aes-128-cbc", "aes-192-cbc", "aes-256-cbc", "aes-128-gcm", "aes-256-gcm", "null"]
+        for alg in v:
+            if alg not in valid:
+                raise ValueError(f"Invalid ESP encryption algorithm '{alg}'. Valid: {', '.join(valid)}")
+        return v
+
+    @field_validator("esp_authentication")
+    def validate_esp_authentication(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate ESP authentication algorithms."""
+        valid = ["md5", "sha1", "sha256", "sha384", "sha512"]
+        for alg in v:
+            if alg not in valid:
+                raise ValueError(f"Invalid ESP authentication algorithm '{alg}'. Valid: {', '.join(valid)}")
+        return v
+
+    @field_validator("dh_group")
+    def validate_dh_group(cls, v: str) -> str:  # noqa: N805
+        """Validate DH group."""
+        valid = ["no-pfs", "group1", "group2", "group5", "group14", "group19", "group20"]
+        if v not in valid:
+            raise ValueError(f"Invalid DH group '{v}'. Valid: {', '.join(valid)}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "dh_group": self.dh_group,
+            "esp": {
+                "encryption": self.esp_encryption,
+                "authentication": self.esp_authentication,
+            },
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Build lifetime - default to 1 hour if none specified
+        if self.lifetime_seconds:
+            model_data["lifetime"] = {"seconds": self.lifetime_seconds}
+        elif self.lifetime_minutes:
+            model_data["lifetime"] = {"minutes": self.lifetime_minutes}
+        elif self.lifetime_hours:
+            model_data["lifetime"] = {"hours": self.lifetime_hours}
+        elif self.lifetime_days:
+            model_data["lifetime"] = {"days": self.lifetime_days}
+        else:
+            model_data["lifetime"] = {"hours": 1}
+
+        # Build lifesize if specified
+        if self.lifesize_kb:
+            model_data["lifesize"] = {"kb": self.lifesize_kb}
+        elif self.lifesize_mb:
+            model_data["lifesize"] = {"mb": self.lifesize_mb}
+        elif self.lifesize_gb:
+            model_data["lifesize"] = {"gb": self.lifesize_gb}
+        elif self.lifesize_tb:
+            model_data["lifesize"] = {"tb": self.lifesize_tb}
+
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # SECURITY CONFIGURATION MODELS
 # ========================================================================================================================================================================================

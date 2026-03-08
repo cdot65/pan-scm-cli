@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IKECryptoProfile, QuarantinedDevice, Region, Schedule, SecurityRule, WildfireAntivirusProfile, Zone
+from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IPSecCryptoProfile, SecurityRule, Zone
 
 
 class TestBandwidthAllocation:
@@ -664,3 +665,111 @@ class TestWildfireAntivirusProfile:
                 rules=[{"name": "rule1", "direction": "both", "analysis": analysis}],
             )
             assert profile.rules[0]["analysis"] == analysis
+class TestIPSecCryptoProfile:
+    """Test cases for the IPSecCryptoProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid IPsec crypto profile."""
+        profile = IPSecCryptoProfile(
+            name="test-profile",
+            folder="Texas",
+            esp_encryption=["aes-256-cbc"],
+            esp_authentication=["sha256"],
+            dh_group="group14",
+            lifetime_hours=1,
+        )
+        assert profile.name == "test-profile"
+        assert profile.folder == "Texas"
+        assert profile.esp_encryption == ["aes-256-cbc"]
+        assert profile.esp_authentication == ["sha256"]
+        assert profile.dh_group == "group14"
+        assert profile.lifetime_hours == 1
+
+    def test_missing_container(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                esp_encryption=["aes-256-cbc"],
+                esp_authentication=["sha256"],
+            )
+
+    def test_invalid_esp_encryption(self):
+        """Test that invalid ESP encryption raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                folder="Texas",
+                esp_encryption=["invalid-algo"],
+            )
+
+    def test_invalid_esp_authentication(self):
+        """Test that invalid ESP authentication raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                folder="Texas",
+                esp_authentication=["invalid-algo"],
+            )
+
+    def test_invalid_dh_group(self):
+        """Test that invalid DH group raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                folder="Texas",
+                dh_group="invalid-group",
+            )
+
+    def test_default_values(self):
+        """Test default values are applied correctly."""
+        profile = IPSecCryptoProfile(name="test-profile", folder="Texas")
+        assert profile.esp_encryption == ["aes-256-cbc"]
+        assert profile.esp_authentication == ["sha256"]
+        assert profile.dh_group == "group14"
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = IPSecCryptoProfile(
+            name="test-profile",
+            folder="Texas",
+            esp_encryption=["aes-256-cbc", "aes-128-cbc"],
+            esp_authentication=["sha256", "sha512"],
+            dh_group="group20",
+            lifetime_hours=8,
+        )
+        sdk_data = profile.to_sdk_model()
+
+        assert sdk_data["name"] == "test-profile"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["esp"]["encryption"] == ["aes-256-cbc", "aes-128-cbc"]
+        assert sdk_data["esp"]["authentication"] == ["sha256", "sha512"]
+        assert sdk_data["dh_group"] == "group20"
+        assert sdk_data["lifetime"] == {"hours": 8}
+
+    def test_to_sdk_model_default_lifetime(self):
+        """Test that default lifetime is applied in SDK model."""
+        profile = IPSecCryptoProfile(name="test-profile", folder="Texas")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["lifetime"] == {"hours": 1}
+
+    def test_to_sdk_model_with_lifesize(self):
+        """Test SDK model with lifesize."""
+        profile = IPSecCryptoProfile(
+            name="test-profile",
+            folder="Texas",
+            lifetime_seconds=3600,
+            lifesize_mb=100,
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["lifetime"] == {"seconds": 3600}
+        assert sdk_data["lifesize"] == {"mb": 100}
+
+    def test_multiple_containers_error(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                folder="Texas",
+                snippet="my-snippet",
+            )

@@ -5745,6 +5745,267 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", container, "security zones", e)
 
+    # -------------------------------------------------------------------------------- IPsec Crypto Profiles -------------------------------------------------------------------------------
+
+    def create_ipsec_crypto_profile(
+        self,
+        folder: str,
+        name: str,
+        esp_encryption: list[str] | None = None,
+        esp_authentication: list[str] | None = None,
+        dh_group: str = "group14",
+        lifetime: dict[str, int] | None = None,
+        lifesize: dict[str, int] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update an IPsec crypto profile using smart upsert logic.
+
+        Args:
+            folder: Folder to create the profile in
+            name: Name of the IPsec crypto profile
+            esp_encryption: List of ESP encryption algorithms
+            esp_authentication: List of ESP authentication algorithms
+            dh_group: DH group for PFS
+            lifetime: Lifetime configuration dict (e.g. {"hours": 1})
+            lifesize: Lifesize configuration dict (e.g. {"mb": 100})
+
+        Returns:
+            dict[str, Any]: The created/updated IPsec crypto profile
+
+        """
+        esp_encryption = esp_encryption or ["aes-256-cbc"]
+        esp_authentication = esp_authentication or ["sha256"]
+        lifetime = lifetime or {"hours": 1}
+
+        self.logger.info(f"Creating or updating IPsec crypto profile: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"ipsec-crypto-{name}",
+                "folder": folder,
+                "name": name,
+                "esp": {
+                    "encryption": esp_encryption,
+                    "authentication": esp_authentication,
+                },
+                "dh_group": dh_group,
+                "lifetime": lifetime,
+                "__action__": "created",
+            }
+            if lifesize:
+                result["lifesize"] = lifesize
+            return result
+
+        try:
+            # Prepare the profile data
+            profile_data: dict[str, Any] = {
+                "folder": folder,
+                "name": name,
+                "esp": {
+                    "encryption": esp_encryption,
+                    "authentication": esp_authentication,
+                },
+                "dh_group": dh_group,
+                "lifetime": lifetime,
+            }
+            if lifesize:
+                profile_data["lifesize"] = lifesize
+
+            # Try to fetch existing profile for smart upsert
+            existing_profile = None
+            try:
+                existing_profile = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing IPsec crypto profile '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"IPsec crypto profile '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching IPsec crypto profile '{name}': {str(fetch_error)}")
+
+            if existing_profile:
+                # Compare fields to detect changes
+                needs_update = False
+                update_fields = []
+
+                # Compare ESP encryption
+                existing_esp = existing_profile.esp
+                if existing_esp:
+                    existing_enc = [str(e.value) if hasattr(e, "value") else str(e) for e in existing_esp.encryption]
+                    if set(existing_enc) != set(esp_encryption):
+                        needs_update = True
+                        update_fields.append("esp_encryption")
+                    existing_auth = [str(a) for a in existing_esp.authentication]
+                    if set(existing_auth) != set(esp_authentication):
+                        needs_update = True
+                        update_fields.append("esp_authentication")
+
+                # Compare DH group
+                existing_dh = str(existing_profile.dh_group.value) if hasattr(existing_profile.dh_group, "value") else str(existing_profile.dh_group)
+                if existing_dh != dh_group:
+                    needs_update = True
+                    update_fields.append("dh_group")
+
+                if needs_update:
+                    self.logger.info(f"Updating IPsec crypto profile fields: {', '.join(update_fields)}")
+                    profile_data["id"] = str(existing_profile.id)
+                    result = self.client.ipsec_crypto_profile.update(profile_data)
+                    self.logger.info(f"Successfully updated IPsec crypto profile '{name}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for IPsec crypto profile '{name}', skipping update")
+                    response = json.loads(existing_profile.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Create new profile
+                result = self.client.ipsec_crypto_profile.create(profile_data)
+                self.logger.info(f"Successfully created IPsec crypto profile '{name}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder, name, e)
+
+    def delete_ipsec_crypto_profile(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete an IPsec crypto profile.
+
+        Args:
+            folder: Folder containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting IPsec crypto profile: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            profile = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
+            self.client.ipsec_crypto_profile.delete(str(profile.id))
+            self.logger.info(f"Successfully deleted IPsec crypto profile '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_ipsec_crypto_profile(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get an IPsec crypto profile by name and folder.
+
+        Args:
+            folder: Folder containing the profile
+            name: Name of the profile to get
+
+        Returns:
+            dict[str, Any]: The IPsec crypto profile
+
+        """
+        self.logger.info(f"Getting IPsec crypto profile: {name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": f"ipsec-crypto-{name}",
+                "folder": folder,
+                "name": name,
+                "esp": {
+                    "encryption": ["aes-256-cbc"],
+                    "authentication": ["sha256"],
+                },
+                "dh_group": "group14",
+                "lifetime": {"hours": 1},
+            }
+
+        try:
+            result = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_ipsec_crypto_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List IPsec crypto profiles in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
+
+        Returns:
+            list[dict[str, Any]]: List of IPsec crypto profile objects
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing IPsec crypto profiles in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
+
+        if not self.client:
+            return [
+                {
+                    "id": "ipsec-crypto-mock1",
+                    "folder": folder or "Texas",
+                    "name": "ipsec-esp-aes256-sha256",
+                    "esp": {
+                        "encryption": ["aes-256-cbc"],
+                        "authentication": ["sha256"],
+                    },
+                    "dh_group": "group14",
+                    "lifetime": {"hours": 1},
+                },
+                {
+                    "id": "ipsec-crypto-mock2",
+                    "folder": folder or "Texas",
+                    "name": "ipsec-esp-aes128-sha1",
+                    "esp": {
+                        "encryption": ["aes-128-cbc"],
+                        "authentication": ["sha1"],
+                    },
+                    "dh_group": "group2",
+                    "lifetime": {"seconds": 3600},
+                },
+                {
+                    "id": "ipsec-crypto-mock3",
+                    "folder": folder or "Texas",
+                    "name": "ipsec-esp-aes256gcm",
+                    "esp": {
+                        "encryption": ["aes-256-gcm"],
+                        "authentication": ["sha512"],
+                    },
+                    "dh_group": "group20",
+                    "lifetime": {"hours": 8},
+                    "lifesize": {"gb": 1},
+                },
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.ipsec_crypto_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container, "IPsec crypto profiles", e)
+
     # ======================================================================================================================================================================================
     # SECURITY CONFIGURATION METHODS
     # ======================================================================================================================================================================================

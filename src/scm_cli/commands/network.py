@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
 from ..utils.validators import IKECryptoProfile, Zone
+from ..utils.validators import IPSecCryptoProfile, Zone
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -88,6 +89,27 @@ BACKUP_FILE_OPTION = typer.Option(
     "--file",
     help="Output filename for backup (defaults to {object-type}-{location}.yaml)",
 )
+
+# IPsec crypto profile option constants (module-level to avoid B008)
+IPSEC_FOLDER_OPTION = typer.Option("Texas", "--folder", help="Folder path for the IPsec crypto profile")
+IPSEC_NAME_OPTION = typer.Option(..., "--name", help="Name of the IPsec crypto profile")
+IPSEC_ESP_ENCRYPTION_OPTION: list[str] = typer.Option(
+    ["aes-256-cbc"],
+    "--esp-encryption",
+    help="ESP encryption algorithms (des, 3des, aes-128-cbc, aes-192-cbc, aes-256-cbc, aes-128-gcm, aes-256-gcm, null)",
+)
+IPSEC_ESP_AUTHENTICATION_OPTION: list[str] = typer.Option(
+    ["sha256"],
+    "--esp-authentication",
+    help="ESP authentication algorithms (md5, sha1, sha256, sha384, sha512)",
+)
+IPSEC_DH_GROUP_OPTION = typer.Option(
+    "group14",
+    "--dh-group",
+    help="DH group for PFS (no-pfs, group1, group2, group5, group14, group19, group20)",
+)
+IPSEC_LIFETIME_SECONDS_OPTION = typer.Option(None, "--lifetime-seconds", help="Lifetime in seconds (180-65535)")
+IPSEC_LIFETIME_HOURS_OPTION = typer.Option(None, "--lifetime-hours", help="Lifetime in hours (1-65535)")
 
 # ========================================================================================================================================================================================
 # HELPER FUNCTIONS
@@ -761,4 +783,275 @@ def show_zone(
 
     except Exception as e:
         typer.echo(f"Error showing security zone: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# IPSEC CRYPTO PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("ipsec-crypto-profile")
+def backup_ipsec_crypto_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Back up all IPsec crypto profiles from a container to a YAML file.
+
+    Examples
+    --------
+        # Backup from folder
+        scm backup network ipsec-crypto-profile --folder Texas
+
+        # Backup to custom filename
+        scm backup network ipsec-crypto-profile --folder Texas --file my-profiles.yaml
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not file:
+        file = get_default_backup_filename("ipsec-crypto-profiles", location_type, location_value)
+
+    try:
+        profiles = scm_client.list_ipsec_crypto_profiles(folder=folder, snippet=snippet, device=device, exact_match=True)
+
+        if not profiles:
+            typer.echo(f"No IPsec crypto profiles found in {location_type} '{location_value}'")
+            return None
+
+        backup_data = []
+        for profile in profiles:
+            profile_dict = profile.copy()
+            profile_dict.pop("id", None)
+            backup_data.append(profile_dict)
+
+        yaml_data = {"ipsec_crypto_profiles": backup_data}
+
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} IPsec crypto profiles to {file}")
+        return file
+
+    except NotImplementedError as e:
+        typer.echo(f"Error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error backing up IPsec crypto profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("ipsec-crypto-profile")
+def delete_ipsec_crypto_profile(
+    folder: str = IPSEC_FOLDER_OPTION,
+    name: str = IPSEC_NAME_OPTION,
+):
+    """Delete an IPsec crypto profile.
+
+    Example: scm delete network ipsec-crypto-profile --folder Texas --name my-profile
+    """
+    try:
+        result = scm_client.delete_ipsec_crypto_profile(folder=folder, name=name)
+
+        if result:
+            typer.echo(f"Deleted IPsec crypto profile: {name} from folder {folder}")
+        else:
+            typer.echo(f"IPsec crypto profile not found: {name} in folder {folder}", err=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error deleting IPsec crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("ipsec-crypto-profile")
+def load_ipsec_crypto_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+):
+    """Load IPsec crypto profiles from a YAML file.
+
+    Example: scm load network ipsec-crypto-profile --file ipsec-profiles.yaml
+    """
+    try:
+        config = load_from_yaml(str(file), "ipsec_crypto_profiles")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["ipsec_crypto_profiles"]))
+            return None
+
+        results = []
+        for profile_data in config["ipsec_crypto_profiles"]:
+            profile = IPSecCryptoProfile(**profile_data)
+            sdk_data = profile.to_sdk_model()
+
+            result = scm_client.create_ipsec_crypto_profile(
+                folder=profile.folder or "Texas",
+                name=sdk_data["name"],
+                esp_encryption=sdk_data["esp"]["encryption"],
+                esp_authentication=sdk_data["esp"]["authentication"],
+                dh_group=sdk_data.get("dh_group", "group14"),
+                lifetime=sdk_data.get("lifetime"),
+                lifesize=sdk_data.get("lifesize"),
+            )
+
+            results.append(result)
+            action = result.get("__action__", "applied")
+            typer.echo(f"IPsec crypto profile '{result['name']}' {action} in folder {result.get('folder', 'N/A')}")
+
+        return results
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading IPsec crypto profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("ipsec-crypto-profile")
+def set_ipsec_crypto_profile(
+    folder: str = IPSEC_FOLDER_OPTION,
+    name: str = IPSEC_NAME_OPTION,
+    esp_encryption: list[str] = IPSEC_ESP_ENCRYPTION_OPTION,
+    esp_authentication: list[str] = IPSEC_ESP_AUTHENTICATION_OPTION,
+    dh_group: str = IPSEC_DH_GROUP_OPTION,
+    lifetime_seconds: int | None = IPSEC_LIFETIME_SECONDS_OPTION,
+    lifetime_hours: int | None = IPSEC_LIFETIME_HOURS_OPTION,
+):
+    """Create or update an IPsec crypto profile.
+
+    Example:
+    -------
+        scm set network ipsec-crypto-profile --folder Texas --name my-profile \
+        --esp-encryption aes-256-cbc --esp-authentication sha256 --dh-group group14
+
+    """
+    try:
+        profile = IPSecCryptoProfile(
+            folder=folder,
+            name=name,
+            esp_encryption=esp_encryption,
+            esp_authentication=esp_authentication,
+            dh_group=dh_group,
+            lifetime_seconds=lifetime_seconds,
+            lifetime_hours=lifetime_hours,
+        )
+
+        sdk_data = profile.to_sdk_model()
+
+        result = scm_client.create_ipsec_crypto_profile(
+            folder=folder,
+            name=name,
+            esp_encryption=sdk_data["esp"]["encryption"],
+            esp_authentication=sdk_data["esp"]["authentication"],
+            dh_group=sdk_data.get("dh_group", "group14"),
+            lifetime=sdk_data.get("lifetime"),
+            lifesize=sdk_data.get("lifesize"),
+        )
+
+        action = result.get("__action__", "created")
+        typer.echo(f"IPsec crypto profile '{result['name']}' {action} in folder {result.get('folder', folder)}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating IPsec crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("ipsec-crypto-profile")
+def show_ipsec_crypto_profile(
+    folder: str = IPSEC_FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the IPsec crypto profile to show"),
+):
+    """Display IPsec crypto profiles.
+
+    Example:
+    -------
+        # List all IPsec crypto profiles in a folder
+        scm show network ipsec-crypto-profile --folder Texas
+
+        # Show a specific IPsec crypto profile
+        scm show network ipsec-crypto-profile --folder Texas --name my-profile
+
+    """
+    try:
+        if name:
+            profile = scm_client.get_ipsec_crypto_profile(folder=folder, name=name)
+
+            typer.echo(f"\nIPsec Crypto Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            if profile.get("folder"):
+                typer.echo(f"Location: Folder '{profile['folder']}'")
+
+            # Display ESP config
+            esp = profile.get("esp", {})
+            if esp:
+                typer.echo(f"ESP Encryption: {', '.join(esp.get('encryption', []))}")
+                typer.echo(f"ESP Authentication: {', '.join(esp.get('authentication', []))}")
+
+            if profile.get("dh_group"):
+                typer.echo(f"DH Group: {profile['dh_group']}")
+
+            # Display lifetime
+            lifetime = profile.get("lifetime", {})
+            if lifetime:
+                for unit, value in lifetime.items():
+                    typer.echo(f"Lifetime: {value} {unit}")
+
+            # Display lifesize
+            lifesize = profile.get("lifesize", {})
+            if lifesize:
+                for unit, value in lifesize.items():
+                    typer.echo(f"Lifesize: {value} {unit.upper()}")
+
+            if profile.get("id"):
+                typer.echo(f"ID: {profile['id']}")
+
+            return profile
+
+        else:
+            profiles = scm_client.list_ipsec_crypto_profiles(folder=folder)
+
+            if not profiles:
+                typer.echo(f"No IPsec crypto profiles found in folder '{folder}'")
+                return None
+
+            typer.echo(f"\nIPsec Crypto Profiles in folder '{folder}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+
+                esp = profile.get("esp", {})
+                if esp:
+                    typer.echo(f"  ESP Encryption: {', '.join(esp.get('encryption', []))}")
+                    typer.echo(f"  ESP Authentication: {', '.join(esp.get('authentication', []))}")
+
+                if profile.get("dh_group"):
+                    typer.echo(f"  DH Group: {profile['dh_group']}")
+
+                lifetime = profile.get("lifetime", {})
+                if lifetime:
+                    for unit, value in lifetime.items():
+                        typer.echo(f"  Lifetime: {value} {unit}")
+
+                lifesize = profile.get("lifesize", {})
+                if lifesize:
+                    for unit, value in lifesize.items():
+                        typer.echo(f"  Lifesize: {value} {unit.upper()}")
+
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing IPsec crypto profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
