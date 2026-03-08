@@ -111,6 +111,21 @@ FILE_OPTION = typer.Option(
     "--file",
     help="YAML file to load configurations from",
 )
+EXCLUDE_FOLDER_OPTION = typer.Option(
+    None,
+    "--exclude-folder",
+    help="Folder(s) to exclude from results",
+)
+EXCLUDE_SNIPPET_OPTION = typer.Option(
+    None,
+    "--exclude-snippet",
+    help="Snippet(s) to exclude from results",
+)
+EXCLUDE_DEVICE_OPTION = typer.Option(
+    None,
+    "--exclude-device",
+    help="Device(s) to exclude from results",
+)
 DRY_RUN_OPTION = typer.Option(
     False,
     "--dry-run",
@@ -1117,6 +1132,9 @@ def set_address(
 def show_address(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the address to show"),
+    exclude_folder: list[str] | None = EXCLUDE_FOLDER_OPTION,
+    exclude_snippet: list[str] | None = EXCLUDE_SNIPPET_OPTION,
+    exclude_device: list[str] | None = EXCLUDE_DEVICE_OPTION,
 ):
     """Display address objects.
 
@@ -1127,6 +1145,9 @@ def show_address(
 
         # Show a specific address by name
         scm show object address --folder Texas --name webserver
+
+        # List addresses excluding specific folders
+        scm show object address --folder Texas --exclude-folder "All"
 
     """
     try:
@@ -1177,7 +1198,12 @@ def show_address(
 
         else:
             # Default behavior: list all addresses in the folder
-            addresses = scm_client.list_addresses(folder=folder)
+            addresses = scm_client.list_addresses(
+                folder=folder,
+                exclude_folders=exclude_folder or None,
+                exclude_snippets=exclude_snippet or None,
+                exclude_devices=exclude_device or None,
+            )
 
             if not addresses:
                 typer.echo(f"No addresses found in folder '{folder}'")

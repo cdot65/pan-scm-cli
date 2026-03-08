@@ -3305,6 +3305,7 @@ class PbfRule(BaseModel):
         return model_data
 
 
+class QosProfile(BaseModel):
     """Validator for QoS profile configuration."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -3341,6 +3342,7 @@ class PbfRule(BaseModel):
         return model_data
 
 
+class QosRule(BaseModel):
     """Validator for QoS rule configuration."""
 
     model_config = ConfigDict(populate_by_name=True)

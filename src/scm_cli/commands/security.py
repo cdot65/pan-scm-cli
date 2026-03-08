@@ -79,6 +79,21 @@ RULEBASE_OPTION = typer.Option(
     "--rulebase",
     help="Rulebase to use (pre, post, or default)",
 )
+EXCLUDE_FOLDER_OPTION = typer.Option(
+    None,
+    "--exclude-folder",
+    help="Folder(s) to exclude from results",
+)
+EXCLUDE_SNIPPET_OPTION = typer.Option(
+    None,
+    "--exclude-snippet",
+    help="Snippet(s) to exclude from results",
+)
+EXCLUDE_DEVICE_OPTION = typer.Option(
+    None,
+    "--exclude-device",
+    help="Device(s) to exclude from results",
+)
 
 # Set command options
 SOURCE_ZONES_OPTION = typer.Option(
@@ -656,6 +671,9 @@ def show_security_rule(
     device: str = typer.Option(None, "--device", help="Device containing the security rule"),
     rulebase: str = RULEBASE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the security rule to show"),
+    exclude_folder: list[str] | None = EXCLUDE_FOLDER_OPTION,
+    exclude_snippet: list[str] | None = EXCLUDE_SNIPPET_OPTION,
+    exclude_device: list[str] | None = EXCLUDE_DEVICE_OPTION,
 ):
     """Display security rules.
 
@@ -669,6 +687,9 @@ def show_security_rule(
 
         # Show a specific security rule by name
         scm show security rule --folder Texas --name "Allow Web Traffic"
+
+        # List rules excluding specific folders
+        scm show security rule --folder Texas --exclude-folder "All"
 
     Note:
     ----
@@ -789,7 +810,13 @@ def show_security_rule(
             # Default behavior: list all
             # List all security rules in the specified container and rulebase (default behavior)
             kwargs = {location_type: location_value}
-            rules = scm_client.list_security_rules(**kwargs, rulebase=rulebase)
+            rules = scm_client.list_security_rules(
+                **kwargs,
+                rulebase=rulebase,
+                exclude_folders=exclude_folder or None,
+                exclude_snippets=exclude_snippet or None,
+                exclude_devices=exclude_device or None,
+            )
 
             if not rules:
                 typer.echo(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
