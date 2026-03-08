@@ -4,20 +4,24 @@ import typer  # noqa: I001
 from scm_cli.commands.network import (
     delete_app,
     delete_ike_crypto_profile,
+    delete_ike_gateway,
     delete_ipsec_crypto_profile,
     delete_nat_rule,
     delete_zone,
     load_app,
     load_ike_crypto_profile,
+    load_ike_gateway,
     load_ipsec_crypto_profile,
     load_nat_rule,
     load_security_zone as load_zone,
     set_app,
     set_ike_crypto_profile,
+    set_ike_gateway,
     set_ipsec_crypto_profile,
     set_nat_rule,
     set_zone,
     show_ike_crypto_profile,
+    show_ike_gateway,
     show_ipsec_crypto_profile,
     show_nat_rule,
 )
@@ -371,6 +375,211 @@ class TestIKECryptoProfileCommands:
         assert result.exit_code == 0
         assert "Created IKE crypto profile" in result.stdout
         assert "test-profile" in result.stdout
+
+
+class TestIKEGatewayCommands:
+    """Test the IKE gateway commands."""
+
+    def test_set_ike_gateway_created(self, runner, monkeypatch):
+        """Test set ike-gateway command creates a new gateway."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(gateway_data):
+            result = gateway_data.copy()
+            result["id"] = "ike-gw-12345"
+            result["__action__"] = "created"
+            return result
+
+        monkeypatch.setattr(scm_client, "create_ike_gateway", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_ike_gateway)
+        result = runner.invoke(test_app, [
+            "test-gw",
+            "--folder", "test-folder",
+            "--pre-shared-key", "my-secret",
+            "--peer-address-ip", "203.0.113.1",
+            "--protocol-version", "ikev2-preferred",
+            "--ike-crypto-profile", "default",
+        ])
+        assert result.exit_code == 0
+        assert "Created IKE gateway" in result.stdout
+        assert "test-gw" in result.stdout
+
+    def test_set_ike_gateway_error(self, runner, monkeypatch):
+        """Test set ike-gateway command handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(gateway_data):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_ike_gateway", mock_create_error)
+        test_app = typer.Typer()
+        test_app.command()(set_ike_gateway)
+        result = runner.invoke(test_app, [
+            "test-gw",
+            "--folder", "test-folder",
+            "--pre-shared-key", "my-secret",
+            "--peer-address-ip", "203.0.113.1",
+        ])
+        assert result.exit_code == 1
+        assert "Error" in result.stdout
+
+    def test_set_ike_gateway_missing_auth(self, runner, monkeypatch):
+        """Test set ike-gateway command requires authentication."""
+        test_app = typer.Typer()
+        test_app.command()(set_ike_gateway)
+        result = runner.invoke(test_app, [
+            "test-gw",
+            "--folder", "test-folder",
+            "--peer-address-ip", "203.0.113.1",
+        ])
+        assert result.exit_code == 1
+
+    def test_set_ike_gateway_missing_peer_address(self, runner, monkeypatch):
+        """Test set ike-gateway command requires peer address."""
+        test_app = typer.Typer()
+        test_app.command()(set_ike_gateway)
+        result = runner.invoke(test_app, [
+            "test-gw",
+            "--folder", "test-folder",
+            "--pre-shared-key", "my-secret",
+        ])
+        assert result.exit_code == 1
+
+    def test_show_ike_gateway_list(self, runner, monkeypatch):
+        """Test show ike-gateway command lists gateways."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(**kwargs):
+            return [
+                {
+                    "id": "ike-gw-1",
+                    "name": "gw-site-a",
+                    "folder": "test-folder",
+                    "authentication": {"pre_shared_key": {"key": "k"}},
+                    "peer_address": {"ip": "203.0.113.1"},
+                    "protocol": {"version": "ikev2-preferred"},
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_ike_gateways", mock_list)
+        test_app = typer.Typer()
+        test_app.command()(show_ike_gateway)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "gw-site-a" in result.stdout
+
+    def test_show_ike_gateway_specific(self, runner, monkeypatch):
+        """Test show ike-gateway command shows a specific gateway."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(**kwargs):
+            return {
+                "id": "ike-gw-1",
+                "name": "gw-site-a",
+                "folder": "test-folder",
+                "authentication": {"pre_shared_key": {"key": "k"}},
+                "peer_address": {"ip": "203.0.113.1"},
+                "protocol": {"version": "ikev2-preferred", "ikev2": {"ike_crypto_profile": "default"}},
+                "peer_id": {"type": "fqdn", "id": "peer.example.com"},
+                "protocol_common": {"nat_traversal": {"enable": True}},
+            }
+
+        monkeypatch.setattr(scm_client, "get_ike_gateway", mock_get)
+        test_app = typer.Typer()
+        test_app.command()(show_ike_gateway)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "gw-site-a"])
+        assert result.exit_code == 0
+        assert "gw-site-a" in result.stdout
+        assert "203.0.113.1" in result.stdout
+        assert "Pre-Shared Key" in result.stdout
+
+    def test_delete_ike_gateway_command(self, runner, monkeypatch):
+        """Test delete ike-gateway command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(**kwargs):
+            return {"id": "ike-gw-1", "name": "test-gw", "folder": "test-folder"}
+
+        def mock_delete(**kwargs):
+            return None
+
+        monkeypatch.setattr(scm_client, "get_ike_gateway", mock_get)
+        monkeypatch.setattr(scm_client, "delete_ike_gateway", mock_delete)
+        test_app = typer.Typer()
+        test_app.command()(delete_ike_gateway)
+        result = runner.invoke(test_app, ["test-gw", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted IKE gateway" in result.stdout
+
+    def test_load_ike_gateway_command(self, runner, monkeypatch, tmp_path):
+        """Test load ike-gateway command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {
+            "ike_gateways": [{
+                "name": "test-gw",
+                "folder": "test-folder",
+                "authentication": {"pre_shared_key": {"key": "secret"}},
+                "peer_address": {"ip": "203.0.113.1"},
+                "protocol": {"version": "ikev2-preferred", "ikev1": {"ike_crypto_profile": "default"}, "ikev2": {"ike_crypto_profile": "default"}},
+            }]
+        }
+        yaml_file = tmp_path / "ike-gateways.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        def mock_create(gateway_data):
+            result = gateway_data.copy()
+            result["id"] = "ike-gw-12345"
+            result["__action__"] = "created"
+            return result
+
+        monkeypatch.setattr(scm_client, "create_ike_gateway", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(load_ike_gateway)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created IKE gateway" in result.stdout
+        assert "test-gw" in result.stdout
+
+    def test_load_ike_gateway_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test load ike-gateway command with dry-run."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {
+            "ike_gateways": [{
+                "name": "test-gw",
+                "folder": "test-folder",
+                "authentication": {"pre_shared_key": {"key": "secret"}},
+                "peer_address": {"ip": "203.0.113.1"},
+                "protocol": {"version": "ikev2", "ikev2": {"ike_crypto_profile": "default"}},
+            }]
+        }
+        yaml_file = tmp_path / "ike-gateways.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        mock_called = False
+
+        def mock_create(gateway_data):
+            nonlocal mock_called
+            mock_called = True
+            return {}
+
+        monkeypatch.setattr(scm_client, "create_ike_gateway", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(load_ike_gateway)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+        assert not mock_called
+
+
 class TestIPsecCryptoProfileCommands:
     """Test the IPsec crypto profile commands."""
 

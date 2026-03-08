@@ -7,7 +7,7 @@ various SCM configuration actions (set, delete, load) and object types.
 import typer
 
 # Import object type modules
-from .commands import context, deployment, insights, network, objects, security
+from .commands import commit, context, deployment, insights, jobs, mobile_agent, network, objects, security, setup
 
 # ============================================================================================================================================================================================
 # MAIN CLI APPLICATION
@@ -75,6 +75,11 @@ app.add_typer(
 
 # Backup commands
 backup_app.add_typer(
+    mobile_agent.backup_app,
+    name="mobile-agent",
+    help="Backup mobile agent configurations",
+)
+backup_app.add_typer(
     network.backup_app,
     name="network",
     help="Backup network configurations",
@@ -94,8 +99,18 @@ backup_app.add_typer(
     name="security",
     help="Backup security configurations",
 )
+backup_app.add_typer(
+    setup.backup_app,
+    name="setup",
+    help="Backup setup configurations",
+)
 
 # Delete commands
+delete_app.add_typer(
+    mobile_agent.delete_app,
+    name="mobile-agent",
+    help="Delete mobile agent configurations",
+)
 delete_app.add_typer(
     network.delete_app,
     name="network",
@@ -116,8 +131,18 @@ delete_app.add_typer(
     name="security",
     help="Delete security configurations",
 )
+delete_app.add_typer(
+    setup.delete_app,
+    name="setup",
+    help="Delete setup configurations",
+)
 
 # Load commands
+load_app.add_typer(
+    mobile_agent.load_app,
+    name="mobile-agent",
+    help="Load mobile agent configurations",
+)
 load_app.add_typer(
     network.load_app,
     name="network",
@@ -138,8 +163,18 @@ load_app.add_typer(
     name="security",
     help="Load security configurations",
 )
+load_app.add_typer(
+    setup.load_app,
+    name="setup",
+    help="Load setup configurations",
+)
 
 # Set commands
+set_app.add_typer(
+    mobile_agent.set_app,
+    name="mobile-agent",
+    help="Set mobile agent configurations",
+)
 set_app.add_typer(
     network.set_app,
     name="network",
@@ -160,8 +195,18 @@ set_app.add_typer(
     name="security",
     help="Set security configurations",
 )
+set_app.add_typer(
+    setup.set_app,
+    name="setup",
+    help="Set setup configurations",
+)
 
 # Show commands
+show_app.add_typer(
+    mobile_agent.show_app,
+    name="mobile-agent",
+    help="Show mobile agent configurations",
+)
 show_app.add_typer(
     network.show_app,
     name="network",
@@ -182,16 +227,21 @@ show_app.add_typer(
     name="security",
     help="Show security configurations",
 )
+show_app.add_typer(
+    setup.show_app,
+    name="setup",
+    help="Show setup configurations",
+)
 
 # ============================================================================================================================================================================================
 # CLI COMMANDS
 # ============================================================================================================================================================================================
 
-# Register context management as a top-level command
+# Register top-level commands (alphabetical)
+app.add_typer(commit.app, name="commit")
 app.add_typer(context.app, name="context")
-
-# Register insights as a top-level command
 app.add_typer(insights.app, name="insights")
+app.add_typer(jobs.app, name="jobs")
 
 
 # Note: test-auth command has been removed in favor of 'scm context test'

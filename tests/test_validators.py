@@ -6,8 +6,11 @@ from pydantic import ValidationError
 from scm_cli.utils.validators import (
     AddressGroup,
     BandwidthAllocation,
+    BGPRouting,
     DNSSecurityProfile,
     IKECryptoProfile,
+    IKEGateway,
+    InternalDNSServer,
     IPSecCryptoProfile,
     NATRule,
     QuarantinedDevice,
@@ -135,6 +138,165 @@ class TestIKECryptoProfile:
         profile = IKECryptoProfile(name="test-profile", folder="test-folder", hash=["sha256"], dh_group=["group14"], encryption=["aes-256-cbc"])
         sdk_data = profile.to_sdk_model()
         assert "lifetime" not in sdk_data
+
+
+class TestIKEGateway:
+    """Test cases for the IKEGateway model."""
+
+    def test_valid_ike_gateway(self):
+        """Test creating a valid IKE gateway."""
+        gw = IKEGateway(
+            name="test-gw",
+            folder="test-folder",
+            authentication={"pre_shared_key": {"key": "my-secret-key"}},
+            peer_address={"ip": "203.0.113.1"},
+            protocol={"version": "ikev2-preferred", "ikev1": {"ike_crypto_profile": "default"}, "ikev2": {"ike_crypto_profile": "default"}},
+        )
+        assert gw.name == "test-gw"
+        assert gw.folder == "test-folder"
+        assert gw.authentication == {"pre_shared_key": {"key": "my-secret-key"}}
+        assert gw.peer_address == {"ip": "203.0.113.1"}
+
+    def test_missing_required_fields(self):
+        """Test that required fields are enforced."""
+        with pytest.raises(ValidationError):
+            IKEGateway(name="test-gw", folder="test-folder", authentication={"pre_shared_key": {"key": "k"}}, peer_address={"ip": "1.2.3.4"})
+
+    def test_container_validation(self):
+        """Test that exactly one container is required."""
+        with pytest.raises(ValidationError):
+            IKEGateway(
+                name="test-gw",
+                authentication={"pre_shared_key": {"key": "k"}},
+                peer_address={"ip": "1.2.3.4"},
+                protocol={"version": "ikev2"},
+            )
+
+    def test_dual_container_rejected(self):
+        """Test that two containers are rejected."""
+        with pytest.raises(ValidationError):
+            IKEGateway(
+                name="test-gw",
+                folder="f",
+                snippet="s",
+                authentication={"pre_shared_key": {"key": "k"}},
+                peer_address={"ip": "1.2.3.4"},
+                protocol={"version": "ikev2", "ikev2": {}},
+            )
+
+    def test_invalid_auth_missing(self):
+        """Test that missing auth method is rejected."""
+        with pytest.raises(ValidationError):
+            IKEGateway(
+                name="test-gw",
+                folder="f",
+                authentication={},
+                peer_address={"ip": "1.2.3.4"},
+                protocol={"version": "ikev2", "ikev2": {}},
+            )
+
+    def test_invalid_auth_both(self):
+        """Test that both auth methods are rejected."""
+        with pytest.raises(ValidationError):
+            IKEGateway(
+                name="test-gw",
+                folder="f",
+                authentication={"pre_shared_key": {"key": "k"}, "certificate": {}},
+                peer_address={"ip": "1.2.3.4"},
+                protocol={"version": "ikev2", "ikev2": {}},
+            )
+
+    def test_invalid_psk_missing_key(self):
+        """Test that pre_shared_key without key is rejected."""
+        with pytest.raises(ValidationError):
+            IKEGateway(
+                name="test-gw",
+                folder="f",
+                authentication={"pre_shared_key": {}},
+                peer_address={"ip": "1.2.3.4"},
+                protocol={"version": "ikev2", "ikev2": {}},
+            )
+
+    def test_invalid_peer_address_none(self):
+        """Test that peer_address with no valid type is rejected."""
+        with pytest.raises(ValidationError):
+            IKEGateway(
+                name="test-gw",
+                folder="f",
+                authentication={"pre_shared_key": {"key": "k"}},
+                peer_address={"invalid": "x"},
+                protocol={"version": "ikev2", "ikev2": {}},
+            )
+
+    def test_invalid_protocol_version(self):
+        """Test that invalid protocol version is rejected."""
+        with pytest.raises(ValidationError):
+            IKEGateway(
+                name="test-gw",
+                folder="f",
+                authentication={"pre_shared_key": {"key": "k"}},
+                peer_address={"ip": "1.2.3.4"},
+                protocol={"version": "ikev3"},
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        gw = IKEGateway(
+            name="test-gw",
+            folder="test-folder",
+            authentication={"pre_shared_key": {"key": "secret"}},
+            peer_address={"ip": "203.0.113.1"},
+            protocol={"version": "ikev2-preferred", "ikev2": {"ike_crypto_profile": "default"}},
+            peer_id={"type": "fqdn", "id": "peer.example.com"},
+            local_id={"type": "fqdn", "id": "local.example.com"},
+            protocol_common={"nat_traversal": {"enable": True}, "fragmentation": {"enable": False}},
+        )
+        sdk_data = gw.to_sdk_model()
+        assert sdk_data["name"] == "test-gw"
+        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["authentication"] == {"pre_shared_key": {"key": "secret"}}
+        assert sdk_data["peer_address"] == {"ip": "203.0.113.1"}
+        assert sdk_data["protocol"]["version"] == "ikev2-preferred"
+        assert sdk_data["peer_id"] == {"type": "fqdn", "id": "peer.example.com"}
+        assert sdk_data["local_id"] == {"type": "fqdn", "id": "local.example.com"}
+        assert sdk_data["protocol_common"]["nat_traversal"]["enable"] is True
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion without optional fields."""
+        gw = IKEGateway(
+            name="test-gw",
+            folder="f",
+            authentication={"pre_shared_key": {"key": "k"}},
+            peer_address={"fqdn": "vpn.example.com"},
+            protocol={"version": "ikev2", "ikev2": {"ike_crypto_profile": "default"}},
+        )
+        sdk_data = gw.to_sdk_model()
+        assert "peer_id" not in sdk_data
+        assert "local_id" not in sdk_data
+        assert "protocol_common" not in sdk_data
+        assert sdk_data["peer_address"] == {"fqdn": "vpn.example.com"}
+
+    def test_fqdn_peer_address(self):
+        """Test FQDN peer address type."""
+        gw = IKEGateway(
+            name="test-gw",
+            folder="f",
+            authentication={"pre_shared_key": {"key": "k"}},
+            peer_address={"fqdn": "vpn.example.com"},
+            protocol={"version": "ikev2", "ikev2": {}},
+        )
+        assert gw.peer_address == {"fqdn": "vpn.example.com"}
+
+    def test_dynamic_peer_address(self):
+        """Test dynamic peer address type."""
+        gw = IKEGateway(
+            name="test-gw",
+            folder="f",
+            authentication={"pre_shared_key": {"key": "k"}},
+            peer_address={"dynamic": {}},
+            protocol={"version": "ikev2", "ikev2": {}},
+        )
+        assert gw.peer_address == {"dynamic": {}}
 
 
 class TestZone:
@@ -1242,3 +1404,284 @@ class TestURLCategory:
         category = URLCategory(name="test", folder="Texas")
         sdk_data = category.to_sdk_model()
         assert sdk_data == {"name": "test", "folder": "Texas", "type": "URL List"}
+
+
+# ========================================================================================================================================================================================
+# BGP ROUTING VALIDATOR TESTS
+# ========================================================================================================================================================================================
+
+
+class TestBGPRouting:
+    """Test BGP routing validator."""
+
+    def test_valid_bgp_routing(self):
+        """Test valid BGP routing creation."""
+        bgp = BGPRouting(backbone_routing="no-asymmetric-routing")
+        assert bgp.backbone_routing == "no-asymmetric-routing"
+        assert bgp.accept_route_over_sc is False
+        assert bgp.outbound_routes_for_services == []
+
+    def test_valid_bgp_routing_all_fields(self):
+        """Test valid BGP routing with all fields."""
+        bgp = BGPRouting(
+            backbone_routing="asymmetric-routing-only",
+            routing_preference="hot_potato_routing",
+            accept_route_over_sc=True,
+            outbound_routes_for_services=["10.0.0.0/8"],
+            add_host_route_to_ike_peer=True,
+            withdraw_static_route=True,
+        )
+        assert bgp.backbone_routing == "asymmetric-routing-only"
+        assert bgp.routing_preference == "hot_potato_routing"
+        assert bgp.accept_route_over_sc is True
+
+    def test_invalid_backbone_routing(self):
+        """Test that invalid backbone_routing raises error."""
+        with pytest.raises(ValidationError):
+            BGPRouting(backbone_routing="invalid-value")
+
+    def test_invalid_routing_preference(self):
+        """Test that invalid routing_preference raises error."""
+        with pytest.raises(ValidationError):
+            BGPRouting(backbone_routing="no-asymmetric-routing", routing_preference="invalid")
+
+    def test_to_sdk_model(self):
+        """Test SDK model conversion."""
+        bgp = BGPRouting(
+            backbone_routing="no-asymmetric-routing",
+            routing_preference="default",
+        )
+        sdk_data = bgp.to_sdk_model()
+        assert sdk_data["backbone_routing"] == "no-asymmetric-routing"
+        assert sdk_data["routing_preference"] == {"default": {}}
+        assert sdk_data["accept_route_over_SC"] is False
+
+    def test_to_sdk_model_hot_potato(self):
+        """Test SDK model conversion with hot potato routing."""
+        bgp = BGPRouting(
+            backbone_routing="asymmetric-routing-with-load-share",
+            routing_preference="hot_potato_routing",
+        )
+        sdk_data = bgp.to_sdk_model()
+        assert sdk_data["routing_preference"] == {"hot_potato_routing": {}}
+
+    def test_to_sdk_model_no_routing_preference(self):
+        """Test SDK model conversion without routing preference."""
+        bgp = BGPRouting(backbone_routing="no-asymmetric-routing")
+        sdk_data = bgp.to_sdk_model()
+        assert "routing_preference" not in sdk_data
+
+
+# ========================================================================================================================================================================================
+# INTERNAL DNS SERVER VALIDATOR TESTS
+# ========================================================================================================================================================================================
+
+
+class TestInternalDNSServer:
+    """Test internal DNS server validator."""
+
+    def test_valid_dns_server(self):
+        """Test valid internal DNS server creation."""
+        server = InternalDNSServer(
+            name="corp-dns",
+            domain_name=["corp.example.com"],
+            primary="10.0.0.1",
+        )
+        assert server.name == "corp-dns"
+        assert server.domain_name == ["corp.example.com"]
+        assert server.primary == "10.0.0.1"
+        assert server.secondary is None
+
+    def test_valid_dns_server_all_fields(self):
+        """Test valid internal DNS server with all fields."""
+        server = InternalDNSServer(
+            name="corp-dns",
+            domain_name=["corp.example.com", "dev.example.com"],
+            primary="10.0.0.1",
+            secondary="10.0.0.2",
+        )
+        assert len(server.domain_name) == 2
+        assert server.secondary == "10.0.0.2"
+
+    def test_domain_name_string_conversion(self):
+        """Test that string domain_name is converted to list."""
+        server = InternalDNSServer(
+            name="corp-dns",
+            domain_name="corp.example.com",
+            primary="10.0.0.1",
+        )
+        assert server.domain_name == ["corp.example.com"]
+
+    def test_empty_domain_name_raises_error(self):
+        """Test that empty domain_name raises error."""
+        with pytest.raises(ValidationError):
+            InternalDNSServer(
+                name="corp-dns",
+                domain_name=[],
+                primary="10.0.0.1",
+            )
+
+    def test_invalid_name_raises_error(self):
+        """Test that invalid name raises error."""
+        with pytest.raises(ValidationError):
+            InternalDNSServer(
+                name="invalid@name!",
+                domain_name=["corp.example.com"],
+                primary="10.0.0.1",
+            )
+
+    def test_to_sdk_model(self):
+        """Test SDK model conversion."""
+        server = InternalDNSServer(
+            name="corp-dns",
+            domain_name=["corp.example.com"],
+            primary="10.0.0.1",
+            secondary="10.0.0.2",
+        )
+        sdk_data = server.to_sdk_model()
+        assert sdk_data["name"] == "corp-dns"
+        assert sdk_data["domain_name"] == ["corp.example.com"]
+        assert sdk_data["primary"] == "10.0.0.1"
+        assert sdk_data["secondary"] == "10.0.0.2"
+
+    def test_to_sdk_model_no_secondary(self):
+        """Test SDK model conversion without secondary."""
+        server = InternalDNSServer(
+            name="corp-dns",
+            domain_name=["corp.example.com"],
+            primary="10.0.0.1",
+        )
+        sdk_data = server.to_sdk_model()
+        assert "secondary" not in sdk_data
+
+
+# ========================================================================================================================================================================================
+# MOBILE AGENT VALIDATOR TESTS
+# ========================================================================================================================================================================================
+
+
+class TestAuthSetting:
+    """Test cases for the AuthSetting model."""
+
+    def test_valid_auth_setting(self):
+        """Test creating a valid auth setting."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(
+            name="saml-auth",
+            folder="Mobile Users",
+            description="SAML authentication",
+            auth_type="saml",
+            os="Any",
+            max_user=100,
+            saml_idp="okta-idp",
+        )
+        assert setting.name == "saml-auth"
+        assert setting.folder == "Mobile Users"
+        assert setting.auth_type == "saml"
+        assert setting.os == "Any"
+        assert setting.max_user == 100
+        assert setting.saml_idp == "okta-idp"
+
+    def test_missing_name(self):
+        """Test that name is required."""
+        from scm_cli.utils.validators import AuthSetting
+
+        with pytest.raises(ValidationError):
+            AuthSetting(folder="Mobile Users")
+
+    def test_no_container(self):
+        """Test that at least one container must be set."""
+        from scm_cli.utils.validators import AuthSetting
+
+        with pytest.raises(ValidationError):
+            AuthSetting(name="test-auth")
+
+    def test_folder_container(self):
+        """Test auth setting with folder container."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(name="test", folder="Mobile Users")
+        assert setting.folder == "Mobile Users"
+
+    def test_snippet_container(self):
+        """Test auth setting with snippet container."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(name="test", snippet="Shared")
+        assert setting.snippet == "Shared"
+
+    def test_device_container(self):
+        """Test auth setting with device container."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(name="test", device="fw-01")
+        assert setting.device == "fw-01"
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(
+            name="saml-auth",
+            folder="Mobile Users",
+            description="SAML auth",
+            auth_type="saml",
+            os="Any",
+            max_user=50,
+            saml_idp="okta-idp",
+        )
+        sdk_data = setting.to_sdk_model()
+        assert sdk_data["name"] == "saml-auth"
+        assert sdk_data["folder"] == "Mobile Users"
+        assert sdk_data["description"] == "SAML auth"
+        assert sdk_data["auth_type"] == "saml"
+        assert sdk_data["os"] == "Any"
+        assert sdk_data["max_user"] == 50
+        assert sdk_data["saml_idp"] == "okta-idp"
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion with minimal fields."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(name="test", folder="Mobile Users")
+        sdk_data = setting.to_sdk_model()
+        assert sdk_data == {"name": "test", "folder": "Mobile Users"}
+
+    def test_to_sdk_model_snippet(self):
+        """Test conversion with snippet container."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(name="test", snippet="Shared")
+        sdk_data = setting.to_sdk_model()
+        assert sdk_data["snippet"] == "Shared"
+        assert "folder" not in sdk_data
+
+    def test_to_sdk_model_certificate_auth(self):
+        """Test conversion with certificate authentication."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(
+            name="cert-auth",
+            folder="Mobile Users",
+            auth_type="client-certificate",
+            os="Windows",
+            certificate_profile="corp-cert",
+        )
+        sdk_data = setting.to_sdk_model()
+        assert sdk_data["auth_type"] == "client-certificate"
+        assert sdk_data["certificate_profile"] == "corp-cert"
+
+    def test_to_sdk_model_ldap_auth(self):
+        """Test conversion with LDAP authentication."""
+        from scm_cli.utils.validators import AuthSetting
+
+        setting = AuthSetting(
+            name="ldap-auth",
+            folder="Mobile Users",
+            auth_type="ldap",
+            ldap_profile="corp-ldap",
+        )
+        sdk_data = setting.to_sdk_model()
+        assert sdk_data["auth_type"] == "ldap"
+        assert sdk_data["ldap_profile"] == "corp-ldap"

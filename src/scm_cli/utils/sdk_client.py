@@ -5471,6 +5471,193 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "IKE crypto profiles", e)
 
+    # --------------------------------------------------------------------------------------- IKE Gateways -----------------------------------------------------------------------------------
+
+    def create_ike_gateway(self, gateway_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update an IKE gateway using smart upsert logic."""
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+        for field in container_fields:
+            if field in gateway_data and gateway_data[field] is not None:
+                container_field = field
+                container_value = gateway_data[field]
+                break
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        if not self.client:
+            result = gateway_data.copy()
+            result["id"] = f"ike-gw-{gateway_data['name']}"
+            result["__action__"] = "created"
+            return result
+        existing_gateway = None
+        try:
+            existing_gateway = self.client.ike_gateway.fetch(name=gateway_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing IKE gateway '{gateway_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"IKE gateway '{gateway_data['name']}' not found, will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching IKE gateway '{gateway_data['name']}': {str(e)}")
+        if existing_gateway:
+            needs_update = False
+            update_fields = []
+            # Compare authentication
+            if "authentication" in gateway_data:
+                existing_auth = json.loads(existing_gateway.authentication.model_dump_json(exclude_unset=True)) if existing_gateway.authentication else None
+                if gateway_data["authentication"] != existing_auth:
+                    needs_update = True
+                    update_fields.append("authentication")
+            # Compare peer_address
+            if "peer_address" in gateway_data:
+                existing_peer = json.loads(existing_gateway.peer_address.model_dump_json(exclude_unset=True)) if existing_gateway.peer_address else None
+                if gateway_data["peer_address"] != existing_peer:
+                    needs_update = True
+                    update_fields.append("peer_address")
+            # Compare protocol
+            if "protocol" in gateway_data:
+                existing_proto = json.loads(existing_gateway.protocol.model_dump_json(exclude_unset=True)) if existing_gateway.protocol else None
+                if gateway_data["protocol"] != existing_proto:
+                    needs_update = True
+                    update_fields.append("protocol")
+            # Compare peer_id
+            if "peer_id" in gateway_data:
+                existing_peer_id = json.loads(existing_gateway.peer_id.model_dump_json(exclude_unset=True)) if existing_gateway.peer_id else None
+                if gateway_data["peer_id"] != existing_peer_id:
+                    needs_update = True
+                    update_fields.append("peer_id")
+            # Compare local_id
+            if "local_id" in gateway_data:
+                existing_local_id = json.loads(existing_gateway.local_id.model_dump_json(exclude_unset=True)) if existing_gateway.local_id else None
+                if gateway_data["local_id"] != existing_local_id:
+                    needs_update = True
+                    update_fields.append("local_id")
+            # Compare protocol_common
+            if "protocol_common" in gateway_data:
+                existing_common = json.loads(existing_gateway.protocol_common.model_dump_json(exclude_unset=True)) if existing_gateway.protocol_common else None
+                if gateway_data["protocol_common"] != existing_common:
+                    needs_update = True
+                    update_fields.append("protocol_common")
+            if needs_update:
+                self.logger.info(f"Updating IKE gateway fields: {', '.join(update_fields)}")
+                try:
+                    update_data = gateway_data.copy()
+                    update_data["id"] = str(existing_gateway.id)
+                    result = self.client.ike_gateway.update(update_data)
+                    result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                    result_dict["__action__"] = "updated"
+                    return result_dict
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"IKE gateway '{gateway_data['name']}'", update_error)
+            else:
+                result = json.loads(existing_gateway.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            try:
+                created = self.client.ike_gateway.create(gateway_data)
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception("creating", str(container_value), f"IKE gateway '{gateway_data['name']}'", create_error)
+
+    def delete_ike_gateway(self, name: str, folder: str | None = None, snippet: str | None = None, device: str | None = None) -> None:
+        """Delete an IKE gateway."""
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete IKE gateway: {name}")
+            return
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            gateway = self.client.ike_gateway.fetch(name=name, **container_kwargs)
+            self.client.ike_gateway.delete(str(gateway.id))
+            self.logger.info(f"Deleted IKE gateway: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"IKE gateway '{name}'", e)
+
+    def get_ike_gateway(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific IKE gateway."""
+        if not self.client:
+            return {
+                "id": "ike-gw-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "authentication": {"pre_shared_key": {"key": "mock-key"}},
+                "peer_address": {"ip": "203.0.113.1"},
+                "protocol": {"version": "ikev2-preferred", "ikev1": {"ike_crypto_profile": "default"}, "ikev2": {"ike_crypto_profile": "default"}},
+                "protocol_common": {"nat_traversal": {"enable": True}, "fragmentation": {"enable": False}},
+            }
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+        try:
+            result = self.client.ike_gateway.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"IKE gateway '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"IKE gateway '{name}'", e)
+
+    def list_ike_gateways(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List IKE gateways in a container."""
+        if not self.client:
+            return [
+                {
+                    "id": "ike-gw-mock1",
+                    "folder": folder or "ngfw-shared",
+                    "name": "gw-site-a",
+                    "authentication": {"pre_shared_key": {"key": "mock-key-1"}},
+                    "peer_address": {"ip": "203.0.113.1"},
+                    "protocol": {"version": "ikev2-preferred", "ikev1": {"ike_crypto_profile": "default"}, "ikev2": {"ike_crypto_profile": "default"}},
+                },
+                {
+                    "id": "ike-gw-mock2",
+                    "folder": folder or "ngfw-shared",
+                    "name": "gw-site-b",
+                    "authentication": {"pre_shared_key": {"key": "mock-key-2"}},
+                    "peer_address": {"fqdn": "vpn.example.com"},
+                    "protocol": {"version": "ikev2", "ikev2": {"ike_crypto_profile": "strong-profile"}},
+                },
+            ]
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        try:
+            results = self.client.ike_gateway.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "IKE gateways", e)
+
     # --------------------------------------------------------------------------------------- NAT Rules ------------------------------------------------------------------------------------
 
     def create_nat_rule(
@@ -8333,6 +8520,1873 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container or "", "URL categories", e)
+
+    # ======================================================================================================================================================================================
+    # JOBS AND COMMIT METHODS
+    # ======================================================================================================================================================================================
+
+    # ------------------------------------------------------------------------------------ Jobs ------------------------------------------------------------------------------------
+
+    def list_jobs(self, max_results: int = 25) -> list[dict[str, Any]]:
+        """List recent SCM configuration jobs.
+
+        Args:
+            max_results: Maximum number of jobs to return
+
+        Returns:
+            list[dict[str, Any]]: List of job dictionaries
+
+        """
+        self.logger.info(f"Listing jobs (max_results={max_results})")
+
+        if not self.client:
+            # Return mock data
+            return [
+                {
+                    "id": "11111",
+                    "type_str": "CommitAll",
+                    "status_str": "FIN",
+                    "description": "Mock commit job",
+                    "start_ts": "2025-01-15T10:00:00Z",
+                    "end_ts": "2025-01-15T10:02:00Z",
+                    "result_str": "OK",
+                },
+                {
+                    "id": "22222",
+                    "type_str": "CommitAll",
+                    "status_str": "PEND",
+                    "description": "Mock pending job",
+                    "start_ts": "2025-01-15T10:05:00Z",
+                    "end_ts": "",
+                    "result_str": "",
+                },
+                {
+                    "id": "33333",
+                    "type_str": "CommitAll",
+                    "status_str": "FIN",
+                    "description": "Mock completed job",
+                    "start_ts": "2025-01-15T09:00:00Z",
+                    "end_ts": "2025-01-15T09:03:00Z",
+                    "result_str": "FAIL",
+                },
+            ]
+
+        try:
+            result = self.client.list_jobs()
+            if hasattr(result, "data") and result.data:
+                jobs = []
+                for job in result.data[:max_results]:
+                    if hasattr(job, "model_dump_json"):
+                        jobs.append(json.loads(job.model_dump_json(exclude_unset=True)))
+                    else:
+                        jobs.append({"id": str(job)})
+                return jobs
+            elif isinstance(result, list):
+                return [
+                    json.loads(j.model_dump_json(exclude_unset=True)) if hasattr(j, "model_dump_json") else {"id": str(j)}
+                    for j in result[:max_results]
+                ]
+            return []
+        except Exception as e:
+            self._handle_api_exception("listing", "", "jobs", e)
+
+    def get_job_status(self, job_id: str) -> dict[str, Any]:
+        """Get the status of a specific job.
+
+        Args:
+            job_id: The ID of the job to query
+
+        Returns:
+            dict[str, Any]: Job status dictionary
+
+        """
+        self.logger.info(f"Getting job status: {job_id}")
+
+        if not self.client:
+            # Return mock data
+            return {
+                "id": job_id,
+                "type_str": "CommitAll",
+                "status_str": "FIN",
+                "result_str": "OK",
+                "description": "Mock job",
+                "start_ts": "2025-01-15T10:00:00Z",
+                "end_ts": "2025-01-15T10:02:00Z",
+                "details": "Configuration committed successfully",
+            }
+
+        try:
+            result = self.client.get_job_status(job_id=job_id)
+            if hasattr(result, "model_dump_json"):
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            return {"id": job_id, "status": str(result)}
+        except Exception as e:
+            self._handle_api_exception("getting status of", "", f"job {job_id}", e)
+
+    def wait_for_job(self, job_id: str, timeout: int = 300) -> dict[str, Any]:
+        """Wait for a job to complete.
+
+        Args:
+            job_id: The ID of the job to wait for
+            timeout: Maximum time to wait in seconds
+
+        Returns:
+            dict[str, Any]: Final job status dictionary
+
+        """
+        self.logger.info(f"Waiting for job {job_id} (timeout={timeout}s)")
+
+        if not self.client:
+            # Return mock data (simulate completed job)
+            return {
+                "id": job_id,
+                "type_str": "CommitAll",
+                "status_str": "FIN",
+                "result_str": "OK",
+                "description": "Mock job completed",
+                "start_ts": "2025-01-15T10:00:00Z",
+                "end_ts": "2025-01-15T10:02:00Z",
+                "details": "Configuration committed successfully",
+            }
+
+        try:
+            result = self.client.wait_for_job(job_id=job_id, timeout=timeout)
+            if hasattr(result, "model_dump_json"):
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            return {"id": job_id, "status": str(result)}
+        except Exception as e:
+            self._handle_api_exception("waiting for", "", f"job {job_id}", e)
+
+    # ----------------------------------------------------------------------------------- Commit -----------------------------------------------------------------------------------
+
+    def commit_config(
+        self,
+        folders: list[str],
+        description: str,
+        sync: bool = False,
+        timeout: int = 300,
+    ) -> dict[str, Any]:
+        """Commit configuration changes to SCM.
+
+        Args:
+            folders: List of folders to commit
+            description: Description of the commit
+            sync: Whether to wait synchronously for completion
+            timeout: Timeout in seconds when sync is True
+
+        Returns:
+            dict[str, Any]: Commit result dictionary
+
+        """
+        self.logger.info(f"Committing config for folders: {folders}, sync={sync}")
+
+        if not self.client:
+            # Return mock data
+            return {
+                "success": True,
+                "job_id": "mock-job-99999",
+                "status": "FIN" if sync else "PEND",
+                "message": "Mock commit " + ("completed" if sync else "initiated"),
+            }
+
+        try:
+            result = self.client.commit(
+                folders=folders,
+                description=description,
+                sync=sync,
+                timeout=timeout,
+            )
+            if hasattr(result, "model_dump_json"):
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            if isinstance(result, dict):
+                return result
+            return {
+                "success": True,
+                "job_id": str(result) if result else "unknown",
+                "status": "FIN" if sync else "PEND",
+            }
+        except Exception as e:
+            self._handle_api_exception("committing", ", ".join(folders), "configuration", e)
+
+    # ----------------------------- BGP Routing Methods ----------------------------
+
+    def create_bgp_routing(
+        self,
+        backbone_routing: str,
+        routing_preference: dict[str, Any] | None = None,
+        accept_route_over_SC: bool = False,  # noqa: N803
+        outbound_routes_for_services: list[str] | None = None,
+        add_host_route_to_ike_peer: bool = False,
+        withdraw_static_route: bool = False,
+    ) -> dict[str, Any]:
+        """Create or update BGP routing configuration (singleton resource).
+
+        Args:
+            backbone_routing: Backbone routing mode
+            routing_preference: Routing preference configuration
+            accept_route_over_SC: Accept routes over service connections
+            outbound_routes_for_services: Outbound routes for services
+            add_host_route_to_ike_peer: Add host route to IKE peer
+            withdraw_static_route: Withdraw static routes
+
+        Returns:
+            dict[str, Any]: Created/updated BGP routing configuration
+
+        """
+        self.logger.info("Creating/updating BGP routing configuration")
+
+        if not self.client:
+            return {
+                "backbone_routing": backbone_routing,
+                "routing_preference": routing_preference or {"default": {}},
+                "accept_route_over_SC": accept_route_over_SC,
+                "outbound_routes_for_services": outbound_routes_for_services or [],
+                "add_host_route_to_ike_peer": add_host_route_to_ike_peer,
+                "withdraw_static_route": withdraw_static_route,
+                "__action__": "created",
+            }
+
+        try:
+            # BGP routing is a singleton; try to get existing config first
+            existing = None
+            try:
+                existing = self.client.bgp_routing.get()
+                self.logger.info("Found existing BGP routing configuration")
+            except Exception:
+                self.logger.info("No existing BGP routing configuration found, will create")
+
+            data: dict[str, Any] = {
+                "backbone_routing": backbone_routing,
+                "accept_route_over_SC": accept_route_over_SC,
+                "outbound_routes_for_services": outbound_routes_for_services or [],
+                "add_host_route_to_ike_peer": add_host_route_to_ike_peer,
+                "withdraw_static_route": withdraw_static_route,
+            }
+            if routing_preference:
+                data["routing_preference"] = routing_preference
+
+            if existing:
+                result = self.client.bgp_routing.update(data)
+                self.logger.info("Successfully updated BGP routing configuration")
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "updated"
+                return result_dict
+            else:
+                result = self.client.bgp_routing.create(data)
+                self.logger.info("Successfully created BGP routing configuration")
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "created"
+                return result_dict
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", "N/A", "BGP routing", e)
+
+    def get_bgp_routing(self) -> dict[str, Any]:
+        """Get the current BGP routing configuration.
+
+        Returns:
+            dict[str, Any]: BGP routing configuration
+
+        """
+        self.logger.info("Getting BGP routing configuration")
+
+        if not self.client:
+            return {
+                "backbone_routing": "no-asymmetric-routing",
+                "routing_preference": {"default": {}},
+                "accept_route_over_SC": False,
+                "outbound_routes_for_services": [],
+                "add_host_route_to_ike_peer": False,
+                "withdraw_static_route": False,
+            }
+
+        try:
+            result = self.client.bgp_routing.get()
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", "N/A", "BGP routing", e)
+
+    def delete_bgp_routing(self) -> bool:
+        """Reset BGP routing configuration to defaults.
+
+        Returns:
+            bool: True if reset was successful
+
+        """
+        self.logger.info("Resetting BGP routing configuration to defaults")
+
+        if not self.client:
+            self.logger.info("Mock mode: Would reset BGP routing configuration")
+            return True
+
+        try:
+            self.client.bgp_routing.delete()
+            self.logger.info("Successfully reset BGP routing configuration")
+            return True
+        except Exception as e:
+            self._handle_api_exception("resetting", "N/A", "BGP routing", e)
+
+    # ----------------------- Internal DNS Server Methods ------------------------
+
+    def create_internal_dns_server(
+        self,
+        name: str,
+        domain_name: list[str],
+        primary: str,
+        secondary: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or update an internal DNS server using smart upsert logic.
+
+        Args:
+            name: Name of the internal DNS server
+            domain_name: DNS domain name(s)
+            primary: Primary DNS server IP address
+            secondary: Secondary DNS server IP address
+
+        Returns:
+            dict[str, Any]: Created/updated internal DNS server object
+
+        """
+        self.logger.info(f"Creating/updating internal DNS server '{name}'")
+
+        if not self.client:
+            return {
+                "id": f"dns-{name}",
+                "name": name,
+                "domain_name": domain_name,
+                "primary": primary,
+                "secondary": secondary,
+                "__action__": "created",
+            }
+
+        try:
+            # Step 1: Try to fetch existing DNS server
+            existing = None
+            try:
+                existing = self.client.internal_dns_server.fetch(name=name)
+                self.logger.info(f"Found existing internal DNS server '{name}'")
+            except Exception:
+                self.logger.info(f"Internal DNS server '{name}' not found, will create new")
+
+            if existing:
+                # Step 2: Check what needs updating
+                needs_update = False
+                update_fields = []
+
+                if set(existing.domain_name) != set(domain_name):
+                    update_fields.append("domain_name")
+                    needs_update = True
+
+                if str(existing.primary) != primary:
+                    update_fields.append("primary")
+                    needs_update = True
+
+                existing_secondary = str(existing.secondary) if existing.secondary else None
+                if existing_secondary != secondary:
+                    update_fields.append("secondary")
+                    needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating internal DNS server fields: {', '.join(update_fields)}")
+                    from scm.models.deployment import InternalDnsServersUpdateModel
+                    update_data = {
+                        "id": str(existing.id),
+                        "name": name,
+                        "domain_name": domain_name,
+                        "primary": primary,
+                    }
+                    if secondary:
+                        update_data["secondary"] = secondary
+                    update_model = InternalDnsServersUpdateModel(**update_data)
+                    updated = self.client.internal_dns_server.update(update_model)
+                    self.logger.info(f"Successfully updated internal DNS server '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for internal DNS server '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+
+            else:
+                # Step 3: Create new DNS server
+                data: dict[str, Any] = {
+                    "name": name,
+                    "domain_name": domain_name,
+                    "primary": primary,
+                }
+                if secondary:
+                    data["secondary"] = secondary
+
+                self.logger.info(f"Creating new internal DNS server '{name}'")
+                created = self.client.internal_dns_server.create(data)
+                self.logger.info(f"Successfully created internal DNS server '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+
+        except Exception as e:
+            self._handle_api_exception("creating/updating", name, "internal DNS server", e)
+
+    def get_internal_dns_server(self, name: str) -> dict[str, Any]:
+        """Get a specific internal DNS server by name.
+
+        Args:
+            name: Name of the internal DNS server
+
+        Returns:
+            dict[str, Any]: Internal DNS server object
+
+        """
+        self.logger.info(f"Getting internal DNS server '{name}'")
+
+        if not self.client:
+            return {
+                "id": f"dns-{name}",
+                "name": name,
+                "domain_name": ["example.com"],
+                "primary": "10.0.0.1",
+                "secondary": "10.0.0.2",
+            }
+
+        try:
+            result = self.client.internal_dns_server.fetch(name=name)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", name, "internal DNS server", e)
+
+    def list_internal_dns_servers(self) -> list[dict[str, Any]]:
+        """List all internal DNS servers.
+
+        Returns:
+            list[dict[str, Any]]: List of internal DNS server objects
+
+        """
+        self.logger.info("Listing internal DNS servers")
+
+        if not self.client:
+            return [
+                {
+                    "id": "dns-1",
+                    "name": "internal-dns-1",
+                    "domain_name": ["corp.example.com"],
+                    "primary": "10.0.0.1",
+                    "secondary": "10.0.0.2",
+                },
+                {
+                    "id": "dns-2",
+                    "name": "internal-dns-2",
+                    "domain_name": ["dev.example.com"],
+                    "primary": "10.1.0.1",
+                },
+            ]
+
+        try:
+            results = self.client.internal_dns_server.list()
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "N/A", "internal DNS servers", e)
+
+    def delete_internal_dns_server(self, name: str) -> bool:
+        """Delete an internal DNS server.
+
+        Args:
+            name: Name of the internal DNS server to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting internal DNS server '{name}'")
+
+        if not self.client:
+            self.logger.info(f"Mock mode: Would delete internal DNS server '{name}'")
+            return True
+
+        try:
+            dns_server = self.client.internal_dns_server.fetch(name=name)
+            self.client.internal_dns_server.delete(str(dns_server.id))
+            self.logger.info(f"Successfully deleted internal DNS server '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deleting", name, "internal DNS server", e)
+
+    # ----------------------- Network Location Methods ---------------------------
+
+    def get_network_location(self, value: str) -> dict[str, Any]:
+        """Get a specific network location by value.
+
+        Args:
+            value: System value of the network location (e.g., 'us-west-1')
+
+        Returns:
+            dict[str, Any]: Network location object
+
+        """
+        self.logger.info(f"Getting network location '{value}'")
+
+        if not self.client:
+            return {
+                "value": value,
+                "display": f"Mock {value}",
+                "continent": "North America",
+                "latitude": 37.38,
+                "longitude": -121.98,
+                "region": value,
+                "aggregate_region": "us-southwest",
+            }
+
+        try:
+            result = self.client.network_location.fetch(value=value)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", value, "network location", e)
+
+    def list_network_locations(self) -> list[dict[str, Any]]:
+        """List all network locations.
+
+        Returns:
+            list[dict[str, Any]]: List of network location objects
+
+        """
+        self.logger.info("Listing network locations")
+
+        if not self.client:
+            return [
+                {
+                    "value": "us-west-1",
+                    "display": "US West",
+                    "continent": "North America",
+                    "latitude": 37.38,
+                    "longitude": -121.98,
+                    "region": "us-west-1",
+                    "aggregate_region": "us-southwest",
+                },
+                {
+                    "value": "us-east-1",
+                    "display": "US East",
+                    "continent": "North America",
+                    "latitude": 39.04,
+                    "longitude": -77.49,
+                    "region": "us-east-1",
+                    "aggregate_region": "us-northeast",
+                },
+            ]
+
+        try:
+            results = self.client.network_location.list()
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "N/A", "network locations", e)
+
+    # ======================================================================================================================================================================================
+    # MOBILE AGENT CONFIGURATION METHODS
+    # ======================================================================================================================================================================================
+
+    # ---------------------------------------------------------------------------------- Agent Version ---------------------------------------------------------------------------------
+
+    def list_agent_versions(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List agent versions.
+
+        Args:
+            folder: Folder to list from
+            snippet: Snippet to list from
+            device: Device to list from
+
+        Returns:
+            list[dict[str, Any]]: List of agent version objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Listing agent versions in {container_type}: {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "av-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "5.2.13",
+                    "version": "5.2.13",
+                    "platform": "Windows",
+                    "release_date": "2024-01-15",
+                },
+                {
+                    "id": "av-mock2",
+                    "folder": folder or "Mobile Users",
+                    "name": "5.2.12",
+                    "version": "5.2.12",
+                    "platform": "macOS",
+                    "release_date": "2024-01-10",
+                },
+                {
+                    "id": "av-mock3",
+                    "folder": folder or "Mobile Users",
+                    "name": "6.0.1",
+                    "version": "6.0.1",
+                    "platform": "Linux",
+                    "release_date": "2024-02-01",
+                },
+            ]
+
+        try:
+            # Build container kwargs
+            container_kwargs = {}
+            if folder:
+                container_kwargs["folder"] = folder
+            elif snippet:
+                container_kwargs["snippet"] = snippet
+            elif device:
+                container_kwargs["device"] = device
+
+            results = self.client.agent_version.list(**container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "agent versions", e)
+
+    def get_agent_version(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get an agent version by name.
+
+        Args:
+            folder: Folder containing the agent version
+            snippet: Snippet containing the agent version
+            device: Device containing the agent version
+            name: Name of the agent version to get
+
+        Returns:
+            dict[str, Any]: The agent version object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Getting agent version: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"av-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "version": name,
+                "description": f"Mock agent version {name}",
+                "platform": "Windows",
+                "release_date": "2024-01-15",
+            }
+
+        try:
+            result = None
+            if folder:
+                result = self.client.agent_version.fetch(name=name, folder=folder)
+            elif snippet:
+                result = self.client.agent_version.fetch(name=name, snippet=snippet)
+            elif device:
+                result = self.client.agent_version.fetch(name=name, device=device)
+
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"Agent version '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", name or "", e)
+
+    # ---------------------------------------------------------------------------------- Auth Setting ----------------------------------------------------------------------------------
+
+    def create_auth_setting(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        auth_type: str | None = None,
+        os: str | None = None,
+        max_user: int | None = None,
+        saml_idp: str | None = None,
+        certificate_profile: str | None = None,
+        ldap_profile: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or update an auth setting using smart upsert logic.
+
+        Args:
+            folder: Folder to create the auth setting in
+            snippet: Snippet to create the auth setting in
+            device: Device to create the auth setting in
+            name: Name of the auth setting
+            description: Optional description
+            auth_type: Authentication type
+            os: Operating system
+            max_user: Maximum concurrent users
+            saml_idp: SAML identity provider profile
+            certificate_profile: Certificate profile name
+            ldap_profile: LDAP server profile name
+
+        Returns:
+            dict[str, Any]: The created/updated auth setting object with __action__ field
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Creating or updating auth setting: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"as-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": description,
+                "auth_type": auth_type,
+                "os": os,
+                "max_user": max_user,
+                "saml_idp": saml_idp,
+                "certificate_profile": certificate_profile,
+                "ldap_profile": ldap_profile,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing auth setting
+            existing = None
+            try:
+                if folder:
+                    existing = self.client.auth_setting.fetch(name=name, folder=folder)
+                elif snippet:
+                    existing = self.client.auth_setting.fetch(name=name, snippet=snippet)
+                elif device:
+                    existing = self.client.auth_setting.fetch(name=name, device=device)
+                self.logger.info(f"Found existing auth setting '{name}' in {container_type} '{container}'")
+            except NotFoundError:
+                self.logger.info(f"Auth setting '{name}' not found in {container_type} '{container}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching auth setting '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
+
+                if description is not None and getattr(existing, "description", "") != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if auth_type is not None and getattr(existing, "auth_type", None) != auth_type:
+                    existing.auth_type = auth_type
+                    update_fields.append("auth_type")
+                    needs_update = True
+
+                if os is not None and getattr(existing, "os", None) != os:
+                    existing.os = os
+                    update_fields.append("os")
+                    needs_update = True
+
+                if max_user is not None and getattr(existing, "max_user", None) != max_user:
+                    existing.max_user = max_user
+                    update_fields.append("max_user")
+                    needs_update = True
+
+                if saml_idp is not None and getattr(existing, "saml_idp", None) != saml_idp:
+                    existing.saml_idp = saml_idp
+                    update_fields.append("saml_idp")
+                    needs_update = True
+
+                if certificate_profile is not None and getattr(existing, "certificate_profile", None) != certificate_profile:
+                    existing.certificate_profile = certificate_profile
+                    update_fields.append("certificate_profile")
+                    needs_update = True
+
+                if ldap_profile is not None and getattr(existing, "ldap_profile", None) != ldap_profile:
+                    existing.ldap_profile = ldap_profile
+                    update_fields.append("ldap_profile")
+                    needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating auth setting fields: {', '.join(update_fields)}")
+                    result = self.client.auth_setting.update(existing)
+                    self.logger.info(f"Successfully updated auth setting '{name}' in {container_type} '{container}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for auth setting '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new auth setting
+                setting_data = {"name": name}
+
+                if folder is not None:
+                    setting_data["folder"] = folder
+                if snippet is not None:
+                    setting_data["snippet"] = snippet
+                if device is not None:
+                    setting_data["device"] = device
+                if description is not None:
+                    setting_data["description"] = description
+                if auth_type is not None:
+                    setting_data["auth_type"] = auth_type
+                if os is not None:
+                    setting_data["os"] = os
+                if max_user is not None:
+                    setting_data["max_user"] = max_user
+                if saml_idp is not None:
+                    setting_data["saml_idp"] = saml_idp
+                if certificate_profile is not None:
+                    setting_data["certificate_profile"] = certificate_profile
+                if ldap_profile is not None:
+                    setting_data["ldap_profile"] = ldap_profile
+
+                result = self.client.auth_setting.create(setting_data)
+                self.logger.info(f"Successfully created auth setting '{name}' in {container_type} '{container}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", container or "", name or "", e)
+
+    def get_auth_setting(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get an auth setting by name.
+
+        Args:
+            folder: Folder containing the auth setting
+            snippet: Snippet containing the auth setting
+            device: Device containing the auth setting
+            name: Name of the auth setting to get
+
+        Returns:
+            dict[str, Any]: The auth setting object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Getting auth setting: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"as-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "description": f"Mock auth setting {name}",
+                "auth_type": "saml",
+                "os": "Any",
+                "max_user": 100,
+                "saml_idp": "mock-idp-profile",
+            }
+
+        try:
+            result = None
+            if folder:
+                result = self.client.auth_setting.fetch(name=name, folder=folder)
+            elif snippet:
+                result = self.client.auth_setting.fetch(name=name, snippet=snippet)
+            elif device:
+                result = self.client.auth_setting.fetch(name=name, device=device)
+
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"Auth setting '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", name or "", e)
+
+    def list_auth_settings(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List auth settings.
+
+        Args:
+            folder: Folder to list from
+            snippet: Snippet to list from
+            device: Device to list from
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of auth setting objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        # Build container kwargs
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing auth settings in {container_type}: {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "as-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "saml-auth",
+                    "description": "SAML authentication setting",
+                    "auth_type": "saml",
+                    "os": "Any",
+                    "max_user": 100,
+                    "saml_idp": "okta-idp",
+                },
+                {
+                    "id": "as-mock2",
+                    "folder": folder or "Mobile Users",
+                    "name": "cert-auth",
+                    "description": "Certificate authentication setting",
+                    "auth_type": "client-certificate",
+                    "os": "Windows",
+                    "certificate_profile": "corp-cert-profile",
+                },
+            ]
+
+        try:
+            results = self.client.auth_setting.list(**container_kwargs, exact_match=exact_match)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "auth settings", e)
+
+    def delete_auth_setting(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete an auth setting.
+
+        Args:
+            folder: Folder containing the auth setting
+            snippet: Snippet containing the auth setting
+            device: Device containing the auth setting
+            name: Name of the auth setting to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Deleting auth setting: {name} from {container_type} {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            # Get the auth setting first to get its ID
+            setting = None
+            if folder:
+                setting = self.client.auth_setting.fetch(name=name, folder=folder)
+            elif snippet:
+                setting = self.client.auth_setting.fetch(name=name, snippet=snippet)
+            elif device:
+                setting = self.client.auth_setting.fetch(name=name, device=device)
+
+            if setting is None:
+                raise ValueError(f"Auth setting '{name}' not found")
+            self.client.auth_setting.delete(str(setting.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", container or "", name or "", e)
+
+    # ======================================================================================================================================================================================
+    # SETUP CONFIGURATION METHODS
+    # ======================================================================================================================================================================================
+
+    # Folder ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_folder(
+        self,
+        name: str,
+        parent: str,
+        description: str | None = None,
+        labels: list[str] | None = None,
+        snippets: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a folder (smart upsert).
+
+        Args:
+            name: Name of the folder
+            parent: Parent folder name
+            description: Optional description
+            labels: Optional list of labels
+            snippets: Optional list of snippet IDs
+
+        Returns:
+            dict[str, Any]: The created/updated folder object with '__action__' key.
+
+        """
+        self.logger.info(f"Upsert folder: {name} (parent: {parent})")
+
+        if not self.client:
+            return {
+                "id": f"folder-{name}",
+                "name": name,
+                "parent": parent,
+                "description": description or "",
+                "labels": labels or [],
+                "snippets": snippets or [],
+                "__action__": "created",
+            }
+
+        try:
+            existing = None
+            try:
+                existing = self.client.folder.fetch(name=name)
+                self.logger.info(f"Found existing folder '{name}'")
+            except NotFoundError:
+                self.logger.info(f"Folder '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching folder '{name}': {str(e)}")
+
+            if existing:
+                needs_update = False
+                update_fields = []
+
+                if getattr(existing, "parent", "") != parent:
+                    existing.parent = parent
+                    update_fields.append("parent")
+                    needs_update = True
+
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if labels is not None:
+                    current_labels = set(getattr(existing, "labels", []) or [])
+                    new_labels = set(labels or [])
+                    if current_labels != new_labels:
+                        existing.labels = labels
+                        update_fields.append("labels")
+                        needs_update = True
+
+                if snippets is not None:
+                    current_snippets = set(getattr(existing, "snippets", []) or [])
+                    new_snippets = set(snippets or [])
+                    if current_snippets != new_snippets:
+                        existing.snippets = snippets
+                        update_fields.append("snippets")
+                        needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating folder fields: {', '.join(update_fields)}")
+                    updated = self.client.folder.update(existing)
+                    self.logger.info(f"Successfully updated folder '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for folder '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+            else:
+                folder_data = {
+                    "name": name,
+                    "parent": parent,
+                }
+                if description:
+                    folder_data["description"] = description
+                if labels:
+                    folder_data["labels"] = labels
+                if snippets:
+                    folder_data["snippets"] = snippets
+
+                created = self.client.folder.create(folder_data)
+                self.logger.info(f"Successfully created folder '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+        except Exception as e:
+            self._handle_api_exception("creation/update", parent, name, e)
+
+    def get_folder(
+        self,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get a folder by name.
+
+        Args:
+            name: Name of the folder
+
+        Returns:
+            dict[str, Any]: The folder object
+
+        """
+        self.logger.info(f"Getting folder: {name}")
+
+        if not self.client:
+            return {
+                "id": f"folder-{name}",
+                "name": name,
+                "parent": "All",
+                "description": f"Mock folder {name}",
+            }
+
+        try:
+            result = self.client.folder.fetch(name=name)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", "N/A", name, e)
+
+    def list_folders(
+        self,
+    ) -> list[dict[str, Any]]:
+        """List all folders.
+
+        Returns:
+            list[dict[str, Any]]: List of folder objects
+
+        """
+        self.logger.info("Listing folders")
+
+        if not self.client:
+            return [
+                {
+                    "id": "folder-all",
+                    "name": "All",
+                    "parent": "",
+                    "description": "Root folder",
+                },
+                {
+                    "id": "folder-texas",
+                    "name": "Texas",
+                    "parent": "All",
+                    "description": "Texas branch offices",
+                },
+                {
+                    "id": "folder-austin",
+                    "name": "Austin",
+                    "parent": "Texas",
+                    "description": "Austin office",
+                },
+            ]
+
+        try:
+            results = self.client.folder.list()
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "N/A", "folders", e)
+
+    def delete_folder(
+        self,
+        name: str,
+    ) -> bool:
+        """Delete a folder.
+
+        Args:
+            name: Name of the folder to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting folder: {name}")
+
+        if not self.client:
+            return True
+
+        try:
+            folder = self.client.folder.fetch(name=name)
+            self.client.folder.delete(folder_id=str(folder.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", "N/A", name, e)
+
+    # Label -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_label(
+        self,
+        name: str,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a label (smart upsert).
+
+        Args:
+            name: Name of the label
+            description: Optional description
+
+        Returns:
+            dict[str, Any]: The created/updated label object with '__action__' key.
+
+        """
+        self.logger.info(f"Upsert label: {name}")
+
+        if not self.client:
+            return {
+                "id": f"label-{name}",
+                "name": name,
+                "description": description or "",
+                "__action__": "created",
+            }
+
+        try:
+            existing = None
+            try:
+                existing = self.client.label.fetch(name=name)
+                self.logger.info(f"Found existing label '{name}'")
+            except NotFoundError:
+                self.logger.info(f"Label '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching label '{name}': {str(e)}")
+
+            if existing:
+                needs_update = False
+                update_fields = []
+
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating label fields: {', '.join(update_fields)}")
+                    updated = self.client.label.update(existing)
+                    self.logger.info(f"Successfully updated label '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for label '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+            else:
+                label_data = {"name": name}
+                if description:
+                    label_data["description"] = description
+
+                created = self.client.label.create(label_data)
+                self.logger.info(f"Successfully created label '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+        except Exception as e:
+            self._handle_api_exception("creation/update", "N/A", name, e)
+
+    def get_label(
+        self,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get a label by name.
+
+        Args:
+            name: Name of the label
+
+        Returns:
+            dict[str, Any]: The label object
+
+        """
+        self.logger.info(f"Getting label: {name}")
+
+        if not self.client:
+            return {
+                "id": f"label-{name}",
+                "name": name,
+                "description": f"Mock label {name}",
+            }
+
+        try:
+            result = self.client.label.fetch(name=name)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", "N/A", name, e)
+
+    def list_labels(
+        self,
+    ) -> list[dict[str, Any]]:
+        """List all labels.
+
+        Returns:
+            list[dict[str, Any]]: List of label objects
+
+        """
+        self.logger.info("Listing labels")
+
+        if not self.client:
+            return [
+                {
+                    "id": "label-prod",
+                    "name": "production",
+                    "description": "Production environment",
+                },
+                {
+                    "id": "label-staging",
+                    "name": "staging",
+                    "description": "Staging environment",
+                },
+            ]
+
+        try:
+            results = self.client.label.list()
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "N/A", "labels", e)
+
+    def delete_label(
+        self,
+        name: str,
+    ) -> bool:
+        """Delete a label.
+
+        Args:
+            name: Name of the label to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting label: {name}")
+
+        if not self.client:
+            return True
+
+        try:
+            label = self.client.label.fetch(name=name)
+            self.client.label.delete(label_id=str(label.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", "N/A", name, e)
+
+    # Snippet ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_snippet(
+        self,
+        name: str,
+        description: str | None = None,
+        labels: list[str] | None = None,
+        enable_prefix: bool | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a snippet (smart upsert).
+
+        Args:
+            name: Name of the snippet
+            description: Optional description
+            labels: Optional list of labels
+            enable_prefix: Optional prefix enablement
+
+        Returns:
+            dict[str, Any]: The created/updated snippet object with '__action__' key.
+
+        """
+        self.logger.info(f"Upsert snippet: {name}")
+
+        if not self.client:
+            return {
+                "id": f"snippet-{name}",
+                "name": name,
+                "description": description or "",
+                "labels": labels or [],
+                "type": "custom",
+                "__action__": "created",
+            }
+
+        try:
+            existing = None
+            try:
+                existing = self.client.snippet.fetch(name=name)
+                self.logger.info(f"Found existing snippet '{name}'")
+            except NotFoundError:
+                self.logger.info(f"Snippet '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching snippet '{name}': {str(e)}")
+
+            if existing:
+                needs_update = False
+                update_fields = []
+
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if labels is not None:
+                    current_labels = set(getattr(existing, "labels", []) or [])
+                    new_labels = set(labels or [])
+                    if current_labels != new_labels:
+                        existing.labels = labels
+                        update_fields.append("labels")
+                        needs_update = True
+
+                if enable_prefix is not None and getattr(existing, "enable_prefix", None) != enable_prefix:
+                    existing.enable_prefix = enable_prefix
+                    update_fields.append("enable_prefix")
+                    needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating snippet fields: {', '.join(update_fields)}")
+                    updated = self.client.snippet.update(existing)
+                    self.logger.info(f"Successfully updated snippet '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for snippet '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+            else:
+                snippet_data = {"name": name}
+                if description:
+                    snippet_data["description"] = description
+                if labels:
+                    snippet_data["labels"] = labels
+                if enable_prefix is not None:
+                    snippet_data["enable_prefix"] = enable_prefix
+
+                created = self.client.snippet.create(snippet_data)
+                self.logger.info(f"Successfully created snippet '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+        except Exception as e:
+            self._handle_api_exception("creation/update", "N/A", name, e)
+
+    def get_snippet(
+        self,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get a snippet by name.
+
+        Args:
+            name: Name of the snippet
+
+        Returns:
+            dict[str, Any]: The snippet object
+
+        """
+        self.logger.info(f"Getting snippet: {name}")
+
+        if not self.client:
+            return {
+                "id": f"snippet-{name}",
+                "name": name,
+                "description": f"Mock snippet {name}",
+                "type": "custom",
+            }
+
+        try:
+            result = self.client.snippet.fetch(name=name)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", "N/A", name, e)
+
+    def list_snippets(
+        self,
+    ) -> list[dict[str, Any]]:
+        """List all snippets.
+
+        Returns:
+            list[dict[str, Any]]: List of snippet objects
+
+        """
+        self.logger.info("Listing snippets")
+
+        if not self.client:
+            return [
+                {
+                    "id": "snippet-dns",
+                    "name": "DNS-Best-Practice",
+                    "description": "DNS best practice configuration",
+                    "type": "predefined",
+                },
+                {
+                    "id": "snippet-web",
+                    "name": "Web-Security",
+                    "description": "Web security configuration",
+                    "type": "custom",
+                },
+            ]
+
+        try:
+            results = self.client.snippet.list()
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "N/A", "snippets", e)
+
+    def delete_snippet(
+        self,
+        name: str,
+    ) -> bool:
+        """Delete a snippet.
+
+        Args:
+            name: Name of the snippet to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting snippet: {name}")
+
+        if not self.client:
+            return True
+
+        try:
+            snippet = self.client.snippet.fetch(name=name)
+            self.client.snippet.delete(snippet_id=str(snippet.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", "N/A", name, e)
+
+    # Variable --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_variable(
+        self,
+        name: str,
+        type: str,
+        value: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a variable (smart upsert).
+
+        Args:
+            name: Name of the variable
+            type: Variable type
+            value: Variable value
+            folder: Folder to scope the variable to
+            snippet: Snippet to scope the variable to
+            device: Device to scope the variable to
+            description: Optional description
+
+        Returns:
+            dict[str, Any]: The created/updated variable object with '__action__' key.
+
+        """
+        container = folder or snippet or device or "N/A"
+        self.logger.info(f"Upsert variable: {name} in {container}")
+
+        if not self.client:
+            result = {
+                "id": f"var-{name}",
+                "name": name,
+                "type": type,
+                "value": value,
+                "description": description or "",
+                "__action__": "created",
+            }
+            if folder:
+                result["folder"] = folder
+            elif snippet:
+                result["snippet"] = snippet
+            elif device:
+                result["device"] = device
+            return result
+
+        try:
+            existing = None
+            try:
+                existing = self.client.variable.fetch(name=name, folder=folder, snippet=snippet, device=device)
+                self.logger.info(f"Found existing variable '{name}'")
+            except NotFoundError:
+                self.logger.info(f"Variable '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching variable '{name}': {str(e)}")
+
+            if existing:
+                needs_update = False
+                update_fields = []
+
+                if getattr(existing, "type", None) != type:
+                    existing.type = type
+                    update_fields.append("type")
+                    needs_update = True
+
+                if getattr(existing, "value", None) != value:
+                    existing.value = value
+                    update_fields.append("value")
+                    needs_update = True
+
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating variable fields: {', '.join(update_fields)}")
+                    updated = self.client.variable.update(existing)
+                    self.logger.info(f"Successfully updated variable '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for variable '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+            else:
+                var_data = {
+                    "name": name,
+                    "type": type,
+                    "value": value,
+                }
+                if folder:
+                    var_data["folder"] = folder
+                elif snippet:
+                    var_data["snippet"] = snippet
+                elif device:
+                    var_data["device"] = device
+                if description:
+                    var_data["description"] = description
+
+                created = self.client.variable.create(var_data)
+                self.logger.info(f"Successfully created variable '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+        except Exception as e:
+            self._handle_api_exception("creation/update", container, name, e)
+
+    def get_variable(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any]:
+        """Get a variable by name.
+
+        Args:
+            name: Name of the variable
+            folder: Folder scope
+            snippet: Snippet scope
+            device: Device scope
+
+        Returns:
+            dict[str, Any]: The variable object
+
+        """
+        self.logger.info(f"Getting variable: {name}")
+
+        if not self.client:
+            result = {
+                "id": f"var-{name}",
+                "name": name,
+                "type": "ip-netmask",
+                "value": "10.0.0.0/24",
+                "description": f"Mock variable {name}",
+            }
+            if folder:
+                result["folder"] = folder
+            return result
+
+        try:
+            result = self.client.variable.fetch(name=name, folder=folder, snippet=snippet, device=device)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder or snippet or device or "N/A", name, e)
+
+    def list_variables(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List variables.
+
+        Args:
+            folder: Folder scope
+            snippet: Snippet scope
+            device: Device scope
+
+        Returns:
+            list[dict[str, Any]]: List of variable objects
+
+        """
+        self.logger.info(f"Listing variables ({folder=}, {snippet=}, {device=})")
+
+        if not self.client:
+            return [
+                {
+                    "id": "var-egress",
+                    "name": "$egress-max",
+                    "type": "egress-max",
+                    "value": "1000",
+                    "folder": folder or "Texas",
+                    "description": "Maximum egress bandwidth",
+                },
+                {
+                    "id": "var-dns",
+                    "name": "$dns-server",
+                    "type": "fqdn",
+                    "value": "dns.example.com",
+                    "folder": folder or "Texas",
+                    "description": "DNS server address",
+                },
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.variable.list(**container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            container = folder or snippet or device or "N/A"
+            self._handle_api_exception("listing", container, "variables", e)
+
+    def delete_variable(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> bool:
+        """Delete a variable.
+
+        Args:
+            name: Name of the variable to delete
+            folder: Folder scope
+            snippet: Snippet scope
+            device: Device scope
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting variable: {name}")
+
+        if not self.client:
+            return True
+
+        try:
+            variable = self.client.variable.fetch(name=name, folder=folder, snippet=snippet, device=device)
+            self.client.variable.delete(variable_id=str(variable.id))
+            return True
+        except Exception as e:
+            container = folder or snippet or device or "N/A"
+            self._handle_api_exception("deletion", container, name, e)
+
+    # Device (read-only) ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def get_device(
+        self,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get a device by name or serial number.
+
+        Args:
+            name: Name or serial number of the device
+
+        Returns:
+            dict[str, Any]: The device object
+
+        """
+        self.logger.info(f"Getting device: {name}")
+
+        if not self.client:
+            return {
+                "id": f"device-{name}",
+                "name": name,
+                "hostname": name,
+                "serial_number": "0123456789",
+                "model": "PA-VM",
+                "family": "vm",
+                "folder": "Texas",
+                "software_version": "11.1.0",
+                "is_connected": True,
+                "uptime": "30 days",
+            }
+
+        try:
+            result = self.client.device.fetch(name=name)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", "N/A", name, e)
+
+    def list_devices(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List devices.
+
+        Args:
+            folder: Optional folder to filter devices
+
+        Returns:
+            list[dict[str, Any]]: List of device objects
+
+        """
+        self.logger.info(f"Listing devices (folder={folder})")
+
+        if not self.client:
+            return [
+                {
+                    "id": "device-fw1",
+                    "name": "PA-VM-01",
+                    "hostname": "pa-vm-01",
+                    "serial_number": "0123456789",
+                    "model": "PA-VM",
+                    "family": "vm",
+                    "folder": folder or "Texas",
+                    "software_version": "11.1.0",
+                    "is_connected": True,
+                },
+                {
+                    "id": "device-fw2",
+                    "name": "PA-VM-02",
+                    "hostname": "pa-vm-02",
+                    "serial_number": "9876543210",
+                    "model": "PA-VM",
+                    "family": "vm",
+                    "folder": folder or "Texas",
+                    "software_version": "11.1.0",
+                    "is_connected": False,
+                },
+            ]
+
+        try:
+            kwargs = {}
+            if folder:
+                kwargs["folder"] = folder
+            results = self.client.device.list(**kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "N/A", "devices", e)
 
     # ======================================================================================================================================================================================
     # INSIGHTS AND MONITORING METHODS
