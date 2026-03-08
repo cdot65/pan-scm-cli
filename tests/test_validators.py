@@ -14,6 +14,7 @@ from scm_cli.utils.validators import (
     Region,
     Schedule,
     SecurityRule,
+    URLCategory,
     VulnerabilityProtectionProfile,
     WildfireAntivirusProfile,
     Zone,
@@ -1161,3 +1162,83 @@ class TestVulnerabilityProtectionProfile:
             ],
         )
         assert profile.rules[0]["action"]["block_ip"]["duration"] == 300
+
+
+class TestURLCategory:
+    """Test cases for the URLCategory model."""
+
+    def test_valid_url_category(self):
+        """Test creating a valid URL category."""
+        category = URLCategory(
+            name="custom-block",
+            folder="Texas",
+            description="Custom blocked URLs",
+            type="URL List",
+            url_list=["malware.example.com", "phishing.test.org"],
+        )
+        assert category.name == "custom-block"
+        assert category.folder == "Texas"
+        assert category.description == "Custom blocked URLs"
+        assert category.type == "URL List"
+        assert category.url_list == ["malware.example.com", "phishing.test.org"]
+
+    def test_missing_name(self):
+        """Test that name is required."""
+        with pytest.raises(ValidationError):
+            URLCategory(folder="Texas")
+
+    def test_no_container(self):
+        """Test that exactly one container must be set."""
+        with pytest.raises(ValidationError):
+            URLCategory(name="test")
+
+    def test_multiple_containers(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            URLCategory(name="test", folder="Texas", snippet="My-Snippet")
+
+    def test_invalid_type(self):
+        """Test that invalid type is rejected."""
+        with pytest.raises(ValidationError):
+            URLCategory(name="test", folder="Texas", type="Invalid Type")
+
+    def test_valid_category_match_type(self):
+        """Test Category Match type is accepted."""
+        category = URLCategory(name="test", folder="Texas", type="Category Match", url_list=["gambling"])
+        assert category.type == "Category Match"
+
+    def test_default_values(self):
+        """Test default values."""
+        category = URLCategory(name="test", folder="Texas")
+        assert category.type == "URL List"
+        assert category.url_list == []
+        assert category.description is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        category = URLCategory(
+            name="custom-block",
+            folder="Texas",
+            description="Custom blocked URLs",
+            type="URL List",
+            url_list=["malware.example.com"],
+        )
+        sdk_data = category.to_sdk_model()
+        assert sdk_data["name"] == "custom-block"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["description"] == "Custom blocked URLs"
+        assert sdk_data["type"] == "URL List"
+        assert sdk_data["list"] == ["malware.example.com"]
+
+    def test_to_sdk_model_snippet(self):
+        """Test conversion with snippet container."""
+        category = URLCategory(name="test", snippet="My-Snippet")
+        sdk_data = category.to_sdk_model()
+        assert sdk_data["snippet"] == "My-Snippet"
+        assert "folder" not in sdk_data
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion with minimal fields."""
+        category = URLCategory(name="test", folder="Texas")
+        sdk_data = category.to_sdk_model()
+        assert sdk_data == {"name": "test", "folder": "Texas", "type": "URL List"}

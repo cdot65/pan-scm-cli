@@ -13,7 +13,7 @@ import typer
 import yaml
 
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AntiSpywareProfile, DecryptionProfile, DNSSecurityProfile, SecurityRule, VulnerabilityProtectionProfile, WildfireAntivirusProfile
+from ..utils.validators import AntiSpywareProfile, DecryptionProfile, DNSSecurityProfile, SecurityRule, URLCategory, VulnerabilityProtectionProfile, WildfireAntivirusProfile
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -3227,4 +3227,420 @@ def show_vulnerability_protection_profile(
 
     except Exception as e:
         typer.echo(f"Error showing vulnerability protection profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# URL CATEGORY COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("url-category")
+def backup_url_category(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all URL categories from a container to a YAML file.
+
+    Examples:
+        # Backup from folder
+        scm backup security url-category --folder Austin
+
+        # Backup from snippet
+        scm backup security url-category --snippet DNS-Best-Practice
+
+        # Backup from device
+        scm backup security url-category --device austin-01
+
+        # Backup to custom filename
+        scm backup security url-category --folder Austin --file my-url-categories.yaml
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("url-categories", location_type, location_value)
+
+    try:
+        # List all URL categories with exact_match=True using kwargs pattern
+        kwargs = {location_type: location_value}
+        categories = scm_client.list_url_categories(**kwargs, exact_match=True)
+
+        if not categories:
+            typer.echo(f"No URL categories found in {location_type} '{location_value}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for category in categories:
+            category_dict = category.copy()
+            # Remove system fields that shouldn't be in backup
+            category_dict.pop("id", None)
+
+            backup_data.append(category_dict)
+
+        # Create the YAML structure
+        yaml_data = {"url_categories": backup_data}
+
+        # Write to YAML file
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} URL categories to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up URL categories: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("url-category")
+def delete_url_category(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the URL category"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the URL category"),
+    device: str = typer.Option(None, "--device", help="Device containing the URL category"),
+    name: str = NAME_OPTION,
+):
+    """Delete a URL category.
+
+    Examples:
+        # Delete from folder
+        scm delete security url-category --folder Texas --name custom-block-list
+
+        # Delete from snippet
+        scm delete security url-category --snippet DNS-Best-Practice --name phishing-urls
+
+        # Delete from device
+        scm delete security url-category --device austin-01 --name local-blocklist
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_url_category(**kwargs, name=name)
+        if result:
+            typer.echo(f"Deleted URL category: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(
+                f"URL category not found: {name} in {location_type} {location_value}",
+                err=True,
+            )
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting URL category: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("url-category", help="Load URL categories from a YAML file.")
+def load_url_category(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load URL categories from a YAML file.
+
+    Examples:
+        # Load from file with original locations
+        scm load security url-category --file config/url_categories.yml
+
+        # Load with folder override
+        scm load security url-category --file config/url_categories.yml --folder Production
+
+        # Load with snippet override
+        scm load security url-category --file config/url_categories.yml --snippet Security-Best-Practice
+
+        # Dry run to preview changes
+        scm load security url-category --file config/url_categories.yml --dry-run
+
+    """
+    try:
+        # Validate container override parameters
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo(
+                "Error: Only one of --folder, --snippet, or --device can be specified",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        # Validate file exists
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data using the same pattern as other commands
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "url_categories" not in raw_data:
+            typer.echo("No URL categories found in file", err=True)
+            raise typer.Exit(code=1)
+
+        categories = raw_data["url_categories"]
+        if not isinstance(categories, list):
+            categories = [categories]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            # Show override information if applicable
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(categories))
+            return []
+
+        # Apply each URL category
+        results = []
+        created_count = 0
+        updated_count = 0
+
+        for category_data in categories:
+            try:
+                # Apply container override if specified
+                if folder:
+                    category_data["folder"] = folder
+                    category_data.pop("snippet", None)
+                    category_data.pop("device", None)
+                elif snippet:
+                    category_data["snippet"] = snippet
+                    category_data.pop("folder", None)
+                    category_data.pop("device", None)
+                elif device:
+                    category_data["device"] = device
+                    category_data.pop("folder", None)
+                    category_data.pop("snippet", None)
+
+                # Validate using the Pydantic model
+                category = URLCategory(**category_data)
+
+                # Call the SDK client to create the URL category
+                sdk_data = category.to_sdk_model()
+
+                # Extract container params
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_url_category(**container_kwargs, **sdk_data)
+
+                results.append(result)
+
+                # Track if created or updated based on response
+                if result.get("__action__") == "created":
+                    created_count += 1
+                else:
+                    updated_count += 1
+
+            except Exception as e:
+                typer.echo(
+                    f"Error processing URL category '{category_data.get('name', 'unknown')}': {str(e)}",
+                    err=True,
+                )
+                # Continue processing other categories
+                continue
+
+        # Display summary with counts
+        typer.echo(f"Successfully processed {len(results)} URL category(ies):")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading URL categories: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("url-category")
+def set_url_category(
+    folder: str = typer.Option(None, "--folder", help="Folder path for the URL category"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the URL category"),
+    device: str = typer.Option(None, "--device", help="Device path for the URL category"),
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    type: str = typer.Option("URL List", "--type", help="Type of URL category (URL List or Category Match)"),
+    urls: list[str] | None = typer.Option(None, "--url", help="URL entries for the category"),
+):
+    r"""Create or update a URL category.
+
+    Examples:
+        # Create URL list category in folder
+        scm set security url-category --folder Texas --name custom-block \
+            --url malware.example.com --url phishing.test.org
+
+        # Create category match type
+        scm set security url-category --folder Texas --name match-category \
+            --type "Category Match" --url gambling --url adult
+
+        # Create in snippet
+        scm set security url-category --snippet Security-Best-Practice \
+            --name blocked-sites --url bad-site.com
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        # Build category data
+        category_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+            "type": type,
+        }
+
+        if description:
+            category_data["description"] = description
+        if urls:
+            category_data["list"] = urls
+
+        # Validate using Pydantic model
+        category = URLCategory(**category_data)
+
+        # Call SDK client
+        sdk_data = category.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_url_category(**container_kwargs, **sdk_data)
+
+        # Format and display output
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created URL category: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated URL category: {result['name']} in {location_type} {location_value}")
+        else:
+            typer.echo(f"No changes to URL category: {result['name']} in {location_type} {location_value}")
+
+    except Exception as e:
+        typer.echo(f"Error creating URL category: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("url-category")
+def show_url_category(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the URL category"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the URL category"),
+    device: str = typer.Option(None, "--device", help="Device containing the URL category"),
+    name: str | None = typer.Option(None, "--name", help="Name of the URL category to show"),
+):
+    """Display URL categories.
+
+    Examples:
+        # List all URL categories in a folder (default behavior)
+        scm show security url-category --folder Texas
+
+        # Show a specific URL category by name
+        scm show security url-category --folder Texas --name custom-block
+
+        # List URL categories in snippet
+        scm show security url-category --snippet Security-Best-Practice
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            # Get a specific URL category by name
+            kwargs = {location_type: location_value}
+            category = scm_client.get_url_category(**kwargs, name=name)
+
+            typer.echo(f"\nURL Category: {category.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location
+            if category.get("folder"):
+                typer.echo(f"Location: Folder '{category['folder']}'")
+            elif category.get("snippet"):
+                typer.echo(f"Location: Snippet '{category['snippet']}'")
+            elif category.get("device"):
+                typer.echo(f"Location: Device '{category['device']}'")
+
+            # Display description if present
+            if category.get("description"):
+                typer.echo(f"Description: {category['description']}")
+
+            # Display type
+            if category.get("type"):
+                typer.echo(f"Type: {category['type']}")
+
+            # Display URL list
+            if category.get("list"):
+                typer.echo(f"\nURLs ({len(category['list'])}):")
+                for url in category["list"]:
+                    typer.echo(f"  - {url}")
+
+            # Display ID if present
+            if category.get("id"):
+                typer.echo(f"\nID: {category['id']}")
+
+            return category
+
+        else:
+            # Default behavior: list all
+            kwargs = {location_type: location_value}
+            categories = scm_client.list_url_categories(**kwargs, exact_match=False)
+
+            if not categories:
+                typer.echo(f"No URL categories found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nURL Categories in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for category in categories:
+                typer.echo(f"Name: {category.get('name', 'N/A')}")
+
+                # Display container location
+                if category.get("folder"):
+                    typer.echo(f"  Location: Folder '{category['folder']}'")
+                elif category.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{category['snippet']}'")
+                elif category.get("device"):
+                    typer.echo(f"  Location: Device '{category['device']}'")
+
+                # Display description if present
+                if category.get("description"):
+                    typer.echo(f"  Description: {category['description']}")
+
+                # Display type
+                if category.get("type"):
+                    typer.echo(f"  Type: {category['type']}")
+
+                # Display URL count
+                if category.get("list"):
+                    typer.echo(f"  URLs: {len(category['list'])} entries")
+
+                # Display ID if present
+                if category.get("id"):
+                    typer.echo(f"  ID: {category['id']}")
+
+                typer.echo("-" * 80)
+
+            return categories
+
+    except Exception as e:
+        typer.echo(f"Error showing URL category: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

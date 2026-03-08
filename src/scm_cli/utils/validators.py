@@ -2403,6 +2403,66 @@ class DNSSecurityProfile(BaseModel):
         return model_data
 
 
+class URLCategory(BaseModel):
+    """Model for URL category configurations."""
+
+    model_config = {"populate_by_name": True}
+
+    folder: str | None = Field(None, description="Folder path for the URL category")
+    snippet: str | None = Field(None, description="Snippet path for the URL category")
+    device: str | None = Field(None, description="Device path for the URL category")
+    name: str = Field(..., description="Name of the URL category")
+    description: str | None = Field(None, description="Description of the URL category")
+
+    # URL category type
+    type: str | None = Field("URL List", description="Type of the URL category (URL List or Category Match)")
+
+    # List of URLs or categories - use alias to match SDK field name "list"
+    url_list: list[str] = Field(default_factory=list, alias="list", description="List of URLs or category matches")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "URLCategory":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("type")
+    def validate_type(cls, v: str | None) -> str | None:  # noqa: N805
+        """Validate URL category type."""
+        if v is None:
+            return v
+        valid_types = ["URL List", "Category Match"]
+        if v not in valid_types:
+            raise ValueError(f"Invalid type '{v}'. Must be one of: {', '.join(valid_types)}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.type:
+            model_data["type"] = self.type
+        if self.url_list:
+            model_data["list"] = self.url_list
+
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # UTILITY FUNCTIONS
 # ========================================================================================================================================================================================

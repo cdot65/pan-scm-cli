@@ -8096,6 +8096,244 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", container or "", "vulnerability protection profiles", e)
 
+    # -------------------------------------------------------------------------------------- URL Category ------------------------------------------------------------------------------------
+
+    def create_url_category(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        type: str | None = None,
+        list: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a URL category.
+
+        Args:
+            folder: Folder to create the URL category in
+            snippet: Snippet to create the URL category in
+            device: Device to create the URL category in
+            name: Name of the URL category
+            description: Optional description
+            type: Type of URL category (URL List or Category Match)
+            list: List of URLs or category matches
+
+        Returns:
+            dict[str, Any]: The created URL category object
+
+        Note:
+            If a URL category with the same name already exists in the container,
+            it will be updated with the new configuration.
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Creating or updating URL category: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"urlcat-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": description,
+                "type": type or "URL List",
+                "list": list or [],
+                "__action__": "created",
+            }
+
+        try:
+            # First, try to fetch the existing URL category
+            existing = None
+            try:
+                existing = self.client.url_category.fetch(name=name, folder=folder, snippet=snippet, device=device)
+                self.logger.info(f"Found existing URL category '{name}' in {container_type} '{container}', updating...")
+            except NotFoundError:
+                self.logger.info(f"URL category '{name}' not found in {container_type} '{container}', creating new...")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching URL category '{name}': {str(fetch_error)}")
+
+            # Prepare data
+            data = {
+                "name": name,
+            }
+
+            # Add container field only if not None
+            if folder is not None:
+                data["folder"] = folder
+            if snippet is not None:
+                data["snippet"] = snippet
+            if device is not None:
+                data["device"] = device
+
+            # Add optional fields if provided
+            if description is not None:
+                data["description"] = description
+            if type is not None:
+                data["type"] = type
+            if list is not None:
+                data["list"] = list
+
+            # Create or update
+            if existing:
+                # Update existing
+                data["id"] = existing.id
+                from scm.models.security.url_categories import URLCategoriesUpdateModel
+
+                update_model = URLCategoriesUpdateModel(**data)
+                result = self.client.url_category.update(update_model)
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "updated"
+            else:
+                # Create new
+                result = self.client.url_category.create(data)
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "created"
+
+            return result_dict
+
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", "URL category", e)
+
+    def delete_url_category(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a URL category.
+
+        Args:
+            folder: Folder containing the URL category
+            snippet: Snippet containing the URL category
+            device: Device containing the URL category
+            name: Name of the URL category to delete
+
+        Returns:
+            bool: True if deleted successfully
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Deleting URL category: {name} from {container_type} {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            profile = self.client.url_category.fetch(name=name, folder=folder, snippet=snippet, device=device)
+            self.client.url_category.delete(profile.id)
+            self.logger.info(f"Successfully deleted URL category '{name}' from {container_type} '{container}'")
+            return True
+        except NotFoundError:
+            self.logger.warning(f"URL category '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", "URL category", e)
+
+    def get_url_category(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a URL category by name.
+
+        Args:
+            folder: Folder containing the URL category
+            snippet: Snippet containing the URL category
+            device: Device containing the URL category
+            name: Name of the URL category
+
+        Returns:
+            dict[str, Any]: The URL category object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Getting URL category: {name} from {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"urlcat-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": "Mock URL category",
+                "type": "URL List",
+                "list": ["example.com", "test.org"],
+            }
+
+        try:
+            result = self.client.url_category.fetch(name=name, folder=folder, snippet=snippet, device=device)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", "URL category", e)
+
+    def list_url_categories(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List URL categories.
+
+        Args:
+            folder: Folder to list out
+            snippet: Snippet to list out
+            device: Device to list out
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of URL category objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing URL categories in {container_type}: {container}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "urlcat-mock1",
+                    "folder": folder or "Texas",
+                    "name": "Custom-Block-List",
+                    "description": "Custom blocked URLs",
+                    "type": "URL List",
+                    "list": ["malware.example.com", "phishing.test.org"],
+                },
+                {
+                    "id": "urlcat-mock2",
+                    "folder": folder or "Texas",
+                    "name": "Internal-Sites",
+                    "description": "Internal company sites",
+                    "type": "URL List",
+                    "list": ["intranet.company.com", "wiki.company.com"],
+                },
+            ]
+
+        try:
+            results = self.client.url_category.list(**container_kwargs, exact_match=exact_match)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "URL categories", e)
+
     # ======================================================================================================================================================================================
     # INSIGHTS AND MONITORING METHODS
     # ======================================================================================================================================================================================

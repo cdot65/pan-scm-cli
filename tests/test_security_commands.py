@@ -6,6 +6,7 @@ from scm_cli.commands.security import (
     delete_app,
     delete_dns_security_profile,
     delete_security_rule,
+    delete_url_category,
     delete_vulnerability_protection_profile,
     delete_wildfire_antivirus_profile,
     load_app,
@@ -15,9 +16,11 @@ from scm_cli.commands.security import (
     set_app,
     set_dns_security_profile,
     set_security_rule,
+    set_url_category,
     set_vulnerability_protection_profile,
     set_wildfire_antivirus_profile,
     show_dns_security_profile,
+    show_url_category,
     show_vulnerability_protection_profile,
     show_wildfire_antivirus_profile,
 )
@@ -936,3 +939,160 @@ vulnerability_protection_profiles:
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         assert not mock_called
+
+
+class TestURLCategoryCommands:
+    """Test the URL category commands."""
+
+    def test_set_url_category_command(self, runner, monkeypatch):
+        """Test the set URL category command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "urlcat-12345",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "type": kwargs.get("type", "URL List"),
+                "list": kwargs.get("list", []),
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_url_category", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "custom-block",
+                "--url",
+                "malware.example.com",
+                "--url",
+                "phishing.test.org",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created URL category" in result.stdout
+        assert "custom-block" in result.stdout
+
+    def test_set_url_category_error(self, runner, monkeypatch):
+        """Test the set URL category command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(*args, **kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_url_category", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-category",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating URL category" in result.stdout
+
+    def test_delete_url_category_command(self, runner, monkeypatch):
+        """Test the delete URL category command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(scm_client, "delete_url_category", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "custom-block",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted URL category" in result.stdout
+        assert "custom-block" in result.stdout
+
+    def test_show_url_category_list(self, runner, monkeypatch):
+        """Test the show URL category command for listing."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return [
+                {
+                    "id": "urlcat-1",
+                    "name": "Custom-Block-List",
+                    "folder": "Texas",
+                    "type": "URL List",
+                    "list": ["malware.example.com"],
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_url_categories", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Custom-Block-List" in result.stdout
+
+    def test_show_url_category_by_name(self, runner, monkeypatch):
+        """Test the show URL category command for a specific category."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {
+                "id": "urlcat-1",
+                "name": "Custom-Block-List",
+                "folder": "Texas",
+                "description": "Custom blocked URLs",
+                "type": "URL List",
+                "list": ["malware.example.com", "phishing.test.org"],
+            }
+
+        monkeypatch.setattr(scm_client, "get_url_category", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "Custom-Block-List",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Custom-Block-List" in result.stdout
+        assert "malware.example.com" in result.stdout
+        assert "phishing.test.org" in result.stdout
