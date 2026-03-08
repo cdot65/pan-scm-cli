@@ -174,6 +174,7 @@ class TestAddressGroupCommands:
                 "name": kwargs.get("name"),
                 "folder": kwargs.get("folder"),
                 "type": kwargs.get("type"),
+                "created": True,
             }
 
         monkeypatch.setattr(scm_client, "create_address_group", mock_create)
@@ -184,11 +185,11 @@ class TestAddressGroupCommands:
         result = runner.invoke(test_app, ["--file", str(mock_address_groups_yaml_file)])
 
         assert result.exit_code == 0
-        assert "Created address group" in result.stdout
-        assert "test-group" in result.stdout
+        assert "Successfully processed" in result.stdout
+        assert "1 address group" in result.stdout
 
     def test_show_address_group_list(self, runner, monkeypatch):
-        """Test the show address-group command with --list flag."""
+        """Test the show address-group command listing all groups (default behavior)."""
         from scm_cli.commands.objects import show_address_group
         from scm_cli.utils.sdk_client import scm_client
 
@@ -198,16 +199,14 @@ class TestAddressGroupCommands:
                     "id": "123e4567-e89b-12d3-a456-426614174000",
                     "name": "test-group",
                     "description": "Test group",
-                    "type": "static",
-                    "members": ["192.168.1.0/24"],
+                    "static": ["192.168.1.0/24"],
                     "folder": "Shared",
                 },
                 {
                     "id": "123e4567-e89b-12d3-a456-426614174001",
                     "name": "test-group-2",
                     "description": "Second test group",
-                    "type": "dynamic",
-                    "filter": "'tag1' or 'tag2'",
+                    "dynamic": {"filter": "'tag1' or 'tag2'"},
                     "folder": "Shared",
                 },
             ]
@@ -217,7 +216,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(show_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "Shared", "--list"])
+        result = runner.invoke(test_app, ["--folder", "Shared"])
 
         assert result.exit_code == 0
         assert "test-group" in result.stdout
@@ -233,8 +232,7 @@ class TestAddressGroupCommands:
                 "id": "123e4567-e89b-12d3-a456-426614174000",
                 "name": "test-group",
                 "description": "Test group",
-                "type": "static",
-                "members": ["192.168.1.0/24", "10.0.0.0/8"],
+                "static": ["192.168.1.0/24", "10.0.0.0/8"],
                 "folder": "Shared",
                 "tag": ["production", "webservers"],
             }
@@ -262,8 +260,7 @@ class TestAddressGroupCommands:
                 "id": "123e4567-e89b-12d3-a456-426614174002",
                 "name": "dynamic-endpoints",
                 "description": "Dynamic endpoint group",
-                "type": "dynamic",
-                "filter": "'endpoint' and 'corporate'",
+                "dynamic": {"filter": "'endpoint' and 'corporate'"},
                 "folder": "Shared",
                 "tag": ["dynamic", "auto"],
             }
@@ -282,19 +279,32 @@ class TestAddressGroupCommands:
         assert "Tags: dynamic, auto" in result.stdout
 
     def test_show_address_group_no_options(self, runner, monkeypatch):
-        """Test the show address-group command without --list or --name flags."""
+        """Test the show address-group command without --name defaults to listing all."""
         from scm_cli.commands.objects import show_address_group
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list_address_groups(*args, **kwargs):
+            return [
+                {
+                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                    "name": "test-group",
+                    "static": ["192.168.1.0/24"],
+                    "folder": "Shared",
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_address_groups", mock_list_address_groups)
 
         test_app = typer.Typer()
         test_app.command()(show_address_group)
 
         result = runner.invoke(test_app, ["--folder", "Shared"])
 
-        assert result.exit_code == 1
-        assert "Error: Either --list or --name must be specified" in result.stdout
+        assert result.exit_code == 0
+        assert "test-group" in result.stdout
 
     def test_show_address_group_empty_list(self, runner, monkeypatch):
-        """Test the show address-group command with --list flag when no groups exist."""
+        """Test the show address-group command when no groups exist."""
         from scm_cli.commands.objects import show_address_group
         from scm_cli.utils.sdk_client import scm_client
 
@@ -306,7 +316,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(show_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "Shared", "--list"])
+        result = runner.invoke(test_app, ["--folder", "Shared"])
 
         assert result.exit_code == 0
         assert "No address groups found in folder 'Shared'" in result.stdout

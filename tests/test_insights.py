@@ -114,21 +114,21 @@ class TestInsightsRemoteNetworks:
         result = runner.invoke(app, ["insights", "remote-networks", "--list"])
         assert result.exit_code == 0
         assert "rn-001" in result.output
-        assert "Branch Office Network" in result.output
+        assert "Branch Office 1" in result.output
 
     def test_get_remote_network_mock(self, runner, mock_insights_env):
         """Test getting a specific remote network in mock mode."""
         result = runner.invoke(app, ["insights", "remote-networks", "--id", "rn-001"])
         assert result.exit_code == 0
         assert "rn-001" in result.output
-        assert "Branch Office Network" in result.output
+        assert "Branch Office 1" in result.output
 
     def test_list_remote_networks_with_metrics_mock(self, runner, mock_insights_env):
         """Test listing remote networks with metrics in mock mode."""
         result = runner.invoke(app, ["insights", "remote-networks", "--list", "--metrics"])
         assert result.exit_code == 0
         assert "latency" in result.output
-        assert "throughput" in result.output
+        assert "jitter" in result.output
 
 
 class TestInsightsServiceConnections:

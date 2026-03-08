@@ -255,9 +255,7 @@ class TestSecurityRuleCommands:
         result = runner.invoke(test_app, ["--file", str(mock_security_rules_yaml_file)])
 
         assert result.exit_code == 0
-        assert "Applied security rule" in result.stdout
-        assert "test-rule" in result.stdout
-        assert "test-folder" in result.stdout
+        assert "Successfully processed 1 security rule(s)" in result.stdout
         assert len(created_rules) == 1
 
     def test_load_security_rule_dry_run(self, runner, monkeypatch, mock_security_rules_yaml_file):

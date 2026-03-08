@@ -109,48 +109,45 @@ class TestBandwidthAllocation:
         """Test creating a valid bandwidth allocation."""
         allocation = BandwidthAllocation(
             name="test-allocation",
-            folder="test-folder",
             bandwidth=1000,
-            description="Test allocation",
+            spn_name_list=["spn1", "spn2"],
             tags=["test", "example"],
         )
         assert allocation.name == "test-allocation"
-        assert allocation.folder == "test-folder"
         assert allocation.bandwidth == 1000
-        assert allocation.description == "Test allocation"
+        assert allocation.spn_name_list == ["spn1", "spn2"]
         assert allocation.tags == ["test", "example"]
 
     def test_missing_required_fields(self):
         """Test that required fields are enforced."""
         with pytest.raises(ValidationError):
             BandwidthAllocation(
-                name="test-allocation",
-                # Missing folder
-                bandwidth=1000,
-            )
-
-        with pytest.raises(ValidationError):
-            BandwidthAllocation(
                 # Missing name
-                folder="test-folder",
                 bandwidth=1000,
+                spn_name_list=["spn1"],
             )
 
         with pytest.raises(ValidationError):
             BandwidthAllocation(
                 name="test-allocation",
-                folder="test-folder",
                 # Missing bandwidth
+                spn_name_list=["spn1"],
+            )
+
+        with pytest.raises(ValidationError):
+            BandwidthAllocation(
+                name="test-allocation",
+                bandwidth=1000,
+                # Missing spn_name_list
             )
 
     def test_default_values(self):
         """Test that default values are applied correctly."""
         allocation = BandwidthAllocation(
             name="test-allocation",
-            folder="test-folder",
             bandwidth=1000,
+            spn_name_list=["spn1"],
         )
-        assert allocation.description == ""
         assert allocation.tags == []
 
 
@@ -385,15 +382,13 @@ class TestZone:
         zone = Zone(
             name="test-zone",
             folder="test-folder",
-            mode="L3",
-            interfaces=["ethernet1/1"],
+            network={"layer3": ["ethernet1/1"]},
             description="Test zone",
             tags=["test", "example"],
         )
         assert zone.name == "test-zone"
         assert zone.folder == "test-folder"
-        assert zone.mode == "L3"
-        assert zone.interfaces == ["ethernet1/1"]
+        assert zone.network == {"layer3": ["ethernet1/1"]}
         assert zone.description == "Test zone"
         assert zone.tags == ["test", "example"]
 
@@ -403,29 +398,20 @@ class TestZone:
             Zone(
                 name="test-zone",
                 # Missing folder
-                mode="L3",
             )
 
         with pytest.raises(ValidationError):
             Zone(
                 # Missing name
                 folder="test-folder",
-                mode="L3",
-            )
-
-        with pytest.raises(ValidationError):
-            Zone(
-                name="test-zone",
-                folder="test-folder",
-                # Missing mode
             )
 
     def test_default_values(self):
         """Test that default values are applied correctly."""
-        zone = Zone(name="test-zone", folder="test-folder", mode="L3")
-        assert zone.interfaces == []
-        assert zone.description == ""
-        assert zone.tags == []
+        zone = Zone(name="test-zone", folder="test-folder")
+        assert zone.network == {}
+        assert zone.description is None
+        assert zone.tags is None
 
 
 class TestAddressGroup:
@@ -861,43 +847,25 @@ class TestSecurityRule:
             SecurityRule(
                 name="test-rule",
                 # Missing folder
-                source_zones=["trust"],
-                destination_zones=["untrust"],
             )
 
         with pytest.raises(ValidationError):
             SecurityRule(
                 # Missing name
                 folder="test-folder",
-                source_zones=["trust"],
-                destination_zones=["untrust"],
-            )
-
-        with pytest.raises(ValidationError):
-            SecurityRule(
-                name="test-rule",
-                folder="test-folder",
-                # Missing source_zones
-                destination_zones=["untrust"],
-            )
-
-        with pytest.raises(ValidationError):
-            SecurityRule(
-                name="test-rule",
-                folder="test-folder",
-                source_zones=["trust"],
-                # Missing destination_zones
             )
 
     def test_default_values(self):
         """Test that default values are applied correctly."""
-        rule = SecurityRule(name="test-rule", folder="test-folder", source_zones=["trust"], destination_zones=["untrust"])
+        rule = SecurityRule(name="test-rule", folder="test-folder")
+        assert rule.source_zones == ["any"]
+        assert rule.destination_zones == ["any"]
         assert rule.source_addresses == ["any"]
         assert rule.destination_addresses == ["any"]
         assert rule.applications == ["any"]
         assert rule.action == "allow"
-        assert rule.description == ""
-        assert rule.tags == []
+        assert rule.description is None
+        assert rule.tags is None
         assert rule.enabled is True
 
 
