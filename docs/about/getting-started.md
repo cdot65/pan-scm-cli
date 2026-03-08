@@ -1,14 +1,10 @@
-# Getting Started with pan-scm-cli
+# Getting Started
 
-Welcome to the `pan-scm-cli`! This guide will walk you through the initial setup and basic usage of the CLI tool to interact with Palo Alto Networks Strata Cloud Manager.
+This guide walks you through initial setup and basic usage of the `pan-scm-cli` tool for managing Palo Alto Networks Strata Cloud Manager.
 
 ## Installation
 
-**Requirements**:
-
-- Python 3.10 or higher
-
-Install the package via pip:
+Install the package via pip (Python 3.10+ required):
 
 ```bash
 $ pip install pan-scm-cli
@@ -16,75 +12,49 @@ $ pip install pan-scm-cli
 Successfully installed pan-scm-cli
 ```
 
+!!! tip
+    See the [Installation Guide](installation.md) for detailed setup instructions
+    including virtual environments and Docker.
+
 ## Authentication Setup
 
-The SCM CLI uses dynaconf to manage authentication credentials. You have the following options for authentication:
+The SCM CLI uses a context-based authentication system. You can configure credentials through contexts or environment variables.
 
----
+### Option 1: Contexts (Recommended)
 
-### Credential Precedence: How SCM CLI Loads Credentials
-
-The SCM CLI loads authentication credentials in the following order (highest to lowest priority):
-
-1. **Environment Variables** (`SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`)
-2. **Local Config Files** in the current working directory (`settings.yaml`, `.secrets.yaml`)
-3. **User Config File** at `~/.scm-cli/config.yaml`
-
-> **Note:**
->
-> - If a credential is set in multiple places, the one with the highest priority is used.
-> - Environment variables always override config file values.
-> - If a value is missing from higher-priority sources, the CLI will look for it in the next source.
-
-**Example:**
-
-- If you set `SCM_CLIENT_ID` as an environment variable, it will be used even if your `.secrets.yaml` or `~/.scm-cli/config.yaml` files have different values.
-- If `.secrets.yaml` is present in your current directory, it will override `~/.scm-cli/config.yaml` for any values it contains.
-
----
-
-### Option 1: Using Local .secrets.yaml (Recommended for Development)
-
-> **⚠️ SECURITY WARNING**
->
-> Storage of credentials in files poses security risks. Consider these best practices:
->
-> - **NEVER commit credential files to version control**
-> - **Use environment variables for production environments**
-> - **Protect local credential files with appropriate file permissions**
-> - **Regularly rotate your credentials**
-
-For local development, follow these steps:
+Create a named context with your SCM credentials:
 
 ```bash
-# Step 1: Copy the example configuration file
-$ cp example-config.yaml .secrets.yaml
-
-# Step 2: Edit the .secrets.yaml file with your credentials
-$ nano .secrets.yaml
-
-# Step 3: Secure the file with restrictive permissions
-$ chmod 600 .secrets.yaml
+$ scm context create production \
+    --client-id "your-app@123456789.iam.panserviceaccount.com" \
+    --client-secret "your-secret-key" \
+    --tsg-id "123456789"
+---> 100%
+✓ Context 'production' created successfully
+✓ Context 'production' set as current
 ```
 
-> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
+Test the connection:
 
-Your `.secrets.yaml` file should look like this:
-
-```yaml
-default:
-  scm_client_id: "your_client_id"
-  scm_client_secret: "your_client_secret"
-  scm_tsg_id: "your_tenant_service_group_id"
+```bash
+$ scm context test
+Testing authentication for context: production
+✓ Authentication successful!
+  Client ID: your-app@123456789.iam.panserviceaccount.com
+  TSG ID: 123456789
+✓ API connectivity verified (found 15 address objects in Shared folder)
 ```
 
-Run the CLI from the same directory where `.secrets.yaml` is located. Dynaconf will automatically load credentials from this file.
+Switch between multiple tenants:
 
-> **Note**: The `.secrets.yaml` file is excluded from version control in `.gitignore` to prevent accidental exposure of credentials. For team environments, each developer should maintain their own local configuration and credentials.
+```bash
+$ scm context list
+$ scm context use staging
+```
 
 ### Option 2: Environment Variables
 
-For production use or scripting, set environment variables:
+For CI/CD pipelines or scripting, set environment variables:
 
 ```bash
 export SCM_CLIENT_ID="your_client_id"
@@ -92,30 +62,44 @@ export SCM_CLIENT_SECRET="your_client_secret"
 export SCM_TSG_ID="your_tsg_id"
 ```
 
-> **Note**: Environment variables are not included in version control. Each developer should set their own environment variables.
+!!! info
+    Environment variables override context credentials when both are present.
+    This is useful for CI/CD environments where credentials are injected at runtime.
 
-These environment variables will be automatically detected by dynaconf and used for authentication.
+### Credential Precedence
+
+The CLI loads credentials in the following order (highest to lowest priority):
+
+| Priority | Source | Use Case |
+| --- | --- | --- |
+| 1 | Environment variables (`SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`) | CI/CD pipelines |
+| 2 | Active context (set via `scm context use`) | Interactive use |
+| 3 | Mock mode | Testing without credentials |
+
+!!! warning
+    Never commit credentials to version control. Use contexts or environment
+    variables for secure credential management. Regularly rotate your credentials.
 
 ## Command Structure
 
-All commands in `pan-scm-cli` follow this basic structure:
+All commands follow this pattern:
 
 ```bash
-scm <action> <resource-type> <resource> [options]
+scm <action> <category> <resource> [options]
 ```
 
-Where:
-
-- `<action>`: The operation to perform (set, delete, load)
-- `<resource-type>`: The category of resource (objects, deployment, network, security)
-- `<resource>`: The specific resource type (address, address-group, zone, etc.)
-- `[options]`: Resource-specific parameters and global options
+| Component | Description | Examples |
+| --- | --- | --- |
+| `<action>` | Operation to perform | `set`, `delete`, `load`, `show`, `backup` |
+| `<category>` | Category of resource | `object`, `network`, `security`, `sase` |
+| `<resource>` | Specific resource type | `address`, `address-group`, `security-zone` |
+| `[options]` | Resource-specific parameters | `--folder`, `--name`, `--ip-netmask` |
 
 ## Basic Usage Examples
 
 ### Getting Help
 
-You can get help for any command by using the `--help` flag:
+Use the `--help` flag for any command:
 
 ```bash
 $ scm --help
@@ -128,9 +112,11 @@ Options:
   --help     Show this message and exit.
 
 Commands:
-  delete  Delete resources from SCM
-  load    Load resources from files
-  set     Set/configure resources in SCM
+  backup   Backup configurations to YAML files
+  delete   Remove configurations
+  load     Load configurations from YAML files
+  set      Create or update configurations
+  show     Display configurations
 ```
 
 Command-specific help:
@@ -153,8 +139,6 @@ Options:
   --help                   Show this message and exit.
 ```
 
-### Working with Address Objects
-
 ### Creating an Address Object
 
 ```bash
@@ -162,8 +146,7 @@ $ scm set object address \
     --folder Texas \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
-    --description "Web server" \
-    --tags ["server", "web"]
+    --description "Web server"
 ---> 100%
 Created address: webserver in folder Texas
 ```
@@ -185,13 +168,16 @@ Created address: company-website in folder Texas
 ```bash
 $ scm show object address --folder Texas
 ---> 100%
-+----------------+---------------+------------------+
-| Name           | Type          | Value            |
-+----------------+---------------+------------------+
-| webserver      | ip-netmask    | 192.168.1.100/32 |
-| company-website| fqdn          | example.com      |
-| database       | ip-netmask    | 192.168.2.50/32  |
-+----------------+---------------+------------------+
+Addresses in folder 'Texas':
+------------------------------------------------------------
+Name: webserver
+  Type: ip-netmask
+  Value: 192.168.1.100/32
+------------------------------------------------------------
+Name: company-website
+  Type: fqdn
+  Value: example.com
+------------------------------------------------------------
 ```
 
 ### Deleting an Address Object
@@ -202,55 +188,57 @@ $ scm delete object address --folder Texas --name webserver
 Deleted address: webserver from folder Texas
 ```
 
-### Bulk Operations with YAML Files
+## Bulk Operations
 
-### Loading Multiple Address Objects
+### Loading from YAML
 
-Create a YAML file with multiple address definitions:
+Create a YAML file with multiple definitions:
 
-```bash
-$ cat > addresses.yml << EOF
+```yaml
 ---
-folder: Texas
 addresses:
   - name: web-server-1
+    folder: Texas
     description: "Web Server 1"
     ip_netmask: 192.168.1.10/32
     tags:
       - web
       - production
+
   - name: web-server-2
+    folder: Texas
     description: "Web Server 2"
     ip_netmask: 192.168.1.11/32
     tags:
       - web
       - production
+
   - name: database-server
+    folder: Texas
     description: "Database Server"
     ip_netmask: 192.168.2.10/32
     tags:
       - database
       - production
-EOF
 ```
 
-Then load the addresses from the file:
+Load the addresses from the file:
 
 ```bash
 $ scm load object address --file addresses.yml
 ---> 100%
-Loading addresses from addresses.yml
-Applied address: web-server-1 in folder Texas
-Applied address: web-server-2 in folder Texas
-Applied address: database-server in folder Texas
-Successfully applied 3 address objects
+✓ Loaded address: web-server-1
+✓ Loaded address: web-server-2
+✓ Loaded address: database-server
+
+Successfully loaded 3 out of 3 addresses from 'addresses.yml'
 ```
 
-### Advanced Usage
+## Dry Run and Mock Modes
 
-### Using Dry Run Mode
+### Dry Run Mode
 
-Test changes without applying them:
+Preview changes without applying them:
 
 ```bash
 $ scm set object address \
@@ -262,24 +250,26 @@ $ scm set object address \
 [DRY RUN] Would create address: webserver in folder Texas
 ```
 
-### Using Mock Mode for Testing
+### Mock Mode
 
 Run commands without connecting to the SCM API:
 
 ```bash
-$ export SCM_MOCK_MODE=true
 $ scm set object address \
     --folder Texas \
     --name webserver \
-    --ip-netmask 192.168.1.100/32
+    --ip-netmask 192.168.1.100/32 \
+    --mock
 ---> 100%
 [MOCK] Created address: webserver in folder Texas
 ```
 
+!!! tip
+    Mock mode is useful for testing scripts and workflows without consuming
+    API calls or requiring valid credentials.
+
 ## Next Steps
 
-Now that you're familiar with the basics of using `pan-scm-cli`, you can:
-
-1. Check out the CLI Reference for a complete list of commands and options
-2. Learn about Address Objects and their implementation
-3. Explore Security Rules for managing security policies
+1. Explore the [CLI Reference](../cli/index.md) for a complete list of commands and options
+2. Learn about [Troubleshooting](troubleshooting.md) common issues
+3. Read about [Contributing](contributing.md) to the project
