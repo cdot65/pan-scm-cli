@@ -1,49 +1,99 @@
-# Working with Data Formats
+# Data Formats
 
-The Strata Cloud Manager CLI handles data validation and formatting internally, but it's important to understand the expected data formats for various commands, especially when working with bulk operations.
+The `scm` CLI handles data validation and formatting internally, but understanding the expected data formats is important when working with command parameters and bulk operations. This guide covers parameter types, YAML file structures, and validation rules.
 
-## Command Parameters
+## Overview
 
-Each CLI command accepts specific parameters in appropriate formats:
+This guide explains the data formats used by the CLI:
 
-### String Parameters
+- Understand parameter types for command-line input (strings, booleans, lists)
+- Write correctly structured YAML files for bulk loading
+- Validate input data before submitting to the API
+- Troubleshoot common validation errors
+
+## Prerequisites
+
+Before working with data formats, ensure you have:
+
+- The `scm` CLI installed (see [Getting Started](getting-started.md))
+- Familiarity with YAML syntax for bulk operations
+- An understanding of the object types you plan to manage (see [Configuration Objects](configuration-objects.md))
+
+## Core Concepts
+
+### Parameter Types
+
+CLI commands accept parameters in several formats depending on the field type.
+
+#### String Parameters
 
 Most simple parameters are provided as strings:
 
 ```bash
-# Name, description, and folder are string parameters
-scm set object address --name "web-server" --description "Web server in DMZ" --folder "Shared"
+$ scm set object address \
+    --name "web-server" \
+    --description "Web server in DMZ" \
+    --folder "Shared"
+---> 100%
+Created address: web-server in folder Shared
 ```
 
-### Boolean Parameters
+#### Boolean Parameters
 
-Boolean parameters can be specified as `true` or `false`:
+Boolean parameters accept `true` or `false`:
 
 ```bash
-# Disabled is a boolean parameter
-scm set security rule --name "Allow-Web" --folder "Shared" --disabled false
+$ scm set security rule \
+    --name "Allow-Web" \
+    --folder "Shared" \
+    --disabled false
+---> 100%
+Created security rule: Allow-Web in folder Shared
 ```
 
-### List Parameters
+#### List Parameters
 
-Lists can be provided as comma-separated values:
+Lists are provided as comma-separated values:
 
 ```bash
-# Tags is a list parameter
-scm set object address --name "web-server" --folder "Shared" --tags "web,dmz,production"
+$ scm set object address \
+    --name "web-server" \
+    --folder "Shared" \
+    --tags "web,dmz,production"
+---> 100%
+Created address: web-server in folder Shared
 ```
 
-### Object Parameters
+#### Object Parameters
 
-Some complex parameters might require structured input. In these cases, you'll typically use the YAML file loading feature.
+Complex parameters with nested structure typically require YAML file loading rather than command-line input.
 
-## YAML File Formats
+### YAML Key Naming
 
-The CLI's `load` commands allow you to provide data in YAML files for bulk operations. Each resource type has an expected YAML structure.
+YAML files use `snake_case` keys matching the SDK model field names, while CLI flags use `kebab-case`:
 
-### Address Objects
+| YAML Key | CLI Flag |
+| --- | --- |
+| `ip_netmask` | `--ip-netmask` |
+| `source_zones` | `--source-zones` |
+| `enable_user_id` | `--enable-user-id` |
+
+### Data Validation
+
+The CLI performs validation at multiple stages:
+
+1. **Command-line parameters**: Validated immediately when you run the command
+2. **YAML files**: Validated when processed by `load` commands
+3. **Object relationships**: Referenced objects must exist (e.g., address group members)
+
+## Examples
+
+### YAML File Formats
+
+#### Address Objects
 
 ```yaml
+---
 addresses:
   - name: web-server-1
     description: "Web server 1"
@@ -60,9 +110,10 @@ addresses:
       - production
 ```
 
-### Address Groups
+#### Address Groups
 
 ```yaml
+---
 address_groups:
   - name: web-servers
     description: "Group of web servers"
@@ -82,9 +133,10 @@ address_groups:
       - endpoints
 ```
 
-### Security Zones
+#### Security Zones
 
 ```yaml
+---
 security_zones:
   - name: Trust
     description: "Internal trusted network zone"
@@ -102,9 +154,10 @@ security_zones:
       - external
 ```
 
-### Security Rules
+#### Security Rules
 
 ```yaml
+---
 security_rules:
   - name: Allow-Internal-Web
     description: "Allow internal users to access web servers"
@@ -127,9 +180,10 @@ security_rules:
       - internal-access
 ```
 
-### Bandwidth Allocation
+#### Bandwidth Allocation
 
 ```yaml
+---
 bandwidth_allocations:
   - name: Standard-Branch
     description: "Standard bandwidth allocation for branch offices"
@@ -142,30 +196,27 @@ bandwidth_allocations:
       - standard
 ```
 
-## Data Validation
-
-The CLI performs validation on input data:
-
-1. **Command-line parameters** are validated immediately when you run the command
-2. **YAML files** are validated when processed by `load` commands
-3. **Relationships** between objects are checked (e.g., referenced objects must exist)
-
-If validation fails, the CLI will display an error message explaining the issue.
-
 ### Common Validation Rules
 
-- **Names** must be unique within their scope
-- **IP addresses** must be in valid formats
-- **References** to other objects must point to existing objects
-- **Required fields** must be provided
-- **Exclusive fields** (where only one can be specified) are enforced
+| Rule | Description |
+| --- | --- |
+| Unique names | Names must be unique within their scope |
+| Valid IP formats | IP addresses must use valid CIDR or host notation |
+| Valid references | References to other objects must point to existing objects |
+| Required fields | All required fields must be provided |
+| Exclusive fields | Mutually exclusive fields cannot both be specified |
+
+!!! tip
+    Use the `--mock` flag to validate YAML files and command parameters
+    without making changes to your SCM environment.
 
 ## Best Practices
 
-1. **Use YAML files for complex or bulk operations** - This provides better structure and maintainability
-2. **Keep YAML files in version control** - Track changes to your configurations
-3. **Validate YAML** - Use the `--mock` flag to validate without making changes
-4. **Check command help** - Use `--help` with any command to see required parameters and formats
+1. **Use YAML files for complex or bulk operations**: Structured files are easier to maintain and review than long command lines.
+2. **Keep YAML files in version control**: Track configuration changes alongside your infrastructure code.
+3. **Validate before applying**: Use `--mock` to validate YAML files and commands before making changes.
+4. **Check command help for formats**: Use `--help` with any command to see required parameters and accepted formats.
+5. **Use `snake_case` in YAML**: Match the SDK model field names exactly when writing YAML files.
 
 ## Next Steps
 

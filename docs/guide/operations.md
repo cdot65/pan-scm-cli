@@ -1,174 +1,245 @@
-# CLI Operations Management
+# Operations Management
 
-The `scm` CLI provides capabilities beyond just managing individual configuration objects, allowing you to handle operations like deployment, status checking, and more.
+The `scm` CLI provides capabilities beyond managing individual configuration objects, including deployment, job monitoring, health checks, and audit logging. This guide covers operational workflows for managing your SCM environment.
 
-## Configuration Deployment
+## Overview
 
-After making changes to your configurations using the CLI, you need to deploy those changes to make them active in your environment.
+This guide covers operational tasks you can perform with the CLI:
 
-### Committing Changes
+- Deploy configuration changes by committing and pushing
+- Monitor asynchronous jobs and check their status
+- Inspect license status and system health
+- Review audit logs to track changes
+- Manage scheduled tasks for recurring operations
+- Troubleshoot issues with diagnostic tools
 
-To commit your configuration changes:
+## Prerequisites
+
+Before performing operational tasks, ensure you have:
+
+- The `scm` CLI installed and authenticated (see [Getting Started](getting-started.md))
+- Appropriate permissions for deployment and operational commands
+- Configuration changes staged and ready to deploy (for commit/push operations)
+
+## Core Concepts
+
+### Deployment Workflow
+
+After making changes to your configurations, you must commit and push those changes to make them active. The workflow is:
+
+1. Make configuration changes using `set`, `delete`, or `load` commands
+2. Commit the candidate configuration with a description
+3. Push the committed configuration to devices
+
+### Asynchronous Jobs
+
+Many SCM operations run asynchronously and generate jobs. Use the job monitoring commands to track their progress and verify completion.
+
+## Examples
+
+### Configuration Deployment
+
+#### Committing Changes
 
 ```bash
-# Commit changes with a description
-scm set deployment commit --description "Updated address objects and security rules"
+$ scm set deployment commit \
+    --description "Updated address objects and security rules"
+---> 100%
+Commit initiated successfully
 ```
 
-### Pushing Configurations
-
-To push configurations to devices:
+#### Pushing Configurations
 
 ```bash
-# Push configurations to all devices
-scm set deployment push
-
-# Push to specific device groups
-scm set deployment push --device-groups "Branch-Firewalls,DataCenter"
+$ scm set deployment push
+---> 100%
+Push initiated successfully
 ```
 
-## Job Monitoring
-
-Many operations in Strata Cloud Manager generate jobs that run asynchronously. The CLI provides commands to monitor these jobs.
-
-### Checking Job Status
-
-To check the status of a job:
-
 ```bash
-# Check job status by ID
-scm get operations job --job-id "12345"
+$ scm set deployment push \
+    --device-groups "Branch-Firewalls,DataCenter"
+---> 100%
+Push initiated to device groups: Branch-Firewalls, DataCenter
 ```
 
-### Listing Recent Jobs
+!!! tip
+    After committing or pushing, check job status to confirm the operation
+    completed successfully.
 
-To view recent jobs:
+### Job Monitoring
+
+#### Checking Job Status
 
 ```bash
-# List the 10 most recent jobs
-scm get operations jobs --limit 10
+$ scm get operations job --job-id "12345"
+---> 100%
+Job: 12345
+  Status: completed
+  Type: commit
+  Result: success
 ```
 
-## License Management
-
-Manage licenses for your deployment using the CLI.
-
-### Checking License Status
+#### Listing Recent Jobs
 
 ```bash
-# Check current license status
-scm get operations licenses
+$ scm get operations jobs --limit 10
+---> 100%
+Recent Jobs:
+------------------------------------------------------------
+Job ID: 12345
+  Type: commit
+  Status: completed
+------------------------------------------------------------
+Job ID: 12344
+  Type: push
+  Status: in_progress
+------------------------------------------------------------
 ```
 
-## Health Monitoring
+### License Management
 
-Monitor the health of your Strata Cloud Manager deployment.
-
-### System Status
-
-Check the current system status:
+#### Checking License Status
 
 ```bash
-# Get overall system status
-scm get operations status
+$ scm get operations licenses
+---> 100%
+License Status:
+  Type: Enterprise
+  Status: Active
+  Expiration: 2026-12-31
 ```
 
-### Connectivity Tests
+### Health Monitoring
 
-Test connectivity to various services:
+#### System Status
 
 ```bash
-# Test connectivity to firewalls
-scm get operations connectivity-test --target firewalls
+$ scm get operations status
+---> 100%
+System Status: Healthy
+  API: Connected
+  Services: All Running
 ```
 
-## User Management
-
-The CLI includes commands for managing users and roles.
-
-### Listing Users
+#### Connectivity Tests
 
 ```bash
-# List all users
-scm get operations users
+$ scm get operations connectivity-test --target firewalls
+---> 100%
+Connectivity Test Results:
+  Target: firewalls
+  Status: All reachable
 ```
 
-### User Roles
+### User Management
+
+#### Listing Users
 
 ```bash
-# List available roles
-scm get operations roles
+$ scm get operations users
+---> 100%
+Users:
+  admin (Administrator)
+  readonly (Read-Only)
 ```
 
-## Audit Logs
-
-Access audit logs to track changes made through the CLI and other interfaces.
-
-### Retrieving Audit Logs
+#### User Roles
 
 ```bash
-# Get recent audit logs
-scm get operations audit-logs --limit 20
+$ scm get operations roles
+---> 100%
+Available Roles:
+  Administrator
+  Read-Only
+  Security Admin
 ```
 
-### Filtering Audit Logs
+### Audit Logs
+
+#### Retrieving Audit Logs
 
 ```bash
-# Filter audit logs by user
-scm get operations audit-logs --filter-user "admin"
-
-# Filter audit logs by date range
-scm get operations audit-logs --start-date "2025-03-01" --end-date "2025-03-30"
+$ scm get operations audit-logs --limit 20
+---> 100%
+Audit Logs (last 20 entries):
+  2026-03-08 10:30:00 - admin - Created address: web-server
+  2026-03-08 10:25:00 - admin - Updated security rule: Allow-Web
 ```
 
-## Scheduled Tasks
-
-Manage scheduled tasks for recurring operations.
-
-### Listing Scheduled Tasks
+#### Filtering Audit Logs
 
 ```bash
-# List all scheduled tasks
-scm get operations scheduled-tasks
+$ scm get operations audit-logs --filter-user "admin"
+---> 100%
+Audit Logs (filtered by user: admin):
+  2026-03-08 10:30:00 - Created address: web-server
+  2026-03-08 10:25:00 - Updated security rule: Allow-Web
 ```
 
-### Creating Backup Tasks
-
 ```bash
-# Create a scheduled backup
-scm set operations scheduled-task --type backup --name "Daily-Backup" --schedule "0 0 * * *"
+$ scm get operations audit-logs \
+    --start-date "2026-03-01" \
+    --end-date "2026-03-08"
+---> 100%
+Audit Logs (2026-03-01 to 2026-03-08):
+  2026-03-08 10:30:00 - admin - Created address: web-server
+  2026-03-05 14:00:00 - admin - Committed configuration
 ```
 
-## Troubleshooting
+### Scheduled Tasks
 
-The CLI provides tools to help with troubleshooting.
-
-### Diagnostic Tools
+#### Listing Scheduled Tasks
 
 ```bash
-# Run diagnostic checks
-scm get operations diagnostics
+$ scm get operations scheduled-tasks
+---> 100%
+Scheduled Tasks:
+  Daily-Backup (0 0 * * *) - Active
 ```
 
-### Log Collection
+#### Creating Backup Tasks
 
 ```bash
-# Collect logs for support
-scm get operations collect-logs --output-dir "./support-logs"
+$ scm set operations scheduled-task \
+    --type backup \
+    --name "Daily-Backup" \
+    --schedule "0 0 * * *"
+---> 100%
+Created scheduled task: Daily-Backup
+```
+
+### Troubleshooting
+
+#### Diagnostic Tools
+
+```bash
+$ scm get operations diagnostics
+---> 100%
+Diagnostics:
+  API Connectivity: OK
+  Authentication: Valid
+  Configuration Sync: Up to date
+```
+
+#### Log Collection
+
+```bash
+$ scm get operations collect-logs --output-dir "./support-logs"
+---> 100%
+Logs collected to ./support-logs/
 ```
 
 ## Best Practices
 
-When using the CLI for operations management:
-
-1. **Use descriptive commit messages** to document your changes
-2. **Check job status** after initiating operations that generate jobs
-3. **Review audit logs** periodically to track changes
-4. **Set up scheduled tasks** for recurring operations
-5. **Use the `--verbose` flag** when troubleshooting operations
+1. **Use descriptive commit messages**: Document your changes clearly for audit trail purposes.
+2. **Check job status after operations**: Verify that commits and pushes complete successfully before proceeding.
+3. **Review audit logs periodically**: Track changes made through the CLI and other interfaces to maintain accountability.
+4. **Set up scheduled tasks for backups**: Automate recurring operations to ensure consistent configuration backups.
+5. **Use verbose mode for troubleshooting**: Add `--verbose` to commands when diagnosing operational issues.
 
 ## Next Steps
 
-- Explore the [Command Reference](../cli/index.md) for detailed information on all available commands
+- Explore the [CLI Reference](../cli/index.md) for detailed information on all available commands
 - Learn more about [Advanced Topics](advanced-topics.md) for scripting and automation
 - Review [Configuration Objects](configuration-objects.md) to understand the types of resources you can manage
