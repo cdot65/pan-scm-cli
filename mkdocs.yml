@@ -111,24 +111,81 @@ nav:
           - Address: cli/objects/address.md
           - Address Group: cli/objects/address-group.md
           - Application: cli/objects/application.md
-          - Application Group: cli/objects/application-group.md
           - Application Filter: cli/objects/application-filter.md
+          - Application Group: cli/objects/application-group.md
           - Dynamic User Group: cli/objects/dynamic-user-group.md
           - External Dynamic List: cli/objects/external-dynamic-list.md
           - HIP Object: cli/objects/hip-object.md
           - HIP Profile: cli/objects/hip-profile.md
           - HTTP Server Profile: cli/objects/http-server-profile.md
           - Log Forwarding Profile: cli/objects/log-forwarding-profile.md
+          - Quarantined Device: cli/objects/quarantined-device.md
+          - Region: cli/objects/region.md
+          - Schedule: cli/objects/schedule.md
           - Service: cli/objects/service.md
           - Service Group: cli/objects/service-group.md
           - Syslog Server Profile: cli/objects/syslog-server-profile.md
           - Tag: cli/objects/tag.md
       - Network:
+          - Aggregate Interface: cli/network/aggregate-interface.md
+          - BGP Address Family Profile: cli/network/bgp-address-family-profile.md
+          - BGP Auth Profile: cli/network/bgp-auth-profile.md
+          - BGP Filtering Profile: cli/network/bgp-filtering-profile.md
+          - BGP Redistribution Profile: cli/network/bgp-redistribution-profile.md
+          - BGP Route Map: cli/network/bgp-route-map.md
+          - BGP Route Map Redistribution: cli/network/bgp-route-map-redistribution.md
+          - DHCP Interface: cli/network/dhcp-interface.md
+          - Ethernet Interface: cli/network/ethernet-interface.md
+          - IKE Crypto Profile: cli/network/ike-crypto-profile.md
+          - IKE Gateway: cli/network/ike-gateway.md
+          - IPsec Crypto Profile: cli/network/ipsec-crypto-profile.md
+          - Layer2 Subinterface: cli/network/layer2-subinterface.md
+          - Layer3 Subinterface: cli/network/layer3-subinterface.md
+          - Loopback Interface: cli/network/loopback-interface.md
+          - NAT Rule: cli/network/nat-rule.md
+          - OSPF Auth Profile: cli/network/ospf-auth-profile.md
+          - Route Access List: cli/network/route-access-list.md
+          - Route Prefix List: cli/network/route-prefix-list.md
           - Security Zone: cli/network/security-zone.md
+          - Tunnel Interface: cli/network/tunnel-interface.md
+          - VLAN Interface: cli/network/vlan-interface.md
       - Security:
+          - Anti-Spyware Profile: cli/security/anti-spyware-profile.md
+          - App Override Rule: cli/security/app-override-rule.md
+          - Authentication Rule: cli/security/authentication-rule.md
+          - Decryption Profile: cli/security/decryption-profile.md
+          - Decryption Rule: cli/security/decryption-rule.md
+          - DNS Security Profile: cli/security/dns-security-profile.md
           - Security Rules: cli/security/rules.md
+          - URL Access Profile: cli/security/url-access-profile.md
+          - URL Category: cli/security/url-category.md
+          - Vulnerability Protection Profile: cli/security/vulnerability-protection-profile.md
+          - WildFire Antivirus Profile: cli/security/wildfire-antivirus-profile.md
       - Deployment:
           - Bandwidth Allocation: cli/deployment/bandwidth.md
+          - BGP Routing: cli/deployment/bgp-routing.md
+          - Internal DNS Server: cli/deployment/internal-dns-server.md
+          - Network Location: cli/deployment/network-location.md
+          - Remote Network: cli/deployment/remote-network.md
+          - Service Connection: cli/deployment/service-connection.md
+      - Setup:
+          - Device: cli/setup/device.md
+          - Folder: cli/setup/folder.md
+          - Label: cli/setup/label.md
+          - Snippet: cli/setup/snippet.md
+          - Variable: cli/setup/variable.md
+      - Identity:
+          - Authentication Profile: cli/identity/authentication-profile.md
+          - Kerberos Server Profile: cli/identity/kerberos-server-profile.md
+          - LDAP Server Profile: cli/identity/ldap-server-profile.md
+          - RADIUS Server Profile: cli/identity/radius-server-profile.md
+          - SAML Server Profile: cli/identity/saml-server-profile.md
+          - TACACS+ Server Profile: cli/identity/tacacs-server-profile.md
+      - Mobile Agent:
+          - Agent Version: cli/mobile-agent/agent-version.md
+          - Auth Setting: cli/mobile-agent/auth-setting.md
+      - Jobs: cli/jobs.md
+      - Commit: cli/commit.md
       - Insights: cli/insights.md
   - User Guide:
       - Getting Started: guide/getting-started.md

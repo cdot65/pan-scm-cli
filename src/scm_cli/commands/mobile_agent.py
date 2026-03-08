@@ -4,8 +4,6 @@ This module implements commands for mobile agent configurations
 including agent versions (read-only) and auth settings (full CRUD).
 """
 
-import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +43,7 @@ def validate_location_params(folder: str = None, snippet: str = None, device: st
 
     Raise:
         typer.Exit: If validation fails
+
     """
     location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
 
@@ -198,7 +197,7 @@ def show_agent_version(
 ):
     """Display agent versions.
 
-    Examples:
+    Examples
     --------
         # List all agent versions in a folder (default behavior)
         scm show mobile-agent agent-version --folder "Mobile Users"
@@ -365,7 +364,7 @@ def load_auth_setting(
 ):
     """Load auth settings from a YAML file.
 
-    Examples:
+    Examples
     --------
         # Load from file with original locations
         scm load mobile-agent auth-setting --file config/auth_settings.yml
@@ -456,7 +455,7 @@ def set_auth_setting(
 ):
     r"""Create or update an auth setting.
 
-    Examples:
+    Examples
     --------
         scm set mobile-agent auth-setting \
         --folder "Mobile Users" \
@@ -523,7 +522,7 @@ def show_auth_setting(
 ):
     """Display auth settings.
 
-    Examples:
+    Examples
     --------
         # List all auth settings in a folder (default behavior)
         scm show mobile-agent auth-setting --folder "Mobile Users"

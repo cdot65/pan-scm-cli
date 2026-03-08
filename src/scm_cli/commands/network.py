@@ -24,6 +24,7 @@ from ..utils.validators import (
     BgpRouteMap,
     BgpRouteMapRedistribution,
     DhcpInterface,
+    DnsProxy,
     EthernetInterface,
     IKECryptoProfile,
     IKEGateway,
@@ -33,6 +34,9 @@ from ..utils.validators import (
     LoopbackInterface,
     NATRule,
     OspfAuthProfile,
+    PbfRule,
+    QosProfile,
+    QosRule,
     RouteAccessList,
     RoutePrefixList,
     TunnelInterface,
@@ -224,12 +228,16 @@ IPSEC_DH_GROUP_OPTION = typer.Option(
 IPSEC_LIFETIME_SECONDS_OPTION = typer.Option(None, "--lifetime-seconds", help="Lifetime in seconds (180-65535)")
 IPSEC_LIFETIME_HOURS_OPTION = typer.Option(None, "--lifetime-hours", help="Lifetime in hours (1-65535)")
 
+IKE_HASH_OPTION = typer.Option(..., "--hash", help="Hash algorithms (sha256, sha384, sha512, sha1, md5)")
+IKE_DH_GROUP_OPTION = typer.Option(..., "--dh-group", help="DH groups (group1, group2, group5, group14, group19, group20)")
+IKE_ENCRYPTION_OPTION = typer.Option(..., "--encryption", help="Encryption algorithms (aes-256-cbc, aes-128-cbc, etc.)")
+
 # ========================================================================================================================================================================================
 # HELPER FUNCTIONS
 # ========================================================================================================================================================================================
 
 
-def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
+def validate_location_params(folder: str | None = None, snippet: str | None = None, device: str | None = None) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
 
     Returns:
@@ -253,6 +261,7 @@ def validate_location_params(folder: str = None, snippet: str = None, device: st
     elif snippet:
         return "snippet", snippet
     else:
+        assert device is not None
         return "device", device
 
 
@@ -385,9 +394,9 @@ def load_ike_crypto_profile(
 @set_app.command("ike-crypto-profile", help="Create or update an IKE crypto profile.")
 def set_ike_crypto_profile(
     name: str = typer.Argument(..., help="Name of the IKE crypto profile"),
-    hash: list[str] = typer.Option(..., "--hash", help="Hash algorithms (sha256, sha384, sha512, sha1, md5)"),
-    dh_group: list[str] = typer.Option(..., "--dh-group", help="DH groups (group1, group2, group5, group14, group19, group20)"),
-    encryption: list[str] = typer.Option(..., "--encryption", help="Encryption algorithms (aes-256-cbc, aes-128-cbc, etc.)"),
+    hash: list[str] = IKE_HASH_OPTION,
+    dh_group: list[str] = IKE_DH_GROUP_OPTION,
+    encryption: list[str] = IKE_ENCRYPTION_OPTION,
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
@@ -5574,4 +5583,872 @@ def show_bgp_route_map_redistribution(
             return items
     except Exception as e:
         typer.echo(f"Error showing BGP route map redistribution: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# DNS PROXY COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("dns-proxy", help="Export DNS proxies to a YAML file.")
+def backup_dns_proxy(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export DNS proxies from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving DNS proxies from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        proxies = scm_client.list_dns_proxies(**kwargs)
+        if not proxies:
+            typer.echo(f"No DNS proxies found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"dns_proxies": proxies}
+        filename = Path(file or get_default_backup_filename("dns-proxy", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(proxies)} DNS proxies to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up DNS proxies: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("dns-proxy", help="Delete a DNS proxy.")
+def delete_dns_proxy(
+    name: str = typer.Argument(..., help="Name of the DNS proxy to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a DNS proxy."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        proxy = scm_client.get_dns_proxy(name=name, folder=folder, snippet=snippet, device=device)
+        if not proxy:
+            typer.echo(f"DNS proxy '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete DNS proxy '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_dns_proxy(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted DNS proxy: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting DNS proxy: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("dns-proxy", help="Load DNS proxies from a YAML file.")
+def load_dns_proxy(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load DNS proxies from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "dns_proxies" not in data:
+            typer.echo("No DNS proxies found in file", err=True)
+            raise typer.Exit(code=1)
+        proxies = data["dns_proxies"]
+        if not isinstance(proxies, list):
+            proxies = [proxies]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for p in proxies:
+                typer.echo(f"  Would process: {p.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for proxy_data in proxies:
+            try:
+                if folder:
+                    proxy_data["folder"] = folder
+                    proxy_data.pop("snippet", None)
+                    proxy_data.pop("device", None)
+                elif snippet:
+                    proxy_data["snippet"] = snippet
+                    proxy_data.pop("folder", None)
+                    proxy_data.pop("device", None)
+                elif device:
+                    proxy_data["device"] = device
+                    proxy_data.pop("folder", None)
+                    proxy_data.pop("snippet", None)
+                validated = DnsProxy(**proxy_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_dns_proxy(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created DNS proxy: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated DNS proxy: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for DNS proxy: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing DNS proxy: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} DNS proxies")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading DNS proxies: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("dns-proxy", help="Create or update a DNS proxy.")
+def set_dns_proxy(
+    name: str = typer.Argument(..., help="Name of the DNS proxy"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    enabled: bool = typer.Option(None, "--enabled", help="Enable DNS proxy"),
+    default_json: str = typer.Option(None, "--default-json", help="Default DNS server config as JSON"),
+    cache_json: str = typer.Option(None, "--cache-json", help="Cache configuration as JSON"),
+) -> None:
+    """Create or update a DNS proxy."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        proxy_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if enabled is not None:
+            proxy_data["enabled"] = enabled
+        if default_json:
+            proxy_data["default"] = json.loads(default_json)
+        if cache_json:
+            proxy_data["cache"] = json.loads(cache_json)
+        validated = DnsProxy(**proxy_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_dns_proxy(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created DNS proxy: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated DNS proxy: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for DNS proxy: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating DNS proxy: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("dns-proxy", help="Show DNS proxy details.")
+def show_dns_proxy(
+    name: str = typer.Option(None, "--name", help="Name of specific DNS proxy to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show DNS proxy details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            proxy = scm_client.get_dns_proxy(name=name, folder=folder, snippet=snippet, device=device)
+            if not proxy:
+                typer.echo(f"DNS proxy '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nDNS Proxy: {proxy['name']}")
+            typer.echo("=" * 60)
+            location = proxy.get("folder") or proxy.get("snippet") or proxy.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if proxy.get("enabled") is not None:
+                typer.echo(f"Enabled: {proxy['enabled']}")
+            if proxy.get("default"):
+                typer.echo(f"Default: {json.dumps(proxy['default'], indent=2)}")
+            if proxy.get("id"):
+                typer.echo(f"\nID: {proxy['id']}")
+            return proxy
+        else:
+            proxies = scm_client.list_dns_proxies(folder=folder, snippet=snippet, device=device)
+            if not proxies:
+                typer.echo("No DNS proxies found")
+                return
+            typer.echo("\nDNS Proxies:")
+            typer.echo("-" * 80)
+            for proxy in proxies:
+                location = proxy.get("folder") or proxy.get("snippet") or proxy.get("device", "N/A")
+                typer.echo(f"Name: {proxy.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if proxy.get("enabled") is not None:
+                    typer.echo(f"  Enabled: {proxy['enabled']}")
+                if proxy.get("id"):
+                    typer.echo(f"  ID: {proxy['id']}")
+                typer.echo("-" * 80)
+            return proxies
+    except Exception as e:
+        typer.echo(f"Error showing DNS proxy: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# PBF RULE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("pbf-rule", help="Export PBF rules to a YAML file.")
+def backup_pbf_rule(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export PBF rules from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving PBF rules from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        rules = scm_client.list_pbf_rules(**kwargs)
+        if not rules:
+            typer.echo(f"No PBF rules found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"pbf_rules": rules}
+        filename = Path(file or get_default_backup_filename("pbf-rule", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(rules)} PBF rules to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up PBF rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("pbf-rule", help="Delete a PBF rule.")
+def delete_pbf_rule(
+    name: str = typer.Argument(..., help="Name of the PBF rule to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a PBF rule."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        rule = scm_client.get_pbf_rule(name=name, folder=folder, snippet=snippet, device=device)
+        if not rule:
+            typer.echo(f"PBF rule '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete PBF rule '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_pbf_rule(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted PBF rule: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting PBF rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("pbf-rule", help="Load PBF rules from a YAML file.")
+def load_pbf_rule(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load PBF rules from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "pbf_rules" not in data:
+            typer.echo("No PBF rules found in file", err=True)
+            raise typer.Exit(code=1)
+        rules = data["pbf_rules"]
+        if not isinstance(rules, list):
+            rules = [rules]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for r in rules:
+                typer.echo(f"  Would process: {r.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for rule_data in rules:
+            try:
+                if folder:
+                    rule_data["folder"] = folder
+                    rule_data.pop("snippet", None)
+                    rule_data.pop("device", None)
+                elif snippet:
+                    rule_data["snippet"] = snippet
+                    rule_data.pop("folder", None)
+                    rule_data.pop("device", None)
+                elif device:
+                    rule_data["device"] = device
+                    rule_data.pop("folder", None)
+                    rule_data.pop("snippet", None)
+                validated = PbfRule(**rule_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_pbf_rule(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created PBF rule: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated PBF rule: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for PBF rule: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing PBF rule: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} PBF rules")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading PBF rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("pbf-rule", help="Create or update a PBF rule.")
+def set_pbf_rule(
+    name: str = typer.Argument(..., help="Name of the PBF rule"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    description: str = typer.Option(None, "--description", help="Description"),
+    action_json: str = typer.Option(None, "--action-json", help="Action config as JSON"),
+    from_json: str = typer.Option(None, "--from-json", help="Source zone/interface config as JSON"),
+) -> None:
+    """Create or update a PBF rule."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        rule_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if description:
+            rule_data["description"] = description
+        if action_json:
+            rule_data["action"] = json.loads(action_json)
+        if from_json:
+            rule_data["from"] = json.loads(from_json)
+        validated = PbfRule(**rule_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_pbf_rule(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created PBF rule: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated PBF rule: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for PBF rule: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating PBF rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("pbf-rule", help="Show PBF rule details.")
+def show_pbf_rule(
+    name: str = typer.Option(None, "--name", help="Name of specific PBF rule to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show PBF rule details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            rule = scm_client.get_pbf_rule(name=name, folder=folder, snippet=snippet, device=device)
+            if not rule:
+                typer.echo(f"PBF rule '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nPBF Rule: {rule['name']}")
+            typer.echo("=" * 60)
+            location = rule.get("folder") or rule.get("snippet") or rule.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if rule.get("description"):
+                typer.echo(f"Description: {rule['description']}")
+            if rule.get("action"):
+                typer.echo(f"Action: {json.dumps(rule['action'], indent=2)}")
+            if rule.get("id"):
+                typer.echo(f"\nID: {rule['id']}")
+            return rule
+        else:
+            rules = scm_client.list_pbf_rules(folder=folder, snippet=snippet, device=device)
+            if not rules:
+                typer.echo("No PBF rules found")
+                return
+            typer.echo("\nPBF Rules:")
+            typer.echo("-" * 80)
+            for rule in rules:
+                location = rule.get("folder") or rule.get("snippet") or rule.get("device", "N/A")
+                typer.echo(f"Name: {rule.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if rule.get("description"):
+                    typer.echo(f"  Description: {rule['description']}")
+                if rule.get("id"):
+                    typer.echo(f"  ID: {rule['id']}")
+                typer.echo("-" * 80)
+            return rules
+    except Exception as e:
+        typer.echo(f"Error showing PBF rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# QOS PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("qos-profile", help="Export QoS profiles to a YAML file.")
+def backup_qos_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export QoS profiles from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving QoS profiles from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_qos_profiles(**kwargs)
+        if not profiles:
+            typer.echo(f"No QoS profiles found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"qos_profiles": profiles}
+        filename = Path(file or get_default_backup_filename("qos-profile", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(profiles)} QoS profiles to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up QoS profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("qos-profile", help="Delete a QoS profile.")
+def delete_qos_profile(
+    name: str = typer.Argument(..., help="Name of the QoS profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a QoS profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_qos_profile(name=name, folder=folder, snippet=snippet, device=device)
+        if not profile:
+            typer.echo(f"QoS profile '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete QoS profile '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_qos_profile(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted QoS profile: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting QoS profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("qos-profile", help="Load QoS profiles from a YAML file.")
+def load_qos_profile(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load QoS profiles from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "qos_profiles" not in data:
+            typer.echo("No QoS profiles found in file", err=True)
+            raise typer.Exit(code=1)
+        profiles = data["qos_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for p in profiles:
+                typer.echo(f"  Would process: {p.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for profile_data in profiles:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+                validated = QosProfile(**profile_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_qos_profile(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created QoS profile: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated QoS profile: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for QoS profile: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing QoS profile: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} QoS profiles")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading QoS profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("qos-profile", help="Create or update a QoS profile.")
+def set_qos_profile(
+    name: str = typer.Argument(..., help="Name of the QoS profile"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    aggregate_bandwidth_json: str = typer.Option(None, "--aggregate-bandwidth-json", help="Aggregate bandwidth config as JSON"),
+    class_bandwidth_type_json: str = typer.Option(None, "--class-bandwidth-type-json", help="Class bandwidth type config as JSON"),
+) -> None:
+    """Create or update a QoS profile."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if aggregate_bandwidth_json:
+            profile_data["aggregate_bandwidth"] = json.loads(aggregate_bandwidth_json)
+        if class_bandwidth_type_json:
+            profile_data["class_bandwidth_type"] = json.loads(class_bandwidth_type_json)
+        validated = QosProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_qos_profile(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created QoS profile: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated QoS profile: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for QoS profile: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating QoS profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("qos-profile", help="Show QoS profile details.")
+def show_qos_profile(
+    name: str = typer.Option(None, "--name", help="Name of specific QoS profile to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show QoS profile details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            profile = scm_client.get_qos_profile(name=name, folder=folder, snippet=snippet, device=device)
+            if not profile:
+                typer.echo(f"QoS profile '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nQoS Profile: {profile['name']}")
+            typer.echo("=" * 60)
+            location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if profile.get("aggregate_bandwidth"):
+                typer.echo(f"Aggregate Bandwidth: {json.dumps(profile['aggregate_bandwidth'], indent=2)}")
+            if profile.get("class_bandwidth_type"):
+                typer.echo(f"Class Bandwidth Type: {json.dumps(profile['class_bandwidth_type'], indent=2)}")
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+            return profile
+        else:
+            profiles = scm_client.list_qos_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No QoS profiles found")
+                return
+            typer.echo("\nQoS Profiles:")
+            typer.echo("-" * 80)
+            for profile in profiles:
+                location = profile.get("folder") or profile.get("snippet") or profile.get("device", "N/A")
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 80)
+            return profiles
+    except Exception as e:
+        typer.echo(f"Error showing QoS profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# QOS RULE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("qos-rule", help="Export QoS rules to a YAML file.")
+def backup_qos_rule(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export QoS rules from a specified location to a YAML file."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        typer.echo(f"Retrieving QoS rules from {location_type} '{location_value}'...")
+        kwargs = {location_type: location_value}
+        rules = scm_client.list_qos_rules(**kwargs)
+        if not rules:
+            typer.echo(f"No QoS rules found in {location_type} '{location_value}'", err=True)
+            return
+        export_data = {"qos_rules": rules}
+        filename = Path(file or get_default_backup_filename("qos-rule", location_type, location_value))
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+        typer.echo(f"Successfully backed up {len(rules)} QoS rules to {filename}")
+    except Exception as e:
+        typer.echo(f"Error backing up QoS rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("qos-rule", help="Delete a QoS rule.")
+def delete_qos_rule(
+    name: str = typer.Argument(..., help="Name of the QoS rule to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a QoS rule."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        rule = scm_client.get_qos_rule(name=name, folder=folder, snippet=snippet, device=device)
+        if not rule:
+            typer.echo(f"QoS rule '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete QoS rule '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+        scm_client.delete_qos_rule(name=name, folder=folder, snippet=snippet, device=device)
+        typer.echo(f"Deleted QoS rule: {name} from {location_value}")
+    except Exception as e:
+        typer.echo(f"Error deleting QoS rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("qos-rule", help="Load QoS rules from a YAML file.")
+def load_qos_rule(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
+) -> None:
+    """Load QoS rules from a YAML file."""
+    try:
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+        if not data or "qos_rules" not in data:
+            typer.echo("No QoS rules found in file", err=True)
+            raise typer.Exit(code=1)
+        rules = data["qos_rules"]
+        if not isinstance(rules, list):
+            rules = [rules]
+        if dry_run:
+            typer.echo("Dry run mode - no changes will be applied")
+            for r in rules:
+                typer.echo(f"  Would process: {r.get('name', 'N/A')}")
+            return
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+        for rule_data in rules:
+            try:
+                if folder:
+                    rule_data["folder"] = folder
+                    rule_data.pop("snippet", None)
+                    rule_data.pop("device", None)
+                elif snippet:
+                    rule_data["snippet"] = snippet
+                    rule_data.pop("folder", None)
+                    rule_data.pop("device", None)
+                elif device:
+                    rule_data["device"] = device
+                    rule_data.pop("folder", None)
+                    rule_data.pop("snippet", None)
+                validated = QosRule(**rule_data)
+                sdk_data = validated.to_sdk_model()
+                result = scm_client.create_qos_rule(sdk_data)
+                action = result.pop("__action__", "created")
+                container = validated.folder or validated.snippet or validated.device
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created QoS rule: {validated.name} in {container}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated QoS rule: {validated.name} in {container}")
+                else:
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for QoS rule: {validated.name} in {container}")
+            except Exception as e:
+                typer.echo(f"Error processing QoS rule: {str(e)}", err=True)
+                continue
+        typer.echo(f"\nSummary: Processed {created_count + updated_count + no_change_count} QoS rules")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+    except Exception as e:
+        typer.echo(f"Error loading QoS rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("qos-rule", help="Create or update a QoS rule.")
+def set_qos_rule(
+    name: str = typer.Argument(..., help="Name of the QoS rule"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    description: str = typer.Option(None, "--description", help="Description"),
+    action_json: str = typer.Option(None, "--action-json", help="Action config as JSON"),
+    schedule: str = typer.Option(None, "--schedule", help="Schedule"),
+    dscp_tos_json: str = typer.Option(None, "--dscp-tos-json", help="DSCP/TOS config as JSON"),
+) -> None:
+    """Create or update a QoS rule."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        rule_data: dict[str, Any] = {"name": name, location_type: location_value}
+        if description:
+            rule_data["description"] = description
+        if action_json:
+            rule_data["action"] = json.loads(action_json)
+        if schedule:
+            rule_data["schedule"] = schedule
+        if dscp_tos_json:
+            rule_data["dscp_tos"] = json.loads(dscp_tos_json)
+        validated = QosRule(**rule_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_qos_rule(sdk_data)
+        action = result.pop("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created QoS rule: {name} in {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated QoS rule: {name} in {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for QoS rule: {name} in {location_value}")
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating QoS rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("qos-rule", help="Show QoS rule details.")
+def show_qos_rule(
+    name: str = typer.Option(None, "--name", help="Name of specific QoS rule to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show QoS rule details."""
+    try:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        if name:
+            rule = scm_client.get_qos_rule(name=name, folder=folder, snippet=snippet, device=device)
+            if not rule:
+                typer.echo(f"QoS rule '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"\nQoS Rule: {rule['name']}")
+            typer.echo("=" * 60)
+            location = rule.get("folder") or rule.get("snippet") or rule.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+            if rule.get("description"):
+                typer.echo(f"Description: {rule['description']}")
+            if rule.get("action"):
+                typer.echo(f"Action: {json.dumps(rule['action'], indent=2)}")
+            if rule.get("schedule"):
+                typer.echo(f"Schedule: {rule['schedule']}")
+            if rule.get("id"):
+                typer.echo(f"\nID: {rule['id']}")
+            return rule
+        else:
+            rules = scm_client.list_qos_rules(folder=folder, snippet=snippet, device=device)
+            if not rules:
+                typer.echo("No QoS rules found")
+                return
+            typer.echo("\nQoS Rules:")
+            typer.echo("-" * 80)
+            for rule in rules:
+                location = rule.get("folder") or rule.get("snippet") or rule.get("device", "N/A")
+                typer.echo(f"Name: {rule.get('name', 'N/A')}")
+                typer.echo(f"  Location: {location}")
+                if rule.get("description"):
+                    typer.echo(f"  Description: {rule['description']}")
+                if rule.get("id"):
+                    typer.echo(f"  ID: {rule['id']}")
+                typer.echo("-" * 80)
+            return rules
+    except Exception as e:
+        typer.echo(f"Error showing QoS rule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

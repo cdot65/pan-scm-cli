@@ -89,10 +89,11 @@ def set_current_context(context_name: str) -> None:
 
 def create_context(
     context_name: str,
-    client_id: str,
-    client_secret: str,
-    tsg_id: str,
+    client_id: str = "",
+    client_secret: str = "",
+    tsg_id: str = "",
     log_level: str = "INFO",
+    access_token: str | None = None,
 ) -> None:
     """Create or update a context configuration.
 
@@ -103,18 +104,23 @@ def create_context(
         client_secret: SCM client secret.
         tsg_id: Tenant Service Group ID.
         log_level: Logging level (default: INFO).
+        access_token: Bearer token for direct auth (alternative to OAuth2).
 
     """
     ensure_context_dir()
 
     context_file = os.path.join(CONTEXT_DIR, f"{context_name}.yaml")
 
-    config = {
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "tsg_id": tsg_id,
+    config: dict[str, Any] = {
         "log_level": log_level,
     }
+
+    if access_token:
+        config["access_token"] = access_token
+    else:
+        config["client_id"] = client_id
+        config["client_secret"] = client_secret
+        config["tsg_id"] = tsg_id
 
     with open(context_file, "w") as f:
         yaml.dump(config, f, default_flow_style=False)

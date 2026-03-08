@@ -39,6 +39,10 @@ set_app = typer.Typer(
     help="Create or update configurations",
     name="set",
 )
+move_app = typer.Typer(
+    help="Move rules to a new position",
+    name="move",
+)
 show_app = typer.Typer(
     help="Display configurations",
     name="show",
@@ -61,6 +65,10 @@ app.add_typer(
 app.add_typer(
     load_app,
     name="load",
+)
+app.add_typer(
+    move_app,
+    name="move",
 )
 app.add_typer(
     set_app,
@@ -182,6 +190,13 @@ load_app.add_typer(
     setup.load_app,
     name="setup",
     help="Load setup configurations",
+)
+
+# Move commands
+move_app.add_typer(
+    security.move_app,
+    name="security",
+    help="Move security rules",
 )
 
 # Set commands

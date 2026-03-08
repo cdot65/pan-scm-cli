@@ -37,6 +37,7 @@ delete_app = typer.Typer(help="Remove security configurations")
 load_app = typer.Typer(help="Load security configurations from YAML files")
 show_app = typer.Typer(help="Display security configurations")
 backup_app = typer.Typer(help="Backup security configurations to YAML files")
+move_app = typer.Typer(help="Move security rules to a new position")
 
 # ========================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -77,6 +78,21 @@ RULEBASE_OPTION = typer.Option(
     "pre",
     "--rulebase",
     help="Rulebase to use (pre, post, or default)",
+)
+EXCLUDE_FOLDER_OPTION = typer.Option(
+    None,
+    "--exclude-folder",
+    help="Folder(s) to exclude from results",
+)
+EXCLUDE_SNIPPET_OPTION = typer.Option(
+    None,
+    "--exclude-snippet",
+    help="Snippet(s) to exclude from results",
+)
+EXCLUDE_DEVICE_OPTION = typer.Option(
+    None,
+    "--exclude-device",
+    help="Device(s) to exclude from results",
 )
 
 # Set command options
@@ -184,6 +200,19 @@ BACKUP_FILE_OPTION = typer.Option(
     "--file",
     help="Output filename for backup (defaults to {object-type}-{location}.yaml)",
 )
+
+URL_CATEGORY_URLS_OPTION = typer.Option(None, "--url", help="URL entries for the category")
+APP_OVERRIDE_SOURCE_ZONES_OPTION = typer.Option(None, "--source-zones", help="Source zones")
+APP_OVERRIDE_DEST_ZONES_OPTION = typer.Option(None, "--destination-zones", help="Destination zones")
+AUTH_RULE_SOURCE_ZONES_OPTION = typer.Option(None, "--source-zones", help="Source zones")
+AUTH_RULE_DEST_ZONES_OPTION = typer.Option(None, "--destination-zones", help="Destination zones")
+AUTH_RULE_SERVICE_OPTION = typer.Option(None, "--service", help="Services")
+AUTH_RULE_CATEGORY_OPTION = typer.Option(None, "--category", help="URL categories")
+DECRYPT_RULE_SOURCE_ZONES_OPTION = typer.Option(None, "--source-zones", help="Source zones")
+DECRYPT_RULE_DEST_ZONES_OPTION = typer.Option(None, "--destination-zones", help="Destination zones")
+URL_PROFILE_BLOCK_OPTION = typer.Option(None, "--block", help="URL categories to block")
+URL_PROFILE_ALERT_OPTION = typer.Option(None, "--alert", help="URL categories to alert")
+URL_PROFILE_ALLOW_OPTION = typer.Option(None, "--allow", help="URL categories to allow")
 
 # ========================================================================================================================================================================================
 # HELPER FUNCTIONS
@@ -655,6 +684,9 @@ def show_security_rule(
     device: str = typer.Option(None, "--device", help="Device containing the security rule"),
     rulebase: str = RULEBASE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the security rule to show"),
+    exclude_folder: list[str] | None = EXCLUDE_FOLDER_OPTION,
+    exclude_snippet: list[str] | None = EXCLUDE_SNIPPET_OPTION,
+    exclude_device: list[str] | None = EXCLUDE_DEVICE_OPTION,
 ):
     """Display security rules.
 
@@ -668,6 +700,9 @@ def show_security_rule(
 
         # Show a specific security rule by name
         scm show security rule --folder Texas --name "Allow Web Traffic"
+
+        # List rules excluding specific folders
+        scm show security rule --folder Texas --exclude-folder "All"
 
     Note:
     ----
@@ -788,7 +823,13 @@ def show_security_rule(
             # Default behavior: list all
             # List all security rules in the specified container and rulebase (default behavior)
             kwargs = {location_type: location_value}
-            rules = scm_client.list_security_rules(**kwargs, rulebase=rulebase)
+            rules = scm_client.list_security_rules(
+                **kwargs,
+                rulebase=rulebase,
+                exclude_folders=exclude_folder or None,
+                exclude_snippets=exclude_snippet or None,
+                exclude_devices=exclude_device or None,
+            )
 
             if not rules:
                 typer.echo(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
@@ -3485,7 +3526,7 @@ def set_url_category(
     name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     type: str = typer.Option("URL List", "--type", help="Type of URL category (URL List or Category Match)"),
-    urls: list[str] | None = typer.Option(None, "--url", help="URL entries for the category"),
+    urls: list[str] | None = URL_CATEGORY_URLS_OPTION,
 ):
     r"""Create or update a URL category.
 
@@ -3841,8 +3882,8 @@ def set_app_override_rule(
     protocol: str = typer.Option(..., "--protocol", help="Protocol (tcp or udp)"),
     rulebase: str = RULEBASE_OPTION,
     description: str | None = DESCRIPTION_OPTION,
-    source_zones: list[str] | None = typer.Option(None, "--source-zones", help="Source zones"),
-    destination_zones: list[str] | None = typer.Option(None, "--destination-zones", help="Destination zones"),
+    source_zones: list[str] | None = APP_OVERRIDE_SOURCE_ZONES_OPTION,
+    destination_zones: list[str] | None = APP_OVERRIDE_DEST_ZONES_OPTION,
     disabled: bool = typer.Option(False, "--disabled", help="Disable the rule"),
     tags: list[str] | None = TAGS_OPTION,
 ):
@@ -4141,10 +4182,10 @@ def set_authentication_rule(
     name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
     description: str | None = DESCRIPTION_OPTION,
-    source_zones: list[str] | None = typer.Option(None, "--source-zones", help="Source zones"),
-    destination_zones: list[str] | None = typer.Option(None, "--destination-zones", help="Destination zones"),
-    service: list[str] | None = typer.Option(None, "--service", help="Services"),
-    category: list[str] | None = typer.Option(None, "--category", help="URL categories"),
+    source_zones: list[str] | None = AUTH_RULE_SOURCE_ZONES_OPTION,
+    destination_zones: list[str] | None = AUTH_RULE_DEST_ZONES_OPTION,
+    service: list[str] | None = AUTH_RULE_SERVICE_OPTION,
+    category: list[str] | None = AUTH_RULE_CATEGORY_OPTION,
     authentication_enforcement: str | None = typer.Option(None, "--authentication-enforcement", help="Authentication profile"),
     disabled: bool = typer.Option(False, "--disabled", help="Disable the rule"),
     tags: list[str] | None = TAGS_OPTION,
@@ -4448,8 +4489,8 @@ def set_decryption_rule(
     action: str = typer.Option(..., "--action", help="Action (decrypt or no-decrypt)"),
     rulebase: str = RULEBASE_OPTION,
     description: str | None = DESCRIPTION_OPTION,
-    source_zones: list[str] | None = typer.Option(None, "--source-zones", help="Source zones"),
-    destination_zones: list[str] | None = typer.Option(None, "--destination-zones", help="Destination zones"),
+    source_zones: list[str] | None = DECRYPT_RULE_SOURCE_ZONES_OPTION,
+    destination_zones: list[str] | None = DECRYPT_RULE_DEST_ZONES_OPTION,
     profile: str | None = typer.Option(None, "--profile", help="Decryption profile"),
     type_json: str | None = typer.Option(None, "--type", help="Decryption type as JSON"),
     disabled: bool = typer.Option(False, "--disabled", help="Disable the rule"),
@@ -4754,9 +4795,9 @@ def set_url_access_profile(
     device: str = typer.Option(None, "--device", help="Device path"),
     name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
-    block: list[str] | None = typer.Option(None, "--block", help="URL categories to block"),
-    alert: list[str] | None = typer.Option(None, "--alert", help="URL categories to alert"),
-    allow: list[str] | None = typer.Option(None, "--allow", help="URL categories to allow"),
+    block: list[str] | None = URL_PROFILE_BLOCK_OPTION,
+    alert: list[str] | None = URL_PROFILE_ALERT_OPTION,
+    allow: list[str] | None = URL_PROFILE_ALLOW_OPTION,
     credential_enforcement_json: str | None = typer.Option(None, "--credential-enforcement", help="Credential enforcement as JSON"),
     cloud_inline_cat: bool = typer.Option(False, "--cloud-inline-cat/--no-cloud-inline-cat", help="Enable cloud inline categorization"),
     safe_search_enforcement: bool = typer.Option(False, "--safe-search/--no-safe-search", help="Enable safe search enforcement"),
@@ -4890,4 +4931,171 @@ def show_url_access_profile(
 
     except Exception as e:
         typer.echo(f"Error showing URL access profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# MOVE COMMANDS
+# ========================================================================================================================================================================================
+
+MOVE_FOLDER_OPTION = typer.Option(None, "--folder", help="Folder containing the rule")
+MOVE_SNIPPET_OPTION = typer.Option(None, "--snippet", help="Snippet containing the rule")
+MOVE_DEVICE_OPTION = typer.Option(None, "--device", help="Device containing the rule")
+MOVE_NAME_OPTION = typer.Option(..., "--name", help="Name of the rule to move")
+MOVE_DESTINATION_OPTION = typer.Option(..., "--destination", help="Where to move (top, bottom, before, after)")
+MOVE_RULEBASE_OPTION = typer.Option("pre", "--rulebase", help="Rulebase (pre or post)")
+MOVE_DESTINATION_RULE_OPTION = typer.Option(None, "--destination-rule", help="UUID of reference rule for before/after")
+
+
+@move_app.command("rule")
+def move_security_rule_cmd(
+    folder: str = MOVE_FOLDER_OPTION,
+    snippet: str = MOVE_SNIPPET_OPTION,
+    device: str = MOVE_DEVICE_OPTION,
+    name: str = MOVE_NAME_OPTION,
+    destination: str = MOVE_DESTINATION_OPTION,
+    rulebase: str = MOVE_RULEBASE_OPTION,
+    destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
+):
+    """Move a security rule to a new position.
+
+    Examples:
+        scm move security rule --folder Texas --name "Allow Web" --destination top --rulebase pre
+        scm move security rule --folder Texas --name "Allow Web" --destination after --destination-rule <uuid>
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if destination in ("before", "after") and not destination_rule:
+        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        kwargs = {location_type: location_value}
+        scm_client.move_security_rule(
+            **kwargs,
+            name=name,
+            rulebase=rulebase,
+            destination=destination,
+            destination_rule=destination_rule,
+        )
+        typer.echo(f"Moved security rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+
+    except Exception as e:
+        typer.echo(f"Error moving security rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@move_app.command("app-override-rule")
+def move_app_override_rule_cmd(
+    folder: str = MOVE_FOLDER_OPTION,
+    snippet: str = MOVE_SNIPPET_OPTION,
+    device: str = MOVE_DEVICE_OPTION,
+    name: str = MOVE_NAME_OPTION,
+    destination: str = MOVE_DESTINATION_OPTION,
+    rulebase: str = MOVE_RULEBASE_OPTION,
+    destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
+):
+    """Move an app override rule to a new position.
+
+    Examples:
+        scm move security app-override-rule --folder Texas --name override-https --destination top
+        scm move security app-override-rule --folder Texas --name override-https --destination before --destination-rule <uuid>
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if destination in ("before", "after") and not destination_rule:
+        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        kwargs = {location_type: location_value}
+        scm_client.move_app_override_rule(
+            **kwargs,
+            name=name,
+            rulebase=rulebase,
+            destination=destination,
+            destination_rule=destination_rule,
+        )
+        typer.echo(f"Moved app override rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+
+    except Exception as e:
+        typer.echo(f"Error moving app override rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@move_app.command("authentication-rule")
+def move_authentication_rule_cmd(
+    folder: str = MOVE_FOLDER_OPTION,
+    snippet: str = MOVE_SNIPPET_OPTION,
+    device: str = MOVE_DEVICE_OPTION,
+    name: str = MOVE_NAME_OPTION,
+    destination: str = MOVE_DESTINATION_OPTION,
+    rulebase: str = MOVE_RULEBASE_OPTION,
+    destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
+):
+    """Move an authentication rule to a new position.
+
+    Examples:
+        scm move security authentication-rule --folder Texas --name auth-rule --destination bottom
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if destination in ("before", "after") and not destination_rule:
+        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        kwargs = {location_type: location_value}
+        scm_client.move_authentication_rule(
+            **kwargs,
+            name=name,
+            rulebase=rulebase,
+            destination=destination,
+            destination_rule=destination_rule,
+        )
+        typer.echo(f"Moved authentication rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+
+    except Exception as e:
+        typer.echo(f"Error moving authentication rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@move_app.command("decryption-rule")
+def move_decryption_rule_cmd(
+    folder: str = MOVE_FOLDER_OPTION,
+    snippet: str = MOVE_SNIPPET_OPTION,
+    device: str = MOVE_DEVICE_OPTION,
+    name: str = MOVE_NAME_OPTION,
+    destination: str = MOVE_DESTINATION_OPTION,
+    rulebase: str = MOVE_RULEBASE_OPTION,
+    destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
+):
+    """Move a decryption rule to a new position.
+
+    Examples:
+        scm move security decryption-rule --folder Texas --name decrypt-rule --destination top
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if destination in ("before", "after") and not destination_rule:
+        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        kwargs = {location_type: location_value}
+        scm_client.move_decryption_rule(
+            **kwargs,
+            name=name,
+            rulebase=rulebase,
+            destination=destination,
+            destination_rule=destination_rule,
+        )
+        typer.echo(f"Moved decryption rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+
+    except Exception as e:
+        typer.echo(f"Error moving decryption rule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
