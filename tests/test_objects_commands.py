@@ -1,14 +1,26 @@
 """Tests for the objects commands module."""
 
 import typer
+
 from scm_cli.commands.objects import (
     delete_address_group,
     delete_app,
+    delete_quarantined_device,
+    delete_region,
+    delete_schedule,
     load_address_group,
     load_app,
+    load_quarantined_device,
+    load_region,
     set_address_group,
     set_app,
+    set_quarantined_device,
+    set_region,
+    set_schedule,
     show_app,
+    show_quarantined_device,
+    show_region,
+    show_schedule,
 )
 
 
@@ -472,3 +484,430 @@ class TestShowAddressGroupCommands:
 
         assert result.exit_code == 0
         assert "No address groups found in folder 'Shared'" in result.stdout
+
+
+class TestScheduleCommands:
+    """Test the schedule commands."""
+
+    def test_set_schedule_command(self, runner, monkeypatch):
+        """Test the set schedule command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "sched-12345",
+                "name": "business-hours",
+                "folder": "Texas",
+                "schedule_type": {"recurring": {"daily": ["09:00-17:00"]}},
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_schedule", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_schedule)
+class TestRegionCommands:
+    """Test the region commands."""
+
+    def test_set_region_command(self, runner, monkeypatch):
+        """Test the set region command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(region_data):
+            result = {**region_data, "__action__": "created"}
+            return result
+
+        monkeypatch.setattr(scm_client, "create_region", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_region)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "business-hours",
+                "--schedule-type",
+                "recurring-daily",
+                "--time-range",
+                "09:00-17:00",
+                "--folder",
+                "Texas",
+                "US-South",
+                "--folder",
+                "Texas",
+                "--latitude",
+                "30.2672",
+                "--longitude",
+                "-97.7431",
+                "--address",
+                "10.0.0.0/8",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created schedule" in result.stdout
+        assert "business-hours" in result.stdout
+
+    def test_set_schedule_error(self, runner, monkeypatch):
+        """Test the set schedule command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(*args, **kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_schedule", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_schedule)
+        assert "Created region" in result.stdout
+        assert "US-South" in result.stdout
+
+    def test_set_region_error(self, runner, monkeypatch):
+        """Test the set region command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(region_data):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_region", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_region)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "bad-sched",
+                "--schedule-type",
+                "recurring-daily",
+                "--time-range",
+                "09:00-17:00",
+                "US-South",
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating/updating schedule" in result.stdout
+
+    def test_show_schedule_list(self, runner, monkeypatch):
+        """Test the show schedule command listing all."""
+        assert "Error creating/updating region" in result.stdout
+
+    def test_delete_region_command(self, runner, monkeypatch):
+        """Test the delete region command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {"id": "region-123", "name": "US-South", "folder": "Texas"}
+
+        def mock_delete(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(scm_client, "get_region", mock_get)
+        monkeypatch.setattr(scm_client, "delete_region", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_region)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "US-South",
+                "--folder",
+                "Texas",
+                "--force",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted region" in result.stdout
+        assert "US-South" in result.stdout
+
+    def test_show_region_list(self, runner, monkeypatch):
+        """Test the show region command listing all regions."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return [
+                {
+                    "name": "BusinessHours",
+                    "folder": "Texas",
+                    "schedule_type": {"recurring": {"daily": ["09:00-17:00"]}},
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_schedules", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_schedule)
+                    "name": "US-South",
+                    "folder": "Texas",
+                    "geo_location": {"latitude": 30.2672, "longitude": -97.7431},
+                    "address": ["10.0.0.0/8"],
+                },
+                {
+                    "name": "US-East",
+                    "folder": "Texas",
+                    "geo_location": {"latitude": 40.7128, "longitude": -74.006},
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_regions", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_region)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "BusinessHours" in result.stdout
+        assert "Total: 1 schedules" in result.stdout
+
+    def test_show_schedule_by_name(self, runner, monkeypatch):
+        """Test the show schedule command by name."""
+        assert "US-South" in result.stdout
+        assert "US-East" in result.stdout
+        assert "Total: 2 regions" in result.stdout
+
+    def test_show_region_by_name(self, runner, monkeypatch):
+        """Test the show region command with --name flag."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {
+                "id": "sched-123",
+                "name": "BusinessHours",
+                "folder": "Texas",
+                "schedule_type": {"recurring": {"daily": ["09:00-17:00"]}},
+            }
+
+        monkeypatch.setattr(scm_client, "get_schedule", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_schedule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "BusinessHours"])
+
+        assert result.exit_code == 0
+        assert "Schedule: BusinessHours" in result.stdout
+        assert "Recurring Daily" in result.stdout
+        assert "09:00-17:00" in result.stdout
+
+    def test_delete_schedule_command(self, runner, monkeypatch):
+        """Test the delete schedule command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {"id": "sched-123", "name": "old-sched", "folder": "Texas"}
+
+        def mock_delete(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(scm_client, "get_schedule", mock_get)
+        monkeypatch.setattr(scm_client, "delete_schedule", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_schedule)
+
+        result = runner.invoke(test_app, ["old-sched", "--folder", "Texas", "--force"])
+
+        assert result.exit_code == 0
+        assert "Deleted schedule" in result.stdout
+        assert "old-sched" in result.stdout
+                "id": "region-123",
+                "name": "US-South",
+                "folder": "Texas",
+                "geo_location": {"latitude": 30.2672, "longitude": -97.7431},
+                "address": ["10.0.0.0/8", "192.168.1.0/24"],
+            }
+
+        monkeypatch.setattr(scm_client, "get_region", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_region)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "US-South"])
+
+        assert result.exit_code == 0
+        assert "Region: US-South" in result.stdout
+        assert "Latitude: 30.2672" in result.stdout
+        assert "Longitude: -97.7431" in result.stdout
+        assert "10.0.0.0/8" in result.stdout
+
+    def test_show_region_empty_list(self, runner, monkeypatch):
+        """Test the show region command when no regions exist."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return []
+
+        monkeypatch.setattr(scm_client, "list_regions", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_region)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "No regions found" in result.stdout
+
+    def test_load_region_command(self, runner, monkeypatch, tmp_path):
+        """Test the load region command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        # Create a test YAML file
+        yaml_content = """
+regions:
+  - name: US-South
+    folder: Texas
+    latitude: 30.2672
+    longitude: -97.7431
+    addresses:
+      - 10.0.0.0/8
+"""
+        test_file = tmp_path / "test_regions.yml"
+        test_file.write_text(yaml_content)
+
+        def mock_create(region_data):
+            return {**region_data, "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_region", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(load_region)
+class TestQuarantinedDeviceCommands:
+    """Test the quarantined device commands."""
+
+    def test_set_quarantined_device_command(self, runner, monkeypatch):
+        """Test the set quarantined-device command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(device_data):
+            return device_data
+
+        monkeypatch.setattr(scm_client, "create_quarantined_device", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_quarantined_device)
+
+        result = runner.invoke(test_app, ["host-123", "--serial-number", "SN-456"])
+
+        assert result.exit_code == 0
+        assert "Created quarantined device: host-123" in result.stdout
+
+    def test_set_quarantined_device_no_serial(self, runner, monkeypatch):
+        """Test the set quarantined-device command without serial number."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(device_data):
+            return device_data
+
+        monkeypatch.setattr(scm_client, "create_quarantined_device", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_quarantined_device)
+
+        result = runner.invoke(test_app, ["host-789"])
+
+        assert result.exit_code == 0
+        assert "Created quarantined device: host-789" in result.stdout
+
+    def test_delete_quarantined_device_command(self, runner, monkeypatch):
+        """Test the delete quarantined-device command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete(host_id):
+            pass
+
+        monkeypatch.setattr(scm_client, "delete_quarantined_device", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_quarantined_device)
+
+        result = runner.invoke(test_app, ["host-123"])
+
+        assert result.exit_code == 0
+        assert "Deleted quarantined device: host-123" in result.stdout
+
+    def test_show_quarantined_device_list(self, runner, monkeypatch):
+        """Test the show quarantined-device command listing all devices."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(host_id=None, serial_number=None):
+            return [
+                {"host_id": "host-001", "serial_number": "SN-001"},
+                {"host_id": "host-002", "serial_number": "SN-002"},
+            ]
+
+        monkeypatch.setattr(scm_client, "list_quarantined_devices", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_quarantined_device)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "Host ID: host-001" in result.stdout
+        assert "Serial Number: SN-001" in result.stdout
+        assert "Host ID: host-002" in result.stdout
+        assert "Total: 2 quarantined devices" in result.stdout
+
+    def test_show_quarantined_device_empty(self, runner, monkeypatch):
+        """Test the show quarantined-device command when no devices found."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(host_id=None, serial_number=None):
+            return []
+
+        monkeypatch.setattr(scm_client, "list_quarantined_devices", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_quarantined_device)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "No quarantined devices found" in result.stdout
+
+    def test_load_quarantined_device_command(self, runner, monkeypatch, tmp_path):
+        """Test the load quarantined-device command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(device_data):
+            return device_data
+
+        monkeypatch.setattr(scm_client, "create_quarantined_device", mock_create)
+
+        # Create test YAML file
+        yaml_content = """
+quarantined_devices:
+  - host_id: host-001
+    serial_number: SN-001
+  - host_id: host-002
+"""
+        test_file = tmp_path / "quarantined_devices.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_quarantined_device)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0
+        assert "Created region" in result.stdout
+        assert "US-South" in result.stdout
+        assert "Created quarantined device: host-001" in result.stdout
+        assert "Created quarantined device: host-002" in result.stdout
+        assert "Processed 2 quarantined devices" in result.stdout
+
+    def test_load_quarantined_device_file_not_found(self, runner):
+        """Test the load quarantined-device command with missing file."""
+        test_app = typer.Typer()
+        test_app.command()(load_quarantined_device)
+
+        result = runner.invoke(test_app, ["--file", "/nonexistent/file.yml"])
+
+        assert result.exit_code == 1
+        assert "File not found" in result.stdout

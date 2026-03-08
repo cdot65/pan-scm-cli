@@ -26,6 +26,9 @@ from ..utils.validators import (
     HIPProfile,
     HTTPServerProfile,
     LogForwardingProfile,
+    QuarantinedDevice,
+    Region,
+    Schedule,
     Service,
     ServiceGroup,
     SyslogServerProfile,
@@ -330,6 +333,12 @@ FILTER_EXPRESSION_OPTION = typer.Option(
     help="Tag-based filter expression (e.g., \"tag.Department='IT' and tag.Role='Admin'\")",
 )
 
+REGION_ADDRESSES_OPTION = typer.Option(
+    None,
+    "--address",
+    help="Address CIDRs for the region",
+)
+
 # Standardized backup command options
 BACKUP_FOLDER_OPTION = typer.Option(
     None,
@@ -351,6 +360,20 @@ BACKUP_FILE_OPTION = typer.Option(
     "--file",
     help="Output file path (optional, defaults to {type}-{location}.yaml)",
 )
+
+# Schedule-specific options
+SCHEDULE_TIME_RANGE_OPTION = typer.Option(
+    None,
+    "--time-range",
+    help="Time ranges (e.g., 09:00-17:00 for daily, YYYY/MM/DD@HH:MM-YYYY/MM/DD@HH:MM for non-recurring)",
+)
+SCHEDULE_MONDAY_OPTION = typer.Option(None, "--monday", help="Time ranges for Monday (weekly only)")
+SCHEDULE_TUESDAY_OPTION = typer.Option(None, "--tuesday", help="Time ranges for Tuesday (weekly only)")
+SCHEDULE_WEDNESDAY_OPTION = typer.Option(None, "--wednesday", help="Time ranges for Wednesday (weekly only)")
+SCHEDULE_THURSDAY_OPTION = typer.Option(None, "--thursday", help="Time ranges for Thursday (weekly only)")
+SCHEDULE_FRIDAY_OPTION = typer.Option(None, "--friday", help="Time ranges for Friday (weekly only)")
+SCHEDULE_SATURDAY_OPTION = typer.Option(None, "--saturday", help="Time ranges for Saturday (weekly only)")
+SCHEDULE_SUNDAY_OPTION = typer.Option(None, "--sunday", help="Time ranges for Sunday (weekly only)")
 
 # Container override options for load commands
 LOAD_FOLDER_OPTION = typer.Option(
@@ -4804,6 +4827,481 @@ def show_log_forwarding_profile(
 
 
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# REGION COMMANDS
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+@backup_app.command("region", help="Export regions to a YAML file.")
+def backup_region(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export regions from a specified location to a YAML file.
+
+    Examples
+    --------
+        # Backup from a folder
+        scm backup object region --folder Austin
+
+        # Backup with custom output file
+        scm backup object region --folder Austin --file regions.yaml
+
+    """
+    try:
+        # Validate location parameters
+        location_type, location_value = validate_location_params(folder, snippet, device)
+
+        # List all regions based on location type
+        typer.echo(f"Retrieving regions from {location_type} '{location_value}'...")
+
+        # Build kwargs based on location type
+        kwargs = {location_type: location_value}
+        regions = scm_client.list_regions(**kwargs)
+
+        if not regions:
+            typer.echo(f"No regions found in {location_type} '{location_value}'", err=True)
+            return
+
+        # Prepare data for export
+        export_data = {"regions": regions}
+
+        # Generate filename if not provided
+        filename = Path(file or get_default_backup_filename("region", location_type, location_value))
+
+        # Write to file
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(regions)} regions to {filename}")
+
+    except Exception as e:
+        typer.echo(f"Error backing up regions: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("region", help="Delete a region.")
+def delete_region(
+    name: str = typer.Argument(..., help="Name of the region to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a region."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Retrieve the region first to confirm it exists
+        region = scm_client.get_region(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        if not region:
+            typer.echo(f"Region '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+
+        # Confirm deletion
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete region '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+
+        # Delete the region
+        scm_client.delete_region(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        container = folder or snippet or device
+        typer.echo(f"Deleted region: {name} from {container}")
+
+    except Exception as e:
+        typer.echo(f"Error deleting region: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("region", help="Load regions from a YAML file.")
+def load_region(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+) -> None:
+    """Load regions from a YAML file."""
+    try:
+        # Validate file exists
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+
+        if not data or "regions" not in data:
+            typer.echo("No regions found in file", err=True)
+            raise typer.Exit(code=1)
+
+        regions = data["regions"]
+        if not isinstance(regions, list):
+            regions = [regions]
+
+        # Process each region
+        created_count = 0
+        for region_data in regions:
+            try:
+                # Validate with Pydantic model
+                validated_region = Region(**region_data)
+
+                # Override container if specified
+                if folder:
+                    validated_region.folder = folder
+                    validated_region.snippet = None
+                    validated_region.device = None
+                elif snippet:
+                    validated_region.snippet = snippet
+                    validated_region.folder = None
+                    validated_region.device = None
+                elif device:
+                    validated_region.device = device
+                    validated_region.folder = None
+                    validated_region.snippet = None
+
+                # Convert to SDK format
+                sdk_data = validated_region.to_sdk_model()
+
+                # Create/update the region
+                scm_client.create_region(sdk_data)
+
+                created_count += 1
+
+                container = validated_region.folder or validated_region.snippet or validated_region.device
+                typer.echo(f"Created region: {validated_region.name} in {container}")
+
+            except Exception as e:
+                typer.echo(f"Error processing region: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\nSummary: Processed {created_count} regions")
+
+    except Exception as e:
+        typer.echo(f"Error loading regions: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# QUARANTINED DEVICE COMMANDS
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+@delete_app.command("quarantined-device", help="Delete a quarantined device.")
+def delete_quarantined_device(
+    host_id: str = typer.Argument(..., help="Host ID of the quarantined device to delete"),
+) -> None:
+    """Delete a quarantined device by host ID."""
+    try:
+        show_context_info()
+
+        scm_client.delete_quarantined_device(host_id=host_id)
+        typer.echo(f"Deleted quarantined device: {host_id}")
+
+    except Exception as e:
+        typer.echo(f"Error deleting quarantined device: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("quarantined-device", help="Load quarantined devices from a YAML file.")
+def load_quarantined_device(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+) -> None:
+    """Load quarantined devices from a YAML file."""
+    try:
+        # Validate file exists
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+
+        if not data or "quarantined_devices" not in data:
+            typer.echo("No quarantined_devices found in file", err=True)
+            raise typer.Exit(code=1)
+
+        devices = data["quarantined_devices"]
+        if not isinstance(devices, list):
+            devices = [devices]
+
+        # Process each device
+        created_count = 0
+        for device_data in devices:
+            try:
+                # Validate with Pydantic model
+                validated_device = QuarantinedDevice(**device_data)
+
+                # Convert to SDK format
+                sdk_data = validated_device.to_sdk_model()
+
+                # Create the quarantined device
+                scm_client.create_quarantined_device(sdk_data)
+
+                created_count += 1
+                typer.echo(f"Created quarantined device: {validated_device.host_id}")
+
+            except Exception as e:
+                typer.echo(f"Error processing quarantined device: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\nSummary: Processed {created_count} quarantined devices")
+
+    except Exception as e:
+        typer.echo(f"Error loading quarantined devices: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("region", help="Create or update a region.")
+def set_region(
+    name: str = typer.Argument(..., help="Name of the region"),
+    latitude: float = typer.Option(None, "--latitude", help="Latitude of the region (-90 to 90)"),
+    longitude: float = typer.Option(None, "--longitude", help="Longitude of the region (-180 to 180)"),
+    addresses: list[str] | None = REGION_ADDRESSES_OPTION,
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Create or update a region."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Build region data
+        region_data: dict[str, Any] = {
+            "name": name,
+        }
+
+        # Add container
+        if folder:
+            region_data["folder"] = folder
+        elif snippet:
+            region_data["snippet"] = snippet
+        elif device:
+            region_data["device"] = device
+
+        # Add optional fields
+        if latitude is not None:
+            region_data["latitude"] = latitude
+        if longitude is not None:
+            region_data["longitude"] = longitude
+        if addresses:
+            region_data["addresses"] = addresses
+
+        # Validate with Pydantic model
+        validated_region = Region(**region_data)
+
+        # Convert to SDK format
+        sdk_data = validated_region.to_sdk_model()
+
+        # Create/update the region
+        result = scm_client.create_region(sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        container = folder or snippet or device
+        if action == "created":
+            typer.echo(f"Created region: {name} in {container}")
+        elif action == "updated":
+            typer.echo(f"Updated region: {name} in {container}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for region: {name} in {container}")
+
+    except Exception as e:
+        typer.echo(f"Error creating/updating region: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("region", help="Show region details.")
+def show_region(
+    name: str = typer.Option(None, "--name", help="Name of specific region to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show region details.
+
+    Examples
+    --------
+        # List all regions (default behavior)
+        scm show object region
+
+        # Show a specific region by name
+        scm show object region --name US-South
+
+    """
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        if name:
+            # Show specific region
+            region = scm_client.get_region(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not region:
+                typer.echo(f"Region '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+
+            # Display detailed information
+            typer.echo(f"\nRegion: {region['name']}")
+            typer.echo("=" * 40)
+
+            location = region.get("folder") or region.get("snippet") or region.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+
+            if region.get("geo_location"):
+                geo = region["geo_location"]
+                typer.echo(f"Latitude: {geo.get('latitude', 'N/A')}")
+                typer.echo(f"Longitude: {geo.get('longitude', 'N/A')}")
+
+            if region.get("address"):
+                typer.echo(f"Addresses: {', '.join(region['address'])}")
+
+            # Display ID if present
+            if region.get("id"):
+                typer.echo(f"\nID: {region['id']}")
+
+            return region
+
+        else:
+            # Default behavior: list all regions
+            regions = scm_client.list_regions(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not regions:
+                typer.echo("No regions found")
+                return
+
+            # Display in table format
+            typer.echo("\nRegions:")
+            typer.echo("-" * 80)
+
+            for region in regions:
+                location = region.get("folder") or region.get("snippet") or region.get("device", "N/A")
+
+                typer.echo(f"\nName: {region['name']}")
+                typer.echo(f"Location: {location}")
+                if region.get("geo_location"):
+                    geo = region["geo_location"]
+                    typer.echo(f"Geo: ({geo.get('latitude', 'N/A')}, {geo.get('longitude', 'N/A')})")
+                if region.get("address"):
+                    typer.echo(f"Addresses: {', '.join(region['address'])}")
+
+            typer.echo(f"\nTotal: {len(regions)} regions")
+
+    except Exception as e:
+        typer.echo(f"Error showing region: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("quarantined-device", help="Create a quarantined device entry.")
+def set_quarantined_device(
+    host_id: str = typer.Argument(..., help="Host ID of the device to quarantine"),
+    serial_number: str = typer.Option(None, "--serial-number", help="Serial number of the device"),
+) -> None:
+    """Create a quarantined device entry."""
+    try:
+        show_context_info()
+
+        # Build device data
+        device_data: dict[str, Any] = {
+            "host_id": host_id,
+        }
+
+        if serial_number:
+            device_data["serial_number"] = serial_number
+
+        # Validate with Pydantic model
+        validated_device = QuarantinedDevice(**device_data)
+
+        # Convert to SDK format
+        sdk_data = validated_device.to_sdk_model()
+
+        # Create the quarantined device
+        scm_client.create_quarantined_device(sdk_data)
+
+        typer.echo(f"Created quarantined device: {host_id}")
+
+    except Exception as e:
+        typer.echo(f"Error creating quarantined device: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("quarantined-device", help="Show quarantined devices.")
+def show_quarantined_device(
+    host_id: str = typer.Option(None, "--host-id", help="Filter by host ID"),
+    serial_number: str = typer.Option(None, "--serial-number", help="Filter by serial number"),
+) -> None:
+    """Show quarantined devices.
+
+    Examples
+    --------
+        # List all quarantined devices
+        scm show object quarantined-device
+
+        # Filter by host ID
+        scm show object quarantined-device --host-id abc123
+
+    """
+    try:
+        show_context_info()
+
+        devices = scm_client.list_quarantined_devices(
+            host_id=host_id,
+            serial_number=serial_number,
+        )
+
+        if not devices:
+            typer.echo("No quarantined devices found")
+            return
+
+        # Display in table format
+        typer.echo("\nQuarantined Devices:")
+        typer.echo("-" * 80)
+
+        for device in devices:
+            typer.echo(f"\nHost ID: {device.get('host_id', 'N/A')}")
+            if device.get("serial_number"):
+                typer.echo(f"Serial Number: {device['serial_number']}")
+
+        typer.echo(f"\nTotal: {len(devices)} quarantined devices")
+
+    except Exception as e:
+        typer.echo(f"Error showing quarantined devices: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # SERVICE COMMANDS
 # -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -5938,6 +6436,353 @@ def show_syslog_server_profile(
 
     except Exception as e:
         typer.echo(f"Error showing syslog server profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# SCHEDULE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("schedule", help="Export schedules to a YAML file.")
+def backup_schedule(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export schedules from a specified location to a YAML file.
+
+    Examples
+    --------
+        # Backup from a folder
+        scm backup object schedule --folder Austin
+
+        # Backup with custom output file
+        scm backup object schedule --folder Austin --file schedules.yaml
+
+    """
+    try:
+        # Validate location parameters
+        location_type, location_value = validate_location_params(folder, snippet, device)
+
+        # List all schedules based on location type
+        typer.echo(f"Retrieving schedules from {location_type} '{location_value}'...")
+
+        # Build kwargs based on location type
+        kwargs = {location_type: location_value}
+        schedules = scm_client.list_schedules(**kwargs)
+
+        if not schedules:
+            typer.echo(f"No schedules found in {location_type} '{location_value}'", err=True)
+            return
+
+        # Prepare data for export
+        export_data = {"schedules": schedules}
+
+        # Generate filename if not provided
+        filename = Path(file or get_default_backup_filename("schedule", location_type, location_value))
+
+        # Write to file
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(schedules)} schedules to {filename}")
+
+    except Exception as e:
+        typer.echo(f"Error backing up schedules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("schedule", help="Delete a schedule.")
+def delete_schedule(
+    name: str = typer.Argument(..., help="Name of the schedule to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a schedule."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Retrieve the schedule first to confirm it exists
+        schedule = scm_client.get_schedule(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        if not schedule:
+            typer.echo(f"Schedule '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+
+        # Confirm deletion
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete schedule '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+
+        # Delete the schedule
+        scm_client.delete_schedule(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        container = folder or snippet or device
+        typer.echo(f"Deleted schedule: {name} from {container}")
+
+    except Exception as e:
+        typer.echo(f"❌ Error deleting schedule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("schedule", help="Load schedules from a YAML file.")
+def load_schedule(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+) -> None:
+    """Load schedules from a YAML file."""
+    try:
+        # Validate file exists
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+
+        if not data or "schedules" not in data:
+            typer.echo("No schedules found in file", err=True)
+            raise typer.Exit(code=1)
+
+        schedules = data["schedules"]
+        if not isinstance(schedules, list):
+            schedules = [schedules]
+
+        # Process each schedule
+        created_count = 0
+        for schedule_data in schedules:
+            try:
+                # Create/update the schedule directly (YAML already has SDK format)
+                scm_client.create_schedule(schedule_data)
+
+                created_count += 1
+
+                container = schedule_data.get("folder") or schedule_data.get("snippet") or schedule_data.get("device")
+                typer.echo(f"Created schedule: {schedule_data['name']} in {container}")
+
+            except Exception as e:
+                typer.echo(f"❌ Error processing schedule: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\n✅ Summary: Processed {created_count} schedules")
+
+    except Exception as e:
+        typer.echo(f"❌ Error loading schedules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("schedule", help="Create or update a schedule.")
+def set_schedule(
+    name: str = typer.Argument(..., help="Name of the schedule"),
+    schedule_type: str = typer.Option(..., "--schedule-type", help="Schedule type: recurring-daily, recurring-weekly, or non-recurring"),
+    time_ranges: list[str] | None = SCHEDULE_TIME_RANGE_OPTION,
+    days_monday: list[str] | None = SCHEDULE_MONDAY_OPTION,
+    days_tuesday: list[str] | None = SCHEDULE_TUESDAY_OPTION,
+    days_wednesday: list[str] | None = SCHEDULE_WEDNESDAY_OPTION,
+    days_thursday: list[str] | None = SCHEDULE_THURSDAY_OPTION,
+    days_friday: list[str] | None = SCHEDULE_FRIDAY_OPTION,
+    days_saturday: list[str] | None = SCHEDULE_SATURDAY_OPTION,
+    days_sunday: list[str] | None = SCHEDULE_SUNDAY_OPTION,
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Create or update a schedule."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Build days mapping for weekly schedules
+        days = None
+        if schedule_type == "recurring-weekly":
+            days = {}
+            if days_monday:
+                days["monday"] = days_monday
+            if days_tuesday:
+                days["tuesday"] = days_tuesday
+            if days_wednesday:
+                days["wednesday"] = days_wednesday
+            if days_thursday:
+                days["thursday"] = days_thursday
+            if days_friday:
+                days["friday"] = days_friday
+            if days_saturday:
+                days["saturday"] = days_saturday
+            if days_sunday:
+                days["sunday"] = days_sunday
+
+        # Build schedule data
+        schedule_data: dict[str, Any] = {
+            "name": name,
+            "schedule_type": schedule_type,
+        }
+
+        # Add container
+        if folder:
+            schedule_data["folder"] = folder
+        elif snippet:
+            schedule_data["snippet"] = snippet
+        elif device:
+            schedule_data["device"] = device
+
+        # Add schedule-type-specific fields
+        if time_ranges:
+            schedule_data["time_ranges"] = time_ranges
+        if days:
+            schedule_data["days"] = days
+
+        # Validate with Pydantic model
+        validated_schedule = Schedule(**schedule_data)
+
+        # Convert to SDK format
+        sdk_data = validated_schedule.to_sdk_model()
+
+        # Create/update the schedule
+        result = scm_client.create_schedule(sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        container = folder or snippet or device
+        if action == "created":
+            typer.echo(f"✅ Created schedule: {name} in {container}")
+        elif action == "updated":
+            typer.echo(f"✅ Updated schedule: {name} in {container}")
+        elif action == "no_change":
+            typer.echo(f"ℹ️  No changes needed for schedule: {name} in {container}")
+
+    except Exception as e:
+        typer.echo(f"❌ Error creating/updating schedule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("schedule", help="Show schedule details.")
+def show_schedule(
+    name: str = typer.Option(None, "--name", help="Name of specific schedule to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show schedule details.
+
+    Examples
+    --------
+        # List all schedules (default behavior)
+        scm show object schedule
+
+        # Show a specific schedule by name
+        scm show object schedule --name BusinessHours
+
+    """
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        if name:
+            # Show specific schedule
+            schedule = scm_client.get_schedule(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not schedule:
+                typer.echo(f"Schedule '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+
+            # Display detailed information
+            typer.echo(f"\nSchedule: {schedule['name']}")
+            typer.echo("=" * 40)
+
+            location = schedule.get("folder") or schedule.get("snippet") or schedule.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+
+            # Display schedule type info
+            stype = schedule.get("schedule_type", {})
+            if "recurring" in stype:
+                recurring = stype["recurring"]
+                if "daily" in recurring:
+                    typer.echo("Type: Recurring Daily")
+                    typer.echo(f"Time Ranges: {', '.join(recurring['daily'])}")
+                elif "weekly" in recurring:
+                    typer.echo("Type: Recurring Weekly")
+                    weekly = recurring["weekly"]
+                    for day_name in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
+                        if day_name in weekly:
+                            typer.echo(f"  {day_name.capitalize()}: {', '.join(weekly[day_name])}")
+            elif "non_recurring" in stype:
+                typer.echo("Type: Non-Recurring")
+                for dt_range in stype["non_recurring"]:
+                    typer.echo(f"  {dt_range}")
+
+            # Display ID if present
+            if schedule.get("id"):
+                typer.echo(f"\nID: {schedule['id']}")
+
+            return schedule
+
+        else:
+            # Default behavior: list all schedules
+            schedules = scm_client.list_schedules(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not schedules:
+                typer.echo("No schedules found")
+                return
+
+            # Display in table format
+            typer.echo("\nSchedules:")
+            typer.echo("-" * 80)
+
+            for schedule in schedules:
+                location = schedule.get("folder") or schedule.get("snippet") or schedule.get("device", "N/A")
+
+                typer.echo(f"\nName: {schedule['name']}")
+                typer.echo(f"Location: {location}")
+
+                # Summarize schedule type
+                stype = schedule.get("schedule_type", {})
+                if "recurring" in stype:
+                    recurring = stype["recurring"]
+                    if "daily" in recurring:
+                        typer.echo(f"Type: Recurring Daily ({', '.join(recurring['daily'])})")
+                    elif "weekly" in recurring:
+                        typer.echo("Type: Recurring Weekly")
+                elif "non_recurring" in stype:
+                    typer.echo(f"Type: Non-Recurring ({len(stype['non_recurring'])} ranges)")
+
+            typer.echo(f"\nTotal: {len(schedules)} schedules")
+
+    except Exception as e:
+        typer.echo(f"Error showing schedule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 

@@ -1079,6 +1079,96 @@ class LogForwardingProfile(BaseModel):
         return model_data
 
 
+class Region(BaseModel):
+    """Model for region configurations with folder path."""
+
+    folder: str = Field(..., description="Folder path for the region")
+    name: str = Field(
+        ...,
+        description="Name of the region",
+        max_length=64,
+    )
+    latitude: float | None = Field(None, description="Latitude of the region (-90 to 90)", ge=-90, le=90)
+    longitude: float | None = Field(None, description="Longitude of the region (-180 to 180)", ge=-180, le=180)
+    addresses: list[str] | None = Field(None, description="List of address CIDRs")
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+
+    @field_validator("folder", "snippet", "device")
+    def validate_container(
+        cls,
+        v: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
+        """Validate that exactly one container field is set."""
+        if v is not None:
+            values = info.data
+            containers = ["folder", "snippet", "device"]
+            field_name = info.field_name
+            other_containers = [c for c in containers if c != field_name]
+
+            for container in other_containers:
+                if values.get(container) is not None:
+                    raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return v
+
+    @model_validator(mode="after")
+    def check_container_set(self) -> "Region":
+        """Ensure exactly one container field is set."""
+        containers_set = sum(1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None)
+
+        if containers_set != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add geo_location if latitude/longitude provided
+        if self.latitude is not None and self.longitude is not None:
+            model_data["geo_location"] = {
+                "latitude": self.latitude,
+                "longitude": self.longitude,
+            }
+
+        # Add addresses
+        if self.addresses:
+            model_data["address"] = self.addresses
+
+        return model_data
+
+
+class QuarantinedDevice(BaseModel):
+    """Model for quarantined device configurations."""
+
+    host_id: str = Field(..., description="Device host ID")
+    serial_number: str | None = Field(None, description="Device serial number")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "host_id": self.host_id,
+        }
+
+        if self.serial_number:
+            model_data["serial_number"] = self.serial_number
+
+        return model_data
+
+
 class Service(BaseModel):
     """Model for service configurations with folder path."""
 
@@ -1366,6 +1456,123 @@ class SyslogServerProfile(BaseModel):
         return model_data
 
 
+class Schedule(BaseModel):
+    """Model for schedule configurations with folder path.
+
+    Supports three schedule types:
+    - recurring-daily: Same time ranges every day
+    - recurring-weekly: Different time ranges per day of week
+    - non-recurring: One-time date/time ranges
+    """
+
+    folder: str = Field(..., description="Folder path for the schedule")
+    name: str = Field(
+        ...,
+        description="Name of the schedule",
+        pattern=r"^[ a-zA-Z\d._-]+$",
+        max_length=31,
+    )
+    schedule_type: str = Field(
+        ...,
+        description="Schedule type: recurring-daily, recurring-weekly, or non-recurring",
+    )
+    time_ranges: list[str] | None = Field(
+        None,
+        description="List of time ranges (HH:MM-HH:MM for recurring, YYYY/MM/DD@HH:MM-YYYY/MM/DD@HH:MM for non-recurring)",
+    )
+    days: dict[str, list[str]] | None = Field(
+        None,
+        description="Day-to-time-range mapping for weekly schedules (e.g., {'monday': ['09:00-17:00']})",
+    )
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+
+    @field_validator("folder", "snippet", "device")
+    def validate_container(
+        cls,
+        v: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
+        """Validate that exactly one container field is set."""
+        if v is not None:
+            # Check other container fields
+            values = info.data
+            containers = ["folder", "snippet", "device"]
+            field_name = info.field_name
+            other_containers = [c for c in containers if c != field_name]
+
+            for container in other_containers:
+                if values.get(container) is not None:
+                    raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return v
+
+    @model_validator(mode="after")
+    def check_container_set(self) -> "Schedule":
+        """Ensure exactly one container field is set."""
+        containers_set = sum(1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None)
+
+        if containers_set != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return self
+
+    @field_validator("schedule_type")
+    def validate_schedule_type(cls, v: str) -> str:
+        """Validate schedule type is from allowed set."""
+        valid_types = ["recurring-daily", "recurring-weekly", "non-recurring"]
+        if v not in valid_types:
+            raise ValueError(f"Schedule type must be one of: {', '.join(valid_types)}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_schedule_data(self) -> "Schedule":
+        """Validate that required data is provided for the schedule type."""
+        if self.schedule_type == "recurring-daily":
+            if not self.time_ranges:
+                raise ValueError("time_ranges is required for recurring-daily schedules")
+        elif self.schedule_type == "recurring-weekly":
+            if not self.days:
+                raise ValueError("days is required for recurring-weekly schedules")
+        elif self.schedule_type == "non-recurring" and not self.time_ranges:
+            raise ValueError("time_ranges is required for non-recurring schedules")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Build schedule_type structure
+        if self.schedule_type == "recurring-daily":
+            model_data["schedule_type"] = {
+                "recurring": {
+                    "daily": self.time_ranges,
+                },
+            }
+        elif self.schedule_type == "recurring-weekly":
+            model_data["schedule_type"] = {
+                "recurring": {
+                    "weekly": self.days,
+                },
+            }
+        elif self.schedule_type == "non-recurring":
+            model_data["schedule_type"] = {
+                "non_recurring": self.time_ranges,
+            }
+
+        return model_data
+
+
 class Tag(BaseModel):
     """Model for tag configurations with folder path."""
 
@@ -1493,6 +1700,104 @@ class Tag(BaseModel):
 # ========================================================================================================================================================================================
 # NETWORK CONFIGURATION MODELS
 # ========================================================================================================================================================================================
+
+
+class IKECryptoProfile(BaseModel):
+    """Model for IKE crypto profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the IKE crypto profile")
+    snippet: str | None = Field(None, description="Snippet path for the IKE crypto profile")
+    device: str | None = Field(None, description="Device path for the IKE crypto profile")
+    name: str = Field(
+        ...,
+        description="Name of the IKE crypto profile",
+        pattern=r"^[0-9a-zA-Z._-]+$",
+        max_length=31,
+    )
+    hash: list[str] = Field(..., description="Hashing algorithms (md5, sha1, sha256, sha384, sha512)")
+    dh_group: list[str] = Field(..., description="Phase-1 DH group (group1, group2, group5, group14, group19, group20)")
+    encryption: list[str] = Field(..., description="Encryption algorithms (des, 3des, aes-128-cbc, aes-192-cbc, aes-256-cbc, aes-128-gcm, aes-256-gcm)")
+    lifetime_seconds: int | None = Field(None, description="Lifetime in seconds (180-65535)", ge=180, le=65535)
+    lifetime_minutes: int | None = Field(None, description="Lifetime in minutes (3-65535)", ge=3, le=65535)
+    lifetime_hours: int | None = Field(None, description="Lifetime in hours (1-65535)", ge=1, le=65535)
+    lifetime_days: int | None = Field(None, description="Lifetime in days (1-365)", ge=1, le=365)
+    authentication_multiple: int | None = Field(None, description="IKEv2 SA reauthentication interval (0-50)", ge=0, le=50)
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "IKECryptoProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @model_validator(mode="after")
+    def validate_lifetime(self) -> "IKECryptoProfile":
+        """Validate that at most one lifetime field is specified."""
+        lifetime_fields = [self.lifetime_seconds, self.lifetime_minutes, self.lifetime_hours, self.lifetime_days]
+        if sum(1 for f in lifetime_fields if f is not None) > 1:
+            raise ValueError("At most one of 'lifetime_seconds', 'lifetime_minutes', 'lifetime_hours', or 'lifetime_days' may be set")
+        return self
+
+    @field_validator("hash")
+    def validate_hash(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate hash algorithms."""
+        valid = {"md5", "sha1", "sha256", "sha384", "sha512"}
+        for h in v:
+            if h not in valid:
+                raise ValueError(f"Invalid hash algorithm '{h}'. Must be one of: {', '.join(sorted(valid))}")
+        return v
+
+    @field_validator("dh_group")
+    def validate_dh_group(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate DH group values."""
+        valid = {"group1", "group2", "group5", "group14", "group19", "group20"}
+        for g in v:
+            if g not in valid:
+                raise ValueError(f"Invalid DH group '{g}'. Must be one of: {', '.join(sorted(valid))}")
+        return v
+
+    @field_validator("encryption")
+    def validate_encryption(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate encryption algorithms."""
+        valid = {"des", "3des", "aes-128-cbc", "aes-192-cbc", "aes-256-cbc", "aes-128-gcm", "aes-256-gcm"}
+        for e in v:
+            if e not in valid:
+                raise ValueError(f"Invalid encryption algorithm '{e}'. Must be one of: {', '.join(sorted(valid))}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "hash": self.hash,
+            "dh_group": self.dh_group,
+            "encryption": self.encryption,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add lifetime if specified
+        if self.lifetime_seconds is not None:
+            model_data["lifetime"] = {"seconds": self.lifetime_seconds}
+        elif self.lifetime_minutes is not None:
+            model_data["lifetime"] = {"minutes": self.lifetime_minutes}
+        elif self.lifetime_hours is not None:
+            model_data["lifetime"] = {"hours": self.lifetime_hours}
+        elif self.lifetime_days is not None:
+            model_data["lifetime"] = {"days": self.lifetime_days}
+
+        # Add authentication_multiple if specified
+        if self.authentication_multiple is not None:
+            model_data["authentication_multiple"] = self.authentication_multiple
+
+        return model_data
 
 
 class Zone(BaseModel):
