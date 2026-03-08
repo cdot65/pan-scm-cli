@@ -1,13 +1,28 @@
 """Tests for the security commands module."""
 
 import typer
+
 from scm_cli.commands.security import (
     delete_app,
+    delete_dns_security_profile,
     delete_security_rule,
+    delete_url_category,
+    delete_vulnerability_protection_profile,
+    delete_wildfire_antivirus_profile,
     load_app,
     load_security_rule,
+    load_vulnerability_protection_profile,
+    load_wildfire_antivirus_profile,
     set_app,
+    set_dns_security_profile,
     set_security_rule,
+    set_url_category,
+    set_vulnerability_protection_profile,
+    set_wildfire_antivirus_profile,
+    show_dns_security_profile,
+    show_url_category,
+    show_vulnerability_protection_profile,
+    show_wildfire_antivirus_profile,
 )
 
 
@@ -252,3 +267,832 @@ class TestSecurityRuleCommands:
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         assert not mock_called  # Ensure the create method was not called
+
+
+class TestWildfireAntivirusProfileCommands:
+    """Test the WildFire antivirus profile commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client to avoid real API calls."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_wildfire_antivirus_profile_command(self, runner, monkeypatch):
+        """Test the set wildfire-antivirus-profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_wildfire_antivirus_profile.return_value = {
+            "id": "wfav-12345",
+            "name": "wf-test",
+            "folder": "Texas",
+            "rules": [],
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_wildfire_antivirus_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "wf-test",
+                "--description",
+                "Test WildFire profile",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created WildFire antivirus profile" in result.stdout
+        assert "wf-test" in result.stdout
+
+    def test_set_wildfire_antivirus_profile_with_rules_json(self, runner, monkeypatch):
+        """Test set wildfire-antivirus-profile with custom rules JSON."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_wildfire_antivirus_profile.return_value = {
+            "id": "wfav-12345",
+            "name": "wf-custom",
+            "folder": "Texas",
+            "rules": [],
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_wildfire_antivirus_profile)
+
+        rules = '[{"name":"Forward All","direction":"both","analysis":"public-cloud","application":["any"],"file_type":["any"]}]'
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "wf-custom",
+                "--rules",
+                rules,
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created WildFire antivirus profile" in result.stdout
+
+    def test_set_wildfire_antivirus_profile_error(self, runner, monkeypatch):
+        """Test the set wildfire-antivirus-profile command with an error."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_wildfire_antivirus_profile.side_effect = ValueError("Test error")
+
+        test_app = typer.Typer()
+        test_app.command()(set_wildfire_antivirus_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "wf-test",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating WildFire antivirus profile" in result.stdout
+
+    def test_delete_wildfire_antivirus_profile_command(self, runner, monkeypatch):
+        """Test the delete wildfire-antivirus-profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.delete_wildfire_antivirus_profile.return_value = True
+
+        test_app = typer.Typer()
+        test_app.command()(delete_wildfire_antivirus_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "wf-test",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted WildFire antivirus profile" in result.stdout
+        assert "wf-test" in result.stdout
+
+    def test_show_wildfire_antivirus_profile_list(self, runner, monkeypatch):
+        """Test the show wildfire-antivirus-profile command (list mode)."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_wildfire_antivirus_profiles.return_value = [
+            {
+                "id": "wfav-1",
+                "folder": "Texas",
+                "name": "WF Profile 1",
+                "description": "First profile",
+                "rules": [{"name": "rule1", "direction": "both"}],
+            },
+            {
+                "id": "wfav-2",
+                "folder": "Texas",
+                "name": "WF Profile 2",
+                "rules": [{"name": "rule2", "direction": "upload"}],
+            },
+        ]
+
+        test_app = typer.Typer()
+        test_app.command()(show_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "WF Profile 1" in result.stdout
+        assert "WF Profile 2" in result.stdout
+
+    def test_show_wildfire_antivirus_profile_single(self, runner, monkeypatch):
+        """Test the show wildfire-antivirus-profile command (single profile)."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.get_wildfire_antivirus_profile.return_value = {
+            "id": "wfav-1",
+            "folder": "Texas",
+            "name": "WF Test",
+            "description": "Test profile",
+            "packet_capture": True,
+            "rules": [
+                {
+                    "name": "Forward All",
+                    "direction": "both",
+                    "analysis": "public-cloud",
+                    "application": ["any"],
+                    "file_type": ["any"],
+                }
+            ],
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(show_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "WF Test"])
+
+        assert result.exit_code == 0
+        assert "WF Test" in result.stdout
+        assert "Packet Capture: Enabled" in result.stdout
+        assert "Forward All" in result.stdout
+
+    def test_load_wildfire_antivirus_profile_command(self, runner, monkeypatch, tmp_path):
+        """Test the load wildfire-antivirus-profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        call_count = {"n": 0}
+
+        def mock_create(*args, **kwargs):
+            call_count["n"] += 1
+            return {
+                "id": f"wfav-{call_count['n']}",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "rules": kwargs.get("rules", []),
+            }
+
+        mock_client.create_wildfire_antivirus_profile.side_effect = mock_create
+
+        # Create a test YAML file
+        yaml_content = """
+wildfire_antivirus_profiles:
+  - name: wf-test
+    folder: Texas
+    rules:
+      - name: Forward All
+        direction: both
+        analysis: public-cloud
+        application:
+          - any
+        file_type:
+          - any
+"""
+        test_file = tmp_path / "wf_profiles.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0
+        assert "Successfully processed" in result.stdout
+        assert call_count["n"] == 1
+
+    def test_load_wildfire_antivirus_profile_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test the load wildfire-antivirus-profile command with dry-run."""
+        mock_client = self._mock_scm_client(monkeypatch)
+
+        yaml_content = """
+wildfire_antivirus_profiles:
+  - name: wf-test
+    folder: Texas
+    rules:
+      - name: Forward All
+        direction: both
+        application:
+          - any
+        file_type:
+          - any
+"""
+        test_file = tmp_path / "wf_profiles.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--file", str(test_file), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+        mock_client.create_wildfire_antivirus_profile.assert_not_called()
+
+
+class TestDNSSecurityProfileCommands:
+    """Test the DNS security profile commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client to avoid real API calls."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_dns_security_profile_command(self, runner, monkeypatch):
+        """Test the set DNS security profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_dns_security_profile.return_value = {
+            "id": "dns-sec-12345",
+            "name": "dns-sec-test",
+            "folder": "Texas",
+            "botnet_domains": {},
+            "__action__": "created",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_dns_security_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "dns-sec-test",
+                "--description",
+                "Test DNS security profile",
+                "--botnet-domains",
+                '{"dns_security_categories": [{"name": "pan-dns-sec-malware", "action": "sinkhole"}]}',
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created DNS security profile" in result.stdout
+        assert "dns-sec-test" in result.stdout
+
+    def test_set_dns_security_profile_error(self, runner, monkeypatch):
+        """Test the set DNS security profile command with an error."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_dns_security_profile.side_effect = ValueError("Test error")
+
+        test_app = typer.Typer()
+        test_app.command()(set_dns_security_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "dns-sec-test",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating DNS security profile" in result.stdout
+
+    def test_delete_dns_security_profile_command(self, runner, monkeypatch):
+        """Test the delete DNS security profile command."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.delete_dns_security_profile.return_value = True
+
+        test_app = typer.Typer()
+        test_app.command()(delete_dns_security_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "dns-sec-test",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted DNS security profile" in result.stdout
+        assert "dns-sec-test" in result.stdout
+
+    def test_show_dns_security_profile_list(self, runner, monkeypatch):
+        """Test the show DNS security profile command listing all profiles."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_dns_security_profiles.return_value = [
+            {
+                "id": "dns-sec-mock1",
+                "name": "DNS-Security-Default",
+                "folder": "Texas",
+                "description": "Default DNS security profile",
+                "botnet_domains": {
+                    "dns_security_categories": [
+                        {"name": "pan-dns-sec-malware", "action": "sinkhole"},
+                    ],
+                    "sinkhole": {"ipv4_address": "pan-sinkhole-default-ip", "ipv6_address": "::1"},
+                },
+            },
+        ]
+
+        test_app = typer.Typer()
+        test_app.command()(show_dns_security_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "DNS-Security-Default" in result.stdout
+
+
+class TestVulnerabilityProtectionProfileCommands:
+    """Test the vulnerability protection profile commands."""
+
+    def test_set_vulnerability_protection_profile_command(self, runner, monkeypatch):
+        """Test the set vulnerability protection profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "vpp-12345",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "rules": kwargs.get("rules", []),
+                "description": kwargs.get("description", ""),
+            }
+
+        monkeypatch.setattr(scm_client, "create_vulnerability_protection_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-vuln-profile",
+                "--description",
+                "Test vulnerability protection",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created vulnerability protection profile" in result.stdout
+        assert "test-vuln-profile" in result.stdout
+
+    def test_set_vulnerability_protection_profile_block_critical_high(self, runner, monkeypatch):
+        """Test the set command with --block-critical-high flag."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured_kwargs = {}
+
+        def mock_create(*args, **kwargs):
+            captured_kwargs.update(kwargs)
+            return {
+                "id": "vpp-12345",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "rules": kwargs.get("rules", []),
+            }
+
+        monkeypatch.setattr(scm_client, "create_vulnerability_protection_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "strict-vuln",
+                "--block-critical-high",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert captured_kwargs.get("rules") is not None
+        assert len(captured_kwargs["rules"]) == 1
+        assert "critical" in captured_kwargs["rules"][0]["severity"]
+        assert "high" in captured_kwargs["rules"][0]["severity"]
+
+    def test_set_vulnerability_protection_profile_error(self, runner, monkeypatch):
+        """Test the set command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(*args, **kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_vulnerability_protection_profile", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-vuln",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating vulnerability protection profile" in result.stdout
+
+    def test_delete_vulnerability_protection_profile_command(self, runner, monkeypatch):
+        """Test the delete vulnerability protection profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(scm_client, "delete_vulnerability_protection_profile", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-vuln",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted vulnerability protection profile" in result.stdout
+        assert "test-vuln" in result.stdout
+
+    def test_delete_vulnerability_protection_profile_error(self, runner, monkeypatch):
+        """Test the delete command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete_error(*args, **kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "delete_vulnerability_protection_profile", mock_delete_error)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-vuln",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error deleting vulnerability protection profile" in result.stdout
+
+    def test_show_vulnerability_protection_profile_single(self, runner, monkeypatch):
+        """Test the show command for a single profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {
+                "id": "vpp-12345",
+                "name": "test-vuln",
+                "folder": "Texas",
+                "description": "Test profile",
+                "rules": [
+                    {
+                        "name": "Block Critical",
+                        "severity": ["critical", "high"],
+                        "category": "any",
+                        "host": "any",
+                        "action": {"alert": {}},
+                        "packet_capture": "single-packet",
+                    }
+                ],
+            }
+
+        monkeypatch.setattr(scm_client, "get_vulnerability_protection_profile", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-vuln",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Vulnerability Protection Profile: test-vuln" in result.stdout
+        assert "Block Critical" in result.stdout
+
+    def test_show_vulnerability_protection_profile_list(self, runner, monkeypatch):
+        """Test the show command listing all profiles."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return [
+                {
+                    "id": "vpp-1",
+                    "name": "strict-vuln",
+                    "folder": "Texas",
+                    "rules": [{"name": "r1", "action": {"alert": {}}}],
+                },
+                {
+                    "id": "vpp-2",
+                    "name": "standard-vuln",
+                    "folder": "Texas",
+                    "rules": [{"name": "r2", "action": {"default": {}}}],
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_vulnerability_protection_profiles", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "strict-vuln" in result.stdout
+        assert "standard-vuln" in result.stdout
+
+    def test_load_vulnerability_protection_profile_command(self, runner, monkeypatch, tmp_path):
+        """Test the load vulnerability protection profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        created_profiles = []
+
+        def mock_create(*args, **kwargs):
+            result = {
+                "id": f"vpp-{len(created_profiles) + 1}",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "rules": kwargs.get("rules", []),
+            }
+            created_profiles.append(result)
+            return result
+
+        monkeypatch.setattr(scm_client, "create_vulnerability_protection_profile", mock_create)
+
+        # Create YAML file
+        yaml_file = tmp_path / "vuln_profiles.yml"
+        yaml_file.write_text("""
+vulnerability_protection_profiles:
+  - name: test-vuln
+    folder: Texas
+    rules:
+      - name: Block Critical
+        severity:
+          - critical
+          - high
+        category: any
+        host: any
+        action:
+          alert: {}
+""")
+
+        test_app = typer.Typer()
+        test_app.command()(load_vulnerability_protection_profile)
+
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+
+        assert result.exit_code == 0
+        assert "Successfully processed 1 vulnerability protection profile(s)" in result.stdout
+        assert len(created_profiles) == 1
+
+    def test_load_vulnerability_protection_profile_dry_run(self, runner, monkeypatch, tmp_path):
+        """Test the load command with dry-run option."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called = False
+
+        def mock_create(*args, **kwargs):
+            nonlocal mock_called
+            mock_called = True
+            return {}
+
+        monkeypatch.setattr(scm_client, "create_vulnerability_protection_profile", mock_create)
+
+        yaml_file = tmp_path / "vuln_profiles.yml"
+        yaml_file.write_text("""
+vulnerability_protection_profiles:
+  - name: test-vuln
+    folder: Texas
+    rules:
+      - name: Block Critical
+        severity:
+          - critical
+        category: any
+        host: any
+""")
+
+        test_app = typer.Typer()
+        test_app.command()(load_vulnerability_protection_profile)
+
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+        assert not mock_called
+
+
+class TestURLCategoryCommands:
+    """Test the URL category commands."""
+
+    def test_set_url_category_command(self, runner, monkeypatch):
+        """Test the set URL category command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "urlcat-12345",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "type": kwargs.get("type", "URL List"),
+                "list": kwargs.get("list", []),
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_url_category", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "custom-block",
+                "--url",
+                "malware.example.com",
+                "--url",
+                "phishing.test.org",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created URL category" in result.stdout
+        assert "custom-block" in result.stdout
+
+    def test_set_url_category_error(self, runner, monkeypatch):
+        """Test the set URL category command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(*args, **kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_url_category", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "test-category",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating URL category" in result.stdout
+
+    def test_delete_url_category_command(self, runner, monkeypatch):
+        """Test the delete URL category command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(scm_client, "delete_url_category", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "custom-block",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Deleted URL category" in result.stdout
+        assert "custom-block" in result.stdout
+
+    def test_show_url_category_list(self, runner, monkeypatch):
+        """Test the show URL category command for listing."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return [
+                {
+                    "id": "urlcat-1",
+                    "name": "Custom-Block-List",
+                    "folder": "Texas",
+                    "type": "URL List",
+                    "list": ["malware.example.com"],
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_url_categories", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Custom-Block-List" in result.stdout
+
+    def test_show_url_category_by_name(self, runner, monkeypatch):
+        """Test the show URL category command for a specific category."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {
+                "id": "urlcat-1",
+                "name": "Custom-Block-List",
+                "folder": "Texas",
+                "description": "Custom blocked URLs",
+                "type": "URL List",
+                "list": ["malware.example.com", "phishing.test.org"],
+            }
+
+        monkeypatch.setattr(scm_client, "get_url_category", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_url_category)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "Custom-Block-List",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Custom-Block-List" in result.stdout
+        assert "malware.example.com" in result.stdout
+        assert "phishing.test.org" in result.stdout

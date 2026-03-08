@@ -4,8 +4,10 @@ This module implements set, delete, and load commands for network-related
 configurations such as zones and interfaces.
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import typer
 import yaml
@@ -13,7 +15,7 @@ from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import IKECryptoProfile, Zone
+from ..utils.validators import IKECryptoProfile, IPSecCryptoProfile, NATRule, Zone
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -88,6 +90,116 @@ BACKUP_FILE_OPTION = typer.Option(
     "--file",
     help="Output filename for backup (defaults to {object-type}-{location}.yaml)",
 )
+
+# NAT rule option constants
+NAT_FOLDER_OPTION = typer.Option(
+    ...,
+    "--folder",
+    help="Folder path for the NAT rule",
+)
+NAT_NAME_OPTION = typer.Option(
+    ...,
+    "--name",
+    help="Name of the NAT rule",
+)
+NAT_DESCRIPTION_OPTION = typer.Option(
+    None,
+    "--description",
+    help="Description of the NAT rule",
+)
+NAT_TAG_OPTION = typer.Option(
+    None,
+    "--tag",
+    help="Tags for the NAT rule",
+)
+NAT_DISABLED_OPTION = typer.Option(
+    False,
+    "--disabled",
+    help="Disable the NAT rule",
+)
+NAT_NAT_TYPE_OPTION = typer.Option(
+    "ipv4",
+    "--nat-type",
+    help="NAT type (ipv4, nat64, nptv6)",
+)
+NAT_FROM_ZONES_OPTION = typer.Option(
+    None,
+    "--from-zone",
+    help="Source zone(s)",
+)
+NAT_TO_ZONES_OPTION = typer.Option(
+    None,
+    "--to-zone",
+    help="Destination zone(s)",
+)
+NAT_TO_INTERFACE_OPTION = typer.Option(
+    None,
+    "--to-interface",
+    help="Destination interface",
+)
+NAT_SOURCE_OPTION = typer.Option(
+    None,
+    "--source",
+    help="Source address(es)",
+)
+NAT_DESTINATION_OPTION = typer.Option(
+    None,
+    "--destination",
+    help="Destination address(es)",
+)
+NAT_SERVICE_OPTION = typer.Option(
+    "any",
+    "--service",
+    help="TCP/UDP service",
+)
+NAT_SOURCE_TRANSLATION_OPTION = typer.Option(
+    None,
+    "--source-translation",
+    help="Source translation config as JSON string",
+)
+NAT_DESTINATION_TRANSLATION_OPTION = typer.Option(
+    None,
+    "--destination-translation",
+    help="Destination translation config as JSON string",
+)
+
+# Container override options for load commands
+LOAD_FOLDER_OPTION = typer.Option(
+    None,
+    "--folder",
+    help="Override folder location for all objects",
+)
+LOAD_SNIPPET_OPTION = typer.Option(
+    None,
+    "--snippet",
+    help="Override snippet location for all objects",
+)
+LOAD_DEVICE_OPTION = typer.Option(
+    None,
+    "--device",
+    help="Override device location for all objects",
+)
+
+# IPsec crypto profile option constants (module-level to avoid B008)
+IPSEC_FOLDER_OPTION = typer.Option("Texas", "--folder", help="Folder path for the IPsec crypto profile")
+IPSEC_NAME_OPTION = typer.Option(..., "--name", help="Name of the IPsec crypto profile")
+IPSEC_ESP_ENCRYPTION_OPTION: list[str] = typer.Option(
+    ["aes-256-cbc"],
+    "--esp-encryption",
+    help="ESP encryption algorithms (des, 3des, aes-128-cbc, aes-192-cbc, aes-256-cbc, aes-128-gcm, aes-256-gcm, null)",
+)
+IPSEC_ESP_AUTHENTICATION_OPTION: list[str] = typer.Option(
+    ["sha256"],
+    "--esp-authentication",
+    help="ESP authentication algorithms (md5, sha1, sha256, sha384, sha512)",
+)
+IPSEC_DH_GROUP_OPTION = typer.Option(
+    "group14",
+    "--dh-group",
+    help="DH group for PFS (no-pfs, group1, group2, group5, group14, group19, group20)",
+)
+IPSEC_LIFETIME_SECONDS_OPTION = typer.Option(None, "--lifetime-seconds", help="Lifetime in seconds (180-65535)")
+IPSEC_LIFETIME_HOURS_OPTION = typer.Option(None, "--lifetime-hours", help="Lifetime in hours (1-65535)")
 
 # ========================================================================================================================================================================================
 # HELPER FUNCTIONS
@@ -761,4 +873,645 @@ def show_zone(
 
     except Exception as e:
         typer.echo(f"Error showing security zone: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# IPSEC CRYPTO PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("ipsec-crypto-profile")
+def backup_ipsec_crypto_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Back up all IPsec crypto profiles from a container to a YAML file.
+
+    Examples
+    --------
+        # Backup from folder
+        scm backup network ipsec-crypto-profile --folder Texas
+
+        # Backup to custom filename
+        scm backup network ipsec-crypto-profile --folder Texas --file my-profiles.yaml
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not file:
+        file = get_default_backup_filename("ipsec-crypto-profiles", location_type, location_value)
+
+    try:
+        profiles = scm_client.list_ipsec_crypto_profiles(folder=folder, snippet=snippet, device=device, exact_match=True)
+
+        if not profiles:
+            typer.echo(f"No IPsec crypto profiles found in {location_type} '{location_value}'")
+            return None
+
+        backup_data = []
+        for profile in profiles:
+            profile_dict = profile.copy()
+            profile_dict.pop("id", None)
+            backup_data.append(profile_dict)
+
+        yaml_data = {"ipsec_crypto_profiles": backup_data}
+
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} IPsec crypto profiles to {file}")
+        return file
+
+    except NotImplementedError as e:
+        typer.echo(f"Error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error backing up IPsec crypto profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("ipsec-crypto-profile")
+def delete_ipsec_crypto_profile(
+    folder: str = IPSEC_FOLDER_OPTION,
+    name: str = IPSEC_NAME_OPTION,
+):
+    """Delete an IPsec crypto profile.
+
+    Example: scm delete network ipsec-crypto-profile --folder Texas --name my-profile
+    """
+    try:
+        result = scm_client.delete_ipsec_crypto_profile(folder=folder, name=name)
+
+        if result:
+            typer.echo(f"Deleted IPsec crypto profile: {name} from folder {folder}")
+        else:
+            typer.echo(f"IPsec crypto profile not found: {name} in folder {folder}", err=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error deleting IPsec crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("ipsec-crypto-profile")
+def load_ipsec_crypto_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+):
+    """Load IPsec crypto profiles from a YAML file.
+
+    Example: scm load network ipsec-crypto-profile --file ipsec-profiles.yaml
+    """
+    try:
+        config = load_from_yaml(str(file), "ipsec_crypto_profiles")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["ipsec_crypto_profiles"]))
+            return None
+
+        results = []
+        for profile_data in config["ipsec_crypto_profiles"]:
+            profile = IPSecCryptoProfile(**profile_data)
+            sdk_data = profile.to_sdk_model()
+
+            result = scm_client.create_ipsec_crypto_profile(
+                folder=profile.folder or "Texas",
+                name=sdk_data["name"],
+                esp_encryption=sdk_data["esp"]["encryption"],
+                esp_authentication=sdk_data["esp"]["authentication"],
+                dh_group=sdk_data.get("dh_group", "group14"),
+                lifetime=sdk_data.get("lifetime"),
+                lifesize=sdk_data.get("lifesize"),
+            )
+
+            results.append(result)
+            action = result.get("__action__", "applied")
+            typer.echo(f"IPsec crypto profile '{result['name']}' {action} in folder {result.get('folder', 'N/A')}")
+
+        return results
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading IPsec crypto profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("ipsec-crypto-profile")
+def set_ipsec_crypto_profile(
+    folder: str = IPSEC_FOLDER_OPTION,
+    name: str = IPSEC_NAME_OPTION,
+    esp_encryption: list[str] = IPSEC_ESP_ENCRYPTION_OPTION,
+    esp_authentication: list[str] = IPSEC_ESP_AUTHENTICATION_OPTION,
+    dh_group: str = IPSEC_DH_GROUP_OPTION,
+    lifetime_seconds: int | None = IPSEC_LIFETIME_SECONDS_OPTION,
+    lifetime_hours: int | None = IPSEC_LIFETIME_HOURS_OPTION,
+):
+    """Create or update an IPsec crypto profile.
+
+    Example:
+    -------
+        scm set network ipsec-crypto-profile --folder Texas --name my-profile \
+        --esp-encryption aes-256-cbc --esp-authentication sha256 --dh-group group14
+
+    """
+    try:
+        profile = IPSecCryptoProfile(
+            folder=folder,
+            name=name,
+            esp_encryption=esp_encryption,
+            esp_authentication=esp_authentication,
+            dh_group=dh_group,
+            lifetime_seconds=lifetime_seconds,
+            lifetime_hours=lifetime_hours,
+        )
+
+        sdk_data = profile.to_sdk_model()
+
+        result = scm_client.create_ipsec_crypto_profile(
+            folder=folder,
+            name=name,
+            esp_encryption=sdk_data["esp"]["encryption"],
+            esp_authentication=sdk_data["esp"]["authentication"],
+            dh_group=sdk_data.get("dh_group", "group14"),
+            lifetime=sdk_data.get("lifetime"),
+            lifesize=sdk_data.get("lifesize"),
+        )
+
+        action = result.get("__action__", "created")
+        typer.echo(f"IPsec crypto profile '{result['name']}' {action} in folder {result.get('folder', folder)}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error creating IPsec crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("ipsec-crypto-profile")
+def show_ipsec_crypto_profile(
+    folder: str = IPSEC_FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the IPsec crypto profile to show"),
+):
+    """Display IPsec crypto profiles.
+
+    Example:
+    -------
+        # List all IPsec crypto profiles in a folder
+        scm show network ipsec-crypto-profile --folder Texas
+
+        # Show a specific IPsec crypto profile
+        scm show network ipsec-crypto-profile --folder Texas --name my-profile
+
+    """
+    try:
+        if name:
+            profile = scm_client.get_ipsec_crypto_profile(folder=folder, name=name)
+
+            typer.echo(f"\nIPsec Crypto Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            if profile.get("folder"):
+                typer.echo(f"Location: Folder '{profile['folder']}'")
+
+            # Display ESP config
+            esp = profile.get("esp", {})
+            if esp:
+                typer.echo(f"ESP Encryption: {', '.join(esp.get('encryption', []))}")
+                typer.echo(f"ESP Authentication: {', '.join(esp.get('authentication', []))}")
+
+            if profile.get("dh_group"):
+                typer.echo(f"DH Group: {profile['dh_group']}")
+
+            # Display lifetime
+            lifetime = profile.get("lifetime", {})
+            if lifetime:
+                for unit, value in lifetime.items():
+                    typer.echo(f"Lifetime: {value} {unit}")
+
+            # Display lifesize
+            lifesize = profile.get("lifesize", {})
+            if lifesize:
+                for unit, value in lifesize.items():
+                    typer.echo(f"Lifesize: {value} {unit.upper()}")
+
+            if profile.get("id"):
+                typer.echo(f"ID: {profile['id']}")
+
+            return profile
+
+        else:
+            profiles = scm_client.list_ipsec_crypto_profiles(folder=folder)
+
+            if not profiles:
+                typer.echo(f"No IPsec crypto profiles found in folder '{folder}'")
+                return None
+
+            typer.echo(f"\nIPsec Crypto Profiles in folder '{folder}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+
+                esp = profile.get("esp", {})
+                if esp:
+                    typer.echo(f"  ESP Encryption: {', '.join(esp.get('encryption', []))}")
+                    typer.echo(f"  ESP Authentication: {', '.join(esp.get('authentication', []))}")
+
+                if profile.get("dh_group"):
+                    typer.echo(f"  DH Group: {profile['dh_group']}")
+
+                lifetime = profile.get("lifetime", {})
+                if lifetime:
+                    for unit, value in lifetime.items():
+                        typer.echo(f"  Lifetime: {value} {unit}")
+
+                lifesize = profile.get("lifesize", {})
+                if lifesize:
+                    for unit, value in lifesize.items():
+                        typer.echo(f"  Lifesize: {value} {unit.upper()}")
+
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing IPsec crypto profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# NAT RULE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("nat-rule")
+def backup_nat_rule(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Back up all NAT rules from a container to a YAML file.
+
+    Examples
+    --------
+        # Backup from folder
+        scm backup network nat-rule --folder Texas
+
+        # Backup to custom filename
+        scm backup network nat-rule --folder Texas --file my-nat-rules.yaml
+
+    """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not file:
+        file = get_default_backup_filename("nat-rules", location_type, location_value)
+
+    try:
+        nat_rules = scm_client.list_nat_rules(folder=folder, snippet=snippet, device=device, exact_match=True)
+
+        if not nat_rules:
+            typer.echo(f"No NAT rules found in {location_type} '{location_value}'")
+            return None
+
+        backup_data = []
+        for rule in nat_rules:
+            rule_dict = rule.copy()
+            rule_dict.pop("id", None)
+            backup_data.append(rule_dict)
+
+        yaml_data = {"nat_rules": backup_data}
+
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} NAT rules to {file}")
+        return file
+
+    except NotImplementedError as e:
+        typer.echo(f"Error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error backing up NAT rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("nat-rule")
+def delete_nat_rule(
+    folder: str = NAT_FOLDER_OPTION,
+    name: str = NAT_NAME_OPTION,
+):
+    """Delete a NAT rule.
+
+    Example: scm delete network nat-rule --folder Texas --name outbound-nat
+    """
+    try:
+        result = scm_client.delete_nat_rule(folder=folder, name=name)
+
+        if result:
+            typer.echo(f"Deleted NAT rule: {name} from folder {folder}")
+        else:
+            typer.echo(f"NAT rule not found: {name} in folder {folder}", err=True)
+            raise typer.Exit(code=1)
+    except Exception as e:
+        typer.echo(f"Error deleting NAT rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("nat-rule")
+def load_nat_rule(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load NAT rules from a YAML file.
+
+    Example: scm load network nat-rule --file nat-rules.yaml
+    """
+    try:
+        # Validate container override parameters
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo(
+                "Error: Only one of --folder, --snippet, or --device can be specified",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "nat_rules" not in raw_data:
+            typer.echo("No NAT rules found in file", err=True)
+            raise typer.Exit(code=1)
+
+        nat_rules = raw_data["nat_rules"]
+        if not isinstance(nat_rules, list):
+            nat_rules = [nat_rules]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(nat_rules))
+            return None
+
+        results: list[dict[str, Any]] = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for rule_data in nat_rules:
+            try:
+                # Apply container override
+                if folder:
+                    rule_data["folder"] = folder
+                    rule_data.pop("snippet", None)
+                    rule_data.pop("device", None)
+                elif snippet:
+                    rule_data["snippet"] = snippet
+                    rule_data.pop("folder", None)
+                    rule_data.pop("device", None)
+                elif device:
+                    rule_data["device"] = device
+                    rule_data.pop("folder", None)
+                    rule_data.pop("snippet", None)
+
+                nat_rule = NATRule(**rule_data)
+                sdk_data = nat_rule.to_sdk_model()
+
+                result = scm_client.create_nat_rule(
+                    folder=nat_rule.folder,
+                    snippet=nat_rule.snippet,
+                    device=nat_rule.device,
+                    name=nat_rule.name,
+                    description=nat_rule.description,
+                    tag=nat_rule.tag,
+                    disabled=nat_rule.disabled,
+                    nat_type=nat_rule.nat_type,
+                    from_zones=sdk_data.get("from_"),
+                    to_zones=sdk_data.get("to_"),
+                    to_interface=nat_rule.to_interface,
+                    source=sdk_data.get("source"),
+                    destination=sdk_data.get("destination"),
+                    service=nat_rule.service,
+                    source_translation=nat_rule.source_translation,
+                    destination_translation=nat_rule.destination_translation,
+                    active_active_device_binding=nat_rule.active_active_device_binding,
+                )
+
+                action = result.pop("__action__", "created")
+                results.append(result)
+
+                if action == "created":
+                    created_count += 1
+                elif action == "updated":
+                    updated_count += 1
+                else:
+                    no_change_count += 1
+
+            except Exception as e:
+                typer.echo(
+                    f"Error processing NAT rule '{rule_data.get('name', 'unknown')}': {str(e)}",
+                    err=True,
+                )
+                continue
+
+        typer.echo(f"Successfully processed {len(results)} NAT rule(s):")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+        if no_change_count > 0:
+            typer.echo(f"  - No change: {no_change_count}")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading NAT rules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("nat-rule")
+def set_nat_rule(
+    folder: str = NAT_FOLDER_OPTION,
+    name: str = NAT_NAME_OPTION,
+    description: str | None = NAT_DESCRIPTION_OPTION,
+    tag: list[str] | None = NAT_TAG_OPTION,
+    disabled: bool = NAT_DISABLED_OPTION,
+    nat_type: str = NAT_NAT_TYPE_OPTION,
+    from_zone: list[str] | None = NAT_FROM_ZONES_OPTION,
+    to_zone: list[str] | None = NAT_TO_ZONES_OPTION,
+    to_interface: str | None = NAT_TO_INTERFACE_OPTION,
+    source: list[str] | None = NAT_SOURCE_OPTION,
+    destination: list[str] | None = NAT_DESTINATION_OPTION,
+    service: str = NAT_SERVICE_OPTION,
+    source_translation: str | None = NAT_SOURCE_TRANSLATION_OPTION,
+    destination_translation: str | None = NAT_DESTINATION_TRANSLATION_OPTION,
+):
+    r"""Create or update a NAT rule.
+
+    Example:
+    -------
+        scm set network nat-rule --folder Texas --name outbound-nat \
+        --from-zone trust --to-zone untrust --source any --destination any \
+        --source-translation '{"dynamic_ip_and_port": {"type": "dynamic_ip_and_port", "translated_address": ["10.0.0.1"]}}'
+
+    """
+    try:
+        # Parse JSON strings for translation configs
+        src_translation = json.loads(source_translation) if source_translation else None
+        dst_translation = json.loads(destination_translation) if destination_translation else None
+
+        result = scm_client.create_nat_rule(
+            folder=folder,
+            name=name,
+            description=description,
+            tag=tag,
+            disabled=disabled,
+            nat_type=nat_type,
+            from_zones=from_zone or ["any"],
+            to_zones=to_zone or ["any"],
+            to_interface=to_interface,
+            source=source or ["any"],
+            destination=destination or ["any"],
+            service=service,
+            source_translation=src_translation,
+            destination_translation=dst_translation,
+        )
+
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created NAT rule: {result['name']} in folder {folder}")
+        elif action == "updated":
+            typer.echo(f"Updated NAT rule: {result['name']} in folder {folder}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for NAT rule: {result['name']} in folder {folder}")
+
+        return result
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating NAT rule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("nat-rule")
+def show_nat_rule(
+    folder: str = NAT_FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the NAT rule to show"),
+):
+    """Display NAT rules.
+
+    Example:
+    -------
+        # List all NAT rules in a folder
+        scm show network nat-rule --folder Texas
+
+        # Show a specific NAT rule by name
+        scm show network nat-rule --folder Texas --name outbound-nat
+
+    """
+    try:
+        if name:
+            rule = scm_client.get_nat_rule(folder=folder, name=name)
+
+            typer.echo(f"\nNAT Rule: {rule.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            if rule.get("folder"):
+                typer.echo(f"Location: Folder '{rule['folder']}'")
+            elif rule.get("snippet"):
+                typer.echo(f"Location: Snippet '{rule['snippet']}'")
+            elif rule.get("device"):
+                typer.echo(f"Location: Device '{rule['device']}'")
+
+            if rule.get("description"):
+                typer.echo(f"Description: {rule['description']}")
+            typer.echo(f"NAT Type: {rule.get('nat_type', 'ipv4')}")
+            typer.echo(f"From: {', '.join(rule.get('from_', ['any']))}")
+            typer.echo(f"To: {', '.join(rule.get('to_', ['any']))}")
+            typer.echo(f"Source: {', '.join(rule.get('source', ['any']))}")
+            typer.echo(f"Destination: {', '.join(rule.get('destination', ['any']))}")
+            typer.echo(f"Service: {rule.get('service', 'any')}")
+
+            if rule.get("source_translation"):
+                typer.echo(f"Source Translation: {json.dumps(rule['source_translation'], indent=2)}")
+            if rule.get("destination_translation"):
+                typer.echo(f"Destination Translation: {json.dumps(rule['destination_translation'], indent=2)}")
+            if rule.get("disabled"):
+                typer.echo("Status: Disabled")
+            if rule.get("tag"):
+                typer.echo(f"Tags: {', '.join(rule['tag'])}")
+            if rule.get("id"):
+                typer.echo(f"ID: {rule['id']}")
+
+            return rule
+
+        else:
+            rules = scm_client.list_nat_rules(folder=folder)
+
+            if not rules:
+                typer.echo(f"No NAT rules found in folder '{folder}'")
+                return None
+
+            typer.echo(f"\nNAT Rules in folder '{folder}':")
+            typer.echo("=" * 80)
+
+            for rule in rules:
+                typer.echo(f"Name: {rule.get('name', 'N/A')}")
+
+                if rule.get("folder"):
+                    typer.echo(f"  Location: Folder '{rule['folder']}'")
+                elif rule.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{rule['snippet']}'")
+                elif rule.get("device"):
+                    typer.echo(f"  Location: Device '{rule['device']}'")
+
+                if rule.get("description"):
+                    typer.echo(f"  Description: {rule['description']}")
+                typer.echo(f"  NAT Type: {rule.get('nat_type', 'ipv4')}")
+                typer.echo(f"  From: {', '.join(rule.get('from_', ['any']))}")
+                typer.echo(f"  To: {', '.join(rule.get('to_', ['any']))}")
+                typer.echo(f"  Source: {', '.join(rule.get('source', ['any']))}")
+                typer.echo(f"  Destination: {', '.join(rule.get('destination', ['any']))}")
+                typer.echo(f"  Service: {rule.get('service', 'any')}")
+
+                if rule.get("source_translation"):
+                    typer.echo(f"  Source Translation: {json.dumps(rule['source_translation'])}")
+                if rule.get("destination_translation"):
+                    typer.echo(f"  Destination Translation: {json.dumps(rule['destination_translation'])}")
+                if rule.get("disabled"):
+                    typer.echo("  Status: Disabled")
+                if rule.get("tag"):
+                    typer.echo(f"  Tags: {', '.join(rule['tag'])}")
+                if rule.get("id"):
+                    typer.echo(f"  ID: {rule['id']}")
+
+                typer.echo("-" * 80)
+
+            return rules
+
+    except Exception as e:
+        typer.echo(f"Error showing NAT rule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

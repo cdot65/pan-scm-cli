@@ -99,6 +99,53 @@ def mock_address_groups_yaml_file(test_config_path, tmp_path):
 
 
 @pytest.fixture
+def mock_ipsec_crypto_profiles_yaml_file(test_config_path, tmp_path):
+    """Create a mock YAML file for IPsec crypto profiles testing."""
+    yaml_content = """
+    ipsec_crypto_profiles:
+      - name: test-ipsec-profile
+        folder: Texas
+        esp_encryption:
+          - aes-256-cbc
+        esp_authentication:
+          - sha256
+        dh_group: group14
+        lifetime_hours: 1
+    """
+    test_file = tmp_path / "test_ipsec_crypto_profiles.yml"
+    test_file.write_text(yaml_content)
+    return test_file
+
+
+@pytest.fixture
+def mock_nat_rules_yaml_file(test_config_path, tmp_path):
+    """Create a mock YAML file for NAT rules testing."""
+    yaml_content = """
+    nat_rules:
+      - name: outbound-nat
+        folder: Texas
+        nat_type: ipv4
+        from:
+          - trust
+        to:
+          - untrust
+        source:
+          - any
+        destination:
+          - any
+        service: any
+        source_translation:
+          dynamic_ip_and_port:
+            type: dynamic_ip_and_port
+            translated_address:
+              - 10.0.0.1
+    """
+    test_file = tmp_path / "test_nat_rules.yml"
+    test_file.write_text(yaml_content)
+    return test_file
+
+
+@pytest.fixture
 def mock_security_rules_yaml_file(test_config_path, tmp_path):
     """Create a mock YAML file for security rules testing."""
     yaml_content = """

@@ -13,7 +13,7 @@ import typer
 import yaml
 
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AntiSpywareProfile, DecryptionProfile, SecurityRule
+from ..utils.validators import AntiSpywareProfile, DecryptionProfile, DNSSecurityProfile, SecurityRule, URLCategory, VulnerabilityProtectionProfile, WildfireAntivirusProfile
 
 # ========================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -1818,4 +1818,1829 @@ def show_decryption_profile(
 
     except Exception as e:
         typer.echo(f"Error showing decryption profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# WILDFIRE ANTIVIRUS PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("wildfire-antivirus-profile")
+def backup_wildfire_antivirus_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all WildFire antivirus profiles from a container to a YAML file.
+
+    Examples:
+        # Backup from folder
+        scm backup security wildfire-antivirus-profile --folder Austin
+
+        # Backup from snippet
+        scm backup security wildfire-antivirus-profile --snippet Security-Best-Practice
+
+        # Backup from device
+        scm backup security wildfire-antivirus-profile --device austin-01
+
+        # Backup to custom filename
+        scm backup security wildfire-antivirus-profile --folder Austin --file my-profiles.yaml
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("wildfire-antivirus-profiles", location_type, location_value)
+
+    try:
+        # List all WildFire antivirus profiles with exact_match=True using kwargs pattern
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_wildfire_antivirus_profiles(**kwargs, exact_match=True)
+
+        if not profiles:
+            typer.echo(f"No WildFire antivirus profiles found in {location_type} '{location_value}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for profile in profiles:
+            # The list method already returns dicts with exclude_unset=True
+            profile_dict = profile.copy()
+            # Remove system fields that shouldn't be in backup
+            profile_dict.pop("id", None)
+
+            backup_data.append(profile_dict)
+
+        # Create the YAML structure
+        yaml_data = {"wildfire_antivirus_profiles": backup_data}
+
+        # Write to YAML file
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} WildFire antivirus profiles to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up WildFire antivirus profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("wildfire-antivirus-profile")
+def delete_wildfire_antivirus_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the WildFire antivirus profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the WildFire antivirus profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the WildFire antivirus profile"),
+    name: str = NAME_OPTION,
+):
+    """Delete a WildFire antivirus profile.
+
+    Examples:
+        # Delete from folder
+        scm delete security wildfire-antivirus-profile --folder Texas --name wf-strict
+
+        # Delete from snippet
+        scm delete security wildfire-antivirus-profile --snippet Security-Best-Practice --name wf-standard
+
+        # Delete from device
+        scm delete security wildfire-antivirus-profile --device austin-01 --name wf-local
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_wildfire_antivirus_profile(**kwargs, name=name)
+        if result:
+            typer.echo(f"Deleted WildFire antivirus profile: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(
+                f"WildFire antivirus profile not found: {name} in {location_type} {location_value}",
+                err=True,
+            )
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting WildFire antivirus profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("wildfire-antivirus-profile", help="Load WildFire antivirus profiles from a YAML file.")
+def load_wildfire_antivirus_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load WildFire antivirus profiles from a YAML file.
+
+    Examples:
+        # Load from file with original locations
+        scm load security wildfire-antivirus-profile --file config/wildfire_antivirus_profiles.yml
+
+        # Load with folder override
+        scm load security wildfire-antivirus-profile --file config/wildfire_antivirus_profiles.yml --folder Production
+
+        # Load with snippet override
+        scm load security wildfire-antivirus-profile --file config/wildfire_antivirus_profiles.yml --snippet Security-Best-Practice
+
+        # Dry run to preview changes
+        scm load security wildfire-antivirus-profile --file config/wildfire_antivirus_profiles.yml --dry-run
+
+    """
+    try:
+        # Validate container override parameters
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo(
+                "Error: Only one of --folder, --snippet, or --device can be specified",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        # Validate file exists
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data using the same pattern as other commands
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "wildfire_antivirus_profiles" not in raw_data:
+            typer.echo("No WildFire antivirus profiles found in file", err=True)
+            raise typer.Exit(code=1)
+
+        profiles = raw_data["wildfire_antivirus_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            # Show override information if applicable
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(profiles))
+            return []
+
+        # Apply each WildFire antivirus profile
+        results = []
+        created_count = 0
+        updated_count = 0
+
+        for profile_data in profiles:
+            try:
+                # Apply container override if specified
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+
+                # Validate using the Pydantic model
+                profile = WildfireAntivirusProfile(**profile_data)
+
+                # Call the SDK client to create the WildFire antivirus profile
+                sdk_data = profile.to_sdk_model()
+
+                # Extract container params
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_wildfire_antivirus_profile(**container_kwargs, **sdk_data)
+
+                results.append(result)
+
+                # Track if created or updated based on response
+                if "created" in str(result).lower():
+                    created_count += 1
+                else:
+                    updated_count += 1
+
+            except Exception as e:
+                typer.echo(
+                    f"Error processing WildFire antivirus profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    err=True,
+                )
+                # Continue processing other profiles
+                continue
+
+        # Display summary with counts
+        typer.echo(f"Successfully processed {len(results)} WildFire antivirus profile(s):")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading WildFire antivirus profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("wildfire-antivirus-profile")
+def set_wildfire_antivirus_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder path for the WildFire antivirus profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the WildFire antivirus profile"),
+    device: str = typer.Option(None, "--device", help="Device path for the WildFire antivirus profile"),
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    rules_json: str | None = typer.Option(
+        None,
+        "--rules",
+        help="JSON string of rules configuration",
+    ),
+    packet_capture: bool = typer.Option(
+        False,
+        "--packet-capture/--no-packet-capture",
+        help="Enable packet capture",
+    ),
+):
+    r"""Create or update a WildFire antivirus profile.
+
+    Examples:
+        # Create basic profile in folder with default rule
+        scm set security wildfire-antivirus-profile --folder Texas --name wf-basic \
+            --description "Basic WildFire profile"
+
+        # Create profile with custom rules (JSON)
+        scm set security wildfire-antivirus-profile --folder Texas --name wf-custom \
+            --rules '[{"name":"Forward All","direction":"both","analysis":"public-cloud","application":["any"],"file_type":["any"]}]'
+
+        # Create profile with packet capture
+        scm set security wildfire-antivirus-profile --folder Texas --name wf-capture \
+            --packet-capture
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        # Validate and create WildFire antivirus profile
+        profile_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+        }
+
+        if description:
+            profile_data["description"] = description
+        if packet_capture:
+            profile_data["packet_capture"] = packet_capture
+
+        # Parse rules from JSON if provided
+        if rules_json:
+            try:
+                profile_data["rules"] = json.loads(rules_json)
+            except json.JSONDecodeError as e:
+                typer.echo(f"Error parsing rules JSON: {str(e)}", err=True)
+                raise typer.Exit(code=1) from e
+        else:
+            # Add a default rule
+            profile_data["rules"] = [
+                {
+                    "name": "default-fwd",
+                    "direction": "both",
+                    "analysis": "public-cloud",
+                    "application": ["any"],
+                    "file_type": ["any"],
+                }
+            ]
+
+        # Validate using the Pydantic model
+        profile = WildfireAntivirusProfile(**profile_data)
+
+        # Call SDK client to create the profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_wildfire_antivirus_profile(**container_kwargs, **sdk_data)
+
+        # Format and display output
+        typer.echo(f"Created WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
+
+    except Exception as e:
+        typer.echo(f"Error creating WildFire antivirus profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("wildfire-antivirus-profile")
+def show_wildfire_antivirus_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the WildFire antivirus profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the WildFire antivirus profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the WildFire antivirus profile"),
+    name: str | None = typer.Option(None, "--name", help="Name of the WildFire antivirus profile to show"),
+):
+    """Display WildFire antivirus profiles.
+
+    Examples:
+        # List all WildFire antivirus profiles in a folder (default behavior)
+        scm show security wildfire-antivirus-profile --folder Texas
+
+        # Show a specific profile by name
+        scm show security wildfire-antivirus-profile --folder Texas --name wf-basic
+
+        # List profiles in snippet
+        scm show security wildfire-antivirus-profile --snippet Security-Best-Practice
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            # Get a specific WildFire antivirus profile by name
+            kwargs = {location_type: location_value}
+            profile = scm_client.get_wildfire_antivirus_profile(**kwargs, name=name)
+
+            typer.echo(f"\nWildFire Antivirus Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location (folder, snippet, or device)
+            if profile.get("folder"):
+                typer.echo(f"Location: Folder '{profile['folder']}'")
+            elif profile.get("snippet"):
+                typer.echo(f"Location: Snippet '{profile['snippet']}'")
+            elif profile.get("device"):
+                typer.echo(f"Location: Device '{profile['device']}'")
+
+            # Display description if present
+            if profile.get("description"):
+                typer.echo(f"Description: {profile['description']}")
+
+            # Display packet capture setting
+            if "packet_capture" in profile:
+                typer.echo(f"Packet Capture: {'Enabled' if profile['packet_capture'] else 'Disabled'}")
+
+            # Display rules in detail
+            if profile.get("rules"):
+                typer.echo(f"\nRules ({len(profile['rules'])}):")
+                for idx, rule in enumerate(profile["rules"], 1):
+                    typer.echo(f"  Rule {idx}: {rule.get('name', 'Unnamed')}")
+                    typer.echo(f"    Direction: {rule.get('direction', 'N/A')}")
+                    if rule.get("analysis"):
+                        typer.echo(f"    Analysis: {rule['analysis']}")
+                    if rule.get("application"):
+                        typer.echo(f"    Applications: {', '.join(rule['application'])}")
+                    if rule.get("file_type"):
+                        typer.echo(f"    File Types: {', '.join(rule['file_type'])}")
+
+            # Display MLAV exceptions if present
+            if profile.get("mlav_exception"):
+                typer.echo(f"\nMLAV Exceptions ({len(profile['mlav_exception'])}):")
+                for idx, exc in enumerate(profile["mlav_exception"], 1):
+                    typer.echo(f"  Exception {idx}: {exc.get('name', 'Unnamed')}")
+                    if exc.get("filename"):
+                        typer.echo(f"    Filename: {exc['filename']}")
+                    if exc.get("description"):
+                        typer.echo(f"    Description: {exc['description']}")
+
+            # Display threat exceptions if present
+            if profile.get("threat_exception"):
+                typer.echo(f"\nThreat Exceptions ({len(profile['threat_exception'])}):")
+                for idx, exc in enumerate(profile["threat_exception"], 1):
+                    typer.echo(f"  Exception {idx}: {exc.get('name', 'Unnamed')}")
+                    if exc.get("notes"):
+                        typer.echo(f"    Notes: {exc['notes']}")
+
+            # Display ID if present
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+
+            return profile
+
+        else:
+            # Default behavior: list all
+            kwargs = {location_type: location_value}
+            profiles = scm_client.list_wildfire_antivirus_profiles(**kwargs, exact_match=False)
+
+            if not profiles:
+                typer.echo(f"No WildFire antivirus profiles found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nWildFire Antivirus Profiles in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                # Display profile information
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+                elif profile.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
+                elif profile.get("device"):
+                    typer.echo(f"  Location: Device '{profile['device']}'")
+
+                # Display description if present
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+
+                # Display rules if present
+                if profile.get("rules"):
+                    typer.echo(f"  Rules: {len(profile['rules'])} configured")
+                    for rule in profile["rules"]:
+                        typer.echo(f"    - {rule.get('name', 'Unnamed')}: {rule.get('direction', 'N/A')}")
+
+                # Display packet capture setting
+                if profile.get("packet_capture"):
+                    typer.echo("  Packet Capture: Enabled")
+
+                # Display threat exceptions if present
+                if profile.get("threat_exception"):
+                    typer.echo(f"  Threat Exceptions: {len(profile['threat_exception'])}")
+
+                # Display MLAV exceptions if present
+                if profile.get("mlav_exception"):
+                    typer.echo(f"  MLAV Exceptions: {len(profile['mlav_exception'])}")
+
+                # Display ID if present
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing WildFire antivirus profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# DNS SECURITY PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+# Module-level option constants for dns-security-profile list types (avoids B008 lint errors)
+DNS_SEC_FOLDER_OPTION = typer.Option(None, "--folder", help="Folder containing the DNS security profile")
+DNS_SEC_SNIPPET_OPTION = typer.Option(None, "--snippet", help="Snippet containing the DNS security profile")
+DNS_SEC_DEVICE_OPTION = typer.Option(None, "--device", help="Device containing the DNS security profile")
+
+
+@backup_app.command("dns-security-profile")
+def backup_dns_security_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all DNS security profiles from a container to a YAML file.
+
+    Examples:
+        # Backup from folder
+        scm backup security dns-security-profile --folder Austin
+
+        # Backup from snippet
+        scm backup security dns-security-profile --snippet DNS-Best-Practice
+
+        # Backup to custom filename
+        scm backup security dns-security-profile --folder Austin --file my-dns-profiles.yaml
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("dns-security-profiles", location_type, location_value)
+
+    try:
+        # List all DNS security profiles with exact_match=True using kwargs pattern
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_dns_security_profiles(**kwargs, exact_match=True)
+
+        if not profiles:
+            typer.echo(f"No DNS security profiles found in {location_type} '{location_value}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for profile in profiles:
+            # The list method already returns dicts with exclude_unset=True
+            profile_dict = profile.copy()
+            # Remove system fields that shouldn't be in backup
+            profile_dict.pop("id", None)
+
+            backup_data.append(profile_dict)
+
+        # Create the YAML structure
+        yaml_data = {"dns_security_profiles": backup_data}
+
+        # Write to YAML file
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} DNS security profiles to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up DNS security profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("dns-security-profile")
+def delete_dns_security_profile(
+    folder: str = DNS_SEC_FOLDER_OPTION,
+    snippet: str = DNS_SEC_SNIPPET_OPTION,
+    device: str = DNS_SEC_DEVICE_OPTION,
+    name: str = NAME_OPTION,
+):
+    """Delete a DNS security profile.
+
+    Examples:
+        # Delete from folder
+        scm delete security dns-security-profile --folder Texas --name dns-sec-default
+
+        # Delete from snippet
+        scm delete security dns-security-profile --snippet DNS-Best-Practice --name dns-sec-strict
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_dns_security_profile(**kwargs, name=name)
+        if result:
+            typer.echo(f"Deleted DNS security profile: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(
+                f"DNS security profile not found: {name} in {location_type} {location_value}",
+                err=True,
+            )
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting DNS security profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("dns-security-profile", help="Load DNS security profiles from a YAML file.")
+def load_dns_security_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load DNS security profiles from a YAML file.
+
+    Examples:
+        # Load from file with original locations
+        scm load security dns-security-profile --file config/dns_security_profiles.yml
+
+        # Load with folder override
+        scm load security dns-security-profile --file config/dns_security_profiles.yml --folder Production
+
+        # Dry run to preview changes
+        scm load security dns-security-profile --file config/dns_security_profiles.yml --dry-run
+
+    """
+    try:
+        # Validate container override parameters
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo(
+                "Error: Only one of --folder, --snippet, or --device can be specified",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        # Validate file exists
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data using the same pattern as other commands
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "dns_security_profiles" not in raw_data:
+            typer.echo("No DNS security profiles found in file", err=True)
+            raise typer.Exit(code=1)
+
+        profiles = raw_data["dns_security_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            # Show override information if applicable
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(profiles))
+            return []
+
+        # Apply each DNS security profile
+        results = []
+        created_count = 0
+        updated_count = 0
+
+        for profile_data in profiles:
+            try:
+                # Apply container override if specified
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+
+                # Validate using the Pydantic model
+                profile = DNSSecurityProfile(**profile_data)
+
+                # Call the SDK client to create the DNS security profile
+                sdk_data = profile.to_sdk_model()
+
+                # Extract container params
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_dns_security_profile(**container_kwargs, **sdk_data)
+
+                results.append(result)
+
+                # Track if created or updated based on __action__ field
+                action = result.get("__action__", "")
+                if action == "created":
+                    created_count += 1
+                elif action == "updated":
+                    updated_count += 1
+
+            except Exception as e:
+                typer.echo(
+                    f"Error processing DNS security profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    err=True,
+                )
+                # Continue processing other profiles
+                continue
+
+        # Display summary with counts
+        typer.echo(f"Successfully processed {len(results)} DNS security profile(s):")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading DNS security profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("dns-security-profile")
+def set_dns_security_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder path for the DNS security profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the DNS security profile"),
+    device: str = typer.Option(None, "--device", help="Device path for the DNS security profile"),
+    name: str = NAME_OPTION,
+    description: str | None = typer.Option(
+        None,
+        "--description",
+        help="Description of the DNS security profile",
+    ),
+    botnet_domains: str | None = typer.Option(
+        None,
+        "--botnet-domains",
+        help="Botnet domains settings as JSON string",
+    ),
+):
+    r"""Create or update a DNS security profile.
+
+    Examples:
+        # Create basic DNS security profile with sinkhole
+        scm set security dns-security-profile --folder Texas --name dns-sec-default \
+            --botnet-domains '{"dns_security_categories": [{"name": "pan-dns-sec-malware", "action": "sinkhole"}]}'
+
+        # Create profile with whitelist
+        scm set security dns-security-profile --folder Texas --name dns-sec-custom \
+            --botnet-domains '{"whitelist": [{"name": "example.com"}]}'
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        # Build profile data
+        profile_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+        }
+
+        # Add optional description
+        if description:
+            profile_data["description"] = description
+
+        # Parse JSON string for botnet domains
+        if botnet_domains:
+            profile_data["botnet_domains"] = json.loads(botnet_domains)
+
+        # Validate using the Pydantic model
+        profile = DNSSecurityProfile(**profile_data)
+
+        # Call SDK client to create the profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_dns_security_profile(**container_kwargs, **sdk_data)
+
+        # Format and display output based on action
+        action = result.get("__action__", "created")
+        if action == "updated":
+            typer.echo(f"Updated DNS security profile: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes to DNS security profile: {result['name']} in {location_type} {location_value}")
+        else:
+            typer.echo(f"Created DNS security profile: {result['name']} in {location_type} {location_value}")
+
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error parsing JSON settings: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating DNS security profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("dns-security-profile")
+def show_dns_security_profile(
+    folder: str = DNS_SEC_FOLDER_OPTION,
+    snippet: str = DNS_SEC_SNIPPET_OPTION,
+    device: str = DNS_SEC_DEVICE_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the DNS security profile to show"),
+):
+    """Display DNS security profiles.
+
+    Examples:
+        # List all DNS security profiles in a folder (default behavior)
+        scm show security dns-security-profile --folder Texas
+
+        # Show a specific DNS security profile by name
+        scm show security dns-security-profile --folder Texas --name dns-sec-default
+
+        # List profiles in snippet
+        scm show security dns-security-profile --snippet Security-Best-Practice
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            # Get a specific DNS security profile by name
+            kwargs = {location_type: location_value}
+            profile = scm_client.get_dns_security_profile(**kwargs, name=name)
+
+            typer.echo(f"\nDNS Security Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location (folder, snippet, or device)
+            if profile.get("folder"):
+                typer.echo(f"Location: Folder '{profile['folder']}'")
+            elif profile.get("snippet"):
+                typer.echo(f"Location: Snippet '{profile['snippet']}'")
+            elif profile.get("device"):
+                typer.echo(f"Location: Device '{profile['device']}'")
+
+            # Display description if present
+            if profile.get("description"):
+                typer.echo(f"Description: {profile['description']}")
+
+            # Display botnet domains settings
+            botnet = profile.get("botnet_domains")
+            if botnet:
+                # Display DNS security categories
+                categories = botnet.get("dns_security_categories")
+                if categories:
+                    typer.echo("\nDNS Security Categories:")
+                    for cat in categories:
+                        typer.echo(f"  Name: {cat.get('name', 'N/A')}")
+                        typer.echo(f"    Action: {cat.get('action', 'N/A')}")
+                        if cat.get("log_level"):
+                            typer.echo(f"    Log Level: {cat['log_level']}")
+                        if cat.get("packet_capture"):
+                            typer.echo(f"    Packet Capture: {cat['packet_capture']}")
+
+                # Display lists
+                lists = botnet.get("lists")
+                if lists:
+                    typer.echo("\nDNS Lists:")
+                    for lst in lists:
+                        typer.echo(f"  Name: {lst.get('name', 'N/A')}")
+                        if lst.get("action"):
+                            typer.echo(f"    Action: {lst['action']}")
+                        if lst.get("packet_capture"):
+                            typer.echo(f"    Packet Capture: {lst['packet_capture']}")
+
+                # Display sinkhole settings
+                sinkhole = botnet.get("sinkhole")
+                if sinkhole:
+                    typer.echo("\nSinkhole Settings:")
+                    typer.echo(f"  IPv4 Address: {sinkhole.get('ipv4_address', 'N/A')}")
+                    typer.echo(f"  IPv6 Address: {sinkhole.get('ipv6_address', 'N/A')}")
+
+                # Display whitelist
+                whitelist = botnet.get("whitelist")
+                if whitelist:
+                    typer.echo("\nWhitelist:")
+                    for entry in whitelist:
+                        typer.echo(f"  Domain: {entry.get('name', 'N/A')}")
+                        if entry.get("description"):
+                            typer.echo(f"    Description: {entry['description']}")
+
+            # Display ID if present
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+
+            return profile
+
+        else:
+            # Default behavior: list all
+            kwargs = {location_type: location_value}
+            profiles = scm_client.list_dns_security_profiles(**kwargs, exact_match=False)
+
+            if not profiles:
+                typer.echo(f"No DNS security profiles found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nDNS Security Profiles in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                # Display profile information
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+                elif profile.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
+                elif profile.get("device"):
+                    typer.echo(f"  Location: Device '{profile['device']}'")
+
+                # Display description if present
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+
+                # Display DNS security categories count
+                botnet = profile.get("botnet_domains")
+                if botnet:
+                    categories = botnet.get("dns_security_categories")
+                    if categories:
+                        typer.echo(f"  DNS Security Categories: {len(categories)}")
+
+                    # Show sinkhole config
+                    if botnet.get("sinkhole"):
+                        sinkhole = botnet["sinkhole"]
+                        typer.echo(f"  Sinkhole: IPv4={sinkhole.get('ipv4_address', 'N/A')}, IPv6={sinkhole.get('ipv6_address', 'N/A')}")
+
+                    # Show whitelist count
+                    whitelist = botnet.get("whitelist")
+                    if whitelist:
+                        typer.echo(f"  Whitelist Entries: {len(whitelist)}")
+
+                # Display ID if present
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing DNS security profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# VULNERABILITY PROTECTION PROFILE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("vulnerability-protection-profile")
+def backup_vulnerability_protection_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all vulnerability protection profiles from a container to a YAML file.
+
+    Examples:
+        # Backup from folder
+        scm backup security vulnerability-protection-profile --folder Austin
+
+        # Backup from snippet
+        scm backup security vulnerability-protection-profile --snippet Security-Best-Practice
+
+        # Backup from device
+        scm backup security vulnerability-protection-profile --device austin-01
+
+        # Backup to custom filename
+        scm backup security vulnerability-protection-profile --folder Austin --file my-profiles.yaml
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("vulnerability-protection-profiles", location_type, location_value)
+
+    try:
+        # List all vulnerability protection profiles with exact_match=True using kwargs pattern
+        kwargs = {location_type: location_value}
+        profiles = scm_client.list_vulnerability_protection_profiles(**kwargs, exact_match=True)
+
+        if not profiles:
+            typer.echo(f"No vulnerability protection profiles found in {location_type} '{location_value}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for profile in profiles:
+            # The list method already returns dicts with exclude_unset=True
+            profile_dict = profile.copy()
+            # Remove system fields that shouldn't be in backup
+            profile_dict.pop("id", None)
+
+            backup_data.append(profile_dict)
+
+        # Create the YAML structure
+        yaml_data = {"vulnerability_protection_profiles": backup_data}
+
+        # Write to YAML file
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} vulnerability protection profiles to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up vulnerability protection profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("vulnerability-protection-profile")
+def delete_vulnerability_protection_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the vulnerability protection profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the vulnerability protection profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the vulnerability protection profile"),
+    name: str = NAME_OPTION,
+):
+    """Delete a vulnerability protection profile.
+
+    Examples:
+        # Delete from folder
+        scm delete security vulnerability-protection-profile --folder Texas --name strict-vuln
+
+        # Delete from snippet
+        scm delete security vulnerability-protection-profile --snippet Security-Best-Practice --name vuln-protection
+
+        # Delete from device
+        scm delete security vulnerability-protection-profile --device austin-01 --name local-profile
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_vulnerability_protection_profile(**kwargs, name=name)
+        if result:
+            typer.echo(f"Deleted vulnerability protection profile: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(
+                f"Vulnerability protection profile not found: {name} in {location_type} {location_value}",
+                err=True,
+            )
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting vulnerability protection profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("vulnerability-protection-profile", help="Load vulnerability protection profiles from a YAML file.")
+def load_vulnerability_protection_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load vulnerability protection profiles from a YAML file.
+
+    Examples:
+        # Load from file with original locations
+        scm load security vulnerability-protection-profile --file config/vuln_profiles.yml
+
+        # Load with folder override
+        scm load security vulnerability-protection-profile --file config/vuln_profiles.yml --folder Production
+
+        # Load with snippet override
+        scm load security vulnerability-protection-profile --file config/vuln_profiles.yml --snippet Security-Best-Practice
+
+        # Dry run to preview changes
+        scm load security vulnerability-protection-profile --file config/vuln_profiles.yml --dry-run
+
+    """
+    try:
+        # Validate container override parameters
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo(
+                "Error: Only one of --folder, --snippet, or --device can be specified",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        # Validate file exists
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data using the same pattern as other commands
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "vulnerability_protection_profiles" not in raw_data:
+            typer.echo("No vulnerability protection profiles found in file", err=True)
+            raise typer.Exit(code=1)
+
+        profiles = raw_data["vulnerability_protection_profiles"]
+        if not isinstance(profiles, list):
+            profiles = [profiles]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            # Show override information if applicable
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(profiles))
+            return []
+
+        # Apply each vulnerability protection profile
+        results = []
+        created_count = 0
+        updated_count = 0
+
+        for profile_data in profiles:
+            try:
+                # Apply container override if specified
+                if folder:
+                    profile_data["folder"] = folder
+                    profile_data.pop("snippet", None)
+                    profile_data.pop("device", None)
+                elif snippet:
+                    profile_data["snippet"] = snippet
+                    profile_data.pop("folder", None)
+                    profile_data.pop("device", None)
+                elif device:
+                    profile_data["device"] = device
+                    profile_data.pop("folder", None)
+                    profile_data.pop("snippet", None)
+
+                # Validate using the Pydantic model
+                profile = VulnerabilityProtectionProfile(**profile_data)
+
+                # Call the SDK client to create the vulnerability protection profile
+                sdk_data = profile.to_sdk_model()
+
+                # Extract container params
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_vulnerability_protection_profile(**container_kwargs, **sdk_data)
+
+                results.append(result)
+
+                # Track if created or updated based on response
+                if "created" in str(result).lower():
+                    created_count += 1
+                else:
+                    updated_count += 1
+
+            except Exception as e:
+                typer.echo(
+                    f"Error processing vulnerability protection profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    err=True,
+                )
+                # Continue processing other profiles
+                continue
+
+        # Display summary with counts
+        typer.echo(f"Successfully processed {len(results)} vulnerability protection profile(s):")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading vulnerability protection profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("vulnerability-protection-profile")
+def set_vulnerability_protection_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder path for the vulnerability protection profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the vulnerability protection profile"),
+    device: str = typer.Option(None, "--device", help="Device path for the vulnerability protection profile"),
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    block_critical_high: bool = typer.Option(
+        False,
+        "--block-critical-high",
+        help="Add default rule to block critical and high severity vulnerabilities",
+    ),
+):
+    r"""Create or update a vulnerability protection profile.
+
+    Examples:
+        # Create basic profile in folder
+        scm set security vulnerability-protection-profile --folder Texas --name strict-vuln \
+            --description "Block critical vulnerabilities"
+
+        # Create profile with block critical/high rule
+        scm set security vulnerability-protection-profile --folder Texas --name vuln-protection \
+            --block-critical-high
+
+        # Create profile in snippet
+        scm set security vulnerability-protection-profile --snippet Security-Best-Practice \
+            --name standard-vuln
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        # Validate and create vulnerability protection profile
+        profile_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+        }
+
+        if description:
+            profile_data["description"] = description
+
+        # Add a default rule if requested or if no rules specified
+        if block_critical_high:
+            profile_data["rules"] = [
+                {
+                    "name": "Block Critical and High",
+                    "severity": ["critical", "high"],
+                    "category": "any",
+                    "host": "any",
+                    "action": {"alert": {}},
+                    "packet_capture": "single-packet",
+                }
+            ]
+        else:
+            # Add a minimal default rule to satisfy SDK requirements
+            profile_data["rules"] = [
+                {
+                    "name": "simple-critical",
+                    "severity": ["critical"],
+                    "category": "any",
+                    "host": "any",
+                    "action": {"default": {}},
+                }
+            ]
+
+        # VulnerabilityProtectionProfile expects specific field types
+        typed_profile_data = profile_data.copy()
+        profile = VulnerabilityProtectionProfile(**typed_profile_data)
+
+        # Call SDK client to create the profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_vulnerability_protection_profile(**container_kwargs, **sdk_data)
+
+        # Format and display output
+        typer.echo(f"Created vulnerability protection profile: {result['name']} in {location_type} {location_value}")
+
+    except Exception as e:
+        typer.echo(f"Error creating vulnerability protection profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("vulnerability-protection-profile")
+def show_vulnerability_protection_profile(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the vulnerability protection profile"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the vulnerability protection profile"),
+    device: str = typer.Option(None, "--device", help="Device containing the vulnerability protection profile"),
+    name: str | None = typer.Option(None, "--name", help="Name of the vulnerability protection profile to show"),
+):
+    """Display vulnerability protection profiles.
+
+    Examples:
+        # List all vulnerability protection profiles in a folder (default behavior)
+        scm show security vulnerability-protection-profile --folder Texas
+
+        # Show a specific vulnerability protection profile by name
+        scm show security vulnerability-protection-profile --folder Texas --name strict-vuln
+
+        # List profiles in snippet
+        scm show security vulnerability-protection-profile --snippet Security-Best-Practice
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            # Get a specific vulnerability protection profile by name
+            kwargs = {location_type: location_value}
+            profile = scm_client.get_vulnerability_protection_profile(**kwargs, name=name)
+
+            typer.echo(f"\nVulnerability Protection Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location (folder, snippet, or device)
+            if profile.get("folder"):
+                typer.echo(f"Location: Folder '{profile['folder']}'")
+            elif profile.get("snippet"):
+                typer.echo(f"Location: Snippet '{profile['snippet']}'")
+            elif profile.get("device"):
+                typer.echo(f"Location: Device '{profile['device']}'")
+
+            # Display description if present
+            if profile.get("description"):
+                typer.echo(f"Description: {profile['description']}")
+
+            # Display rules in detail
+            if profile.get("rules"):
+                typer.echo(f"\nRules ({len(profile['rules'])}):")
+                for idx, rule in enumerate(profile["rules"], 1):
+                    typer.echo(f"  Rule {idx}: {rule.get('name', 'Unnamed')}")
+                    if rule.get("severity"):
+                        severity = rule["severity"] if isinstance(rule["severity"], list) else [rule["severity"]]
+                        typer.echo(f"    Severity: {', '.join(severity)}")
+                    typer.echo(f"    Action: {rule.get('action', 'N/A')}")
+                    if rule.get("category"):
+                        typer.echo(f"    Category: {rule['category']}")
+                    if rule.get("host"):
+                        typer.echo(f"    Host: {rule['host']}")
+                    if rule.get("threat_name"):
+                        typer.echo(f"    Threat Name: {rule['threat_name']}")
+                    if rule.get("packet_capture"):
+                        typer.echo(f"    Packet Capture: {rule['packet_capture']}")
+                    if rule.get("cve"):
+                        typer.echo(f"    CVE: {', '.join(rule['cve'])}")
+                    if rule.get("vendor_id") or rule.get("vendor-id"):
+                        vendor_ids = rule.get("vendor_id") or rule.get("vendor-id")
+                        typer.echo(f"    Vendor ID: {', '.join(vendor_ids)}")
+
+            # Display threat exceptions in detail
+            if profile.get("threat_exception"):
+                typer.echo(f"\nThreat Exceptions ({len(profile['threat_exception'])}):")
+                for idx, exception in enumerate(profile["threat_exception"], 1):
+                    typer.echo(f"  Exception {idx}:")
+                    if exception.get("name"):
+                        typer.echo(f"    Name: {exception['name']}")
+                    if exception.get("packet_capture"):
+                        typer.echo(f"    Packet Capture: {exception['packet_capture']}")
+                    if exception.get("action"):
+                        typer.echo(f"    Action: {exception['action']}")
+                    if exception.get("exempt_ip"):
+                        ips = [ip.get("name", str(ip)) if isinstance(ip, dict) else str(ip) for ip in exception["exempt_ip"]]
+                        typer.echo(f"    Exempt IPs: {', '.join(ips)}")
+                    if exception.get("notes"):
+                        typer.echo(f"    Notes: {exception['notes']}")
+                    if exception.get("time_attribute"):
+                        ta = exception["time_attribute"]
+                        typer.echo(f"    Time Attribute: interval={ta.get('interval')}, threshold={ta.get('threshold')}, track_by={ta.get('track_by')}")
+
+            # Display ID if present
+            if profile.get("id"):
+                typer.echo(f"\nID: {profile['id']}")
+
+            return profile
+
+        else:
+            # Default behavior: list all
+            kwargs = {location_type: location_value}
+            profiles = scm_client.list_vulnerability_protection_profiles(**kwargs, exact_match=False)
+
+            if not profiles:
+                typer.echo(f"No vulnerability protection profiles found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nVulnerability Protection Profiles in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for profile in profiles:
+                # Display profile information
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+
+                # Display container location (folder, snippet, or device)
+                if profile.get("folder"):
+                    typer.echo(f"  Location: Folder '{profile['folder']}'")
+                elif profile.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{profile['snippet']}'")
+                elif profile.get("device"):
+                    typer.echo(f"  Location: Device '{profile['device']}'")
+
+                # Display description if present
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+
+                # Display rules if present
+                if profile.get("rules"):
+                    typer.echo(f"  Rules: {len(profile['rules'])} configured")
+                    for rule in profile["rules"]:
+                        typer.echo(f"    - {rule.get('name', 'Unnamed')}: {rule.get('action', 'N/A')}")
+
+                # Display threat exceptions if present
+                if profile.get("threat_exception"):
+                    typer.echo(f"  Threat Exceptions: {len(profile['threat_exception'])}")
+
+                # Display ID if present
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+
+                typer.echo("-" * 80)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing vulnerability protection profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# URL CATEGORY COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("url-category")
+def backup_url_category(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all URL categories from a container to a YAML file.
+
+    Examples:
+        # Backup from folder
+        scm backup security url-category --folder Austin
+
+        # Backup from snippet
+        scm backup security url-category --snippet DNS-Best-Practice
+
+        # Backup from device
+        scm backup security url-category --device austin-01
+
+        # Backup to custom filename
+        scm backup security url-category --folder Austin --file my-url-categories.yaml
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Set default filename if not provided
+    if not file:
+        file = get_default_backup_filename("url-categories", location_type, location_value)
+
+    try:
+        # List all URL categories with exact_match=True using kwargs pattern
+        kwargs = {location_type: location_value}
+        categories = scm_client.list_url_categories(**kwargs, exact_match=True)
+
+        if not categories:
+            typer.echo(f"No URL categories found in {location_type} '{location_value}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for category in categories:
+            category_dict = category.copy()
+            # Remove system fields that shouldn't be in backup
+            category_dict.pop("id", None)
+
+            backup_data.append(category_dict)
+
+        # Create the YAML structure
+        yaml_data = {"url_categories": backup_data}
+
+        # Write to YAML file
+        with open(file, "w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} URL categories to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up URL categories: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("url-category")
+def delete_url_category(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the URL category"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the URL category"),
+    device: str = typer.Option(None, "--device", help="Device containing the URL category"),
+    name: str = NAME_OPTION,
+):
+    """Delete a URL category.
+
+    Examples:
+        # Delete from folder
+        scm delete security url-category --folder Texas --name custom-block-list
+
+        # Delete from snippet
+        scm delete security url-category --snippet DNS-Best-Practice --name phishing-urls
+
+        # Delete from device
+        scm delete security url-category --device austin-01 --name local-blocklist
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        kwargs = {location_type: location_value}
+        result = scm_client.delete_url_category(**kwargs, name=name)
+        if result:
+            typer.echo(f"Deleted URL category: {name} from {location_type} {location_value}")
+        else:
+            typer.echo(
+                f"URL category not found: {name} in {location_type} {location_value}",
+                err=True,
+            )
+            raise typer.Exit(code=1) from Exception
+    except Exception as e:
+        typer.echo(f"Error deleting URL category: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("url-category", help="Load URL categories from a YAML file.")
+def load_url_category(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+    snippet: str = LOAD_SNIPPET_OPTION,
+    device: str = LOAD_DEVICE_OPTION,
+):
+    """Load URL categories from a YAML file.
+
+    Examples:
+        # Load from file with original locations
+        scm load security url-category --file config/url_categories.yml
+
+        # Load with folder override
+        scm load security url-category --file config/url_categories.yml --folder Production
+
+        # Load with snippet override
+        scm load security url-category --file config/url_categories.yml --snippet Security-Best-Practice
+
+        # Dry run to preview changes
+        scm load security url-category --file config/url_categories.yml --dry-run
+
+    """
+    try:
+        # Validate container override parameters
+        if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
+            typer.echo(
+                "Error: Only one of --folder, --snippet, or --device can be specified",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        # Validate file exists
+        if not file.exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data using the same pattern as other commands
+        with open(file) as f:
+            raw_data = yaml.safe_load(f)
+
+        if not raw_data or "url_categories" not in raw_data:
+            typer.echo("No URL categories found in file", err=True)
+            raise typer.Exit(code=1)
+
+        categories = raw_data["url_categories"]
+        if not isinstance(categories, list):
+            categories = [categories]
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            # Show override information if applicable
+            if folder or snippet or device:
+                override_type = "folder" if folder else ("snippet" if snippet else "device")
+                override_value = folder or snippet or device
+                typer.echo(f"Container override: {override_type} = '{override_value}'")
+            typer.echo(yaml.dump(categories))
+            return []
+
+        # Apply each URL category
+        results = []
+        created_count = 0
+        updated_count = 0
+
+        for category_data in categories:
+            try:
+                # Apply container override if specified
+                if folder:
+                    category_data["folder"] = folder
+                    category_data.pop("snippet", None)
+                    category_data.pop("device", None)
+                elif snippet:
+                    category_data["snippet"] = snippet
+                    category_data.pop("folder", None)
+                    category_data.pop("device", None)
+                elif device:
+                    category_data["device"] = device
+                    category_data.pop("folder", None)
+                    category_data.pop("snippet", None)
+
+                # Validate using the Pydantic model
+                category = URLCategory(**category_data)
+
+                # Call the SDK client to create the URL category
+                sdk_data = category.to_sdk_model()
+
+                # Extract container params
+                container_kwargs = {}
+                if sdk_data.get("folder"):
+                    container_kwargs["folder"] = sdk_data.pop("folder")
+                elif sdk_data.get("snippet"):
+                    container_kwargs["snippet"] = sdk_data.pop("snippet")
+                elif sdk_data.get("device"):
+                    container_kwargs["device"] = sdk_data.pop("device")
+
+                result = scm_client.create_url_category(**container_kwargs, **sdk_data)
+
+                results.append(result)
+
+                # Track if created or updated based on response
+                if result.get("__action__") == "created":
+                    created_count += 1
+                else:
+                    updated_count += 1
+
+            except Exception as e:
+                typer.echo(
+                    f"Error processing URL category '{category_data.get('name', 'unknown')}': {str(e)}",
+                    err=True,
+                )
+                # Continue processing other categories
+                continue
+
+        # Display summary with counts
+        typer.echo(f"Successfully processed {len(results)} URL category(ies):")
+        if created_count > 0:
+            typer.echo(f"  - Created: {created_count}")
+        if updated_count > 0:
+            typer.echo(f"  - Updated: {updated_count}")
+
+        return results
+
+    except Exception as e:
+        typer.echo(f"Error loading URL categories: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("url-category")
+def set_url_category(
+    folder: str = typer.Option(None, "--folder", help="Folder path for the URL category"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet path for the URL category"),
+    device: str = typer.Option(None, "--device", help="Device path for the URL category"),
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    type: str = typer.Option("URL List", "--type", help="Type of URL category (URL List or Category Match)"),
+    urls: list[str] | None = typer.Option(None, "--url", help="URL entries for the category"),
+):
+    r"""Create or update a URL category.
+
+    Examples:
+        # Create URL list category in folder
+        scm set security url-category --folder Texas --name custom-block \
+            --url malware.example.com --url phishing.test.org
+
+        # Create category match type
+        scm set security url-category --folder Texas --name match-category \
+            --type "Category Match" --url gambling --url adult
+
+        # Create in snippet
+        scm set security url-category --snippet Security-Best-Practice \
+            --name blocked-sites --url bad-site.com
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        # Build category data
+        category_data: dict[str, Any] = {
+            location_type: location_value,
+            "name": name,
+            "type": type,
+        }
+
+        if description:
+            category_data["description"] = description
+        if urls:
+            category_data["list"] = urls
+
+        # Validate using Pydantic model
+        category = URLCategory(**category_data)
+
+        # Call SDK client
+        sdk_data = category.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        result = scm_client.create_url_category(**container_kwargs, **sdk_data)
+
+        # Format and display output
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created URL category: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated URL category: {result['name']} in {location_type} {location_value}")
+        else:
+            typer.echo(f"No changes to URL category: {result['name']} in {location_type} {location_value}")
+
+    except Exception as e:
+        typer.echo(f"Error creating URL category: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("url-category")
+def show_url_category(
+    folder: str = typer.Option(None, "--folder", help="Folder containing the URL category"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet containing the URL category"),
+    device: str = typer.Option(None, "--device", help="Device containing the URL category"),
+    name: str | None = typer.Option(None, "--name", help="Name of the URL category to show"),
+):
+    """Display URL categories.
+
+    Examples:
+        # List all URL categories in a folder (default behavior)
+        scm show security url-category --folder Texas
+
+        # Show a specific URL category by name
+        scm show security url-category --folder Texas --name custom-block
+
+        # List URL categories in snippet
+        scm show security url-category --snippet Security-Best-Practice
+
+    """
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    try:
+        if name:
+            # Get a specific URL category by name
+            kwargs = {location_type: location_value}
+            category = scm_client.get_url_category(**kwargs, name=name)
+
+            typer.echo(f"\nURL Category: {category.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location
+            if category.get("folder"):
+                typer.echo(f"Location: Folder '{category['folder']}'")
+            elif category.get("snippet"):
+                typer.echo(f"Location: Snippet '{category['snippet']}'")
+            elif category.get("device"):
+                typer.echo(f"Location: Device '{category['device']}'")
+
+            # Display description if present
+            if category.get("description"):
+                typer.echo(f"Description: {category['description']}")
+
+            # Display type
+            if category.get("type"):
+                typer.echo(f"Type: {category['type']}")
+
+            # Display URL list
+            if category.get("list"):
+                typer.echo(f"\nURLs ({len(category['list'])}):")
+                for url in category["list"]:
+                    typer.echo(f"  - {url}")
+
+            # Display ID if present
+            if category.get("id"):
+                typer.echo(f"\nID: {category['id']}")
+
+            return category
+
+        else:
+            # Default behavior: list all
+            kwargs = {location_type: location_value}
+            categories = scm_client.list_url_categories(**kwargs, exact_match=False)
+
+            if not categories:
+                typer.echo(f"No URL categories found in {location_type} '{location_value}'")
+                return
+
+            typer.echo(f"\nURL Categories in {location_type} '{location_value}':")
+            typer.echo("=" * 80)
+
+            for category in categories:
+                typer.echo(f"Name: {category.get('name', 'N/A')}")
+
+                # Display container location
+                if category.get("folder"):
+                    typer.echo(f"  Location: Folder '{category['folder']}'")
+                elif category.get("snippet"):
+                    typer.echo(f"  Location: Snippet '{category['snippet']}'")
+                elif category.get("device"):
+                    typer.echo(f"  Location: Device '{category['device']}'")
+
+                # Display description if present
+                if category.get("description"):
+                    typer.echo(f"  Description: {category['description']}")
+
+                # Display type
+                if category.get("type"):
+                    typer.echo(f"  Type: {category['type']}")
+
+                # Display URL count
+                if category.get("list"):
+                    typer.echo(f"  URLs: {len(category['list'])} entries")
+
+                # Display ID if present
+                if category.get("id"):
+                    typer.echo(f"  ID: {category['id']}")
+
+                typer.echo("-" * 80)
+
+            return categories
+
+    except Exception as e:
+        typer.echo(f"Error showing URL category: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
