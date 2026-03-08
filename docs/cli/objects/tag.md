@@ -1,167 +1,151 @@
-# Tag Management
+# Tag Objects
 
-This section covers the commands for managing tag objects in Strata Cloud Manager.
+Tags provide a flexible way to categorize and organize objects across Strata Cloud Manager. The `scm` CLI provides commands to create, update, delete, show, backup, and load tag objects.
 
 ## Overview
 
-Tags provide a flexible way to categorize and organize objects across Strata Cloud Manager. The `tag` commands allow you to:
+The `tag` commands allow you to:
 
 - Create tags with specific colors for visual identification
 - Add descriptive comments to tags
-- Apply tags to various objects (addresses, services, rules, etc.)
-- Use tags in dynamic groups and policies
-- Organize resources by department, environment, or purpose
+- Delete tags that are no longer needed
+- Bulk import tags from YAML files
+- Export tags for backup or migration
 
-## Commands
+## Supported Colors
 
-### Creating/Updating Tags
+The following 42 colors are supported:
 
-Basic tag with color:
+| Color Name | Color Name | Color Name |
+| --- | --- | --- |
+| Red | Green | Blue |
+| Yellow | Copper | Orange |
+| Purple | Gray | Light Green |
+| Cyan | Light Gray | Blue Gray |
+| Lime | Black | Gold |
+| Brown | Olive | Maroon |
+| Red-Orange | Yellow-Orange | Forest Green |
+| Turquoise Blue | Azure Blue | Cerulean Blue |
+| Midnight Blue | Medium Blue | Cobalt Blue |
+| Violet Blue | Blue Violet | Medium Violet |
+| Medium Rose | Lavender | Orchid |
+| Thistle | Peach | Salmon |
+| Magenta | Red Violet | Mahogany |
+| Burnt Sienna | Chestnut | |
 
-```bash
-$ scm set object tag --folder Texas --name production \
-  --color "Red" --comments "Production environment resources"
-<span style="color: green;">✓</span> Tag 'production' created successfully
-```
+## Set Tag
 
-Multiple tags for categorization:
+Create or update a tag object.
 
-```bash
-$ scm set object tag --folder Texas --name critical --color "Orange"
-$ scm set object tag --folder Texas --name database --color "Blue"
-$ scm set object tag --folder Texas --name web-tier --color "Green"
-<span style="color: green;">✓</span> Tag 'critical' created successfully
-<span style="color: green;">✓</span> Tag 'database' created successfully
-<span style="color: green;">✓</span> Tag 'web-tier' created successfully
-```
-
-### Listing Tags (Default Behavior)
-
-```bash
-$ scm show object tag --folder Texas
-Tags in folder 'Texas':
-- production (Red)
-- development (Yellow)
-- critical (Orange)
-- database (Blue)
-- web-tier (Green)
-```
-
-!!! note
-When no --name is specified, all tags are listed by default.
-
-### Showing Tag Details
+### Syntax
 
 ```bash
-$ scm show object tag --folder Texas --name production
-Tag: production
-  Color: Red
-  Comments: Production environment resources
-  Folder: Texas
+scm set object tag [OPTIONS]
 ```
 
-### Deleting Tags
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder for the tag object | No\* |
+| `--snippet TEXT` | Snippet for the tag object | No\* |
+| `--device TEXT` | Device for the tag object | No\* |
+| `--name TEXT` | Name of the tag | Yes |
+| `--color TEXT` | Color for visual identification | No |
+| `--comments TEXT` | Descriptive comments about the tag | No |
+
+\* One of --folder, --snippet, or --device is required.
+
+### Examples
+
+#### Create a Tag with Color
+
+```bash
+$ scm set object tag \
+    --folder Texas \
+    --name production \
+    --color "Red" \
+    --comments "Production environment resources"
+---> 100%
+Created tag: production in folder Texas
+```
+
+#### Create Multiple Environment Tags
+
+```bash
+$ scm set object tag \
+    --folder Texas \
+    --name critical \
+    --color "Orange"
+---> 100%
+Created tag: critical in folder Texas
+```
+
+```bash
+$ scm set object tag \
+    --folder Texas \
+    --name database \
+    --color "Blue"
+---> 100%
+Created tag: database in folder Texas
+```
+
+## Delete Tag
+
+Delete a tag object from SCM.
+
+### Syntax
+
+```bash
+scm delete object tag [OPTIONS]
+```
+
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder containing the tag object | No\* |
+| `--snippet TEXT` | Snippet containing the tag object | No\* |
+| `--device TEXT` | Device containing the tag object | No\* |
+| `--name TEXT` | Name of the tag to delete | Yes |
+
+\* One of --folder, --snippet, or --device is required.
+
+### Example
 
 ```bash
 $ scm delete object tag --folder Texas --name production
-<span style="color: green;">✓</span> Tag 'production' deleted successfully
+---> 100%
+Deleted tag: production from folder Texas
 ```
 
-### Load Tags
+## Load Tags
 
-Load multiple tags from a YAML file.
+Load multiple tag objects from a YAML file.
 
-#### Syntax
+### Syntax
 
 ```bash
 scm load object tag [OPTIONS]
 ```
 
-#### Options
+### Options
 
-| Option           | Description                                  | Required |
-| ---------------- | -------------------------------------------- | -------- |
-| `--file TEXT`    | Path to YAML file containing tag definitions | Yes      |
-| `--folder TEXT`  | Override folder location for all objects     | No       |
-| `--snippet TEXT` | Override snippet location for all objects    | No       |
-| `--device TEXT`  | Override device location for all objects     | No       |
-| `--dry-run`      | Preview changes without applying them        | No       |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--file TEXT` | Path to YAML file containing tag definitions | Yes |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
+| `--dry-run` | Preview changes without applying them | No |
 
-#### Examples
-
-Load from file with original locations:
-
-```bash
-$ scm load object tag --file tags.yml
-<span style="color: green;">✓</span> Created tag: production in Texas
-<span style="color: green;">✓</span> Created tag: staging in Texas
-<span style="color: green;">✓</span> Created tag: development in Texas
-<span style="color: green;">✓</span> Created tag: finance in Texas
-
-<span style="color: green;">✓</span> Summary: Processed 42 tags
-```
-
-Load with folder override:
-
-```bash
-$ scm load object tag --file tags.yml --folder Austin
-<span style="color: green;">✓</span> Created tag: production in Austin
-<span style="color: green;">✓</span> Created tag: staging in Austin
-<span style="color: green;">✓</span> Created tag: development in Austin
-<span style="color: green;">✓</span> Created tag: finance in Austin
-
-<span style="color: green;">✓</span> Summary: Processed 42 tags
-```
-
-!!! note
-When using container override options (--folder, --snippet, --device), all tags will be loaded into the specified container, ignoring the container specified in the YAML file.
-
-### Backup Tags
-
-Backup all tag objects from a specified location to a YAML file.
-
-#### Syntax
-
-```bash
-scm backup object tag [OPTIONS]
-```
-
-#### Options
-
-| Option           | Description                                  | Required |
-| ---------------- | -------------------------------------------- | -------- |
-| `--folder TEXT`  | Folder to backup tags from                   | No\*     |
-| `--snippet TEXT` | Snippet to backup tags from                  | No\*     |
-| `--device TEXT`  | Device to backup tags from                   | No\*     |
-| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
-
-\* You must specify exactly one of --folder, --snippet, or --device.
-
-#### Examples
-
-Backup from folder:
-
-```bash
-$ scm backup object tag --folder Texas
-<span style="color: green;">✓</span> Successfully backed up 42 tags to tag_folder_texas_20240115_120530.yaml
-```
-
-Backup with custom filename:
-
-```bash
-$ scm backup object tag --folder Texas --file texas-tags.yaml
-<span style="color: green;">✓</span> Successfully backed up 42 tags to texas-tags.yaml
-```
-
-## YAML Configuration Format
-
-Tags can be defined in YAML for bulk operations:
+### YAML File Format
 
 ```yaml
+---
 tags:
-  # Environment tags
   - name: production
-    folder: Texas # Container location (folder, snippet, or device)
+    folder: Texas
     color: "Red"
     comments: "Production environment resources"
 
@@ -175,185 +159,167 @@ tags:
     color: "Yellow"
     comments: "Development environment resources"
 
-  # Department tags
   - name: finance
     folder: Texas
     color: "Gold"
     comments: "Finance department resources"
-
-  - name: hr
-    folder: Texas
-    color: "Purple"
-    comments: "Human resources department"
 
   - name: it
     folder: Texas
     color: "Blue"
     comments: "IT department resources"
 
-  # Security classification
-  - name: public
-    color: "Green"
-    comments: "Public-facing resources"
-
-  - name: internal
-    color: "Cyan"
-    comments: "Internal resources only"
-
   - name: restricted
+    folder: Texas
     color: "Magenta"
     comments: "Restricted access resources"
-
-  # Service tiers
-  - name: tier1
-    color: "Cobalt Blue"
-    comments: "Tier 1 - Critical services"
-
-  - name: tier2
-    color: "Medium Blue"
-    comments: "Tier 2 - Important services"
-
-  - name: tier3
-    color: "Light Gray"
-    comments: "Tier 3 - Standard services"
 ```
 
-## Configuration Options
+### Examples
 
-### Required Parameters
-
-- `--name`: Name of the tag
-
-### Optional Parameters
-
-- `--color`: Color for visual identification (see supported colors below)
-- `--comments`: Descriptive comments about the tag
-
-### Context Parameters
-
-Exactly one context parameter must be specified:
-
-- `--folder`: Folder name (e.g., "Texas", "Shared")
-- `--snippet`: Snippet name for Panorama
-- `--device`: Device name for NGFW
-
-## Supported Colors
-
-The following 42 colors are supported:
-
-| Color Name     | Color Name    | Color Name    |
-| -------------- | ------------- | ------------- |
-| Red            | Green         | Blue          |
-| Yellow         | Copper        | Orange        |
-| Purple         | Gray          | Light Green   |
-| Cyan           | Light Gray    | Blue Gray     |
-| Lime           | Black         | Gold          |
-| Brown          | Olive         | Maroon        |
-| Red-Orange     | Yellow-Orange | Forest Green  |
-| Turquoise Blue | Azure Blue    | Cerulean Blue |
-| Midnight Blue  | Medium Blue   | Cobalt Blue   |
-| Violet Blue    | Blue Violet   | Medium Violet |
-| Medium Rose    | Lavender      | Orchid        |
-| Thistle        | Peach         | Salmon        |
-| Magenta        | Red Violet    | Mahogany      |
-| Burnt Sienna   | Chestnut      |               |
-
-## Examples
-
-### Create Environment Tags
+#### Load with Original Locations
 
 ```bash
-# Production environment
-scm set object tag --folder Shared --name prod \
-  --color "Red" --comments "Production resources - handle with care"
+$ scm load object tag --file tags.yml
+---> 100%
+✓ Loaded tag: production
+✓ Loaded tag: staging
+✓ Loaded tag: development
+✓ Loaded tag: finance
+✓ Loaded tag: it
+✓ Loaded tag: restricted
 
-# Development environment
-scm set object tag --folder Shared --name dev \
-  --color "Green" --comments "Development resources - safe to modify"
-
-# Test environment
-scm set object tag --folder Shared --name test \
-  --color "Yellow" --comments "Test resources - automated testing"
+Successfully loaded 6 out of 6 tags from 'tags.yml'
 ```
 
-### Create Department Tags
+#### Load with Folder Override
 
 ```bash
-# Create department tags with consistent color scheme
-scm set object tag --folder Shared --name dept-finance \
-  --color "Gold" --comments "Finance department"
+$ scm load object tag --file tags.yml --folder Austin
+---> 100%
+✓ Loaded tag: production
+✓ Loaded tag: staging
+✓ Loaded tag: development
+✓ Loaded tag: finance
+✓ Loaded tag: it
+✓ Loaded tag: restricted
 
-scm set object tag --folder Shared --name dept-hr \
-  --color "Purple" --comments "Human Resources"
-
-scm set object tag --folder Shared --name dept-it \
-  --color "Blue" --comments "Information Technology"
+Successfully loaded 6 out of 6 tags from 'tags.yml'
 ```
 
-### Create Security Classification Tags
+!!! note
+    When using container override options (--folder, --snippet, --device), all tags
+    will be loaded into the specified container, ignoring the container specified in the
+    YAML file.
+
+## Show Tag
+
+Display tag objects.
+
+### Syntax
 
 ```bash
-# Security classification tags
-scm set object tag --folder Shared --name confidential \
-  --color "Red" --comments "Confidential data - restricted access"
-
-scm set object tag --folder Shared --name internal \
-  --color "Orange" --comments "Internal use only"
-
-scm set object tag --folder Shared --name public \
-  --color "Green" --comments "Public information"
+scm show object tag [OPTIONS]
 ```
 
-## Using Tags
+### Options
 
-Tags can be applied to various objects:
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder containing the tag object | No\* |
+| `--snippet TEXT` | Snippet containing the tag object | No\* |
+| `--device TEXT` | Device containing the tag object | No\* |
+| `--name TEXT` | Name of the tag to show | No |
 
-### Apply Tags to Addresses
+!!! note
+    When no `--name` is specified, all items are listed by default.
+
+\* One of --folder, --snippet, or --device is required.
+
+### Examples
+
+#### Show Specific Tag
 
 ```bash
-scm set object address --folder Shared --name web-server \
-  --ip-netmask 10.0.1.10/32 --tag "production,web-tier,critical"
+$ scm show object tag --folder Texas --name production
+---> 100%
+Tag: production
+  Location: Folder 'Texas'
+  Color: Red
+  Comments: Production environment resources
 ```
 
-### Apply Tags to Services
+#### List All Tags (Default Behavior)
 
 ```bash
-scm set object service --folder Shared --name custom-app \
-  --protocol tcp --port 8080 --tag "production,tier1"
+$ scm show object tag --folder Texas
+---> 100%
+Tags in folder 'Texas':
+------------------------------------------------------------
+Name: production
+  Color: Red
+  Comments: Production environment resources
+------------------------------------------------------------
+Name: staging
+  Color: Orange
+  Comments: Staging environment resources
+------------------------------------------------------------
+Name: development
+  Color: Yellow
+  Comments: Development environment resources
+------------------------------------------------------------
+Name: critical
+  Color: Orange
+------------------------------------------------------------
+Name: database
+  Color: Blue
+------------------------------------------------------------
 ```
 
-### Use Tags in Dynamic Groups
+## Backup Tags
+
+Backup all tag objects from a specified location to a YAML file.
+
+### Syntax
 
 ```bash
-scm set object dynamic-user-group --folder Shared --name prod-admins \
-  --filter "'production' and 'admin'"
+scm backup object tag [OPTIONS]
 ```
 
-### Use Tags in Dynamic Address Groups
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder to backup tags from | No\* |
+| `--snippet TEXT` | Snippet to backup tags from | No\* |
+| `--device TEXT` | Device to backup tags from | No\* |
+| `--file TEXT` | Output filename (defaults to auto-generated) | No |
+
+\* One of --folder, --snippet, or --device is required.
+
+### Examples
+
+#### Backup from Folder
 
 ```bash
-scm set object address-group --folder Shared --name prod-servers \
-  --type dynamic --filter "'production' and 'server'"
+$ scm backup object tag --folder Texas
+---> 100%
+Successfully backed up 42 tags to tag_folder_texas_20240115_120530.yaml
+```
+
+#### Backup with Custom Filename
+
+```bash
+$ scm backup object tag --folder Texas --file texas-tags.yaml
+---> 100%
+Successfully backed up 42 tags to texas-tags.yaml
 ```
 
 ## Best Practices
 
-1. **Consistent Naming**: Use a consistent naming convention (e.g., env-prod, dept-finance)
-
-2. **Color Coding**: Establish a color scheme (e.g., Red for production, Green for development)
-
-3. **Documentation**: Always add comments to explain the tag's purpose
-
-4. **Hierarchical Tagging**: Use prefixes to create logical hierarchies
-
-5. **Regular Cleanup**: Remove unused tags to maintain organization
-
-## Notes
-
-- Tag names must be unique within a folder
-- Colors are case-sensitive (use exact names from the table)
-- Tags must exist before being referenced by other objects
-- Tags are used extensively in dynamic groups and filtering
-- Comments help document the purpose and usage of tags
-- Tags can be applied to most object types in SCM
-- Deleting a tag doesn't automatically remove it from tagged objects
+1. **Consistent Naming**: Use a consistent naming convention (e.g., env-prod, dept-finance).
+2. **Color Coding**: Establish a color scheme (e.g., Red for production, Green for development).
+3. **Documentation**: Always add comments to explain the tag's purpose.
+4. **Hierarchical Tagging**: Use prefixes to create logical hierarchies.
+5. **Regular Cleanup**: Remove unused tags to maintain organization.
+6. **Create Tags First**: Tags must exist before being referenced by other objects.

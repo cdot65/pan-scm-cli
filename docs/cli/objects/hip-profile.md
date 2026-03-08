@@ -4,13 +4,27 @@ Host Information Profile (HIP) profile objects combine multiple HIP objects to c
 
 ## Overview
 
-HIP profiles allow you to:
+The `hip-profile` commands allow you to:
 
 - Create profiles that reference multiple HIP objects
-- Define match criteria with boolean logic
-- Enforce multi-factor compliance requirements
-- Use profiles in security policies
-- Manage profile descriptions and organization
+- Define match criteria with boolean logic in JSON format
+- Delete HIP profiles that are no longer needed
+- Bulk import HIP profiles from YAML files
+- Export HIP profiles for backup or migration
+
+## Match Criteria Format
+
+Match criteria use JSON format with HIP object references:
+
+```json
+{
+  "hip-object-name": {
+    "is": true
+  }
+}
+```
+
+Multiple objects use AND logic (all conditions must match). Use `"is": false` for negative matching.
 
 ## Set HIP Profile
 
@@ -24,16 +38,16 @@ scm set object hip-profile [OPTIONS]
 
 ### Options
 
-| Option               | Description                                         | Required |
-| -------------------- | --------------------------------------------------- | -------- |
-| `--folder TEXT`      | Folder for the HIP profile object                   | Yes\*    |
-| `--snippet TEXT`     | Snippet for the HIP profile object                  | Yes\*    |
-| `--device TEXT`      | Device for the HIP profile object                   | Yes\*    |
-| `--name TEXT`        | Name of the HIP profile (max 31 characters)         | Yes      |
-| `--match TEXT`       | Match criteria in JSON format (max 2048 characters) | Yes      |
-| `--description TEXT` | Description (max 255 characters)                    | No       |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder for the HIP profile object | No\* |
+| `--snippet TEXT` | Snippet for the HIP profile object | No\* |
+| `--device TEXT` | Device for the HIP profile object | No\* |
+| `--name TEXT` | Name of the HIP profile (max 31 characters) | Yes |
+| `--match TEXT` | Match criteria in JSON format (max 2048 characters) | Yes |
+| `--description TEXT` | Description (max 255 characters) | No |
 
-\* You must specify exactly one of --folder, --snippet, or --device.
+\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
@@ -73,14 +87,14 @@ scm delete object hip-profile [OPTIONS]
 
 ### Options
 
-| Option           | Description                               | Required |
-| ---------------- | ----------------------------------------- | -------- |
-| `--folder TEXT`  | Folder containing the HIP profile object  | Yes\*    |
-| `--snippet TEXT` | Snippet containing the HIP profile object | Yes\*    |
-| `--device TEXT`  | Device containing the HIP profile object  | Yes\*    |
-| `--name TEXT`    | Name of the HIP profile object to delete  | Yes      |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder containing the HIP profile object | No\* |
+| `--snippet TEXT` | Snippet containing the HIP profile object | No\* |
+| `--device TEXT` | Device containing the HIP profile object | No\* |
+| `--name TEXT` | Name of the HIP profile object to delete | Yes |
 
-\* You must specify exactly one of --folder, --snippet, or --device.
+\* One of --folder, --snippet, or --device is required.
 
 ### Example
 
@@ -102,13 +116,13 @@ scm load object hip-profile [OPTIONS]
 
 ### Options
 
-| Option           | Description                                          | Required |
-| ---------------- | ---------------------------------------------------- | -------- |
-| `--file TEXT`    | Path to YAML file containing HIP profile definitions | Yes      |
-| `--folder TEXT`  | Override folder location for all objects             | No       |
-| `--snippet TEXT` | Override snippet location for all objects            | No       |
-| `--device TEXT`  | Override device location for all objects             | No       |
-| `--dry-run`      | Preview changes without applying them                | No       |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--file TEXT` | Path to YAML file containing HIP profile definitions | Yes |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
+| `--dry-run` | Preview changes without applying them | No |
 
 ### YAML File Format
 
@@ -116,7 +130,7 @@ scm load object hip-profile [OPTIONS]
 ---
 hip_profiles:
   - name: basic-windows
-    folder: Texas # Container location (folder, snippet, or device)
+    folder: Texas
     description: "Basic Windows compliance"
     match: '{"windows-patches": {"is": true}}'
 
@@ -134,11 +148,6 @@ hip_profiles:
     folder: Texas
     description: "Secure macOS endpoints"
     match: '{"macos-patches": {"is": true}, "filevault": {"is": true}}'
-
-  - name: mobile-secure
-    folder: Texas
-    description: "Secure mobile devices"
-    match: '{"mobile-compliance": {"is": true}}'
 ```
 
 ### Examples
@@ -152,9 +161,8 @@ $ scm load object hip-profile --file hip-profiles.yml
 ✓ Loaded HIP profile: secure-windows
 ✓ Loaded HIP profile: corporate-windows
 ✓ Loaded HIP profile: secure-mac
-✓ Loaded HIP profile: mobile-secure
 
-Successfully loaded 5 out of 5 HIP profiles from 'hip-profiles.yml'
+Successfully loaded 4 out of 4 HIP profiles from 'hip-profiles.yml'
 ```
 
 #### Load with Folder Override
@@ -166,13 +174,14 @@ $ scm load object hip-profile --file hip-profiles.yml --folder Austin
 ✓ Loaded HIP profile: secure-windows
 ✓ Loaded HIP profile: corporate-windows
 ✓ Loaded HIP profile: secure-mac
-✓ Loaded HIP profile: mobile-secure
 
-Successfully loaded 5 out of 5 HIP profiles from 'hip-profiles.yml'
+Successfully loaded 4 out of 4 HIP profiles from 'hip-profiles.yml'
 ```
 
 !!! note
-When using container override options (--folder, --snippet, --device), all HIP profiles will be loaded into the specified container, ignoring the container specified in the YAML file.
+    When using container override options (--folder, --snippet, --device), all HIP profiles
+    will be loaded into the specified container, ignoring the container specified in the
+    YAML file.
 
 ## Show HIP Profile
 
@@ -186,16 +195,17 @@ scm show object hip-profile [OPTIONS]
 
 ### Options
 
-| Option           | Description                               | Required |
-| ---------------- | ----------------------------------------- | -------- |
-| `--folder TEXT`  | Folder containing the HIP profile object  | Yes\*    |
-| `--snippet TEXT` | Snippet containing the HIP profile object | Yes\*    |
-| `--device TEXT`  | Device containing the HIP profile object  | Yes\*    |
-| `--name TEXT`    | Name of the HIP profile object to show    | No\*\*   |
-| `--list`         | List all HIP profiles in the container    | No\*\*   |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder containing the HIP profile object | No\* |
+| `--snippet TEXT` | Snippet containing the HIP profile object | No\* |
+| `--device TEXT` | Device containing the HIP profile object | No\* |
+| `--name TEXT` | Name of the HIP profile object to show | No |
 
-\* You must specify exactly one of --folder, --snippet, or --device.
-\*\* If --name is not specified, all items will be listed.
+!!! note
+    When no `--name` is specified, all items are listed by default.
+
+\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
@@ -205,10 +215,10 @@ scm show object hip-profile [OPTIONS]
 $ scm show object hip-profile --folder Texas --name secure-endpoints
 ---> 100%
 HIP Profile: secure-endpoints
-Location: Folder 'Texas'
-Match: {"windows-patches": {"is": true}, "disk-encryption": {"is": true}, "antivirus": {"is": true}}
-Description: Comprehensive endpoint security
-ID: 123e4567-e89b-12d3-a456-426614174000
+  Location: Folder 'Texas'
+  Match: {"windows-patches": {"is": true}, "disk-encryption": {"is": true}, "antivirus": {"is": true}}
+  Description: Comprehensive endpoint security
+  ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
 #### List All HIP Profiles (Default Behavior)
@@ -247,14 +257,14 @@ scm backup object hip-profile [OPTIONS]
 
 ### Options
 
-| Option           | Description                                  | Required |
-| ---------------- | -------------------------------------------- | -------- |
-| `--folder TEXT`  | Folder to backup HIP profiles from           | No\*     |
-| `--snippet TEXT` | Snippet to backup HIP profiles from          | No\*     |
-| `--device TEXT`  | Device to backup HIP profiles from           | No\*     |
-| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder to backup HIP profiles from | No\* |
+| `--snippet TEXT` | Snippet to backup HIP profiles from | No\* |
+| `--device TEXT` | Device to backup HIP profiles from | No\* |
+| `--file TEXT` | Output filename (defaults to auto-generated) | No |
 
-\* You must specify exactly one of --folder, --snippet, or --device.
+\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
@@ -276,143 +286,10 @@ Successfully backed up 8 HIP profiles to texas-hip-profiles.yaml
 
 ## Best Practices
 
-1. **Modular HIP Objects**: Create focused HIP objects that can be combined in profiles
-
-2. **Progressive Requirements**: Start with basic requirements and add more for higher security
-
-3. **Platform-Specific Profiles**: Create separate profiles for different operating systems
-
-4. **Clear Naming**: Use descriptive names that indicate the compliance level
-
-5. **Documentation**: Always include descriptions explaining the profile's purpose
-
-6. **Use YAML for Bulk Operations**: For complex deployments, use YAML files
-
-7. **Organize by Container**: Keep profiles organized in appropriate folders, snippets, or devices
-
-## Match Criteria Format
-
-### Basic Format
-
-Match criteria use JSON format with HIP object references:
-
-```json
-{
-  "hip-object-name": {
-    "is": true
-  }
-}
-```
-
-### Multiple Objects (AND Logic)
-
-All specified objects must match:
-
-```json
-{
-  "windows-patches": {
-    "is": true
-  },
-  "disk-encryption": {
-    "is": true
-  }
-}
-```
-
-### Negative Matching
-
-Check that a HIP object does NOT match:
-
-```json
-{
-  "jailbroken-device": {
-    "is": false
-  }
-}
-```
-
-### Complex Example
-
-Multiple requirements with mixed logic:
-
-```json
-{
-  "corp-domain": {
-    "is": true
-  },
-  "windows-patches": {
-    "is": true
-  },
-  "disk-encryption": {
-    "is": true
-  },
-  "compromised-device": {
-    "is": false
-  }
-}
-```
-
-## Additional Examples
-
-### Basic Compliance Profiles
-
-```bash
-$ scm set object hip-profile \
-    --folder Shared \
-    --name patch-compliance \
-    --match '{"os-patches": {"is": true}}' \
-    --description "Patch compliance only"
----> 100%
-Created HIP profile: patch-compliance in folder Shared
-```
-
-### Platform-Specific Profile
-
-```bash
-$ scm set object hip-profile \
-    --folder Texas \
-    --name windows-corporate \
-    --match '{"corp-domain": {"is": true}, "windows-security": {"is": true}}' \
-    --description "Corporate Windows requirements"
----> 100%
-Created HIP profile: windows-corporate in folder Texas
-```
-
-### High Security Profile
-
-```bash
-$ scm set object hip-profile \
-    --folder Shared \
-    --name high-security \
-    --match '{"antivirus": {"is": true}, "os-patches": {"is": true}, "disk-encryption": {"is": true}, "corp-domain": {"is": true}}' \
-    --description "High security requirements"
----> 100%
-Created HIP profile: high-security in folder Shared
-```
-
-## Integration with Security Policies
-
-HIP profiles are used in security rules for endpoint-based access control:
-
-```bash
-$ scm set security rule \
-    --folder Shared \
-    --name "Compliant-Access" \
-    --source-hip "@secure-endpoints" \
-    --destination-zones "Corporate" \
-    --applications "any" \
-    --action allow
----> 100%
-Created security rule: Compliant-Access in folder Shared
-```
-
-## Notes
-
-- Profile names must be unique within a container
-- Maximum name length is 31 characters
-- Match criteria use JSON format
-- All HIP objects in match criteria must exist
-- Profiles use AND logic (all conditions must match)
-- Use "is": false for negative matching
-- Profiles are referenced in policies using the "@" prefix
-- GlobalProtect enforces HIP profiles on endpoints
+1. **Modular HIP Objects**: Create focused HIP objects that can be combined in profiles.
+2. **Progressive Requirements**: Start with basic requirements and add more for higher security tiers.
+3. **Platform-Specific Profiles**: Create separate profiles for different operating systems.
+4. **Clear Naming**: Use descriptive names that indicate the compliance level.
+5. **Documentation**: Always include descriptions explaining the profile's purpose.
+6. **Use YAML for Bulk Operations**: For complex deployments, use YAML files.
+7. **Organize by Container**: Keep profiles organized in appropriate folders, snippets, or devices.
