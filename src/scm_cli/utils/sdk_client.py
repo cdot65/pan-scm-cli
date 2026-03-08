@@ -5471,6 +5471,382 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "IKE crypto profiles", e)
 
+    # --------------------------------------------------------------------------------------- NAT Rules ------------------------------------------------------------------------------------
+
+    def create_nat_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        description: str | None = None,
+        tag: list[str] | None = None,
+        disabled: bool = False,
+        nat_type: str = "ipv4",
+        from_zones: list[str] | None = None,
+        to_zones: list[str] | None = None,
+        to_interface: str | None = None,
+        source: list[str] | None = None,
+        destination: list[str] | None = None,
+        service: str = "any",
+        source_translation: dict[str, Any] | None = None,
+        destination_translation: dict[str, Any] | None = None,
+        active_active_device_binding: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a NAT rule (smart upsert).
+
+        Args:
+            folder: Folder to create the NAT rule in
+            snippet: Snippet to create the NAT rule in
+            device: Device to create the NAT rule in
+            name: Name of the NAT rule
+            description: Description of the NAT rule
+            tag: Tags associated with the NAT rule
+            disabled: Whether the NAT rule is disabled
+            nat_type: NAT type (ipv4, nat64, nptv6)
+            from_zones: Source zone(s)
+            to_zones: Destination zone(s)
+            to_interface: Destination interface
+            source: Source address(es)
+            destination: Destination address(es)
+            service: TCP/UDP service
+            source_translation: Source translation configuration
+            destination_translation: Destination translation configuration
+            active_active_device_binding: Active/Active device binding
+
+        Returns:
+            dict[str, Any]: The created/updated NAT rule object, with '__action__' key.
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Upsert NAT rule: {name} in {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"nat-{name}",
+                "folder": folder or "Texas",
+                "name": name,
+                "description": description or "",
+                "nat_type": nat_type,
+                "from_": from_zones or ["any"],
+                "to_": to_zones or ["any"],
+                "source": source or ["any"],
+                "destination": destination or ["any"],
+                "service": service,
+                "source_translation": source_translation,
+                "destination_translation": destination_translation,
+                "__action__": "created",
+            }
+
+        try:
+            # Build NAT rule data
+            nat_data: dict[str, Any] = {"name": name}
+            if folder:
+                nat_data["folder"] = folder
+            elif snippet:
+                nat_data["snippet"] = snippet
+            elif device:
+                nat_data["device"] = device
+
+            if description:
+                nat_data["description"] = description
+            if tag:
+                nat_data["tag"] = tag
+            if disabled:
+                nat_data["disabled"] = disabled
+            if nat_type != "ipv4":
+                nat_data["nat_type"] = nat_type
+            nat_data["from_"] = from_zones or ["any"]
+            nat_data["to_"] = to_zones or ["any"]
+            nat_data["source"] = source or ["any"]
+            nat_data["destination"] = destination or ["any"]
+            nat_data["service"] = service
+            if to_interface:
+                nat_data["to_interface"] = to_interface
+            if source_translation:
+                nat_data["source_translation"] = source_translation
+            if destination_translation:
+                nat_data["destination_translation"] = destination_translation
+            if active_active_device_binding:
+                nat_data["active_active_device_binding"] = active_active_device_binding
+
+            # Step 1: Try to fetch existing NAT rule
+            existing = None
+            try:
+                fetch_kwargs = {"name": name}
+                if folder:
+                    fetch_kwargs["folder"] = folder
+                elif snippet:
+                    fetch_kwargs["snippet"] = snippet
+                elif device:
+                    fetch_kwargs["device"] = device
+                existing = self.client.nat_rule.fetch(**fetch_kwargs)
+                self.logger.info(f"Found existing NAT rule '{name}'")
+            except NotFoundError:
+                self.logger.info(f"NAT rule '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching NAT rule '{name}': {str(e)}")
+
+            if existing:
+                # Step 2: Compare and update if needed
+                needs_update = False
+                update_fields = []
+
+                # Compare description
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                # Compare source zones
+                current_from = list(getattr(existing, "from_", []) or [])
+                new_from = from_zones or ["any"]
+                if set(current_from) != set(new_from):
+                    existing.from_ = new_from
+                    update_fields.append("from")
+                    needs_update = True
+
+                # Compare destination zones
+                current_to = list(getattr(existing, "to_", []) or [])
+                new_to = to_zones or ["any"]
+                if set(current_to) != set(new_to):
+                    existing.to_ = new_to
+                    update_fields.append("to")
+                    needs_update = True
+
+                # Compare source addresses
+                current_source = list(getattr(existing, "source", []) or [])
+                new_source = source or ["any"]
+                if set(current_source) != set(new_source):
+                    existing.source = new_source
+                    update_fields.append("source")
+                    needs_update = True
+
+                # Compare destination addresses
+                current_dest = list(getattr(existing, "destination", []) or [])
+                new_dest = destination or ["any"]
+                if set(current_dest) != set(new_dest):
+                    existing.destination = new_dest
+                    update_fields.append("destination")
+                    needs_update = True
+
+                # Compare service
+                if getattr(existing, "service", "any") != service:
+                    existing.service = service
+                    update_fields.append("service")
+                    needs_update = True
+
+                # Compare source_translation
+                if source_translation is not None:
+                    existing.source_translation = source_translation
+                    update_fields.append("source_translation")
+                    needs_update = True
+
+                # Compare destination_translation
+                if destination_translation is not None:
+                    existing.destination_translation = destination_translation
+                    update_fields.append("destination_translation")
+                    needs_update = True
+
+                # Compare tags
+                if tag is not None:
+                    current_tags = set(getattr(existing, "tag", []) or [])
+                    new_tags = set(tag or [])
+                    if current_tags != new_tags:
+                        existing.tag = tag
+                        update_fields.append("tag")
+                        needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating NAT rule fields: {', '.join(update_fields)}")
+                    updated = self.client.nat_rule.update(existing)
+                    self.logger.info(f"Successfully updated NAT rule '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for NAT rule '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+            else:
+                # Step 3: Create new NAT rule
+                created = self.client.nat_rule.create(nat_data)
+                self.logger.info(f"Successfully created NAT rule '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+        except Exception as e:
+            self._handle_api_exception("creation/update", container, name, e)
+
+    def delete_nat_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+    ) -> bool:
+        """Delete a NAT rule.
+
+        Args:
+            folder: Folder containing the NAT rule
+            snippet: Snippet containing the NAT rule
+            device: Device containing the NAT rule
+            name: Name of the NAT rule to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Deleting NAT rule: {name} from {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            fetch_kwargs: dict[str, str] = {"name": name}
+            if folder:
+                fetch_kwargs["folder"] = folder
+            elif snippet:
+                fetch_kwargs["snippet"] = snippet
+            elif device:
+                fetch_kwargs["device"] = device
+            nat_rule = self.client.nat_rule.fetch(**fetch_kwargs)
+            self.client.nat_rule.delete(str(nat_rule.id))
+            self.logger.info(f"Successfully deleted NAT rule '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", container, name, e)
+
+    def get_nat_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+    ) -> dict[str, Any]:
+        """Get a NAT rule by name.
+
+        Args:
+            folder: Folder containing the NAT rule
+            snippet: Snippet containing the NAT rule
+            device: Device containing the NAT rule
+            name: Name of the NAT rule to get
+
+        Returns:
+            dict[str, Any]: The NAT rule object
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Getting NAT rule: {name} from {container}")
+
+        if not self.client:
+            return {
+                "id": f"nat-{name}",
+                "folder": folder or "Texas",
+                "name": name,
+                "description": "Mock NAT rule",
+                "nat_type": "ipv4",
+                "from_": ["trust"],
+                "to_": ["untrust"],
+                "source": ["any"],
+                "destination": ["any"],
+                "service": "any",
+                "source_translation": {
+                    "dynamic_ip_and_port": {
+                        "type": "dynamic_ip_and_port",
+                        "translated_address": ["192.168.1.1"],
+                    }
+                },
+            }
+
+        try:
+            fetch_kwargs: dict[str, str] = {"name": name}
+            if folder:
+                fetch_kwargs["folder"] = folder
+            elif snippet:
+                fetch_kwargs["snippet"] = snippet
+            elif device:
+                fetch_kwargs["device"] = device
+            result = self.client.nat_rule.fetch(**fetch_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", container, name, e)
+
+    def list_nat_rules(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List NAT rules in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
+
+        Returns:
+            list[dict[str, Any]]: List of NAT rule objects
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing NAT rules in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
+
+        if not self.client:
+            return [
+                {
+                    "id": "nat-mock1",
+                    "folder": folder or "Texas",
+                    "name": "outbound-nat",
+                    "nat_type": "ipv4",
+                    "from_": ["trust"],
+                    "to_": ["untrust"],
+                    "source": ["any"],
+                    "destination": ["any"],
+                    "service": "any",
+                    "source_translation": {
+                        "dynamic_ip_and_port": {
+                            "type": "dynamic_ip_and_port",
+                            "translated_address": ["10.0.0.1"],
+                        }
+                    },
+                },
+                {
+                    "id": "nat-mock2",
+                    "folder": folder or "Texas",
+                    "name": "inbound-web",
+                    "nat_type": "ipv4",
+                    "from_": ["untrust"],
+                    "to_": ["trust"],
+                    "source": ["any"],
+                    "destination": ["203.0.113.10"],
+                    "service": "service-http",
+                    "destination_translation": {
+                        "translated_address": "192.168.1.100",
+                        "translated_port": 8080,
+                    },
+                },
+            ]
+
+        container_kwargs: dict[str, Any] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.nat_rule.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container, "NAT rules", e)
+
     # ------------------------------------------------------------------------------------ Security Zones ----------------------------------------------------------------------------------
 
     def create_zone(

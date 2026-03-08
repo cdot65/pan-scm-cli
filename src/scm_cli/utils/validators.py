@@ -1702,6 +1702,80 @@ class Tag(BaseModel):
 # ========================================================================================================================================================================================
 
 
+class NATRule(BaseModel):
+    """Model for NAT rule configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the NAT rule")
+    snippet: str | None = Field(None, description="Snippet path for the NAT rule")
+    device: str | None = Field(None, description="Device path for the NAT rule")
+    name: str = Field(..., description="Name of the NAT rule")
+    description: str | None = Field(None, description="Description of the NAT rule")
+    tag: list[str] | None = Field(None, description="Tags associated with the NAT rule")
+    disabled: bool = Field(False, description="Whether the NAT rule is disabled")
+    nat_type: str = Field("ipv4", description="NAT type (ipv4, nat64, nptv6)")
+    from_zone: list[str] = Field(default_factory=lambda: ["any"], alias="from", description="Source zone(s)")
+    to_zone: list[str] = Field(default_factory=lambda: ["any"], alias="to", description="Destination zone(s)")
+    to_interface: str | None = Field(None, description="Destination interface")
+    source: list[str] = Field(default_factory=lambda: ["any"], description="Source address(es)")
+    destination: list[str] = Field(default_factory=lambda: ["any"], description="Destination address(es)")
+    service: str = Field("any", description="TCP/UDP service")
+    source_translation: dict[str, Any] | None = Field(None, description="Source translation configuration")
+    destination_translation: dict[str, Any] | None = Field(None, description="Destination translation configuration")
+    active_active_device_binding: str | None = Field(None, description="Active/Active device binding")
+
+    model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "NATRule":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.tag:
+            model_data["tag"] = self.tag
+        if self.disabled:
+            model_data["disabled"] = self.disabled
+        if self.nat_type != "ipv4":
+            model_data["nat_type"] = self.nat_type
+
+        # Zone fields use 'from' and 'to' aliases in the SDK
+        model_data["from_"] = self.from_zone
+        model_data["to_"] = self.to_zone
+        model_data["source"] = self.source
+        model_data["destination"] = self.destination
+        model_data["service"] = self.service
+
+        if self.to_interface:
+            model_data["to_interface"] = self.to_interface
+        if self.source_translation:
+            model_data["source_translation"] = self.source_translation
+        if self.destination_translation:
+            model_data["destination_translation"] = self.destination_translation
+        if self.active_active_device_binding:
+            model_data["active_active_device_binding"] = self.active_active_device_binding
+
+        return model_data
+
+
 class IKECryptoProfile(BaseModel):
     """Model for IKE crypto profile configurations."""
 

@@ -3,8 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, DNSSecurityProfile, IKECryptoProfile, QuarantinedDevice, Region, Schedule, SecurityRule, WildfireAntivirusProfile, Zone
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IPSecCryptoProfile, SecurityRule, Zone
+from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, DNSSecurityProfile, IKECryptoProfile, IPSecCryptoProfile, NATRule, QuarantinedDevice, Region, Schedule, SecurityRule, WildfireAntivirusProfile, Zone
 
 
 class TestBandwidthAllocation:
@@ -459,6 +458,116 @@ class TestQuarantinedDevice:
         device = QuarantinedDevice(host_id="host-123")
         sdk_data = device.to_sdk_model()
         assert sdk_data == {"host_id": "host-123"}
+
+
+class TestNATRule:
+    """Test cases for the NATRule model."""
+
+    def test_valid_nat_rule(self):
+        """Test creating a valid NAT rule."""
+        rule = NATRule(
+            name="outbound-nat",
+            folder="Texas",
+            nat_type="ipv4",
+            source=["any"],
+            destination=["any"],
+            service="any",
+            source_translation={
+                "dynamic_ip_and_port": {
+                    "type": "dynamic_ip_and_port",
+                    "translated_address": ["10.0.0.1"],
+                }
+            },
+        )
+        assert rule.name == "outbound-nat"
+        assert rule.folder == "Texas"
+        assert rule.nat_type == "ipv4"
+        assert rule.source == ["any"]
+        assert rule.destination == ["any"]
+        assert rule.service == "any"
+        assert rule.source_translation is not None
+
+    def test_missing_required_fields(self):
+        """Test that required fields are enforced."""
+        with pytest.raises(ValidationError):
+            NATRule(
+                # Missing name
+                folder="Texas",
+            )
+
+    def test_container_validation(self):
+        """Test that exactly one container must be specified."""
+        with pytest.raises(ValidationError):
+            NATRule(
+                name="test-nat",
+                # Missing container
+            )
+
+        with pytest.raises(ValidationError):
+            NATRule(
+                name="test-nat",
+                folder="Texas",
+                snippet="test-snippet",
+            )
+
+    def test_default_values(self):
+        """Test that default values are applied correctly."""
+        rule = NATRule(name="test-nat", folder="Texas")
+        assert rule.nat_type == "ipv4"
+        assert rule.from_zone == ["any"]
+        assert rule.to_zone == ["any"]
+        assert rule.source == ["any"]
+        assert rule.destination == ["any"]
+        assert rule.service == "any"
+        assert rule.disabled is False
+        assert rule.source_translation is None
+        assert rule.destination_translation is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        rule = NATRule(
+            name="outbound-nat",
+            folder="Texas",
+            description="Outbound NAT rule",
+            source=["192.168.1.0/24"],
+            destination=["any"],
+            service="any",
+            source_translation={
+                "dynamic_ip_and_port": {
+                    "type": "dynamic_ip_and_port",
+                    "translated_address": ["10.0.0.1"],
+                }
+            },
+        )
+        sdk_model = rule.to_sdk_model()
+        assert sdk_model["name"] == "outbound-nat"
+        assert sdk_model["folder"] == "Texas"
+        assert sdk_model["description"] == "Outbound NAT rule"
+        assert sdk_model["source"] == ["192.168.1.0/24"]
+        assert sdk_model["destination"] == ["any"]
+        assert sdk_model["service"] == "any"
+        assert "source_translation" in sdk_model
+
+    def test_to_sdk_model_minimal(self):
+        """Test minimal conversion to SDK model."""
+        rule = NATRule(name="simple-nat", folder="Texas")
+        sdk_model = rule.to_sdk_model()
+        assert sdk_model["name"] == "simple-nat"
+        assert sdk_model["folder"] == "Texas"
+        assert sdk_model["from_"] == ["any"]
+        assert sdk_model["to_"] == ["any"]
+        assert "source_translation" not in sdk_model
+        assert "destination_translation" not in sdk_model
+
+    def test_with_from_to_alias(self):
+        """Test creating NAT rule with 'from' and 'to' aliases."""
+        rule = NATRule(
+            name="test-nat",
+            folder="Texas",
+            **{"from": ["trust"], "to": ["untrust"]},
+        )
+        assert rule.from_zone == ["trust"]
+        assert rule.to_zone == ["untrust"]
 
 
 class TestSecurityRule:
