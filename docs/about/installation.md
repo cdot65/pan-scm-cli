@@ -1,46 +1,48 @@
-# Installation Guide for pan-scm-cli
+# Installation
 
-This guide will help you install the `pan-scm-cli` tool in your Python environment.
+The `pan-scm-cli` tool installs into any Python environment and provides the `scm` command for managing Strata Cloud Manager configurations.
 
 ## Prerequisites
 
 Before you begin, ensure you have the following:
 
-- **Python 3.10 or higher**: Ensure Python is installed on your system.
-- **pip**: Python package installer should be available.
-- **Access to SCM**: You need valid credentials for Strata Cloud Manager.
+| Requirement | Description |
+| --- | --- |
+| Python 3.10+ | Python 3.10 or higher must be installed on your system |
+| pip | Python package installer should be available |
+| SCM Credentials | Valid client ID, client secret, and TSG ID for Strata Cloud Manager |
 
-## Installation Steps
+## Install via pip
 
-### 1. Create a Virtual Environment (Optional but _HIGHLY_ Recommended)
+### Create a Virtual Environment
 
-It's good practice to use a virtual environment to manage dependencies.
+It is recommended to use a virtual environment to manage dependencies.
 
-**On macOS and Linux:**
+**macOS and Linux:**
 
 ```bash
 python3 -m venv scm-env
 source scm-env/bin/activate
 ```
 
-**On Windows:**
+**Windows:**
 
 ```bash
 python3 -m venv scm-env
 scm-env\Scripts\activate
 ```
 
-### 2. Install `pan-scm-cli` via pip
+### Install the Package
 
 Within the activated environment, install the package using pip:
 
 ```bash
-pip install pan-scm-cli
+$ pip install pan-scm-cli
 ---> 100%
 Successfully installed pan-scm-cli
 ```
 
-### 3. Verify Installation
+### Verify Installation
 
 Verify that the installation was successful by checking the available commands:
 
@@ -60,20 +62,23 @@ Commands:
   show     Display configurations
 ```
 
-### 4. Set Up Authentication
+## Set Up Authentication
 
 After installation, create your first context to connect to SCM:
 
 ```bash
-# Create a context with your credentials
 $ scm context create my-tenant \
-  --client-id "your-app@123456789.iam.panserviceaccount.com" \
-  --client-secret "your-secret-key" \
-  --tsg-id "123456789"
+    --client-id "your-app@123456789.iam.panserviceaccount.com" \
+    --client-secret "your-secret-key" \
+    --tsg-id "123456789"
+---> 100%
 ✓ Context 'my-tenant' created successfully
 ✓ Context 'my-tenant' set as current
+```
 
-# Test the connection
+Test the connection:
+
+```bash
 $ scm context test
 Testing authentication for context: my-tenant
 ✓ Authentication successful!
@@ -82,14 +87,40 @@ Testing authentication for context: my-tenant
 ✓ API connectivity verified (found 15 address objects in Shared folder)
 ```
 
+!!! warning
+    Never commit credentials to version control. Use contexts or environment variables
+    to manage authentication securely.
+
+## Docker Installation
+
+The CLI is also available as a Docker image for containerized environments.
+
+```bash
+$ docker pull ghcr.io/cdot65/pan-scm-cli:latest
+```
+
+Run with context support by volume-mounting your credentials:
+
+```bash
+$ docker run -d \
+    --name pan-scm \
+    -v ~/.scm-cli:/home/scmuser/.scm-cli \
+    ghcr.io/cdot65/pan-scm-cli:latest
+```
+
+Use contexts inside the container:
+
+```bash
+$ docker exec pan-scm scm context list
+$ docker exec pan-scm scm context use production
+```
+
+!!! info
+    The Docker image is available at `ghcr.io/cdot65/pan-scm-cli:latest` (AMD64) and
+    `ghcr.io/cdot65/pan-scm-cli:apple` (ARM64).
+
 ## Next Steps
 
-Once you've installed the CLI and set up authentication, you can:
-
 1. [Get started with basic commands](getting-started.md)
-2. [Explore configuration objects](../guide/configuration-objects.md)
-3. [Learn about advanced operations](../guide/advanced-topics.md)
-
----
-
-If you encounter any issues during installation, see the [Troubleshooting](troubleshooting.md) guide.
+2. [Explore the CLI Reference](../cli/index.md)
+3. [Read the Troubleshooting guide](troubleshooting.md) if you encounter issues

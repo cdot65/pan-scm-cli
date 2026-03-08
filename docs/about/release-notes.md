@@ -1,5 +1,7 @@
 # Release Notes
 
+This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
+
 ## Version 0.5.1
 
 **Released:** June 19, 2025
@@ -17,10 +19,6 @@
 
 - Resolved `'list' object has no attribute 'split'` error when deleting bandwidth allocations with a single SPN.
 
----
-
-This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
-
 ## Version 0.5.0
 
 **Released:** June 9, 2025
@@ -28,93 +26,73 @@ This page contains the release history of the Strata Cloud Manager CLI, with the
 ### Added
 
 - **Smart Upsert Functionality**: Comprehensive intelligent object management across all resources
-  - **Field-level Change Detection**: Only updates objects when actual changes are detected
-    - Compares existing object configuration with proposed changes
-    - Skips updates when objects are already up-to-date
-    - Logs specific fields being updated for transparency
-  - **Action Tracking**: Clear feedback on operations performed
-    - Returns `"created"` for new objects
-    - Returns `"updated"` for modified objects
-    - Returns `"no_change"` for objects already up-to-date
-  - **Unified Pattern**: Applied consistently across all object types including services, tags, addresses, security rules, and SASE resources
+    - **Field-level Change Detection**: Only updates objects when actual changes are detected
+        - Compares existing object configuration with proposed changes
+        - Skips updates when objects are already up-to-date
+        - Logs specific fields being updated for transparency
+    - **Action Tracking**: Clear feedback on operations performed
+        - Returns `"created"` for new objects
+        - Returns `"updated"` for modified objects
+        - Returns `"no_change"` for objects already up-to-date
+    - **Unified Pattern**: Applied consistently across all object types including services, tags, addresses, security rules, and SASE resources
 
-- **Enhanced SASE Integration**: Merged comprehensive SASE deployment features from main branch
-  - **Service Connections**: Full CRUD operations with smart upsert support
-    - Create/update with BGP peering, QoS, and NAT configurations
-    - Automatic folder enforcement ("Service Connections" folder only)
-    - List, show, delete, load, and backup operations
-  - **Remote Networks**: Complete management with intelligent updates
-    - Support for ECMP load balancing and IPsec tunnel configurations
-    - Automatic folder enforcement ("Remote Networks" folder only)
-    - Full CRUD, list, show, load, and backup functionality
-  - All SASE commands follow the pattern: `scm <action> sase <resource-type>`
-
-- **Improved Code Organization**: Applied formatting branch enhancements to merged codebase
-  - Consistent code formatting across all modules
-  - Enhanced import organization
-  - Standardized function and class structuring
+- **Enhanced SASE Integration**: Merged comprehensive SASE deployment features
+    - **Service Connections**: Full CRUD operations with smart upsert support
+        - Create/update with BGP peering, QoS, and NAT configurations
+        - Automatic folder enforcement ("Service Connections" folder only)
+        - List, show, delete, load, and backup operations
+    - **Remote Networks**: Complete management with intelligent updates
+        - Support for ECMP load balancing and IPsec tunnel configurations
+        - Automatic folder enforcement ("Remote Networks" folder only)
+        - Full CRUD, list, show, load, and backup functionality
+    - All SASE commands follow the pattern: `scm <action> sase <resource-type>`
 
 ### Changed
 
 - **Update Logic**: All object creation methods now use smart upsert pattern
-  - `create_service()`, `create_tag()`, `create_address()` and others now check for existing objects
-  - Only performs API updates when changes are detected
-  - Provides clear feedback on actions taken
+    - `create_service()`, `create_tag()`, `create_address()` and others now check for existing objects
+    - Only performs API updates when changes are detected
+    - Provides clear feedback on actions taken
 
 - **CLI Output**: Enhanced user feedback with action-specific messages
-  - Shows "Created [object]: [name]" for new objects
-  - Shows "Updated [object]: [name]" with field details for modifications
-  - Shows "[Object] '[name]' already up to date" when no changes needed
+    - Shows "Created [object]: [name]" for new objects
+    - Shows "Updated [object]: [name]" with field details for modifications
+    - Shows "[Object] '[name]' already up to date" when no changes needed
 
 ### Improved
 
 - **Performance**: Reduced unnecessary API calls through change detection
-  - Avoids redundant updates when objects haven't changed
-  - Faster execution for bulk operations on existing configurations
-
-- **User Experience**: Clear visibility into what operations are being performed
-  - Detailed logging of field-level changes
-  - Informative messages about actions taken or skipped
-
-### Technical Details
-
-- **SDK Client Enhancement**: Updated all CRUD methods to support smart upsert logic
-  - Enhanced `create_service_connection()` and `create_remote_network()` methods
-  - Consistent field comparison and change detection algorithms
-  - Robust error handling for edge cases
-
-- **Deployment Integration**: Successfully merged ~4785 insertions from main branch
-  - Preserved formatting branch improvements
-  - Applied smart upsert pattern to new SASE functionality
-  - Maintained backward compatibility
+- **User Experience**: Clear visibility into what operations are being performed with detailed logging
 
 ### Examples
 
 #### Smart Upsert in Action
+
 ```bash
 # First run - creates new service connection
-scm set sase service-connection --name test-sc --ipsec-tunnel tunnel-1 --region us-east-1
-# Output: Created service connection: test-sc
+$ scm set sase service-connection \
+    --name test-sc \
+    --ipsec-tunnel tunnel-1 \
+    --region us-east-1
+---> 100%
+Created service connection: test-sc
 
 # Second run with same parameters - no changes needed
-scm set sase service-connection --name test-sc --ipsec-tunnel tunnel-1 --region us-east-1
-# Output: Service connection 'test-sc' already up to date
+$ scm set sase service-connection \
+    --name test-sc \
+    --ipsec-tunnel tunnel-1 \
+    --region us-east-1
+---> 100%
+Service connection 'test-sc' already up to date
 
-# Third run with different protocol - updates only changed field
-scm set sase service-connection --name test-sc --ipsec-tunnel tunnel-1 --region us-east-1 --bgp-enable
-# Output: Updated service connection: test-sc
-# Log: Updating service connection fields: protocol
-```
-
-#### Object Management
-```bash
-# Apply changes only when needed
-scm set object service --folder Texas --name web-service --protocol tcp --port 80
-# Output: Created service: web-service
-
-# Subsequent identical calls show no action taken
-scm set object service --folder Texas --name web-service --protocol tcp --port 80  
-# Output: Service 'web-service' already up to date
+# Third run with different parameter - updates only changed field
+$ scm set sase service-connection \
+    --name test-sc \
+    --ipsec-tunnel tunnel-1 \
+    --region us-east-1 \
+    --bgp-enable
+---> 100%
+Updated service connection: test-sc
 ```
 
 ## Version 0.4.1
@@ -124,180 +102,85 @@ scm set object service --folder Texas --name web-service --protocol tcp --port 8
 ### Added
 
 - **Lazy Client Initialization**: SDK client is now initialized only when needed
-  - Significantly faster CLI startup for commands that don't require API access (e.g., `--help`)
-  - Improved resource efficiency for scripting and automation
-  - Better error isolation - authentication errors only occur during actual API usage
+    - Faster CLI startup for commands that don't require API access (e.g., `--help`)
+    - Improved resource efficiency for scripting and automation
 
 - **Enhanced Authentication Error Handling**: Graceful handling of authentication failures
-  - Specific detection for `InvalidClientError` from OAuth library
-  - Clear, actionable error messages with context information
-  - Shows current context, client ID, and TSG ID (with client secret masked)
-  - Provides exact command to fix credential issues
+    - Specific detection for `InvalidClientError` from OAuth library
+    - Clear, actionable error messages with context information
+    - Provides exact command to fix credential issues
 
 ### Changed
 
 - **CLI Command Syntax**: Unified all object-related commands to use singular form
-  - Changed from `scm <action> objects <type>` to `scm <action> object <type>`
-  - Affects all object commands: address, address-group, application, service, tag, etc.
-  - **Migration**: Update scripts to use `object` instead of `objects`
-  - Example: `scm show objects address` → `scm show object address`
+    - Changed from `scm <action> objects <type>` to `scm <action> object <type>`
+    - **Migration**: Update scripts to use `object` instead of `objects`
 
 - **Deployment Module Renamed**: Changed from "deployment" to "sase" for clarity
-  - All deployment commands now use `scm <action> sase <resource>`
-  - Better reflects the SASE-specific nature of these resources
-  - **Migration**: Update scripts using `deployment` to use `sase`
+    - All deployment commands now use `scm <action> sase <resource>`
+    - **Migration**: Update scripts using `deployment` to use `sase`
 
 ### Improved
 
 - **Cleaner Output**: Suppressed verbose authentication logging from SDK and OAuth libraries
-  - Removed noisy debug messages during authentication
-  - Log levels set to CRITICAL for `scm.auth` and `oauthlib` loggers
-  - Cleaner, more professional output for end users
-
-- **Context Test Command**: Enhanced error handling and feedback
-  - Better detection of invalid credentials
-  - Clear success/failure indicators with emojis (✓/❌)
-  - Actionable guidance for troubleshooting
+- **Context Test Command**: Enhanced error handling and feedback with clear success/failure indicators
 
 ### Fixed
 
 - **Address Creation Without Description**: Fixed validation error when creating addresses without providing a description
-  - API previously rejected empty strings for description field
-  - Now correctly handles None values and omits empty description fields from API requests
-  - Allows users to create objects without specifying description parameter
-  - Maintains backward compatibility for existing scripts
-
-### Technical Details
-
-- Implemented `LazyClient` wrapper class that delays SDK initialization
-- Enhanced `_handle_api_exception()` method with specific error detection
-- Improved logging configuration for cleaner output
-- Added hardcoded folder constraints for Service Connections and Remote Networks
-- Updated all documentation to reflect new command syntax
-- Modified SDK client methods to properly handle None/empty description fields
 
 ### Examples
 
-#### SASE Commands
-```bash
-# Service Connections
-scm set sase service-connection --name datacenter-1 --auto_vpn_monitor_enabled
-scm show sase service-connection --name datacenter-1
-scm list sase service-connections
-scm backup sase service-connections
-
-# Remote Networks
-scm set sase remote-network --name branch-1 --region us-east-1
-scm show sase remote-network --name branch-1
-scm list sase remote-networks
-scm backup sase remote-networks
-```
-
 #### Object Commands (New Syntax)
-```bash
-# Old syntax (no longer supported)
-scm show objects address --folder Texas
 
+```bash
 # New syntax
-scm show object address --folder Texas
-scm set object tag --folder Texas --name production --color Red
-scm backup object service --folder Texas
+$ scm show object address --folder Texas
+$ scm set object tag --folder Texas --name production --color Red
+$ scm backup object service --folder Texas
 ```
 
-#### Description Field Fix
-```bash
-# Previously this would fail with validation error
-scm set object address --folder Texas --name web-server --ip-netmask 10.1.1.1/32
-# Error: "description" is not allowed to be empty
-
-# Now works correctly without description
-scm set object address --folder Texas --name web-server --ip-netmask 10.1.1.1/32
-# ✅ Created address: web-server in folder Texas
-
-# Still works with description
-scm set object address --folder Texas --name web-server --ip-netmask 10.1.1.1/32 --description "Web server"
-# ✅ Created address: web-server in folder Texas
-```
-
-#### Authentication Error
-```
-❌ Authentication failed: Invalid client credentials
-
-Current context: production
-Client ID: abc123...
-TSG ID: 456789...
-Client Secret: ****
-
-Please check your credentials and try again.
-You can update the context with:
-  scm context create production --client-id <id> --client-secret <secret> --tsg-id <tsg>
-```
-
-## Version 0.4.0 (Unreleased)
+## Version 0.4.0
 
 **Released:** TBD
 
 ### Added
 
-- **Multi-tenant Context Management**: Comprehensive authentication context system for managing multiple SCM tenants
-  - New `scm context` command group with subcommands: create, list, use, delete, show, current, test
-  - Context-based authentication takes precedence over environment variables
-  - Secure credential storage in `~/.scm-cli/contexts/` directory
-  - Seamless Docker integration with volume mounting support
-  - Informational logging shows active context during operations
-  - Test authentication without switching contexts
+- **Multi-tenant Context Management**: Comprehensive authentication context system
+    - New `scm context` command group with subcommands: `create`, `list`, `use`, `delete`, `show`, `current`, `test`
+    - Context-based authentication takes precedence over environment variables
+    - Secure credential storage in `~/.scm-cli/contexts/` directory
+    - Seamless Docker integration with volume mounting support
 
 ### Changed
 
-- **Show Commands Default Behavior**: Updated all `show` commands to make listing the default behavior
-  - Removed the `--list` flag from all show commands across objects, network, security, and deployment modules
-  - When no `--name` parameter is provided, the command now lists all items by default
-  - This change affects all 20+ show commands including addresses, address groups, applications, services, tags, security zones, rules, and more
-  - **Migration**: If you have scripts using `--list`, simply remove the flag - the behavior remains the same
+- **Show Commands Default Behavior**: All `show` commands now list all items by default when no `--name` parameter is provided. The `--list` flag has been removed.
+    - **Migration**: Remove `--list` from existing scripts
 
-- **Authentication Precedence**: Fixed authentication order to prioritize contexts
-  - Active context (set via `scm context use`) now takes precedence
-  - Environment variables can still override for CI/CD scenarios
-  - Removed support for legacy config files (`~/.scm-cli/config.yaml` and `.secrets.yaml`)
-  - **Migration**: Create contexts for your existing configurations using `scm context create`
+- **Authentication Precedence**: Active context now takes precedence; removed support for legacy config files
 
 ### Removed
 
-- **test-auth Command**: Replaced with `scm context test` for enhanced functionality
+- **test-auth Command**: Replaced with `scm context test`
 - **Legacy Config Files**: No longer loads `~/.scm-cli/config.yaml` or `.secrets.yaml`
 
 ### Examples
 
 #### Context Management
+
 ```bash
-# Create a context for production
-scm context create production \
-  --client-id "prod@123456789.iam.panserviceaccount.com" \
-  --client-secret "your-secret" \
-  --tsg-id "123456789"
+$ scm context create production \
+    --client-id "prod@123456789.iam.panserviceaccount.com" \
+    --client-secret "your-secret" \
+    --tsg-id "123456789"
+---> 100%
+✓ Context 'production' created successfully
 
-# Switch to production context
-scm context use production
+$ scm context use production
+✓ Switched to context 'production'
 
-# Test authentication
-scm context test
-
-# Docker integration
-docker run -d --name pan-scm \
-  -v ~/.scm-cli:/home/scmuser/.scm-cli \
-  ghcr.io/cdot65/pan-scm-cli:latest
-```
-
-#### Show Commands
-```bash
-# Old syntax (no longer supported)
-scm show object address --folder Texas --list
-
-# New syntax (lists all by default)
-scm show object address --folder Texas
-
-# Show specific item (unchanged)
-scm show object address --folder Texas --name web-server
+$ scm context test
+✓ Authentication successful!
 ```
 
 ## Version 0.3.39
@@ -307,11 +190,6 @@ scm show object address --folder Texas --name web-server
 ### Fixed
 
 - **Security Rule Move Operation**: Fixed UUID serialization issue in the `.move()` method of `SecurityRule` class
-  - Previously, when a UUID object was passed as `destination_rule` parameter, JSON serialization would fail
-  - Now properly converts UUID objects to strings before sending to the API
-- **Example Scripts**: Added example script for testing security rule move operations
-  - Demonstrates proper handling of UUID serialization
-  - Includes improved error handling for edge cases
 
 ## Version 0.3.22
 
@@ -319,17 +197,11 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **Mobile Agent Features**:
-  - **Agent Versions**: Support for managing GlobalProtect agent versions
-  - **Authentication Settings**: Support for configuring GlobalProtect authentication settings
+- **Mobile Agent Features**: Support for managing GlobalProtect agent versions and authentication settings
 
 ### Fixed
 
-- **API Endpoint Path**: Fixed 404 error in agent_versions API endpoint path by adding missing '/config' prefix
 - **Documentation**: Fixed inconsistencies between code and documentation regarding client service property names
-  - Corrected references from `client.auth_settings` to `client.auth_setting`
-  - Corrected references from `client.agent_versions` to `client.agent_version`
-  - Updated code examples to use correct API client attribute names
 
 ## Version 0.3.21
 
@@ -337,11 +209,10 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **Prisma Access Features**:
-  - **Bandwidth Allocations**: Support for managing bandwidth allocation across service provider networks (SPNs)
-  - **BGP Routing**: Support for configuring and managing BGP routing
-  - **Internal DNS Servers**: Support for configuring internal DNS servers
-  - **Network Locations**: Support for managing network locations
+- **Bandwidth Allocations**: Support for managing bandwidth allocation across service provider networks
+- **BGP Routing**: Support for configuring and managing BGP routing
+- **Internal DNS Servers**: Support for configuring internal DNS servers
+- **Network Locations**: Support for managing network locations
 
 ## Version 0.3.20
 
@@ -349,10 +220,7 @@ scm show object address --folder Texas --name web-server
 
 ### Fixed
 
-- **Security Zone**: Added temporary workaround for inconsistent API response format in the `fetch()` method
-  - Now supports both direct object response format and list-style data array format
-  - Ensures backward compatibility when API format is corrected
-  - Comprehensive test coverage for both response formats
+- **Security Zone**: Added workaround for inconsistent API response format in the `fetch()` method
 
 ## Version 0.3.19
 
@@ -360,7 +228,7 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **NAT Rules**: Support for managing tags not named "Automation" and "Decryption". Oof.
+- **NAT Rules**: Support for managing NAT rules
 
 ## Version 0.3.18
 
@@ -368,17 +236,7 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **Service Connections**: Support for managing Service Connection objects
-  - Create, retrieve, update, and delete service connections
-  - Filter service connections by name and other attributes
-  - Integration with the unified client interface
-  - Automatic validation of input parameters
-  - Full pagination support with configurable limits
-
-### Improved
-
-- **Code Quality**: Enhanced validation for API parameters
-- **Documentation**: Added comprehensive Service Connection documentation and usage examples
+- **Service Connections**: Support for managing Service Connection objects with full CRUD, pagination, and validation
 
 ## Version 0.3.17
 
@@ -397,12 +255,10 @@ scm show object address --folder Texas --name web-server
 ### Added
 
 - **Security Zone**: Support for managing Security Zones
-- **Examples**: Added examples for each of the objects and network service files
 
 ### Fixed
 
-- **Custom Token URL Support**: Fixed issue where `token_url` parameter defined in `AuthRequestModel` wasn't exposed through the `Scm` and `ScmClient` constructors. Users can now specify custom OAuth token endpoints when initializing the client.
-- **Documentation Updates**: Added comprehensive documentation for the `token_url` parameter
+- **Custom Token URL Support**: Fixed issue where `token_url` parameter was not exposed through constructors
 
 ## Version 0.3.15
 
@@ -420,15 +276,8 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **Unified Client Interface**: New attribute-based access pattern for services (e.g., `client.address.create()` instead of creating separate service instances)
-- **ScmClient Class**: Added as an alias for the Scm class with identical functionality but more descriptive name
-- **Comprehensive Tests**: Added test suite for the unified client functionality
-- **Enhanced Documentation**: Updated documentation to showcase both traditional and unified client patterns
-
-### Improved
-
-- **Developer Experience**: Streamlined API usage with fewer imports and less code
-- **Token Refresh Handling**: Unified token refresh across all service operations
+- **Unified Client Interface**: New attribute-based access pattern for services
+- **ScmClient Class**: Added as an alias for the Scm class
 
 ## Version 0.3.13
 
@@ -453,7 +302,7 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **Commit Enhancement**: Support for passing the string value of "all" to a commit to specify all admin users
+- **Commit Enhancement**: Support for passing "all" to a commit to specify all admin users
 
 ## Version 0.3.10
 
@@ -461,7 +310,7 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **Security Rule Enhancement**: Support for new security rule types of SWG by allowing the `device` field to be either string or dictionary
+- **Security Rule Enhancement**: Support for new security rule types of SWG
 
 ## Version 0.3.9
 
@@ -478,7 +327,7 @@ scm show object address --folder Texas --name web-server
 ### Added
 
 - **Remote Networks**: Support for managing remote networks
-- **SASE API Integration**: First time leveraging SASE APIs until Remote Network endpoints for SCM API are working properly
+- **SASE API Integration**: First time leveraging SASE APIs
 
 ## Version 0.3.7
 
@@ -495,7 +344,7 @@ scm show object address --folder Texas --name web-server
 ### Added
 
 - **Pagination**: Auto-pagination when using the `list()` method
-- **Request Control**: Support for controlling the maximum amount of objects returned in a request (default: 2500, max: 5000)
+- **Request Control**: Support for controlling the maximum number of objects returned (default: 2500, max: 5000)
 
 ## Version 0.3.5
 
@@ -503,7 +352,7 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **Advanced Filtering**: Support for performing advanced filtering capabilities
+- **Advanced Filtering**: Support for advanced filtering capabilities
 
 ## Version 0.3.4
 
@@ -512,7 +361,7 @@ scm show object address --folder Texas --name web-server
 ### Added
 
 - **External Dynamic Lists**: Support for managing External Dynamic Lists
-- **Auto Tag Actions**: Support for Auto Tag Actions (not yet supported by API)
+- **Auto Tag Actions**: Support for Auto Tag Actions
 
 ## Version 0.3.3
 
@@ -546,8 +395,8 @@ scm show object address --folder Texas --name web-server
 ### Added
 
 - **Tag Objects**: Support for managing tag objects
-- **Model Integration**: `fetch()` returns a Pydantic modeled object now
-- **Model Update**: `update()` supports passing of Pydantic modeled objects
+- **Model Integration**: `fetch()` returns a Pydantic modeled object
+- **Model Update**: `update()` supports passing Pydantic modeled objects
 
 ### Changed
 
@@ -564,10 +413,7 @@ scm show object address --folder Texas --name web-server
 
 ### Fixed
 
-- **Typer Compatibility**: Upgraded Typer from 0.11.1 to 0.15.2
-  - Fixed compatibility issues with Python 3.10+ type annotations (`|` union operator)
-  - Resolved `RuntimeError: Type not yet supported: list[str] | None` error when running CLI commands
-  - Improved overall CLI stability with modern Python type hints
+- **Typer Compatibility**: Upgraded Typer from 0.11.1 to 0.15.2, fixing compatibility issues with Python 3.10+ type annotations
 
 ## Version 0.2.0
 
@@ -581,7 +427,6 @@ scm show object address --folder Texas --name web-server
 ### Changed
 
 - **Update Methods**: Refactored update methods to use `data['id']` directly
-- **Error Handling**: Improved error type extraction logic in client
 - **Model Architecture**: Refactored Address models for separate base, create, update, and response logic
 
 ## Version 0.1.17
@@ -590,7 +435,7 @@ scm show object address --folder Texas --name web-server
 
 ### Added
 
-- **Rule Movement**: Added `move` method to enable moving security rules within the rule base
+- **Rule Movement**: Added `move` method for moving security rules within the rule base
 
 ## Version 0.1.16
 
@@ -688,10 +533,6 @@ scm show object address --folder Texas --name web-server
 
 - **Address Groups**: Support for Address Groups
 
-### Improved
-
-- **Documentation**: Updated the mkdocs site
-
 ## Version 0.1.4
 
 **Released:** November 12, 2024
@@ -700,10 +541,6 @@ scm show object address --folder Texas --name web-server
 
 - **Services**: Support for Services
 
-### Improved
-
-- **Documentation**: Updated the mkdocs site
-
 ## Version 0.1.3
 
 **Released:** November 8, 2024
@@ -711,10 +548,6 @@ scm show object address --folder Texas --name web-server
 ### Added
 
 - **Applications**: Support for Applications
-
-### Improved
-
-- **Documentation**: Revamped README and mkdocs site
 
 ## Version 0.1.2
 

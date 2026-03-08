@@ -1,111 +1,128 @@
-# Contributing to `pan-scm-cli`
+# Contributing
 
-We're thrilled that you're interested in contributing to the `pan-scm-cli` project! Your contributions are essential for
-making this project better and more effective. Whether you're fixing a bug, adding a new command, improving the
-documentation, or just giving suggestions, every contribution is valuable.
-
----
+Contributions to `pan-scm-cli` are welcome and appreciated. Whether you are fixing a bug, adding a feature, improving documentation, or providing suggestions, every contribution is valuable.
 
 ## Getting Started
 
-Before you begin, make sure you have a GitHub account and are familiar with Git and GitHub workflows. If you're new to
-these tools, you might want to check out some tutorials on [GitHub's Help pages](https://help.github.com).
+Before you begin, make sure you have a GitHub account and are familiar with Git and GitHub workflows. If you are new to these tools, check out [GitHub's Help pages](https://help.github.com).
 
 ### Setting Up Your Environment
 
-1. **Fork the Repository**: Start by forking the [pan-scm-cli repository](https://github.com/cdot65/pan-scm-cli) to your
-   GitHub account.
+#### Fork and Clone
 
-2. **Clone Your Fork**: Clone your fork to your local machine.
+```bash
+$ git clone https://github.com/YOUR_USERNAME/pan-scm-cli.git
+$ cd pan-scm-cli
+```
 
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/pan-scm-cli.git
-   cd pan-scm-cli
-   ```
+#### Install Dependencies
 
-3. **Set Up Poetry Environment**: We use [Poetry](https://python-poetry.org/) for dependency management. If you don't have it installed, follow the instructions on the Poetry website.
+The project uses [Poetry](https://python-poetry.org/) for dependency management:
 
-   ```bash
-   poetry install
-   ```
+```bash
+poetry install
+```
 
-4. **Create a Branch**: Create a branch for your changes.
+#### Create a Branch
 
-   ```bash
-   git checkout -b your-feature-branch
-   ```
+Create a branch for your changes:
+
+```bash
+git checkout -b your-feature-branch
+```
 
 ## Contributing Guidelines
 
 ### Code Style
 
-We follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) standards for Python code. Please ensure your code adheres to these standards.
+The project follows [PEP 8](https://www.python.org/dev/peps/pep-0008/) standards for Python code. Refer to the style guides in the `.claude/` directory for project-specific conventions:
+
+- `.claude/STYLE_GUIDE.md` for command modules and general standards
+- `.claude/SDK_CLIENT_STYLE_GUIDE.md` for SDK client patterns
+- `.claude/VALIDATORS_STYLE_GUIDE.md` for validator patterns
 
 ### Pull Request Process
 
-1. **Update Your Fork**: Before making changes, sync your fork with the upstream repository.
+1. **Update Your Fork**: Sync your fork with the upstream repository before making changes.
 
-   ```bash
-   git remote add upstream https://github.com/cdot65/pan-scm-cli.git
-   git fetch upstream
-   git checkout main
-   git merge upstream/main
-   ```
+    ```bash
+    git remote add upstream https://github.com/cdot65/pan-scm-cli.git
+    git fetch upstream
+    git checkout main
+    git merge upstream/main
+    ```
 
-2. **Make Your Changes**: Create your feature branch and make your changes. Ensure that your code passes all tests and linting checks.
+2. **Make Your Changes**: Create your feature branch and make changes. Ensure your code passes all tests and linting checks.
 
-3. **Commit Your Changes**: Commit your changes with a clear and descriptive commit message.
+3. **Commit Your Changes**: Use a clear and descriptive commit message.
 
-   ```bash
-   git commit -m "Add feature: your feature description"
-   ```
+    ```bash
+    git commit -m "Add feature: your feature description"
+    ```
 
 4. **Push to Your Fork**: Push your changes to your fork on GitHub.
 
-   ```bash
-   git push origin your-feature-branch
-   ```
+    ```bash
+    git push origin your-feature-branch
+    ```
 
 5. **Create a Pull Request**: Go to the [pan-scm-cli repository](https://github.com/cdot65/pan-scm-cli) and create a new pull request from your feature branch.
 
-6. **Address Review Feedback**: Respond to any feedback from the review process and make necessary changes.
+6. **Address Review Feedback**: Respond to any feedback and make necessary changes.
 
-### Testing
+### Running Tests
 
-Please include appropriate tests for your changes. We use `pytest` for testing.
+The project uses `pytest` for testing:
 
 ```bash
 poetry run pytest
 ```
 
+Run a specific test:
+
+```bash
+poetry run pytest tests/test_specific.py::test_name
+```
+
+### Running Quality Checks
+
+Run all quality checks before submitting a pull request:
+
+```bash
+make quality
+```
+
+This runs linting, formatting, type checking, and tests.
+
 ### Documentation
 
-If you're adding or modifying functionality, please update the documentation to reflect these changes. We use [MkDocs](https://www.mkdocs.org/) with the [Material theme](https://squidfunk.github.io/mkdocs-material/) for our documentation.
+If you are adding or modifying functionality, update the documentation to reflect the changes. The project uses [MkDocs](https://www.mkdocs.org/) with the [Material theme](https://squidfunk.github.io/mkdocs-material/).
 
-You can preview your documentation changes locally by running:
+Preview documentation changes locally:
 
 ```bash
 poetry run mkdocs serve
 ```
 
+!!! tip
+    Follow the documentation style guide in `.claude/skills/docs-style/SKILL.md`
+    when writing or modifying documentation pages.
+
 ## Adding New Commands
 
 When adding new CLI commands:
 
-1. Follow the existing command structure patterns
-2. Ensure proper input validation
-3. Include helpful error messages
-4. Document the command with examples
-5. Add tests for the new command
+1. **Follow existing patterns** in the appropriate command module under `src/scm_cli/commands/`
+2. **Add Pydantic validators** in `utils/validators.py` if needed
+3. **Register the command** in `main.py`
+4. **Include helpful error messages** and proper input validation
+5. **Add tests** in `tests/`
+6. **Document the command** with examples in `docs/cli/`
 
 ## Bug Reports and Feature Requests
 
-If you find a bug or have a feature request, please create an issue on the [GitHub repository](https://github.com/cdot65/pan-scm-cli/issues) using the provided templates.
+If you find a bug or have a feature request, create an issue on the [GitHub repository](https://github.com/cdot65/pan-scm-cli/issues) using the provided templates.
 
 ## Code of Conduct
 
-Please note that this project adheres to a Code of Conduct. By participating, you are expected to uphold this code.
-
----
-
-Thank you for contributing to `pan-scm-cli`! Your efforts help make this tool better for everyone.
+This project adheres to a Code of Conduct. By participating, you are expected to uphold this code.
