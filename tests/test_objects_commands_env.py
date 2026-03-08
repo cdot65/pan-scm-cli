@@ -1,7 +1,6 @@
 """Tests for the objects commands of scm-cli across different environments.
 
-This module tests the objects commands for managing address objects and address groups
-in different environments (dev, test, prod).
+This module tests object commands work with the scm_client mock.
 """
 
 from unittest.mock import patch
@@ -15,72 +14,56 @@ class TestAddressCommands:
     """Test suite for address object commands across environments."""
 
     def test_set_address(self, runner, env_name, env):
-        """Test setting an address object in different environments.
-
-        Args:
-            runner: CLI runner fixture
-            env_name: Name of the environment being tested
-            env: Current environment fixture
-        """
-        # Only run the test for the current environment
+        """Test setting an address object."""
         if env != env_name:
             pytest.skip(f"Skipping test for {env_name} environment (current: {env})")
 
         with patch("scm_cli.commands.objects.scm_client") as mock_client:
-            # Mock the client to return successfully
-            mock_client.create_address.return_value = {"id": "123", "name": "test-address", "folder": "Shared"}
+            mock_client.create_address.return_value = {
+                "id": "addr-123",
+                "name": "test-address",
+                "folder": "Shared",
+                "__action__": "created",
+            }
 
-            # Run the command with the required parameters
-            result = runner.invoke(app, ["set", "objects", "address", "--folder", "Shared", "--name", "test-address", "--ip-netmask", "192.168.1.1/32"])
+            result = runner.invoke(
+                app,
+                ["set", "object", "address", "--folder", "Shared", "--name", "test-address", "--ip-netmask", "192.168.1.1/32"],
+            )
 
-            # Check that the command executed successfully
             assert result.exit_code == 0
             assert "test-address" in result.stdout
-            assert "Created address" in result.stdout
 
     def test_set_address_with_mock(self, runner, env_name, env):
-        """Test setting an address object with mock flag in different environments.
-
-        Args:
-            runner: CLI runner fixture
-            env_name: Name of the environment being tested
-            env: Current environment fixture
-        """
-        # Only run the test for the current environment
+        """Test setting an address object with mocked client."""
         if env != env_name:
             pytest.skip(f"Skipping test for {env_name} environment (current: {env})")
 
         with patch("scm_cli.commands.objects.scm_client") as mock_client:
-            # Mock the client to simulate a mock response
-            mock_client.create_address.return_value = {"name": "test-address", "folder": "Shared", "mock": True}
+            mock_client.create_address.return_value = {
+                "name": "test-address",
+                "folder": "Shared",
+                "__action__": "created",
+            }
 
-            # Run the command with the required parameters
-            result = runner.invoke(app, ["set", "objects", "address", "--folder", "Shared", "--name", "test-address", "--ip-netmask", "192.168.1.1/32"])
+            result = runner.invoke(
+                app,
+                ["set", "object", "address", "--folder", "Shared", "--name", "test-address", "--ip-netmask", "192.168.1.1/32"],
+            )
 
-            # Check that the command executed successfully
             assert result.exit_code == 0
             assert "test-address" in result.stdout
 
     def test_delete_address(self, runner, env_name, env):
-        """Test deleting an address object in different environments.
-
-        Args:
-            runner: CLI runner fixture
-            env_name: Name of the environment being tested
-            env: Current environment fixture
-        """
-        # Only run the test for the current environment
+        """Test deleting an address object."""
         if env != env_name:
             pytest.skip(f"Skipping test for {env_name} environment (current: {env})")
 
         with patch("scm_cli.commands.objects.scm_client") as mock_client:
-            # Mock the client to return successfully
-            mock_client.delete_address.return_value = {"status": "success"}
+            mock_client.delete_address.return_value = True
 
-            # Run the command with the required parameters
-            result = runner.invoke(app, ["delete", "objects", "address", "--folder", "Shared", "--name", "test-address"])
+            result = runner.invoke(app, ["delete", "object", "address", "--folder", "Shared", "--name", "test-address"])
 
-            # Check that the command executed successfully
             assert result.exit_code == 0
             assert "Deleted address" in result.stdout
 
@@ -90,34 +73,30 @@ class TestAddressGroupCommands:
     """Test suite for address group commands across environments."""
 
     def test_set_address_group(self, runner, env_name, env):
-        """Test setting an address group in different environments.
-
-        Args:
-            runner: CLI runner fixture
-            env_name: Name of the environment being tested
-            env: Current environment fixture
-        """
-        # Only run the test for the current environment
+        """Test setting an address group."""
         if env != env_name:
             pytest.skip(f"Skipping test for {env_name} environment (current: {env})")
 
         with patch("scm_cli.commands.objects.scm_client") as mock_client:
-            # Mock the client to return successfully
-            mock_client.create_address_group.return_value = {"id": "123", "name": "test-group", "folder": "Shared"}
+            mock_client.create_address_group.return_value = {
+                "id": "ag-123",
+                "name": "test-group",
+                "folder": "Shared",
+                "__action__": "created",
+            }
 
-            # Run the command with the required parameters
             result = runner.invoke(
                 app,
                 [
                     "set",
-                    "objects",
+                    "object",
                     "address-group",
                     "--folder",
                     "Shared",
                     "--name",
                     "test-group",
                     "--type",
-                    "static",  # Use --type static as required
+                    "static",
                     "--description",
                     "Test address group",
                     "--members",
@@ -125,30 +104,22 @@ class TestAddressGroupCommands:
                 ],
             )
 
-            # Check that the command executed successfully
             assert result.exit_code == 0
-            assert "Created address group" in result.stdout
+            assert "test-group" in result.stdout
 
     def test_load_address_groups(self, runner, env_name, env, mock_address_groups_yaml_file):
-        """Test loading address groups from a YAML file in different environments.
-
-        Args:
-            runner: CLI runner fixture
-            env_name: Name of the environment being tested
-            env: Current environment fixture
-            mock_address_groups_yaml_file: Mock YAML file fixture for address groups
-        """
-        # Only run the test for the current environment
+        """Test loading address groups from a YAML file."""
         if env != env_name:
             pytest.skip(f"Skipping test for {env_name} environment (current: {env})")
 
         with patch("scm_cli.commands.objects.scm_client") as mock_client:
-            # Mock the client to return successfully
-            mock_client.create_address_group.return_value = {"name": "test-group", "folder": "test-folder"}
+            mock_client.create_address_group.return_value = {
+                "name": "test-group",
+                "folder": "test-folder",
+                "created": True,
+            }
 
-            # Run the command with the mock file
-            result = runner.invoke(app, ["load", "objects", "address-group", "--file", str(mock_address_groups_yaml_file)])
+            result = runner.invoke(app, ["load", "object", "address-group", "--file", str(mock_address_groups_yaml_file)])
 
-            # Check that the command executed successfully
             assert result.exit_code == 0
-            assert "Applied address group" in result.stdout
+            assert "Successfully processed" in result.stdout

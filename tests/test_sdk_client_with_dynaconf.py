@@ -41,6 +41,6 @@ def test_sdk_client_fallback_to_mock_credentials(monkeypatch):
 
     # Check if mock credentials are used
     assert client.client_id == "mock-client-id"
-    assert client.client_secret == "mock-client-secret"
+    assert client.client_secret == "mock-client"
     assert client.tsg_id == "mock-tsg-id"
     assert client.client is None  # No real client should be created

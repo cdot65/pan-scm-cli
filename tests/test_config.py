@@ -11,8 +11,8 @@ def test_load_from_yaml_valid(mock_yaml_file):
     assert "bandwidth_allocations" in config
     assert len(config["bandwidth_allocations"]) == 1
     assert config["bandwidth_allocations"][0]["name"] == "test-allocation"
-    assert config["bandwidth_allocations"][0]["folder"] == "test-folder"
     assert config["bandwidth_allocations"][0]["bandwidth"] == 1000
+    assert config["bandwidth_allocations"][0]["spn_name_list"] == ["spn1"]
     assert config["bandwidth_allocations"][0]["description"] == "Test allocation"
     assert "test" in config["bandwidth_allocations"][0]["tags"]
     assert "example" in config["bandwidth_allocations"][0]["tags"]

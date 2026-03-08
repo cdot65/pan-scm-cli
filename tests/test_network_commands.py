@@ -160,17 +160,11 @@ class TestZoneCommands:
                 "--name",
                 "test-zone",
                 "--mode",
-                "L3",
+                "layer3",
                 "--interfaces",
                 "ethernet1/1",
                 "--interfaces",
                 "ethernet1/2",
-                "--description",
-                "Test zone",
-                "--tags",
-                "test",
-                "--tags",
-                "example",
             ],
         )
 
@@ -202,7 +196,7 @@ class TestZoneCommands:
                 "--name",
                 "test-zone",
                 "--mode",
-                "L3",
+                "layer3",
             ],
         )
 
@@ -283,8 +277,6 @@ class TestZoneCommands:
                 "folder": kwargs.get("folder"),
                 "mode": kwargs.get("mode"),
                 "interfaces": kwargs.get("interfaces", []),
-                "description": kwargs.get("description", ""),
-                "tags": kwargs.get("tags", []),
             }
             created_zones.append(result)
             return result

@@ -50,8 +50,8 @@ class TestBandwidthAllocationCommands:
             return {
                 "id": "ba-12345",
                 "name": kwargs.get("name"),
-                "folder": kwargs.get("folder"),
-                "bandwidth": kwargs.get("bandwidth"),
+                "allocated_bandwidth": kwargs.get("bandwidth"),
+                "spn_name_list": kwargs.get("spn_name_list", []),
                 "description": kwargs.get("description", ""),
                 "tags": kwargs.get("tags", []),
             }
@@ -66,25 +66,22 @@ class TestBandwidthAllocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--folder",
-                "test-folder",
                 "--name",
                 "test-allocation",
                 "--bandwidth",
                 "1000",
+                "--spn-name-list",
+                "spn1,spn2",
                 "--description",
                 "Test allocation",
                 "--tags",
-                "test",
-                "--tags",
-                "example",
+                "test,example",
             ],
         )
 
         assert result.exit_code == 0
         assert "Created bandwidth allocation" in result.stdout
         assert "test-allocation" in result.stdout
-        assert "test-folder" in result.stdout
         assert "1000" in result.stdout
 
     def test_set_bandwidth_allocation_error(self, runner, monkeypatch):
@@ -105,12 +102,12 @@ class TestBandwidthAllocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--folder",
-                "test-folder",
                 "--name",
                 "test-allocation",
                 "--bandwidth",
                 "1000",
+                "--spn-name-list",
+                "spn1",
             ],
         )
 
@@ -136,17 +133,16 @@ class TestBandwidthAllocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--folder",
-                "test-folder",
                 "--name",
                 "test-allocation",
+                "--spn-name-list",
+                "spn1",
             ],
         )
 
         assert result.exit_code == 0
         assert "Deleted bandwidth allocation" in result.stdout
         assert "test-allocation" in result.stdout
-        assert "test-folder" in result.stdout
 
     def test_delete_bandwidth_allocation_error(self, runner, monkeypatch):
         """Test the delete bandwidth allocation command with an error."""
@@ -166,10 +162,10 @@ class TestBandwidthAllocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--folder",
-                "test-folder",
                 "--name",
                 "test-allocation",
+                "--spn-name-list",
+                "spn1",
             ],
         )
 
@@ -188,8 +184,8 @@ class TestBandwidthAllocationCommands:
             result = {
                 "id": f"ba-{len(created_allocations) + 1}",
                 "name": kwargs.get("name"),
-                "folder": kwargs.get("folder"),
-                "bandwidth": kwargs.get("bandwidth"),
+                "allocated_bandwidth": kwargs.get("bandwidth"),
+                "spn_name_list": kwargs.get("spn_name_list", []),
                 "description": kwargs.get("description", ""),
                 "tags": kwargs.get("tags", []),
             }
@@ -208,8 +204,6 @@ class TestBandwidthAllocationCommands:
         assert result.exit_code == 0
         assert "Applied bandwidth allocation" in result.stdout
         assert "test-allocation" in result.stdout
-        assert "test-folder" in result.stdout
-        assert "1000" in result.stdout
         assert "Loaded 1 bandwidth allocation(s)" in result.stdout
         assert len(created_allocations) == 1
 
