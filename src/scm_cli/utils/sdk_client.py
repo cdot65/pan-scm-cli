@@ -4461,6 +4461,255 @@ class SCMClient:
                 e,
             )
 
+    # Schedules ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_schedule(
+        self,
+        schedule_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Create or update a schedule using smart upsert logic.
+
+        Args:
+            schedule_data: The schedule data
+
+        Returns:
+            Created/updated schedule data
+
+        """
+        # Determine container (folder, snippet, or device)
+        container_fields = ["folder", "snippet", "device"]
+        container_field = None
+        container_value = None
+
+        for field in container_fields:
+            if field in schedule_data and schedule_data[field] is not None:
+                container_field = field
+                container_value = schedule_data[field]
+                break
+
+        if not container_field:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        # Return mock data if no client
+        if not self.client:
+            return schedule_data
+
+        # Check if the schedule already exists
+        existing_schedule = None
+        try:
+            existing_schedule = self.client.schedule.fetch(name=schedule_data["name"], **{container_field: container_value})
+            self.logger.info(f"Found existing schedule '{schedule_data['name']}' in {container_field} '{container_value}'")
+        except NotFoundError:
+            self.logger.info(f"Schedule '{schedule_data['name']}' not found in {container_field} '{container_value}', will create new")
+        except Exception as e:
+            self.logger.warning(f"Error fetching schedule '{schedule_data['name']}': {str(e)}")
+
+        if existing_schedule:
+            # Check what needs updating
+            needs_update = False
+            update_fields = []
+
+            # Compare schedule_type
+            if "schedule_type" in schedule_data:
+                existing_data = json.loads(existing_schedule.model_dump_json(exclude_unset=True))
+                if existing_data.get("schedule_type") != schedule_data["schedule_type"]:
+                    existing_schedule.schedule_type = schedule_data["schedule_type"]
+                    update_fields.append("schedule_type")
+                    needs_update = True
+
+            if needs_update:
+                self.logger.info(f"Updating schedule fields: {', '.join(update_fields)}")
+                try:
+                    updated = existing_schedule.update()
+                    self.logger.info(f"Successfully updated schedule '{schedule_data['name']}' in {container_field} '{container_value}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                except Exception as update_error:
+                    self._handle_api_exception("update", container_value or "unknown", f"schedule '{schedule_data['name']}'", update_error)
+            else:
+                self.logger.info(f"No changes detected for schedule '{schedule_data['name']}', skipping update")
+                result = json.loads(existing_schedule.model_dump_json(exclude_unset=True))
+                result["__action__"] = "no_change"
+                return result
+        else:
+            # Create new schedule
+            try:
+                created = self.client.schedule.create(schedule_data)
+                self.logger.info(f"Created new schedule '{schedule_data['name']}' in {container_field} '{container_value}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+            except Exception as create_error:
+                self._handle_api_exception(
+                    "creating",
+                    str(container_value),
+                    f"schedule '{schedule_data['name']}'",
+                    create_error,
+                )
+
+    def delete_schedule(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> None:
+        """Delete a schedule.
+
+        Args:
+            name: Name of the schedule to delete
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        """
+        if not self.client:
+            self.logger.info(f"[Mock Mode] Would delete schedule: {name}")
+            return
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            # First, fetch the schedule to get its ID
+            schedule = self.client.schedule.fetch(name=name, **container_kwargs)
+            self.client.schedule.delete(str(schedule.id))
+            self.logger.info(f"Deleted schedule: {name}")
+        except Exception as e:
+            self._handle_api_exception("deleting", folder or snippet or device or "", f"schedule '{name}'", e)
+
+    def get_schedule(
+        self,
+        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Get a specific schedule.
+
+        Args:
+            name: Name of the schedule to retrieve
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+
+        Returns:
+            Schedule data or None if not found
+
+        """
+        if not self.client:
+            return {
+                "id": "schedule-mock",
+                "name": name,
+                "folder": folder or "ngfw-shared",
+                "schedule_type": {
+                    "recurring": {
+                        "daily": ["09:00-17:00"],
+                    },
+                },
+            }
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        else:
+            raise ValueError("One of 'folder', 'snippet', or 'device' must be specified")
+
+        try:
+            result = self.client.schedule.fetch(name=name, **container_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except NotFoundError:
+            self.logger.warning(f"Schedule '{name}' not found")
+            return None
+        except Exception as e:
+            self._handle_api_exception("retrieving", folder or snippet or device or "", f"schedule '{name}'", e)
+
+    def list_schedules(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List schedules in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return exact matches
+
+        Returns:
+            List of schedules
+
+        """
+        if not self.client:
+            return [
+                {
+                    "id": "schedule-mock1",
+                    "folder": folder or "ngfw-shared",
+                    "name": "BusinessHours",
+                    "schedule_type": {
+                        "recurring": {
+                            "daily": ["09:00-17:00"],
+                        },
+                    },
+                },
+                {
+                    "id": "schedule-mock2",
+                    "folder": folder or "ngfw-shared",
+                    "name": "Weekends",
+                    "schedule_type": {
+                        "recurring": {
+                            "weekly": {
+                                "saturday": ["00:00-23:59"],
+                                "sunday": ["00:00-23:59"],
+                            },
+                        },
+                    },
+                },
+                {
+                    "id": "schedule-mock3",
+                    "folder": folder or "ngfw-shared",
+                    "name": "MaintenanceWindow",
+                    "schedule_type": {
+                        "non_recurring": ["2026/03/15@02:00-2026/03/15@06:00"],
+                    },
+                },
+            ]
+
+        # Determine container
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            # List schedules using the SDK
+            results = self.client.schedule.list(exact_match=exact_match, **container_kwargs)
+
+            # Convert SDK response to the list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or snippet or device or "", "schedules", e)
+
     # Tags ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_tag(
@@ -5863,7 +6112,7 @@ class SCMClient:
 
         """
         logger.info(f"Listing alerts (will return up to {max_results} after sorting)")
-        
+
         # Always fetch more alerts than requested to ensure we get the most recent ones
         # The API might return alerts in arbitrary order, so we need to fetch enough
         # to ensure we capture recent alerts before sorting
@@ -5963,7 +6212,7 @@ class SCMClient:
                         "impacted_resources": alert_data.get("impacted_resources") or alert_data.get("primary_impacted_objects", []),
                         "metadata": alert_data.get("metadata") or alert_data.get("resource_context"),
                     }
-                    
+
                     # Remove empty fields for cleaner output
                     alert = self._remove_empty_fields(alert)
 
@@ -5986,7 +6235,7 @@ class SCMClient:
 
                 # Sort alerts by timestamp (newest first)
                 alerts.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
-                
+
                 # Limit to the requested number of results
                 return alerts[:max_results]
 

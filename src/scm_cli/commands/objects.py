@@ -26,6 +26,7 @@ from ..utils.validators import (
     HIPProfile,
     HTTPServerProfile,
     LogForwardingProfile,
+    Schedule,
     Service,
     ServiceGroup,
     SyslogServerProfile,
@@ -351,6 +352,20 @@ BACKUP_FILE_OPTION = typer.Option(
     "--file",
     help="Output file path (optional, defaults to {type}-{location}.yaml)",
 )
+
+# Schedule-specific options
+SCHEDULE_TIME_RANGE_OPTION = typer.Option(
+    None,
+    "--time-range",
+    help="Time ranges (e.g., 09:00-17:00 for daily, YYYY/MM/DD@HH:MM-YYYY/MM/DD@HH:MM for non-recurring)",
+)
+SCHEDULE_MONDAY_OPTION = typer.Option(None, "--monday", help="Time ranges for Monday (weekly only)")
+SCHEDULE_TUESDAY_OPTION = typer.Option(None, "--tuesday", help="Time ranges for Tuesday (weekly only)")
+SCHEDULE_WEDNESDAY_OPTION = typer.Option(None, "--wednesday", help="Time ranges for Wednesday (weekly only)")
+SCHEDULE_THURSDAY_OPTION = typer.Option(None, "--thursday", help="Time ranges for Thursday (weekly only)")
+SCHEDULE_FRIDAY_OPTION = typer.Option(None, "--friday", help="Time ranges for Friday (weekly only)")
+SCHEDULE_SATURDAY_OPTION = typer.Option(None, "--saturday", help="Time ranges for Saturday (weekly only)")
+SCHEDULE_SUNDAY_OPTION = typer.Option(None, "--sunday", help="Time ranges for Sunday (weekly only)")
 
 # Container override options for load commands
 LOAD_FOLDER_OPTION = typer.Option(
@@ -5938,6 +5953,353 @@ def show_syslog_server_profile(
 
     except Exception as e:
         typer.echo(f"Error showing syslog server profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# ========================================================================================================================================================================================
+# SCHEDULE COMMANDS
+# ========================================================================================================================================================================================
+
+
+@backup_app.command("schedule", help="Export schedules to a YAML file.")
+def backup_schedule(
+    folder: str = BACKUP_FOLDER_OPTION,
+    snippet: str = BACKUP_SNIPPET_OPTION,
+    device: str = BACKUP_DEVICE_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+) -> None:
+    """Export schedules from a specified location to a YAML file.
+
+    Examples
+    --------
+        # Backup from a folder
+        scm backup object schedule --folder Austin
+
+        # Backup with custom output file
+        scm backup object schedule --folder Austin --file schedules.yaml
+
+    """
+    try:
+        # Validate location parameters
+        location_type, location_value = validate_location_params(folder, snippet, device)
+
+        # List all schedules based on location type
+        typer.echo(f"Retrieving schedules from {location_type} '{location_value}'...")
+
+        # Build kwargs based on location type
+        kwargs = {location_type: location_value}
+        schedules = scm_client.list_schedules(**kwargs)
+
+        if not schedules:
+            typer.echo(f"No schedules found in {location_type} '{location_value}'", err=True)
+            return
+
+        # Prepare data for export
+        export_data = {"schedules": schedules}
+
+        # Generate filename if not provided
+        filename = Path(file or get_default_backup_filename("schedule", location_type, location_value))
+
+        # Write to file
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with filename.open("w") as f:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(schedules)} schedules to {filename}")
+
+    except Exception as e:
+        typer.echo(f"Error backing up schedules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("schedule", help="Delete a schedule.")
+def delete_schedule(
+    name: str = typer.Argument(..., help="Name of the schedule to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+) -> None:
+    """Delete a schedule."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Retrieve the schedule first to confirm it exists
+        schedule = scm_client.get_schedule(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        if not schedule:
+            typer.echo(f"Schedule '{name}' not found", err=True)
+            raise typer.Exit(code=1)
+
+        # Confirm deletion
+        if not force:
+            confirm = typer.confirm(f"Are you sure you want to delete schedule '{name}'?")
+            if not confirm:
+                typer.echo("Deletion cancelled")
+                raise typer.Exit(code=0)
+
+        # Delete the schedule
+        scm_client.delete_schedule(
+            name=name,
+            folder=folder,
+            snippet=snippet,
+            device=device,
+        )
+
+        container = folder or snippet or device
+        typer.echo(f"Deleted schedule: {name} from {container}")
+
+    except Exception as e:
+        typer.echo(f"❌ Error deleting schedule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("schedule", help="Load schedules from a YAML file.")
+def load_schedule(
+    file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    folder: str = typer.Option(None, "--folder", help="Override folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
+    device: str = typer.Option(None, "--device", help="Override device location"),
+) -> None:
+    """Load schedules from a YAML file."""
+    try:
+        # Validate file exists
+        if not Path(file).exists():
+            typer.echo(f"File not found: {file}", err=True)
+            raise typer.Exit(code=1)
+
+        # Load YAML data
+        with Path(file).open() as f:
+            data = yaml.safe_load(f)
+
+        if not data or "schedules" not in data:
+            typer.echo("No schedules found in file", err=True)
+            raise typer.Exit(code=1)
+
+        schedules = data["schedules"]
+        if not isinstance(schedules, list):
+            schedules = [schedules]
+
+        # Process each schedule
+        created_count = 0
+        for schedule_data in schedules:
+            try:
+                # Create/update the schedule directly (YAML already has SDK format)
+                scm_client.create_schedule(schedule_data)
+
+                created_count += 1
+
+                container = schedule_data.get("folder") or schedule_data.get("snippet") or schedule_data.get("device")
+                typer.echo(f"Created schedule: {schedule_data['name']} in {container}")
+
+            except Exception as e:
+                typer.echo(f"❌ Error processing schedule: {str(e)}", err=True)
+                continue
+
+        typer.echo(f"\n✅ Summary: Processed {created_count} schedules")
+
+    except Exception as e:
+        typer.echo(f"❌ Error loading schedules: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("schedule", help="Create or update a schedule.")
+def set_schedule(
+    name: str = typer.Argument(..., help="Name of the schedule"),
+    schedule_type: str = typer.Option(..., "--schedule-type", help="Schedule type: recurring-daily, recurring-weekly, or non-recurring"),
+    time_ranges: list[str] | None = SCHEDULE_TIME_RANGE_OPTION,
+    days_monday: list[str] | None = SCHEDULE_MONDAY_OPTION,
+    days_tuesday: list[str] | None = SCHEDULE_TUESDAY_OPTION,
+    days_wednesday: list[str] | None = SCHEDULE_WEDNESDAY_OPTION,
+    days_thursday: list[str] | None = SCHEDULE_THURSDAY_OPTION,
+    days_friday: list[str] | None = SCHEDULE_FRIDAY_OPTION,
+    days_saturday: list[str] | None = SCHEDULE_SATURDAY_OPTION,
+    days_sunday: list[str] | None = SCHEDULE_SUNDAY_OPTION,
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Create or update a schedule."""
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        # Build days mapping for weekly schedules
+        days = None
+        if schedule_type == "recurring-weekly":
+            days = {}
+            if days_monday:
+                days["monday"] = days_monday
+            if days_tuesday:
+                days["tuesday"] = days_tuesday
+            if days_wednesday:
+                days["wednesday"] = days_wednesday
+            if days_thursday:
+                days["thursday"] = days_thursday
+            if days_friday:
+                days["friday"] = days_friday
+            if days_saturday:
+                days["saturday"] = days_saturday
+            if days_sunday:
+                days["sunday"] = days_sunday
+
+        # Build schedule data
+        schedule_data: dict[str, Any] = {
+            "name": name,
+            "schedule_type": schedule_type,
+        }
+
+        # Add container
+        if folder:
+            schedule_data["folder"] = folder
+        elif snippet:
+            schedule_data["snippet"] = snippet
+        elif device:
+            schedule_data["device"] = device
+
+        # Add schedule-type-specific fields
+        if time_ranges:
+            schedule_data["time_ranges"] = time_ranges
+        if days:
+            schedule_data["days"] = days
+
+        # Validate with Pydantic model
+        validated_schedule = Schedule(**schedule_data)
+
+        # Convert to SDK format
+        sdk_data = validated_schedule.to_sdk_model()
+
+        # Create/update the schedule
+        result = scm_client.create_schedule(sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        container = folder or snippet or device
+        if action == "created":
+            typer.echo(f"✅ Created schedule: {name} in {container}")
+        elif action == "updated":
+            typer.echo(f"✅ Updated schedule: {name} in {container}")
+        elif action == "no_change":
+            typer.echo(f"ℹ️  No changes needed for schedule: {name} in {container}")
+
+    except Exception as e:
+        typer.echo(f"❌ Error creating/updating schedule: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("schedule", help="Show schedule details.")
+def show_schedule(
+    name: str = typer.Option(None, "--name", help="Name of specific schedule to show"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
+) -> None:
+    """Show schedule details.
+
+    Examples
+    --------
+        # List all schedules (default behavior)
+        scm show object schedule
+
+        # Show a specific schedule by name
+        scm show object schedule --name BusinessHours
+
+    """
+    try:
+        # Determine container location
+        if not any([folder, snippet, device]):
+            folder = "Texas"  # Default to Texas folder
+
+        if name:
+            # Show specific schedule
+            schedule = scm_client.get_schedule(
+                name=name,
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not schedule:
+                typer.echo(f"Schedule '{name}' not found", err=True)
+                raise typer.Exit(code=1)
+
+            # Display detailed information
+            typer.echo(f"\nSchedule: {schedule['name']}")
+            typer.echo("=" * 40)
+
+            location = schedule.get("folder") or schedule.get("snippet") or schedule.get("device", "N/A")
+            typer.echo(f"Location: {location}")
+
+            # Display schedule type info
+            stype = schedule.get("schedule_type", {})
+            if "recurring" in stype:
+                recurring = stype["recurring"]
+                if "daily" in recurring:
+                    typer.echo("Type: Recurring Daily")
+                    typer.echo(f"Time Ranges: {', '.join(recurring['daily'])}")
+                elif "weekly" in recurring:
+                    typer.echo("Type: Recurring Weekly")
+                    weekly = recurring["weekly"]
+                    for day_name in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
+                        if day_name in weekly:
+                            typer.echo(f"  {day_name.capitalize()}: {', '.join(weekly[day_name])}")
+            elif "non_recurring" in stype:
+                typer.echo("Type: Non-Recurring")
+                for dt_range in stype["non_recurring"]:
+                    typer.echo(f"  {dt_range}")
+
+            # Display ID if present
+            if schedule.get("id"):
+                typer.echo(f"\nID: {schedule['id']}")
+
+            return schedule
+
+        else:
+            # Default behavior: list all schedules
+            schedules = scm_client.list_schedules(
+                folder=folder,
+                snippet=snippet,
+                device=device,
+            )
+
+            if not schedules:
+                typer.echo("No schedules found")
+                return
+
+            # Display in table format
+            typer.echo("\nSchedules:")
+            typer.echo("-" * 80)
+
+            for schedule in schedules:
+                location = schedule.get("folder") or schedule.get("snippet") or schedule.get("device", "N/A")
+
+                typer.echo(f"\nName: {schedule['name']}")
+                typer.echo(f"Location: {location}")
+
+                # Summarize schedule type
+                stype = schedule.get("schedule_type", {})
+                if "recurring" in stype:
+                    recurring = stype["recurring"]
+                    if "daily" in recurring:
+                        typer.echo(f"Type: Recurring Daily ({', '.join(recurring['daily'])})")
+                    elif "weekly" in recurring:
+                        typer.echo("Type: Recurring Weekly")
+                elif "non_recurring" in stype:
+                    typer.echo(f"Type: Non-Recurring ({len(stype['non_recurring'])} ranges)")
+
+            typer.echo(f"\nTotal: {len(schedules)} schedules")
+
+    except Exception as e:
+        typer.echo(f"Error showing schedule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 

@@ -2,7 +2,7 @@
 
 import pytest
 from pydantic import ValidationError
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, SecurityRule, Zone
+from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, Schedule, SecurityRule, Zone
 
 
 class TestBandwidthAllocation:
@@ -157,6 +157,120 @@ class TestAddressGroup:
         assert address_group.members == []
         assert address_group.description == ""
         assert address_group.tags == []
+
+
+class TestSchedule:
+    """Test cases for the Schedule model."""
+
+    def test_valid_recurring_daily(self):
+        """Test creating a valid recurring daily schedule."""
+        schedule = Schedule(
+            name="business-hours",
+            folder="Texas",
+            schedule_type="recurring-daily",
+            time_ranges=["09:00-17:00"],
+        )
+        assert schedule.name == "business-hours"
+        assert schedule.folder == "Texas"
+        assert schedule.schedule_type == "recurring-daily"
+        assert schedule.time_ranges == ["09:00-17:00"]
+
+    def test_valid_recurring_weekly(self):
+        """Test creating a valid recurring weekly schedule."""
+        schedule = Schedule(
+            name="weekday-hours",
+            folder="Texas",
+            schedule_type="recurring-weekly",
+            days={"monday": ["09:00-17:00"], "friday": ["09:00-12:00"]},
+        )
+        assert schedule.name == "weekday-hours"
+        assert schedule.schedule_type == "recurring-weekly"
+        assert schedule.days == {"monday": ["09:00-17:00"], "friday": ["09:00-12:00"]}
+
+    def test_valid_non_recurring(self):
+        """Test creating a valid non-recurring schedule."""
+        schedule = Schedule(
+            name="maintenance",
+            folder="Texas",
+            schedule_type="non-recurring",
+            time_ranges=["2026/03/15@02:00-2026/03/15@06:00"],
+        )
+        assert schedule.name == "maintenance"
+        assert schedule.schedule_type == "non-recurring"
+
+    def test_invalid_schedule_type(self):
+        """Test that invalid schedule type raises error."""
+        with pytest.raises(ValidationError):
+            Schedule(
+                name="test",
+                folder="Texas",
+                schedule_type="invalid",
+                time_ranges=["09:00-17:00"],
+            )
+
+    def test_missing_time_ranges_for_daily(self):
+        """Test that missing time_ranges for daily raises error."""
+        with pytest.raises(ValidationError):
+            Schedule(
+                name="test",
+                folder="Texas",
+                schedule_type="recurring-daily",
+            )
+
+    def test_missing_days_for_weekly(self):
+        """Test that missing days for weekly raises error."""
+        with pytest.raises(ValidationError):
+            Schedule(
+                name="test",
+                folder="Texas",
+                schedule_type="recurring-weekly",
+            )
+
+    def test_to_sdk_model_daily(self):
+        """Test SDK model conversion for daily schedule."""
+        schedule = Schedule(
+            name="daily-sched",
+            folder="Texas",
+            schedule_type="recurring-daily",
+            time_ranges=["09:00-17:00", "18:00-22:00"],
+        )
+        sdk = schedule.to_sdk_model()
+        assert sdk["name"] == "daily-sched"
+        assert sdk["folder"] == "Texas"
+        assert sdk["schedule_type"]["recurring"]["daily"] == ["09:00-17:00", "18:00-22:00"]
+
+    def test_to_sdk_model_weekly(self):
+        """Test SDK model conversion for weekly schedule."""
+        schedule = Schedule(
+            name="weekly-sched",
+            folder="Texas",
+            schedule_type="recurring-weekly",
+            days={"monday": ["09:00-17:00"]},
+        )
+        sdk = schedule.to_sdk_model()
+        assert sdk["schedule_type"]["recurring"]["weekly"] == {"monday": ["09:00-17:00"]}
+
+    def test_to_sdk_model_non_recurring(self):
+        """Test SDK model conversion for non-recurring schedule."""
+        schedule = Schedule(
+            name="maint",
+            folder="Texas",
+            schedule_type="non-recurring",
+            time_ranges=["2026/03/15@02:00-2026/03/15@06:00"],
+        )
+        sdk = schedule.to_sdk_model()
+        assert sdk["schedule_type"]["non_recurring"] == ["2026/03/15@02:00-2026/03/15@06:00"]
+
+    def test_container_validation(self):
+        """Test container field validation."""
+        with pytest.raises(ValidationError):
+            Schedule(
+                name="test",
+                folder="Texas",
+                snippet="MySnippet",
+                schedule_type="recurring-daily",
+                time_ranges=["09:00-17:00"],
+            )
 
 
 class TestSecurityRule:

@@ -1366,6 +1366,123 @@ class SyslogServerProfile(BaseModel):
         return model_data
 
 
+class Schedule(BaseModel):
+    """Model for schedule configurations with folder path.
+
+    Supports three schedule types:
+    - recurring-daily: Same time ranges every day
+    - recurring-weekly: Different time ranges per day of week
+    - non-recurring: One-time date/time ranges
+    """
+
+    folder: str = Field(..., description="Folder path for the schedule")
+    name: str = Field(
+        ...,
+        description="Name of the schedule",
+        pattern=r"^[ a-zA-Z\d._-]+$",
+        max_length=31,
+    )
+    schedule_type: str = Field(
+        ...,
+        description="Schedule type: recurring-daily, recurring-weekly, or non-recurring",
+    )
+    time_ranges: list[str] | None = Field(
+        None,
+        description="List of time ranges (HH:MM-HH:MM for recurring, YYYY/MM/DD@HH:MM-YYYY/MM/DD@HH:MM for non-recurring)",
+    )
+    days: dict[str, list[str]] | None = Field(
+        None,
+        description="Day-to-time-range mapping for weekly schedules (e.g., {'monday': ['09:00-17:00']})",
+    )
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+
+    @field_validator("folder", "snippet", "device")
+    def validate_container(
+        cls,
+        v: str | None,
+        info: ValidationInfo,
+    ) -> str | None:
+        """Validate that exactly one container field is set."""
+        if v is not None:
+            # Check other container fields
+            values = info.data
+            containers = ["folder", "snippet", "device"]
+            field_name = info.field_name
+            other_containers = [c for c in containers if c != field_name]
+
+            for container in other_containers:
+                if values.get(container) is not None:
+                    raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return v
+
+    @model_validator(mode="after")
+    def check_container_set(self) -> "Schedule":
+        """Ensure exactly one container field is set."""
+        containers_set = sum(1 for field in ["folder", "snippet", "device"] if getattr(self, field) is not None)
+
+        if containers_set != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+
+        return self
+
+    @field_validator("schedule_type")
+    def validate_schedule_type(cls, v: str) -> str:
+        """Validate schedule type is from allowed set."""
+        valid_types = ["recurring-daily", "recurring-weekly", "non-recurring"]
+        if v not in valid_types:
+            raise ValueError(f"Schedule type must be one of: {', '.join(valid_types)}")
+        return v
+
+    @model_validator(mode="after")
+    def validate_schedule_data(self) -> "Schedule":
+        """Validate that required data is provided for the schedule type."""
+        if self.schedule_type == "recurring-daily":
+            if not self.time_ranges:
+                raise ValueError("time_ranges is required for recurring-daily schedules")
+        elif self.schedule_type == "recurring-weekly":
+            if not self.days:
+                raise ValueError("days is required for recurring-weekly schedules")
+        elif self.schedule_type == "non-recurring" and not self.time_ranges:
+            raise ValueError("time_ranges is required for non-recurring schedules")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Build schedule_type structure
+        if self.schedule_type == "recurring-daily":
+            model_data["schedule_type"] = {
+                "recurring": {
+                    "daily": self.time_ranges,
+                },
+            }
+        elif self.schedule_type == "recurring-weekly":
+            model_data["schedule_type"] = {
+                "recurring": {
+                    "weekly": self.days,
+                },
+            }
+        elif self.schedule_type == "non-recurring":
+            model_data["schedule_type"] = {
+                "non_recurring": self.time_ranges,
+            }
+
+        return model_data
+
+
 class Tag(BaseModel):
     """Model for tag configurations with folder path."""
 

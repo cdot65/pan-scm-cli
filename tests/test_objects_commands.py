@@ -4,11 +4,14 @@ import typer
 from scm_cli.commands.objects import (
     delete_address_group,
     delete_app,
+    delete_schedule,
     load_address_group,
     load_app,
     set_address_group,
     set_app,
+    set_schedule,
     show_app,
+    show_schedule,
 )
 
 
@@ -472,3 +475,140 @@ class TestShowAddressGroupCommands:
 
         assert result.exit_code == 0
         assert "No address groups found in folder 'Shared'" in result.stdout
+
+
+class TestScheduleCommands:
+    """Test the schedule commands."""
+
+    def test_set_schedule_command(self, runner, monkeypatch):
+        """Test the set schedule command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "sched-12345",
+                "name": "business-hours",
+                "folder": "Texas",
+                "schedule_type": {"recurring": {"daily": ["09:00-17:00"]}},
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_schedule", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_schedule)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "business-hours",
+                "--schedule-type",
+                "recurring-daily",
+                "--time-range",
+                "09:00-17:00",
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Created schedule" in result.stdout
+        assert "business-hours" in result.stdout
+
+    def test_set_schedule_error(self, runner, monkeypatch):
+        """Test the set schedule command with an error."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create_error(*args, **kwargs):
+            raise ValueError("Test error")
+
+        monkeypatch.setattr(scm_client, "create_schedule", mock_create_error)
+
+        test_app = typer.Typer()
+        test_app.command()(set_schedule)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "bad-sched",
+                "--schedule-type",
+                "recurring-daily",
+                "--time-range",
+                "09:00-17:00",
+                "--folder",
+                "Texas",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error creating/updating schedule" in result.stdout
+
+    def test_show_schedule_list(self, runner, monkeypatch):
+        """Test the show schedule command listing all."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return [
+                {
+                    "name": "BusinessHours",
+                    "folder": "Texas",
+                    "schedule_type": {"recurring": {"daily": ["09:00-17:00"]}},
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_schedules", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_schedule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+
+        assert result.exit_code == 0
+        assert "BusinessHours" in result.stdout
+        assert "Total: 1 schedules" in result.stdout
+
+    def test_show_schedule_by_name(self, runner, monkeypatch):
+        """Test the show schedule command by name."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {
+                "id": "sched-123",
+                "name": "BusinessHours",
+                "folder": "Texas",
+                "schedule_type": {"recurring": {"daily": ["09:00-17:00"]}},
+            }
+
+        monkeypatch.setattr(scm_client, "get_schedule", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_schedule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "BusinessHours"])
+
+        assert result.exit_code == 0
+        assert "Schedule: BusinessHours" in result.stdout
+        assert "Recurring Daily" in result.stdout
+        assert "09:00-17:00" in result.stdout
+
+    def test_delete_schedule_command(self, runner, monkeypatch):
+        """Test the delete schedule command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {"id": "sched-123", "name": "old-sched", "folder": "Texas"}
+
+        def mock_delete(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(scm_client, "get_schedule", mock_get)
+        monkeypatch.setattr(scm_client, "delete_schedule", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_schedule)
+
+        result = runner.invoke(test_app, ["old-sched", "--folder", "Texas", "--force"])
+
+        assert result.exit_code == 0
+        assert "Deleted schedule" in result.stdout
+        assert "old-sched" in result.stdout
