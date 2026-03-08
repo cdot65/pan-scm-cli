@@ -72,21 +72,46 @@ class SCMClient:
         else:
             self.logger.info("No context set, using environment variables or default settings")
 
-        try:
-            # Get credentials from dynaconf settings
-            credentials = get_credentials()
-            self.client_id = credentials["client_id"]
-            self.client_secret = credentials["client_secret"]
-            self.tsg_id = credentials["tsg_id"]
+        self._bearer_token_mode = False
 
-            # Initialize the real SDK client with credentials
-            self.client = Scm(
-                client_id=self.client_id,
-                client_secret=self.client_secret,
-                tsg_id=self.tsg_id,
-                log_level=settings.get("log_level", "INFO"),
-            )
-            self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
+        try:
+            # Check for bearer token auth mode first
+            access_token = settings.get("access_token", None)
+            if not access_token and current_context:
+                from .context import get_context_config
+
+                try:
+                    ctx_config = get_context_config(current_context)
+                    access_token = ctx_config.get("access_token")
+                except Exception:
+                    pass
+
+            if access_token:
+                # Bearer token authentication mode
+                self.logger.info("Using bearer token authentication mode")
+                self.client_id = ""
+                self.client_secret = ""  # noqa: S105
+                self.tsg_id = ""
+                self._bearer_token_mode = True
+                self.client = Scm(
+                    access_token=access_token,
+                    log_level=settings.get("log_level", "INFO"),
+                )
+                self.logger.info("Successfully initialized SDK client with bearer token")
+            else:
+                # OAuth2 authentication mode
+                credentials = get_credentials()
+                self.client_id = credentials["client_id"]
+                self.client_secret = credentials["client_secret"]
+                self.tsg_id = credentials["tsg_id"]
+
+                self.client = Scm(
+                    client_id=self.client_id,
+                    client_secret=self.client_secret,
+                    tsg_id=self.tsg_id,
+                    log_level=settings.get("log_level", "INFO"),
+                )
+                self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
         except (ValueError, AuthenticationError) as e:
             self.logger.warning(f"Failed to initialize SDK client: {str(e)}")
             self.logger.warning("Using mock mode with dummy credentials")
@@ -10065,6 +10090,7 @@ class SCMClient:
         description: str,
         sync: bool = False,
         timeout: int = 300,
+        admin: str | None = None,
     ) -> dict[str, Any]:
         """Commit configuration changes to SCM.
 
@@ -10073,6 +10099,7 @@ class SCMClient:
             description: Description of the commit
             sync: Whether to wait synchronously for completion
             timeout: Timeout in seconds when sync is True
+            admin: Admin user for commit (required for bearer token auth)
 
         Returns:
             dict[str, Any]: Commit result dictionary
@@ -10090,12 +10117,18 @@ class SCMClient:
             }
 
         try:
-            result = self.client.commit(
-                folders=folders,
-                description=description,
-                sync=sync,
-                timeout=timeout,
-            )
+            commit_kwargs = {
+                "folders": folders,
+                "description": description,
+                "sync": sync,
+                "timeout": timeout,
+            }
+
+            # Pass admin parameter if specified (needed for bearer token auth)
+            if admin:
+                commit_kwargs["admin"] = [admin]
+
+            result = self.client.commit(**commit_kwargs)
             if hasattr(result, "model_dump_json"):
                 return json.loads(result.model_dump_json(exclude_unset=True))
             if isinstance(result, dict):
