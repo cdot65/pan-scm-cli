@@ -391,3 +391,4 @@ Thumbs.db
 .claude/sdk/scm/utils/__init__.py
 .claude/sdk/scm/utils/logging.py
 .claude/sdk/scm/utils/tag_colors.py
+.claude/worktrees/

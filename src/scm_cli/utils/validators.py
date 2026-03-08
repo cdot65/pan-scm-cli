@@ -1702,6 +1702,80 @@ class Tag(BaseModel):
 # ========================================================================================================================================================================================
 
 
+class NATRule(BaseModel):
+    """Model for NAT rule configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the NAT rule")
+    snippet: str | None = Field(None, description="Snippet path for the NAT rule")
+    device: str | None = Field(None, description="Device path for the NAT rule")
+    name: str = Field(..., description="Name of the NAT rule")
+    description: str | None = Field(None, description="Description of the NAT rule")
+    tag: list[str] | None = Field(None, description="Tags associated with the NAT rule")
+    disabled: bool = Field(False, description="Whether the NAT rule is disabled")
+    nat_type: str = Field("ipv4", description="NAT type (ipv4, nat64, nptv6)")
+    from_zone: list[str] = Field(default_factory=lambda: ["any"], alias="from", description="Source zone(s)")
+    to_zone: list[str] = Field(default_factory=lambda: ["any"], alias="to", description="Destination zone(s)")
+    to_interface: str | None = Field(None, description="Destination interface")
+    source: list[str] = Field(default_factory=lambda: ["any"], description="Source address(es)")
+    destination: list[str] = Field(default_factory=lambda: ["any"], description="Destination address(es)")
+    service: str = Field("any", description="TCP/UDP service")
+    source_translation: dict[str, Any] | None = Field(None, description="Source translation configuration")
+    destination_translation: dict[str, Any] | None = Field(None, description="Destination translation configuration")
+    active_active_device_binding: str | None = Field(None, description="Active/Active device binding")
+
+    model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "NATRule":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.tag:
+            model_data["tag"] = self.tag
+        if self.disabled:
+            model_data["disabled"] = self.disabled
+        if self.nat_type != "ipv4":
+            model_data["nat_type"] = self.nat_type
+
+        # Zone fields use 'from' and 'to' aliases in the SDK
+        model_data["from_"] = self.from_zone
+        model_data["to_"] = self.to_zone
+        model_data["source"] = self.source
+        model_data["destination"] = self.destination
+        model_data["service"] = self.service
+
+        if self.to_interface:
+            model_data["to_interface"] = self.to_interface
+        if self.source_translation:
+            model_data["source_translation"] = self.source_translation
+        if self.destination_translation:
+            model_data["destination_translation"] = self.destination_translation
+        if self.active_active_device_binding:
+            model_data["active_active_device_binding"] = self.active_active_device_binding
+
+        return model_data
+
+
 class IKECryptoProfile(BaseModel):
     """Model for IKE crypto profile configurations."""
 
@@ -1852,6 +1926,103 @@ class Zone(BaseModel):
             model_data["enable_user_identification"] = self.enable_user_identification
         if self.enable_device_identification is not None:
             model_data["enable_device_identification"] = self.enable_device_identification
+
+        return model_data
+
+
+class IPSecCryptoProfile(BaseModel):
+    """Model for IPsec crypto profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the IPsec crypto profile")
+    snippet: str | None = Field(None, description="Snippet path for the IPsec crypto profile")
+    device: str | None = Field(None, description="Device path for the IPsec crypto profile")
+    name: str = Field(..., description="Name of the IPsec crypto profile")
+    esp_encryption: list[str] = Field(default_factory=lambda: ["aes-256-cbc"], description="ESP encryption algorithms")
+    esp_authentication: list[str] = Field(default_factory=lambda: ["sha256"], description="ESP authentication algorithms")
+    dh_group: str = Field("group14", description="DH group for PFS")
+    lifetime_seconds: int | None = Field(None, description="Lifetime in seconds (180-65535)")
+    lifetime_minutes: int | None = Field(None, description="Lifetime in minutes (3-65535)")
+    lifetime_hours: int | None = Field(None, description="Lifetime in hours (1-65535)")
+    lifetime_days: int | None = Field(None, description="Lifetime in days (1-365)")
+    lifesize_kb: int | None = Field(None, description="Lifesize in KB (1-65535)")
+    lifesize_mb: int | None = Field(None, description="Lifesize in MB (1-65535)")
+    lifesize_gb: int | None = Field(None, description="Lifesize in GB (1-65535)")
+    lifesize_tb: int | None = Field(None, description="Lifesize in TB (1-65535)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "IPSecCryptoProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("esp_encryption")
+    def validate_esp_encryption(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate ESP encryption algorithms."""
+        valid = ["des", "3des", "aes-128-cbc", "aes-192-cbc", "aes-256-cbc", "aes-128-gcm", "aes-256-gcm", "null"]
+        for alg in v:
+            if alg not in valid:
+                raise ValueError(f"Invalid ESP encryption algorithm '{alg}'. Valid: {', '.join(valid)}")
+        return v
+
+    @field_validator("esp_authentication")
+    def validate_esp_authentication(cls, v: list[str]) -> list[str]:  # noqa: N805
+        """Validate ESP authentication algorithms."""
+        valid = ["md5", "sha1", "sha256", "sha384", "sha512"]
+        for alg in v:
+            if alg not in valid:
+                raise ValueError(f"Invalid ESP authentication algorithm '{alg}'. Valid: {', '.join(valid)}")
+        return v
+
+    @field_validator("dh_group")
+    def validate_dh_group(cls, v: str) -> str:  # noqa: N805
+        """Validate DH group."""
+        valid = ["no-pfs", "group1", "group2", "group5", "group14", "group19", "group20"]
+        if v not in valid:
+            raise ValueError(f"Invalid DH group '{v}'. Valid: {', '.join(valid)}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "dh_group": self.dh_group,
+            "esp": {
+                "encryption": self.esp_encryption,
+                "authentication": self.esp_authentication,
+            },
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Build lifetime - default to 1 hour if none specified
+        if self.lifetime_seconds:
+            model_data["lifetime"] = {"seconds": self.lifetime_seconds}
+        elif self.lifetime_minutes:
+            model_data["lifetime"] = {"minutes": self.lifetime_minutes}
+        elif self.lifetime_hours:
+            model_data["lifetime"] = {"hours": self.lifetime_hours}
+        elif self.lifetime_days:
+            model_data["lifetime"] = {"days": self.lifetime_days}
+        else:
+            model_data["lifetime"] = {"hours": 1}
+
+        # Build lifesize if specified
+        if self.lifesize_kb:
+            model_data["lifesize"] = {"kb": self.lifesize_kb}
+        elif self.lifesize_mb:
+            model_data["lifesize"] = {"mb": self.lifesize_mb}
+        elif self.lifesize_gb:
+            model_data["lifesize"] = {"gb": self.lifesize_gb}
+        elif self.lifesize_tb:
+            model_data["lifesize"] = {"tb": self.lifesize_tb}
 
         return model_data
 
@@ -2110,6 +2281,188 @@ class DecryptionProfile(BaseModel):
         return model_data
 
 
+class WildfireAntivirusProfile(BaseModel):
+    """Model for WildFire antivirus profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the WildFire antivirus profile")
+    snippet: str | None = Field(None, description="Snippet path for the WildFire antivirus profile")
+    device: str | None = Field(None, description="Device path for the WildFire antivirus profile")
+    name: str = Field(..., description="Name of the WildFire antivirus profile")
+    description: str | None = Field(None, description="Description of the WildFire antivirus profile")
+
+    # Packet capture
+    packet_capture: bool | None = Field(None, description="Enable packet capture")
+
+    # Rules configuration
+    rules: list[dict[str, Any]] | None = Field(None, description="List of WildFire antivirus rules")
+
+    # MLAV exceptions
+    mlav_exception: list[dict[str, Any]] | None = Field(None, description="List of MLAV exceptions")
+
+    # Threat exceptions
+    threat_exception: list[dict[str, Any]] | None = Field(None, description="List of threat exceptions")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "WildfireAntivirusProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("rules")
+    def validate_rules(cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:  # noqa: N805
+        """Validate rules configuration."""
+        if v is None:
+            return v
+
+        valid_directions = ["download", "upload", "both"]
+        valid_analyses = ["public-cloud", "private-cloud"]
+
+        for idx, rule in enumerate(v):
+            if "name" not in rule:
+                raise ValueError(f"Rule {idx}: 'name' is required")
+            if "direction" not in rule:
+                raise ValueError(f"Rule {idx}: 'direction' is required")
+            if rule["direction"] not in valid_directions:
+                raise ValueError(f"Rule {idx}: Invalid direction '{rule['direction']}'")
+            if "analysis" in rule and rule["analysis"] is not None and rule["analysis"] not in valid_analyses:
+                raise ValueError(f"Rule {idx}: Invalid analysis '{rule['analysis']}'")
+
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.packet_capture is not None:
+            model_data["packet_capture"] = self.packet_capture
+        if self.rules:
+            model_data["rules"] = self.rules
+        if self.mlav_exception:
+            model_data["mlav_exception"] = self.mlav_exception
+        if self.threat_exception:
+            model_data["threat_exception"] = self.threat_exception
+
+        return model_data
+
+
+class DNSSecurityProfile(BaseModel):
+    """Model for DNS security profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the DNS security profile")
+    snippet: str | None = Field(None, description="Snippet path for the DNS security profile")
+    device: str | None = Field(None, description="Device path for the DNS security profile")
+    name: str = Field(..., description="Name of the DNS security profile")
+    description: str | None = Field(None, description="Description of the DNS security profile")
+
+    # Botnet domains configuration (passed as JSON)
+    botnet_domains: dict[str, Any] | None = Field(None, description="Botnet domains settings as dict")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "DNSSecurityProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.botnet_domains:
+            model_data["botnet_domains"] = self.botnet_domains
+
+        return model_data
+
+
+class URLCategory(BaseModel):
+    """Model for URL category configurations."""
+
+    model_config = {"populate_by_name": True}
+
+    folder: str | None = Field(None, description="Folder path for the URL category")
+    snippet: str | None = Field(None, description="Snippet path for the URL category")
+    device: str | None = Field(None, description="Device path for the URL category")
+    name: str = Field(..., description="Name of the URL category")
+    description: str | None = Field(None, description="Description of the URL category")
+
+    # URL category type
+    type: str | None = Field("URL List", description="Type of the URL category (URL List or Category Match)")
+
+    # List of URLs or categories - use alias to match SDK field name "list"
+    url_list: list[str] = Field(default_factory=list, alias="list", description="List of URLs or category matches")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "URLCategory":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("type")
+    def validate_type(cls, v: str | None) -> str | None:  # noqa: N805
+        """Validate URL category type."""
+        if v is None:
+            return v
+        valid_types = ["URL List", "Category Match"]
+        if v not in valid_types:
+            raise ValueError(f"Invalid type '{v}'. Must be one of: {', '.join(valid_types)}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.type:
+            model_data["type"] = self.type
+        if self.url_list:
+            model_data["list"] = self.url_list
+
+        return model_data
+
+
 # ========================================================================================================================================================================================
 # UTILITY FUNCTIONS
 # ========================================================================================================================================================================================
@@ -2153,6 +2506,138 @@ def validate_yaml_file(data: dict[str, Any], model_class: type[ModelT], key: str
             raise ValueError(f"Validation error in item {idx}: {str(e)}") from e
 
     return validated_items
+
+
+class VulnerabilityProtectionProfile(BaseModel):
+    """Model for vulnerability protection profile configurations."""
+
+    folder: str | None = Field(None, description="Folder path for the vulnerability protection profile")
+    snippet: str | None = Field(None, description="Snippet path for the vulnerability protection profile")
+    device: str | None = Field(None, description="Device path for the vulnerability protection profile")
+    name: str = Field(..., description="Name of the vulnerability protection profile")
+    description: str | None = Field(None, description="Description of the vulnerability protection profile")
+
+    # Threat exceptions
+    threat_exceptions: list[dict[str, Any]] | None = Field(None, description="List of threat exceptions")
+
+    # Rules configuration
+    rules: list[dict[str, Any]] | None = Field(None, description="List of vulnerability protection rules")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "VulnerabilityProtectionProfile":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+    @field_validator("rules")
+    def validate_rules(cls, v: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:  # noqa: N805
+        """Validate rules configuration."""
+        if v is None:
+            return v
+
+        for idx, rule in enumerate(v):
+            # Required fields
+            if "name" not in rule:
+                raise ValueError(f"Rule {idx}: 'name' is required")
+            if "severity" not in rule:
+                raise ValueError(f"Rule {idx}: 'severity' is required")
+            if "host" not in rule:
+                raise ValueError(f"Rule {idx}: 'host' is required")
+
+            # Validate severity
+            valid_severities = [
+                "critical",
+                "high",
+                "medium",
+                "low",
+                "informational",
+                "any",
+            ]
+            if isinstance(rule["severity"], list):
+                for sev in rule["severity"]:
+                    if sev not in valid_severities:
+                        raise ValueError(f"Rule {idx}: Invalid severity '{sev}'")
+            elif rule["severity"] not in valid_severities:
+                raise ValueError(f"Rule {idx}: Invalid severity '{rule['severity']}'")
+
+            # Validate host if present
+            valid_hosts = ["any", "client", "server"]
+            if rule["host"] not in valid_hosts:
+                raise ValueError(f"Rule {idx}: Invalid host '{rule['host']}'")
+
+            # Validate action if present
+            if "action" in rule:
+                valid_actions = [
+                    "allow",
+                    "alert",
+                    "drop",
+                    "reset-client",
+                    "reset-server",
+                    "reset-both",
+                    "block-ip",
+                    "default",
+                ]
+                action = rule["action"]
+                if isinstance(action, dict):
+                    # Action is a dict like {"block_ip": {"track_by": "source", "duration": 300}}
+                    pass
+                elif action not in valid_actions:
+                    raise ValueError(f"Rule {idx}: Invalid action '{action}'")
+
+            # Validate packet_capture if present
+            if "packet_capture" in rule:
+                valid_captures = ["disable", "single-packet", "extended-capture"]
+                if rule["packet_capture"] not in valid_captures:
+                    raise ValueError(f"Rule {idx}: Invalid packet_capture '{rule['packet_capture']}'")
+
+            # Validate category if present
+            if "category" in rule:
+                valid_categories = [
+                    "any",
+                    "brute-force",
+                    "code-execution",
+                    "code-obfuscation",
+                    "command-execution",
+                    "dos",
+                    "exploit-kit",
+                    "info-leak",
+                    "insecure-credentials",
+                    "overflow",
+                    "phishing",
+                    "protocol-anomaly",
+                    "scan",
+                    "sql-injection",
+                ]
+                if rule["category"] not in valid_categories:
+                    raise ValueError(f"Rule {idx}: Invalid category '{rule['category']}'")
+
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data = {
+            "name": self.name,
+        }
+
+        # Add container field
+        if self.folder:
+            model_data["folder"] = self.folder
+        elif self.snippet:
+            model_data["snippet"] = self.snippet
+        elif self.device:
+            model_data["device"] = self.device
+
+        # Add optional fields
+        if self.description:
+            model_data["description"] = self.description
+        if self.threat_exceptions:
+            model_data["threat_exception"] = self.threat_exceptions
+        if self.rules:
+            model_data["rules"] = self.rules
+
+        return model_data
 
 
 # ========================================================================================================================================================================================

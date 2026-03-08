@@ -4011,6 +4011,7 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "regions", e)
+
     # Quarantined Devices ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def create_quarantined_device(
@@ -5470,6 +5471,382 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "IKE crypto profiles", e)
 
+    # --------------------------------------------------------------------------------------- NAT Rules ------------------------------------------------------------------------------------
+
+    def create_nat_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        description: str | None = None,
+        tag: list[str] | None = None,
+        disabled: bool = False,
+        nat_type: str = "ipv4",
+        from_zones: list[str] | None = None,
+        to_zones: list[str] | None = None,
+        to_interface: str | None = None,
+        source: list[str] | None = None,
+        destination: list[str] | None = None,
+        service: str = "any",
+        source_translation: dict[str, Any] | None = None,
+        destination_translation: dict[str, Any] | None = None,
+        active_active_device_binding: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a NAT rule (smart upsert).
+
+        Args:
+            folder: Folder to create the NAT rule in
+            snippet: Snippet to create the NAT rule in
+            device: Device to create the NAT rule in
+            name: Name of the NAT rule
+            description: Description of the NAT rule
+            tag: Tags associated with the NAT rule
+            disabled: Whether the NAT rule is disabled
+            nat_type: NAT type (ipv4, nat64, nptv6)
+            from_zones: Source zone(s)
+            to_zones: Destination zone(s)
+            to_interface: Destination interface
+            source: Source address(es)
+            destination: Destination address(es)
+            service: TCP/UDP service
+            source_translation: Source translation configuration
+            destination_translation: Destination translation configuration
+            active_active_device_binding: Active/Active device binding
+
+        Returns:
+            dict[str, Any]: The created/updated NAT rule object, with '__action__' key.
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Upsert NAT rule: {name} in {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"nat-{name}",
+                "folder": folder or "Texas",
+                "name": name,
+                "description": description or "",
+                "nat_type": nat_type,
+                "from_": from_zones or ["any"],
+                "to_": to_zones or ["any"],
+                "source": source or ["any"],
+                "destination": destination or ["any"],
+                "service": service,
+                "source_translation": source_translation,
+                "destination_translation": destination_translation,
+                "__action__": "created",
+            }
+
+        try:
+            # Build NAT rule data
+            nat_data: dict[str, Any] = {"name": name}
+            if folder:
+                nat_data["folder"] = folder
+            elif snippet:
+                nat_data["snippet"] = snippet
+            elif device:
+                nat_data["device"] = device
+
+            if description:
+                nat_data["description"] = description
+            if tag:
+                nat_data["tag"] = tag
+            if disabled:
+                nat_data["disabled"] = disabled
+            if nat_type != "ipv4":
+                nat_data["nat_type"] = nat_type
+            nat_data["from_"] = from_zones or ["any"]
+            nat_data["to_"] = to_zones or ["any"]
+            nat_data["source"] = source or ["any"]
+            nat_data["destination"] = destination or ["any"]
+            nat_data["service"] = service
+            if to_interface:
+                nat_data["to_interface"] = to_interface
+            if source_translation:
+                nat_data["source_translation"] = source_translation
+            if destination_translation:
+                nat_data["destination_translation"] = destination_translation
+            if active_active_device_binding:
+                nat_data["active_active_device_binding"] = active_active_device_binding
+
+            # Step 1: Try to fetch existing NAT rule
+            existing = None
+            try:
+                fetch_kwargs = {"name": name}
+                if folder:
+                    fetch_kwargs["folder"] = folder
+                elif snippet:
+                    fetch_kwargs["snippet"] = snippet
+                elif device:
+                    fetch_kwargs["device"] = device
+                existing = self.client.nat_rule.fetch(**fetch_kwargs)
+                self.logger.info(f"Found existing NAT rule '{name}'")
+            except NotFoundError:
+                self.logger.info(f"NAT rule '{name}' not found, will create new")
+            except Exception as e:
+                self.logger.warning(f"Error fetching NAT rule '{name}': {str(e)}")
+
+            if existing:
+                # Step 2: Compare and update if needed
+                needs_update = False
+                update_fields = []
+
+                # Compare description
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                # Compare source zones
+                current_from = list(getattr(existing, "from_", []) or [])
+                new_from = from_zones or ["any"]
+                if set(current_from) != set(new_from):
+                    existing.from_ = new_from
+                    update_fields.append("from")
+                    needs_update = True
+
+                # Compare destination zones
+                current_to = list(getattr(existing, "to_", []) or [])
+                new_to = to_zones or ["any"]
+                if set(current_to) != set(new_to):
+                    existing.to_ = new_to
+                    update_fields.append("to")
+                    needs_update = True
+
+                # Compare source addresses
+                current_source = list(getattr(existing, "source", []) or [])
+                new_source = source or ["any"]
+                if set(current_source) != set(new_source):
+                    existing.source = new_source
+                    update_fields.append("source")
+                    needs_update = True
+
+                # Compare destination addresses
+                current_dest = list(getattr(existing, "destination", []) or [])
+                new_dest = destination or ["any"]
+                if set(current_dest) != set(new_dest):
+                    existing.destination = new_dest
+                    update_fields.append("destination")
+                    needs_update = True
+
+                # Compare service
+                if getattr(existing, "service", "any") != service:
+                    existing.service = service
+                    update_fields.append("service")
+                    needs_update = True
+
+                # Compare source_translation
+                if source_translation is not None:
+                    existing.source_translation = source_translation
+                    update_fields.append("source_translation")
+                    needs_update = True
+
+                # Compare destination_translation
+                if destination_translation is not None:
+                    existing.destination_translation = destination_translation
+                    update_fields.append("destination_translation")
+                    needs_update = True
+
+                # Compare tags
+                if tag is not None:
+                    current_tags = set(getattr(existing, "tag", []) or [])
+                    new_tags = set(tag or [])
+                    if current_tags != new_tags:
+                        existing.tag = tag
+                        update_fields.append("tag")
+                        needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating NAT rule fields: {', '.join(update_fields)}")
+                    updated = self.client.nat_rule.update(existing)
+                    self.logger.info(f"Successfully updated NAT rule '{name}'")
+                    result = json.loads(updated.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "updated"
+                    return result
+                else:
+                    self.logger.info(f"No changes detected for NAT rule '{name}', skipping update")
+                    result = json.loads(existing.model_dump_json(exclude_unset=True))
+                    result["__action__"] = "no_change"
+                    return result
+            else:
+                # Step 3: Create new NAT rule
+                created = self.client.nat_rule.create(nat_data)
+                self.logger.info(f"Successfully created NAT rule '{name}'")
+                result = json.loads(created.model_dump_json(exclude_unset=True))
+                result["__action__"] = "created"
+                return result
+        except Exception as e:
+            self._handle_api_exception("creation/update", container, name, e)
+
+    def delete_nat_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+    ) -> bool:
+        """Delete a NAT rule.
+
+        Args:
+            folder: Folder containing the NAT rule
+            snippet: Snippet containing the NAT rule
+            device: Device containing the NAT rule
+            name: Name of the NAT rule to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Deleting NAT rule: {name} from {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            fetch_kwargs: dict[str, str] = {"name": name}
+            if folder:
+                fetch_kwargs["folder"] = folder
+            elif snippet:
+                fetch_kwargs["snippet"] = snippet
+            elif device:
+                fetch_kwargs["device"] = device
+            nat_rule = self.client.nat_rule.fetch(**fetch_kwargs)
+            self.client.nat_rule.delete(str(nat_rule.id))
+            self.logger.info(f"Successfully deleted NAT rule '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", container, name, e)
+
+    def get_nat_rule(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+    ) -> dict[str, Any]:
+        """Get a NAT rule by name.
+
+        Args:
+            folder: Folder containing the NAT rule
+            snippet: Snippet containing the NAT rule
+            device: Device containing the NAT rule
+            name: Name of the NAT rule to get
+
+        Returns:
+            dict[str, Any]: The NAT rule object
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Getting NAT rule: {name} from {container}")
+
+        if not self.client:
+            return {
+                "id": f"nat-{name}",
+                "folder": folder or "Texas",
+                "name": name,
+                "description": "Mock NAT rule",
+                "nat_type": "ipv4",
+                "from_": ["trust"],
+                "to_": ["untrust"],
+                "source": ["any"],
+                "destination": ["any"],
+                "service": "any",
+                "source_translation": {
+                    "dynamic_ip_and_port": {
+                        "type": "dynamic_ip_and_port",
+                        "translated_address": ["192.168.1.1"],
+                    }
+                },
+            }
+
+        try:
+            fetch_kwargs: dict[str, str] = {"name": name}
+            if folder:
+                fetch_kwargs["folder"] = folder
+            elif snippet:
+                fetch_kwargs["snippet"] = snippet
+            elif device:
+                fetch_kwargs["device"] = device
+            result = self.client.nat_rule.fetch(**fetch_kwargs)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", container, name, e)
+
+    def list_nat_rules(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List NAT rules in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
+
+        Returns:
+            list[dict[str, Any]]: List of NAT rule objects
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing NAT rules in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
+
+        if not self.client:
+            return [
+                {
+                    "id": "nat-mock1",
+                    "folder": folder or "Texas",
+                    "name": "outbound-nat",
+                    "nat_type": "ipv4",
+                    "from_": ["trust"],
+                    "to_": ["untrust"],
+                    "source": ["any"],
+                    "destination": ["any"],
+                    "service": "any",
+                    "source_translation": {
+                        "dynamic_ip_and_port": {
+                            "type": "dynamic_ip_and_port",
+                            "translated_address": ["10.0.0.1"],
+                        }
+                    },
+                },
+                {
+                    "id": "nat-mock2",
+                    "folder": folder or "Texas",
+                    "name": "inbound-web",
+                    "nat_type": "ipv4",
+                    "from_": ["untrust"],
+                    "to_": ["trust"],
+                    "source": ["any"],
+                    "destination": ["203.0.113.10"],
+                    "service": "service-http",
+                    "destination_translation": {
+                        "translated_address": "192.168.1.100",
+                        "translated_port": 8080,
+                    },
+                },
+            ]
+
+        container_kwargs: dict[str, Any] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.nat_rule.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container, "NAT rules", e)
+
     # ------------------------------------------------------------------------------------ Security Zones ----------------------------------------------------------------------------------
 
     def create_zone(
@@ -5743,6 +6120,267 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container, "security zones", e)
+
+    # -------------------------------------------------------------------------------- IPsec Crypto Profiles -------------------------------------------------------------------------------
+
+    def create_ipsec_crypto_profile(
+        self,
+        folder: str,
+        name: str,
+        esp_encryption: list[str] | None = None,
+        esp_authentication: list[str] | None = None,
+        dh_group: str = "group14",
+        lifetime: dict[str, int] | None = None,
+        lifesize: dict[str, int] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update an IPsec crypto profile using smart upsert logic.
+
+        Args:
+            folder: Folder to create the profile in
+            name: Name of the IPsec crypto profile
+            esp_encryption: List of ESP encryption algorithms
+            esp_authentication: List of ESP authentication algorithms
+            dh_group: DH group for PFS
+            lifetime: Lifetime configuration dict (e.g. {"hours": 1})
+            lifesize: Lifesize configuration dict (e.g. {"mb": 100})
+
+        Returns:
+            dict[str, Any]: The created/updated IPsec crypto profile
+
+        """
+        esp_encryption = esp_encryption or ["aes-256-cbc"]
+        esp_authentication = esp_authentication or ["sha256"]
+        lifetime = lifetime or {"hours": 1}
+
+        self.logger.info(f"Creating or updating IPsec crypto profile: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"ipsec-crypto-{name}",
+                "folder": folder,
+                "name": name,
+                "esp": {
+                    "encryption": esp_encryption,
+                    "authentication": esp_authentication,
+                },
+                "dh_group": dh_group,
+                "lifetime": lifetime,
+                "__action__": "created",
+            }
+            if lifesize:
+                result["lifesize"] = lifesize
+            return result
+
+        try:
+            # Prepare the profile data
+            profile_data: dict[str, Any] = {
+                "folder": folder,
+                "name": name,
+                "esp": {
+                    "encryption": esp_encryption,
+                    "authentication": esp_authentication,
+                },
+                "dh_group": dh_group,
+                "lifetime": lifetime,
+            }
+            if lifesize:
+                profile_data["lifesize"] = lifesize
+
+            # Try to fetch existing profile for smart upsert
+            existing_profile = None
+            try:
+                existing_profile = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing IPsec crypto profile '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"IPsec crypto profile '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching IPsec crypto profile '{name}': {str(fetch_error)}")
+
+            if existing_profile:
+                # Compare fields to detect changes
+                needs_update = False
+                update_fields = []
+
+                # Compare ESP encryption
+                existing_esp = existing_profile.esp
+                if existing_esp:
+                    existing_enc = [str(e.value) if hasattr(e, "value") else str(e) for e in existing_esp.encryption]
+                    if set(existing_enc) != set(esp_encryption):
+                        needs_update = True
+                        update_fields.append("esp_encryption")
+                    existing_auth = [str(a) for a in existing_esp.authentication]
+                    if set(existing_auth) != set(esp_authentication):
+                        needs_update = True
+                        update_fields.append("esp_authentication")
+
+                # Compare DH group
+                existing_dh = str(existing_profile.dh_group.value) if hasattr(existing_profile.dh_group, "value") else str(existing_profile.dh_group)
+                if existing_dh != dh_group:
+                    needs_update = True
+                    update_fields.append("dh_group")
+
+                if needs_update:
+                    self.logger.info(f"Updating IPsec crypto profile fields: {', '.join(update_fields)}")
+                    profile_data["id"] = str(existing_profile.id)
+                    result = self.client.ipsec_crypto_profile.update(profile_data)
+                    self.logger.info(f"Successfully updated IPsec crypto profile '{name}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for IPsec crypto profile '{name}', skipping update")
+                    response = json.loads(existing_profile.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Create new profile
+                result = self.client.ipsec_crypto_profile.create(profile_data)
+                self.logger.info(f"Successfully created IPsec crypto profile '{name}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder, name, e)
+
+    def delete_ipsec_crypto_profile(
+        self,
+        folder: str,
+        name: str,
+    ) -> bool:
+        """Delete an IPsec crypto profile.
+
+        Args:
+            folder: Folder containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting IPsec crypto profile: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            profile = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
+            self.client.ipsec_crypto_profile.delete(str(profile.id))
+            self.logger.info(f"Successfully deleted IPsec crypto profile '{name}'")
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name, e)
+
+    def get_ipsec_crypto_profile(
+        self,
+        folder: str,
+        name: str,
+    ) -> dict[str, Any]:
+        """Get an IPsec crypto profile by name and folder.
+
+        Args:
+            folder: Folder containing the profile
+            name: Name of the profile to get
+
+        Returns:
+            dict[str, Any]: The IPsec crypto profile
+
+        """
+        self.logger.info(f"Getting IPsec crypto profile: {name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": f"ipsec-crypto-{name}",
+                "folder": folder,
+                "name": name,
+                "esp": {
+                    "encryption": ["aes-256-cbc"],
+                    "authentication": ["sha256"],
+                },
+                "dh_group": "group14",
+                "lifetime": {"hours": 1},
+            }
+
+        try:
+            result = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("retrieval", folder, name, e)
+
+    def list_ipsec_crypto_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List IPsec crypto profiles in a container.
+
+        Args:
+            folder: Folder location
+            snippet: Snippet location
+            device: Device location
+            exact_match: If True, only return objects defined exactly in the specified container
+
+        Returns:
+            list[dict[str, Any]]: List of IPsec crypto profile objects
+
+        """
+        container = folder or snippet or device or "Texas"
+        self.logger.info(f"Listing IPsec crypto profiles in {folder=}, {snippet=}, {device=} (exact_match={exact_match})")
+
+        if not self.client:
+            return [
+                {
+                    "id": "ipsec-crypto-mock1",
+                    "folder": folder or "Texas",
+                    "name": "ipsec-esp-aes256-sha256",
+                    "esp": {
+                        "encryption": ["aes-256-cbc"],
+                        "authentication": ["sha256"],
+                    },
+                    "dh_group": "group14",
+                    "lifetime": {"hours": 1},
+                },
+                {
+                    "id": "ipsec-crypto-mock2",
+                    "folder": folder or "Texas",
+                    "name": "ipsec-esp-aes128-sha1",
+                    "esp": {
+                        "encryption": ["aes-128-cbc"],
+                        "authentication": ["sha1"],
+                    },
+                    "dh_group": "group2",
+                    "lifetime": {"seconds": 3600},
+                },
+                {
+                    "id": "ipsec-crypto-mock3",
+                    "folder": folder or "Texas",
+                    "name": "ipsec-esp-aes256gcm",
+                    "esp": {
+                        "encryption": ["aes-256-gcm"],
+                        "authentication": ["sha512"],
+                    },
+                    "dh_group": "group20",
+                    "lifetime": {"hours": 8},
+                    "lifesize": {"gb": 1},
+                },
+            ]
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        try:
+            results = self.client.ipsec_crypto_profile.list(exact_match=exact_match, **container_kwargs)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container, "IPsec crypto profiles", e)
 
     # ======================================================================================================================================================================================
     # SECURITY CONFIGURATION METHODS
@@ -6607,6 +7245,1094 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", container or "", "decryption profiles", e)
+
+    # --------------------------------------------------------------------------- WildFire Antivirus Profile ---------------------------------------------------------------------------
+
+    def create_wildfire_antivirus_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        packet_capture: bool | None = None,
+        rules: list[dict[str, Any]] | None = None,
+        mlav_exception: list[dict[str, Any]] | None = None,
+        threat_exception: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create a WildFire antivirus profile.
+
+        Args:
+            folder: Folder to create the profile in
+            snippet: Snippet to create the profile in
+            device: Device to create the profile in
+            name: Name of the profile
+            description: Optional description
+            packet_capture: Enable packet capture
+            rules: List of WildFire antivirus rules
+            mlav_exception: List of MLAV exceptions
+            threat_exception: List of threat exceptions
+
+        Returns:
+            dict[str, Any]: The created WildFire antivirus profile object
+
+        Note:
+            If a WildFire antivirus profile with the same name already exists in the container,
+            it will be updated with the new configuration.
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Creating or updating WildFire antivirus profile: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"wfav-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": description,
+                "packet_capture": packet_capture,
+                "rules": rules or [],
+                "mlav_exception": mlav_exception,
+                "threat_exception": threat_exception,
+            }
+
+        try:
+            # First, try to fetch the existing profile
+            existing_profile = None
+            try:
+                existing_profile = self.client.wildfire_antivirus_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+                self.logger.info(f"Found existing WildFire antivirus profile '{name}' in {container_type} '{container}', updating...")
+            except NotFoundError:
+                self.logger.info(f"WildFire antivirus profile '{name}' not found in {container_type} '{container}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching WildFire antivirus profile '{name}': {str(fetch_error)}")
+
+            # Prepare profile data
+            profile_data = {
+                "name": name,
+            }
+
+            # Add container field only if not None
+            if folder is not None:
+                profile_data["folder"] = folder
+            if snippet is not None:
+                profile_data["snippet"] = snippet
+            if device is not None:
+                profile_data["device"] = device
+
+            # Add optional fields if provided
+            if description is not None:
+                profile_data["description"] = description
+            if packet_capture is not None:
+                profile_data["packet_capture"] = packet_capture
+            if rules is not None:
+                profile_data["rules"] = rules
+            if mlav_exception is not None:
+                profile_data["mlav_exception"] = mlav_exception
+            if threat_exception is not None:
+                profile_data["threat_exception"] = threat_exception
+
+            # Create or update the profile
+            if existing_profile:
+                # Update existing profile
+                profile_data["id"] = existing_profile.id
+                from scm.models.security import WildfireAvProfileUpdateModel
+
+                update_model = WildfireAvProfileUpdateModel(**profile_data)
+                result = self.client.wildfire_antivirus_profile.update(update_model)
+            else:
+                # Create a new profile
+                result = self.client.wildfire_antivirus_profile.create(profile_data)
+
+            # Convert response to dict
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", "WildFire antivirus profile", e)
+
+    def delete_wildfire_antivirus_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a WildFire antivirus profile.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deleted successfully
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Deleting WildFire antivirus profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock success if no client is available
+            return True
+
+        try:
+            # Fetch the profile to get its ID
+            profile = self.client.wildfire_antivirus_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+
+            # Delete using the ID
+            self.client.wildfire_antivirus_profile.delete(profile.id)
+            self.logger.info(f"Successfully deleted WildFire antivirus profile '{name}' from {container_type} '{container}'")
+            return True
+        except NotFoundError:
+            self.logger.warning(f"WildFire antivirus profile '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", "WildFire antivirus profile", e)
+
+    def get_wildfire_antivirus_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a WildFire antivirus profile by name.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile
+
+        Returns:
+            dict[str, Any]: The WildFire antivirus profile object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Getting WildFire antivirus profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"wfav-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": "Mock WildFire antivirus profile",
+                "rules": [
+                    {
+                        "name": "Default Rule",
+                        "direction": "both",
+                        "analysis": "public-cloud",
+                        "application": ["any"],
+                        "file_type": ["any"],
+                    }
+                ],
+                "packet_capture": False,
+            }
+
+        try:
+            # Fetch the profile using the SDK
+            result = self.client.wildfire_antivirus_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+
+            # Convert SDK response to dict
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", "WildFire antivirus profile", e)
+
+    def list_wildfire_antivirus_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List WildFire antivirus profiles.
+
+        Args:
+            folder: Folder to list out
+            snippet: Snippet to list out
+            device: Device to list out
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of WildFire antivirus profile objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        # Build container kwargs
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing WildFire antivirus profiles in {container_type}: {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "wfav-mock1",
+                    "folder": folder or "Texas",
+                    "name": "WildFire Best Practice",
+                    "description": "Best practice WildFire antivirus profile",
+                    "rules": [
+                        {
+                            "name": "Forward All",
+                            "direction": "both",
+                            "analysis": "public-cloud",
+                            "application": ["any"],
+                            "file_type": ["any"],
+                        }
+                    ],
+                    "packet_capture": False,
+                },
+                {
+                    "id": "wfav-mock2",
+                    "folder": folder or "Texas",
+                    "name": "WildFire Upload Only",
+                    "description": "Upload-only WildFire profile",
+                    "rules": [
+                        {
+                            "name": "Upload Rule",
+                            "direction": "upload",
+                            "analysis": "public-cloud",
+                            "application": ["any"],
+                            "file_type": ["any"],
+                        }
+                    ],
+                },
+            ]
+
+        try:
+            # List profiles using the SDK
+            results = self.client.wildfire_antivirus_profile.list(**container_kwargs, exact_match=exact_match)
+
+            # Convert SDK response to a list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "WildFire antivirus profiles", e)
+
+    # ------------------------------------------------------------------------------- DNS Security Profile ---------------------------------------------------------------------------
+
+    def create_dns_security_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        **profile_data,
+    ) -> dict[str, Any]:
+        """Create or update a DNS security profile.
+
+        Args:
+            folder: Folder to create the profile in
+            snippet: Snippet to create the profile in
+            device: Device to create the profile in
+            **profile_data: Additional profile configuration data
+
+        Returns:
+            dict[str, Any]: Created/updated DNS security profile object
+
+        """
+        name = profile_data.get("name")
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Creating/updating DNS security profile: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"dns-sec-{name}",
+                "name": name,
+                container_type: container,
+                "description": profile_data.get("description", ""),
+                "botnet_domains": profile_data.get("botnet_domains", {}),
+                "__action__": "created",
+            }
+
+        try:
+            # Check if the profile already exists
+            existing_profile = None
+            try:
+                if folder:
+                    existing_profile = self.client.dns_security_profile.fetch(name=name, folder=folder)
+                elif snippet:
+                    existing_profile = self.client.dns_security_profile.fetch(name=name, snippet=snippet)
+                elif device:
+                    existing_profile = self.client.dns_security_profile.fetch(name=name, device=device)
+            except NotFoundError:
+                self.logger.info(f"DNS security profile '{name}' not found. Creating new profile.")
+
+            if existing_profile:
+                # Update existing profile
+                self.logger.info(f"DNS security profile '{name}' exists. Updating.")
+
+                # Update with new data
+                for key, value in profile_data.items():
+                    if value is not None and hasattr(existing_profile, key):
+                        setattr(existing_profile, key, value)
+
+                # Update the profile
+                result = self.client.dns_security_profile.update(existing_profile)
+                self.logger.info(f"Successfully updated DNS security profile '{name}'")
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "updated"
+                return result_dict
+            else:
+                # Create a new profile
+                profile_dict = {container_type: container}
+                profile_dict.update(profile_data)
+
+                result = self.client.dns_security_profile.create(profile_dict)
+                self.logger.info(f"Successfully created DNS security profile '{name}'")
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "created"
+                return result_dict
+        except Exception as e:
+            self._handle_api_exception("creation/update", container or "", name or "", e)
+
+    def delete_dns_security_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a DNS security profile.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Deleting DNS security profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return a mock result if no client is available
+            return True
+
+        try:
+            # Get the profile first to get its ID
+            profile = None
+            if folder:
+                profile = self.client.dns_security_profile.fetch(name=name, folder=folder)
+            elif snippet:
+                profile = self.client.dns_security_profile.fetch(name=name, snippet=snippet)
+            elif device:
+                profile = self.client.dns_security_profile.fetch(name=name, device=device)
+
+            # Delete using the ID
+            if profile is None:
+                raise ValueError(f"DNS security profile '{name}' not found")
+            self.client.dns_security_profile.delete(str(profile.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", container or "", name or "", e)
+
+    def get_dns_security_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a DNS security profile by name.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to get
+
+        Returns:
+            dict[str, Any]: The DNS security profile object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        self.logger.info(f"Getting DNS security profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"dns-sec-{name}",
+                container_type: container,
+                "name": name,
+                "description": "Mock DNS security profile",
+                "botnet_domains": {
+                    "dns_security_categories": [
+                        {
+                            "name": "pan-dns-sec-grayware",
+                            "action": "default",
+                            "log_level": "default",
+                            "packet_capture": "disable",
+                        },
+                        {
+                            "name": "pan-dns-sec-malware",
+                            "action": "sinkhole",
+                            "log_level": "default",
+                            "packet_capture": "single-packet",
+                        },
+                    ],
+                    "sinkhole": {
+                        "ipv4_address": "pan-sinkhole-default-ip",
+                        "ipv6_address": "::1",
+                    },
+                    "whitelist": [
+                        {
+                            "name": "example.com",
+                            "description": "Whitelisted domain",
+                        },
+                    ],
+                },
+            }
+
+        try:
+            # Fetch the profile using the SDK
+            result = None
+            if folder:
+                result = self.client.dns_security_profile.fetch(name=name, folder=folder)
+            elif snippet:
+                result = self.client.dns_security_profile.fetch(name=name, snippet=snippet)
+            elif device:
+                result = self.client.dns_security_profile.fetch(name=name, device=device)
+
+            # Convert SDK response to dict for compatibility
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"DNS security profile '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", "DNS security profile", e)
+
+    def list_dns_security_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List DNS security profiles.
+
+        Args:
+            folder: Folder to list from
+            snippet: Snippet to list from
+            device: Device to list from
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of DNS security profile objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        # Build container kwargs
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing DNS security profiles in {container_type}: {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "dns-sec-mock1",
+                    "folder": folder or "Texas",
+                    "name": "DNS-Security-Default",
+                    "description": "Default DNS security profile",
+                    "botnet_domains": {
+                        "dns_security_categories": [
+                            {
+                                "name": "pan-dns-sec-grayware",
+                                "action": "default",
+                                "log_level": "default",
+                            },
+                            {
+                                "name": "pan-dns-sec-malware",
+                                "action": "sinkhole",
+                                "log_level": "default",
+                                "packet_capture": "single-packet",
+                            },
+                        ],
+                        "sinkhole": {
+                            "ipv4_address": "pan-sinkhole-default-ip",
+                            "ipv6_address": "::1",
+                        },
+                    },
+                },
+                {
+                    "id": "dns-sec-mock2",
+                    "folder": folder or "Texas",
+                    "name": "DNS-Security-Strict",
+                    "description": "Strict DNS security profile",
+                    "botnet_domains": {
+                        "dns_security_categories": [
+                            {
+                                "name": "pan-dns-sec-grayware",
+                                "action": "block",
+                                "log_level": "high",
+                            },
+                            {
+                                "name": "pan-dns-sec-malware",
+                                "action": "sinkhole",
+                                "log_level": "critical",
+                                "packet_capture": "extended-capture",
+                            },
+                        ],
+                        "sinkhole": {
+                            "ipv4_address": "pan-sinkhole-default-ip",
+                            "ipv6_address": "::1",
+                        },
+                    },
+                },
+            ]
+
+        try:
+            # List profiles using the SDK
+            results = self.client.dns_security_profile.list(**container_kwargs, exact_match=exact_match)
+
+            # Convert SDK response to a list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "DNS security profiles", e)
+
+    # --------------------------------------------------------------------------- Vulnerability Protection Profile ---------------------------------------------------------------------------
+
+    def create_vulnerability_protection_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        threat_exception: list[dict[str, Any]] | None = None,
+        rules: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create a vulnerability protection profile.
+
+        Args:
+            folder: Folder to create the profile in
+            snippet: Snippet to create the profile in
+            device: Device to create the profile in
+            name: Name of the profile
+            description: Optional description
+            threat_exception: List of threat exceptions
+            rules: List of vulnerability protection rules
+
+        Returns:
+            dict[str, Any]: The created vulnerability protection profile object
+
+        Note:
+            If a vulnerability protection profile with the same name already exists in the container,
+            it will be updated with the new configuration.
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Creating or updating vulnerability protection profile: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"vpp-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": description,
+                "threat_exception": threat_exception or [],
+                "rules": rules or [],
+            }
+
+        try:
+            # First, try to fetch the existing vulnerability protection profile
+            existing_profile = None
+            try:
+                existing_profile = self.client.vulnerability_protection_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+                self.logger.info(f"Found existing vulnerability protection profile '{name}' in {container_type} '{container}', updating...")
+            except NotFoundError:
+                self.logger.info(f"Vulnerability protection profile '{name}' not found in {container_type} '{container}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching vulnerability protection profile '{name}': {str(fetch_error)}")
+
+            # Prepare profile data
+            profile_data = {
+                "name": name,
+            }
+
+            # Add container field only if not None
+            if folder is not None:
+                profile_data["folder"] = folder
+            if snippet is not None:
+                profile_data["snippet"] = snippet
+            if device is not None:
+                profile_data["device"] = device
+
+            # Add optional fields if provided
+            if description is not None:
+                profile_data["description"] = description
+            if threat_exception is not None:
+                profile_data["threat_exception"] = threat_exception
+            if rules is not None:
+                profile_data["rules"] = rules
+
+            # Create or update the profile
+            if existing_profile:
+                # Update existing profile
+                profile_data["id"] = existing_profile.id
+                from scm.models.security import VulnerabilityProfileUpdateModel
+
+                update_model = VulnerabilityProfileUpdateModel(**profile_data)
+                result = self.client.vulnerability_protection_profile.update(update_model)
+            else:
+                # Create a new profile
+                result = self.client.vulnerability_protection_profile.create(profile_data)
+
+            # Convert response to dict
+            return json.loads(result.model_dump_json(exclude_unset=True))
+
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", "vulnerability protection profile", e)
+
+    def delete_vulnerability_protection_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a vulnerability protection profile.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile to delete
+
+        Returns:
+            bool: True if deleted successfully
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Deleting vulnerability protection profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock success if no client is available
+            return True
+
+        try:
+            # Fetch the profile to get its ID
+            profile = self.client.vulnerability_protection_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+
+            # Delete using the ID
+            self.client.vulnerability_protection_profile.delete(profile.id)
+            self.logger.info(f"Successfully deleted vulnerability protection profile '{name}' from {container_type} '{container}'")
+            return True
+        except NotFoundError:
+            self.logger.warning(f"Vulnerability protection profile '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", "vulnerability protection profile", e)
+
+    def get_vulnerability_protection_profile(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a vulnerability protection profile by name.
+
+        Args:
+            folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
+            name: Name of the profile
+
+        Returns:
+            dict[str, Any]: The vulnerability protection profile object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Getting vulnerability protection profile: {name} from {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"vpp-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": "Mock vulnerability protection profile",
+                "rules": [
+                    {
+                        "name": "Block Critical Vulnerabilities",
+                        "severity": ["critical", "high"],
+                        "category": "any",
+                        "host": "any",
+                        "action": {"alert": {}},
+                        "packet_capture": "single-packet",
+                    }
+                ],
+            }
+
+        try:
+            # Fetch the profile using the SDK
+            result = self.client.vulnerability_protection_profile.fetch(name=name, folder=folder, snippet=snippet, device=device)
+
+            # Convert SDK response to dict
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", "vulnerability protection profile", e)
+
+    def list_vulnerability_protection_profiles(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List vulnerability protection profiles.
+
+        Args:
+            folder: Folder to list out
+            snippet: Snippet to list out
+            device: Device to list out
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of vulnerability protection profile objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        # Build container kwargs
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing vulnerability protection profiles in {container_type}: {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "vpp-mock1",
+                    "folder": folder or "Texas",
+                    "name": "Strict Vulnerability Protection",
+                    "description": "Block all critical and high severity vulnerabilities",
+                    "rules": [
+                        {
+                            "name": "Block Critical",
+                            "severity": ["critical", "high"],
+                            "category": "any",
+                            "host": "any",
+                            "action": {"alert": {}},
+                        }
+                    ],
+                },
+                {
+                    "id": "vpp-mock2",
+                    "folder": folder or "Texas",
+                    "name": "Standard Vulnerability Protection",
+                    "description": "Standard vulnerability protection",
+                    "rules": [
+                        {
+                            "name": "Alert Medium",
+                            "severity": ["medium"],
+                            "category": "any",
+                            "host": "any",
+                            "action": {"default": {}},
+                        }
+                    ],
+                },
+            ]
+
+        try:
+            # List profiles using the SDK
+            results = self.client.vulnerability_protection_profile.list(**container_kwargs, exact_match=exact_match)
+
+            # Convert SDK response to a list of dicts for compatibility
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "vulnerability protection profiles", e)
+
+    # -------------------------------------------------------------------------------------- URL Category ------------------------------------------------------------------------------------
+
+    def create_url_category(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        type: str | None = None,
+        list: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a URL category.
+
+        Args:
+            folder: Folder to create the URL category in
+            snippet: Snippet to create the URL category in
+            device: Device to create the URL category in
+            name: Name of the URL category
+            description: Optional description
+            type: Type of URL category (URL List or Category Match)
+            list: List of URLs or category matches
+
+        Returns:
+            dict[str, Any]: The created URL category object
+
+        Note:
+            If a URL category with the same name already exists in the container,
+            it will be updated with the new configuration.
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Creating or updating URL category: {name} in {container_type} {container}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"urlcat-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": description,
+                "type": type or "URL List",
+                "list": list or [],
+                "__action__": "created",
+            }
+
+        try:
+            # First, try to fetch the existing URL category
+            existing = None
+            try:
+                existing = self.client.url_category.fetch(name=name, folder=folder, snippet=snippet, device=device)
+                self.logger.info(f"Found existing URL category '{name}' in {container_type} '{container}', updating...")
+            except NotFoundError:
+                self.logger.info(f"URL category '{name}' not found in {container_type} '{container}', creating new...")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching URL category '{name}': {str(fetch_error)}")
+
+            # Prepare data
+            data = {
+                "name": name,
+            }
+
+            # Add container field only if not None
+            if folder is not None:
+                data["folder"] = folder
+            if snippet is not None:
+                data["snippet"] = snippet
+            if device is not None:
+                data["device"] = device
+
+            # Add optional fields if provided
+            if description is not None:
+                data["description"] = description
+            if type is not None:
+                data["type"] = type
+            if list is not None:
+                data["list"] = list
+
+            # Create or update
+            if existing:
+                # Update existing
+                data["id"] = existing.id
+                from scm.models.security.url_categories import URLCategoriesUpdateModel
+
+                update_model = URLCategoriesUpdateModel(**data)
+                result = self.client.url_category.update(update_model)
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "updated"
+            else:
+                # Create new
+                result = self.client.url_category.create(data)
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+                result_dict["__action__"] = "created"
+
+            return result_dict
+
+        except Exception as e:
+            self._handle_api_exception("creating", container or "", "URL category", e)
+
+    def delete_url_category(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a URL category.
+
+        Args:
+            folder: Folder containing the URL category
+            snippet: Snippet containing the URL category
+            device: Device containing the URL category
+            name: Name of the URL category to delete
+
+        Returns:
+            bool: True if deleted successfully
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Deleting URL category: {name} from {container_type} {container}")
+
+        if not self.client:
+            return True
+
+        try:
+            profile = self.client.url_category.fetch(name=name, folder=folder, snippet=snippet, device=device)
+            self.client.url_category.delete(profile.id)
+            self.logger.info(f"Successfully deleted URL category '{name}' from {container_type} '{container}'")
+            return True
+        except NotFoundError:
+            self.logger.warning(f"URL category '{name}' not found in {container_type} '{container}'")
+            return False
+        except Exception as e:
+            self._handle_api_exception("deleting", container or "", "URL category", e)
+
+    def get_url_category(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a URL category by name.
+
+        Args:
+            folder: Folder containing the URL category
+            snippet: Snippet containing the URL category
+            device: Device containing the URL category
+            name: Name of the URL category
+
+        Returns:
+            dict[str, Any]: The URL category object
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+        self.logger.info(f"Getting URL category: {name} from {container_type} {container}")
+
+        if not self.client:
+            return {
+                "id": f"urlcat-{name}",
+                "folder": folder,
+                "snippet": snippet,
+                "device": device,
+                "name": name,
+                "description": "Mock URL category",
+                "type": "URL List",
+                "list": ["example.com", "test.org"],
+            }
+
+        try:
+            result = self.client.url_category.fetch(name=name, folder=folder, snippet=snippet, device=device)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", container or "", "URL category", e)
+
+    def list_url_categories(
+        self,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """List URL categories.
+
+        Args:
+            folder: Folder to list out
+            snippet: Snippet to list out
+            device: Device to list out
+            exact_match: If True, only return exact container matches
+
+        Returns:
+            list[dict[str, Any]]: List of URL category objects
+
+        """
+        container = folder or snippet or device
+        container_type = "folder" if folder else ("snippet" if snippet else "device")
+
+        container_kwargs = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+
+        self.logger.info(f"Listing URL categories in {container_type}: {container}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "urlcat-mock1",
+                    "folder": folder or "Texas",
+                    "name": "Custom-Block-List",
+                    "description": "Custom blocked URLs",
+                    "type": "URL List",
+                    "list": ["malware.example.com", "phishing.test.org"],
+                },
+                {
+                    "id": "urlcat-mock2",
+                    "folder": folder or "Texas",
+                    "name": "Internal-Sites",
+                    "description": "Internal company sites",
+                    "type": "URL List",
+                    "list": ["intranet.company.com", "wiki.company.com"],
+                },
+            ]
+
+        try:
+            results = self.client.url_category.list(**container_kwargs, exact_match=exact_match)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", container or "", "URL categories", e)
 
     # ======================================================================================================================================================================================
     # INSIGHTS AND MONITORING METHODS

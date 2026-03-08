@@ -2,7 +2,23 @@
 
 import pytest
 from pydantic import ValidationError
-from scm_cli.utils.validators import AddressGroup, BandwidthAllocation, IKECryptoProfile, QuarantinedDevice, Region, Schedule, SecurityRule, Zone
+
+from scm_cli.utils.validators import (
+    AddressGroup,
+    BandwidthAllocation,
+    DNSSecurityProfile,
+    IKECryptoProfile,
+    IPSecCryptoProfile,
+    NATRule,
+    QuarantinedDevice,
+    Region,
+    Schedule,
+    SecurityRule,
+    URLCategory,
+    VulnerabilityProtectionProfile,
+    WildfireAntivirusProfile,
+    Zone,
+)
 
 
 class TestBandwidthAllocation:
@@ -336,6 +352,7 @@ class TestSchedule:
                 time_ranges=["09:00-17:00"],
             )
 
+
 class TestRegion:
     """Test cases for the Region model."""
 
@@ -420,6 +437,8 @@ class TestRegion:
             Region(name="test", folder="Texas", longitude=181.0)
         with pytest.raises(ValidationError):
             Region(name="test", folder="Texas", longitude=-181.0)
+
+
 class TestQuarantinedDevice:
     """Test cases for the QuarantinedDevice model."""
 
@@ -454,6 +473,116 @@ class TestQuarantinedDevice:
         device = QuarantinedDevice(host_id="host-123")
         sdk_data = device.to_sdk_model()
         assert sdk_data == {"host_id": "host-123"}
+
+
+class TestNATRule:
+    """Test cases for the NATRule model."""
+
+    def test_valid_nat_rule(self):
+        """Test creating a valid NAT rule."""
+        rule = NATRule(
+            name="outbound-nat",
+            folder="Texas",
+            nat_type="ipv4",
+            source=["any"],
+            destination=["any"],
+            service="any",
+            source_translation={
+                "dynamic_ip_and_port": {
+                    "type": "dynamic_ip_and_port",
+                    "translated_address": ["10.0.0.1"],
+                }
+            },
+        )
+        assert rule.name == "outbound-nat"
+        assert rule.folder == "Texas"
+        assert rule.nat_type == "ipv4"
+        assert rule.source == ["any"]
+        assert rule.destination == ["any"]
+        assert rule.service == "any"
+        assert rule.source_translation is not None
+
+    def test_missing_required_fields(self):
+        """Test that required fields are enforced."""
+        with pytest.raises(ValidationError):
+            NATRule(
+                # Missing name
+                folder="Texas",
+            )
+
+    def test_container_validation(self):
+        """Test that exactly one container must be specified."""
+        with pytest.raises(ValidationError):
+            NATRule(
+                name="test-nat",
+                # Missing container
+            )
+
+        with pytest.raises(ValidationError):
+            NATRule(
+                name="test-nat",
+                folder="Texas",
+                snippet="test-snippet",
+            )
+
+    def test_default_values(self):
+        """Test that default values are applied correctly."""
+        rule = NATRule(name="test-nat", folder="Texas")
+        assert rule.nat_type == "ipv4"
+        assert rule.from_zone == ["any"]
+        assert rule.to_zone == ["any"]
+        assert rule.source == ["any"]
+        assert rule.destination == ["any"]
+        assert rule.service == "any"
+        assert rule.disabled is False
+        assert rule.source_translation is None
+        assert rule.destination_translation is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        rule = NATRule(
+            name="outbound-nat",
+            folder="Texas",
+            description="Outbound NAT rule",
+            source=["192.168.1.0/24"],
+            destination=["any"],
+            service="any",
+            source_translation={
+                "dynamic_ip_and_port": {
+                    "type": "dynamic_ip_and_port",
+                    "translated_address": ["10.0.0.1"],
+                }
+            },
+        )
+        sdk_model = rule.to_sdk_model()
+        assert sdk_model["name"] == "outbound-nat"
+        assert sdk_model["folder"] == "Texas"
+        assert sdk_model["description"] == "Outbound NAT rule"
+        assert sdk_model["source"] == ["192.168.1.0/24"]
+        assert sdk_model["destination"] == ["any"]
+        assert sdk_model["service"] == "any"
+        assert "source_translation" in sdk_model
+
+    def test_to_sdk_model_minimal(self):
+        """Test minimal conversion to SDK model."""
+        rule = NATRule(name="simple-nat", folder="Texas")
+        sdk_model = rule.to_sdk_model()
+        assert sdk_model["name"] == "simple-nat"
+        assert sdk_model["folder"] == "Texas"
+        assert sdk_model["from_"] == ["any"]
+        assert sdk_model["to_"] == ["any"]
+        assert "source_translation" not in sdk_model
+        assert "destination_translation" not in sdk_model
+
+    def test_with_from_to_alias(self):
+        """Test creating NAT rule with 'from' and 'to' aliases."""
+        rule = NATRule(
+            name="test-nat",
+            folder="Texas",
+            **{"from": ["trust"], "to": ["untrust"]},
+        )
+        assert rule.from_zone == ["trust"]
+        assert rule.to_zone == ["untrust"]
 
 
 class TestSecurityRule:
@@ -530,3 +659,586 @@ class TestSecurityRule:
         assert rule.description == ""
         assert rule.tags == []
         assert rule.enabled is True
+
+
+class TestWildfireAntivirusProfile:
+    """Test cases for the WildfireAntivirusProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid WildFire antivirus profile."""
+        profile = WildfireAntivirusProfile(
+            name="wf-test",
+            folder="Texas",
+            description="Test profile",
+            rules=[
+                {
+                    "name": "Forward All",
+                    "direction": "both",
+                    "analysis": "public-cloud",
+                    "application": ["any"],
+                    "file_type": ["any"],
+                }
+            ],
+        )
+        assert profile.name == "wf-test"
+        assert profile.folder == "Texas"
+        assert len(profile.rules) == 1
+
+    def test_container_validation(self):
+        """Test that exactly one container must be specified."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                # No container
+                rules=[{"name": "r1", "direction": "both"}],
+            )
+
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                snippet="test-snippet",
+                rules=[{"name": "r1", "direction": "both"}],
+            )
+
+    def test_rule_direction_validation(self):
+        """Test rule direction validation."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "bad-rule", "direction": "invalid"}],
+            )
+
+    def test_rule_analysis_validation(self):
+        """Test rule analysis validation."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "bad-rule", "direction": "both", "analysis": "invalid"}],
+            )
+
+    def test_rule_missing_name(self):
+        """Test rule missing name validation."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"direction": "both"}],
+            )
+
+    def test_rule_missing_direction(self):
+        """Test rule missing direction validation."""
+        with pytest.raises(ValidationError):
+            WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "bad-rule"}],
+            )
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = WildfireAntivirusProfile(
+            name="wf-test",
+            folder="Texas",
+            description="Test profile",
+            packet_capture=True,
+            rules=[
+                {
+                    "name": "Forward All",
+                    "direction": "both",
+                    "analysis": "public-cloud",
+                }
+            ],
+            threat_exception=[{"name": "exc1", "notes": "test"}],
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "wf-test"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["description"] == "Test profile"
+        assert sdk_data["packet_capture"] is True
+        assert len(sdk_data["rules"]) == 1
+        assert sdk_data["threat_exception"] == [{"name": "exc1", "notes": "test"}]
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion with minimal fields."""
+        profile = WildfireAntivirusProfile(
+            name="wf-minimal",
+            folder="Texas",
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data == {"name": "wf-minimal", "folder": "Texas"}
+
+    def test_valid_directions(self):
+        """Test all valid direction values."""
+        for direction in ["download", "upload", "both"]:
+            profile = WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "rule1", "direction": direction}],
+            )
+            assert profile.rules[0]["direction"] == direction
+
+    def test_valid_analyses(self):
+        """Test all valid analysis values."""
+        for analysis in ["public-cloud", "private-cloud"]:
+            profile = WildfireAntivirusProfile(
+                name="wf-test",
+                folder="Texas",
+                rules=[{"name": "rule1", "direction": "both", "analysis": analysis}],
+            )
+            assert profile.rules[0]["analysis"] == analysis
+class TestIPSecCryptoProfile:
+    """Test cases for the IPSecCryptoProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid IPsec crypto profile."""
+        profile = IPSecCryptoProfile(
+            name="test-profile",
+            folder="Texas",
+            esp_encryption=["aes-256-cbc"],
+            esp_authentication=["sha256"],
+            dh_group="group14",
+            lifetime_hours=1,
+        )
+        assert profile.name == "test-profile"
+        assert profile.folder == "Texas"
+        assert profile.esp_encryption == ["aes-256-cbc"]
+        assert profile.esp_authentication == ["sha256"]
+        assert profile.dh_group == "group14"
+        assert profile.lifetime_hours == 1
+
+    def test_missing_container(self):
+        """Test that missing container raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                esp_encryption=["aes-256-cbc"],
+                esp_authentication=["sha256"],
+            )
+
+    def test_invalid_esp_encryption(self):
+        """Test that invalid ESP encryption raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                folder="Texas",
+                esp_encryption=["invalid-algo"],
+            )
+
+    def test_invalid_esp_authentication(self):
+        """Test that invalid ESP authentication raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                folder="Texas",
+                esp_authentication=["invalid-algo"],
+            )
+
+    def test_invalid_dh_group(self):
+        """Test that invalid DH group raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                folder="Texas",
+                dh_group="invalid-group",
+            )
+
+    def test_default_values(self):
+        """Test default values are applied correctly."""
+        profile = IPSecCryptoProfile(name="test-profile", folder="Texas")
+        assert profile.esp_encryption == ["aes-256-cbc"]
+        assert profile.esp_authentication == ["sha256"]
+        assert profile.dh_group == "group14"
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = IPSecCryptoProfile(
+            name="test-profile",
+            folder="Texas",
+            esp_encryption=["aes-256-cbc", "aes-128-cbc"],
+            esp_authentication=["sha256", "sha512"],
+            dh_group="group20",
+            lifetime_hours=8,
+        )
+        sdk_data = profile.to_sdk_model()
+
+        assert sdk_data["name"] == "test-profile"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["esp"]["encryption"] == ["aes-256-cbc", "aes-128-cbc"]
+        assert sdk_data["esp"]["authentication"] == ["sha256", "sha512"]
+        assert sdk_data["dh_group"] == "group20"
+        assert sdk_data["lifetime"] == {"hours": 8}
+
+    def test_to_sdk_model_default_lifetime(self):
+        """Test that default lifetime is applied in SDK model."""
+        profile = IPSecCryptoProfile(name="test-profile", folder="Texas")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["lifetime"] == {"hours": 1}
+
+    def test_to_sdk_model_with_lifesize(self):
+        """Test SDK model with lifesize."""
+        profile = IPSecCryptoProfile(
+            name="test-profile",
+            folder="Texas",
+            lifetime_seconds=3600,
+            lifesize_mb=100,
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["lifetime"] == {"seconds": 3600}
+        assert sdk_data["lifesize"] == {"mb": 100}
+
+    def test_multiple_containers_error(self):
+        """Test that multiple containers raises error."""
+        with pytest.raises(ValidationError):
+            IPSecCryptoProfile(
+                name="test-profile",
+                folder="Texas",
+                snippet="my-snippet",
+            )
+
+
+class TestDNSSecurityProfile:
+    """Test cases for the DNSSecurityProfile model."""
+
+    def test_valid_dns_security_profile(self):
+        """Test creating a valid DNS security profile."""
+        profile = DNSSecurityProfile(
+            name="dns-sec-default",
+            folder="Texas",
+            description="Default DNS security profile",
+            botnet_domains={
+                "dns_security_categories": [
+                    {"name": "pan-dns-sec-malware", "action": "sinkhole", "log_level": "default"},
+                ],
+                "sinkhole": {"ipv4_address": "pan-sinkhole-default-ip", "ipv6_address": "::1"},
+            },
+        )
+        assert profile.name == "dns-sec-default"
+        assert profile.folder == "Texas"
+        assert profile.description == "Default DNS security profile"
+        assert profile.botnet_domains is not None
+        assert len(profile.botnet_domains["dns_security_categories"]) == 1
+
+    def test_missing_name(self):
+        """Test that name is required."""
+        with pytest.raises(ValidationError):
+            DNSSecurityProfile(folder="Texas")
+
+    def test_no_container(self):
+        """Test that at least one container is required."""
+        with pytest.raises(ValidationError):
+            DNSSecurityProfile(name="test-profile")
+
+    def test_multiple_containers(self):
+        """Test that only one container is allowed."""
+        with pytest.raises(ValidationError):
+            DNSSecurityProfile(name="test-profile", folder="Texas", snippet="MySnippet")
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        profile = DNSSecurityProfile(
+            name="dns-sec-test",
+            folder="Texas",
+            description="Test profile",
+            botnet_domains={
+                "dns_security_categories": [
+                    {"name": "pan-dns-sec-malware", "action": "sinkhole"},
+                ],
+            },
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "dns-sec-test"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["description"] == "Test profile"
+        assert "botnet_domains" in sdk_data
+        assert len(sdk_data["botnet_domains"]["dns_security_categories"]) == 1
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion with minimal fields."""
+        profile = DNSSecurityProfile(name="dns-sec-minimal", folder="Texas")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "dns-sec-minimal"
+        assert sdk_data["folder"] == "Texas"
+        assert "description" not in sdk_data
+        assert "botnet_domains" not in sdk_data
+
+    def test_snippet_container(self):
+        """Test using snippet as container."""
+        profile = DNSSecurityProfile(name="dns-sec-snippet", snippet="MySnippet")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["snippet"] == "MySnippet"
+        assert "folder" not in sdk_data
+
+    def test_device_container(self):
+        """Test using device as container."""
+        profile = DNSSecurityProfile(name="dns-sec-device", device="fw-01")
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["device"] == "fw-01"
+        assert "folder" not in sdk_data
+
+
+class TestVulnerabilityProtectionProfile:
+    """Test cases for the VulnerabilityProtectionProfile model."""
+
+    def test_valid_profile(self):
+        """Test creating a valid vulnerability protection profile."""
+        profile = VulnerabilityProtectionProfile(
+            name="test-vuln-profile",
+            folder="Texas",
+            description="Test vulnerability protection",
+            rules=[
+                {
+                    "name": "Block Critical",
+                    "severity": ["critical", "high"],
+                    "category": "any",
+                    "host": "any",
+                    "action": {"alert": {}},
+                }
+            ],
+        )
+        assert profile.name == "test-vuln-profile"
+        assert profile.folder == "Texas"
+        assert profile.description == "Test vulnerability protection"
+        assert len(profile.rules) == 1
+
+    def test_missing_container(self):
+        """Test that missing container raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any"}],
+            )
+
+    def test_multiple_containers(self):
+        """Test that multiple containers raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                snippet="test-snippet",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any"}],
+            )
+
+    def test_rule_missing_name(self):
+        """Test that rule without name raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"severity": ["critical"], "host": "any"}],
+            )
+
+    def test_rule_missing_severity(self):
+        """Test that rule without severity raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "host": "any"}],
+            )
+
+    def test_rule_missing_host(self):
+        """Test that rule without host raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"]}],
+            )
+
+    def test_rule_invalid_severity(self):
+        """Test that invalid severity raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["invalid"], "host": "any"}],
+            )
+
+    def test_rule_invalid_host(self):
+        """Test that invalid host raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "invalid"}],
+            )
+
+    def test_rule_invalid_category(self):
+        """Test that invalid category raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any", "category": "invalid"}],
+            )
+
+    def test_rule_invalid_action(self):
+        """Test that invalid action raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any", "action": "invalid"}],
+            )
+
+    def test_rule_invalid_packet_capture(self):
+        """Test that invalid packet_capture raises validation error."""
+        with pytest.raises(ValidationError):
+            VulnerabilityProtectionProfile(
+                name="test-vuln-profile",
+                folder="Texas",
+                rules=[{"name": "r1", "severity": ["critical"], "host": "any", "packet_capture": "invalid"}],
+            )
+
+    def test_to_sdk_model(self):
+        """Test converting profile to SDK model format."""
+        profile = VulnerabilityProtectionProfile(
+            name="test-vuln-profile",
+            folder="Texas",
+            description="Test profile",
+            rules=[
+                {
+                    "name": "Block Critical",
+                    "severity": ["critical"],
+                    "host": "any",
+                    "action": {"default": {}},
+                }
+            ],
+            threat_exceptions=[{"name": "exception-1", "notes": "Test exception"}],
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "test-vuln-profile"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["description"] == "Test profile"
+        assert len(sdk_data["rules"]) == 1
+        assert sdk_data["threat_exception"][0]["name"] == "exception-1"
+
+    def test_to_sdk_model_minimal(self):
+        """Test converting minimal profile to SDK model."""
+        profile = VulnerabilityProtectionProfile(
+            name="minimal",
+            folder="Texas",
+        )
+        sdk_data = profile.to_sdk_model()
+        assert sdk_data["name"] == "minimal"
+        assert sdk_data["folder"] == "Texas"
+        assert "description" not in sdk_data
+        assert "rules" not in sdk_data
+        assert "threat_exception" not in sdk_data
+
+    def test_valid_all_severities(self):
+        """Test profile with all valid severity values."""
+        profile = VulnerabilityProtectionProfile(
+            name="all-sev",
+            folder="Texas",
+            rules=[
+                {
+                    "name": "all-severities",
+                    "severity": ["critical", "high", "medium", "low", "informational"],
+                    "host": "client",
+                    "category": "sql-injection",
+                    "action": "drop",
+                    "packet_capture": "extended-capture",
+                }
+            ],
+        )
+        assert len(profile.rules[0]["severity"]) == 5
+
+    def test_dict_action_allowed(self):
+        """Test that dict-style action (block_ip) is allowed."""
+        profile = VulnerabilityProtectionProfile(
+            name="block-ip-test",
+            folder="Texas",
+            rules=[
+                {
+                    "name": "block-rule",
+                    "severity": ["critical"],
+                    "host": "any",
+                    "action": {"block_ip": {"track_by": "source", "duration": 300}},
+                }
+            ],
+        )
+        assert profile.rules[0]["action"]["block_ip"]["duration"] == 300
+
+
+class TestURLCategory:
+    """Test cases for the URLCategory model."""
+
+    def test_valid_url_category(self):
+        """Test creating a valid URL category."""
+        category = URLCategory(
+            name="custom-block",
+            folder="Texas",
+            description="Custom blocked URLs",
+            type="URL List",
+            url_list=["malware.example.com", "phishing.test.org"],
+        )
+        assert category.name == "custom-block"
+        assert category.folder == "Texas"
+        assert category.description == "Custom blocked URLs"
+        assert category.type == "URL List"
+        assert category.url_list == ["malware.example.com", "phishing.test.org"]
+
+    def test_missing_name(self):
+        """Test that name is required."""
+        with pytest.raises(ValidationError):
+            URLCategory(folder="Texas")
+
+    def test_no_container(self):
+        """Test that exactly one container must be set."""
+        with pytest.raises(ValidationError):
+            URLCategory(name="test")
+
+    def test_multiple_containers(self):
+        """Test that multiple containers are rejected."""
+        with pytest.raises(ValidationError):
+            URLCategory(name="test", folder="Texas", snippet="My-Snippet")
+
+    def test_invalid_type(self):
+        """Test that invalid type is rejected."""
+        with pytest.raises(ValidationError):
+            URLCategory(name="test", folder="Texas", type="Invalid Type")
+
+    def test_valid_category_match_type(self):
+        """Test Category Match type is accepted."""
+        category = URLCategory(name="test", folder="Texas", type="Category Match", url_list=["gambling"])
+        assert category.type == "Category Match"
+
+    def test_default_values(self):
+        """Test default values."""
+        category = URLCategory(name="test", folder="Texas")
+        assert category.type == "URL List"
+        assert category.url_list == []
+        assert category.description is None
+
+    def test_to_sdk_model(self):
+        """Test conversion to SDK model format."""
+        category = URLCategory(
+            name="custom-block",
+            folder="Texas",
+            description="Custom blocked URLs",
+            type="URL List",
+            url_list=["malware.example.com"],
+        )
+        sdk_data = category.to_sdk_model()
+        assert sdk_data["name"] == "custom-block"
+        assert sdk_data["folder"] == "Texas"
+        assert sdk_data["description"] == "Custom blocked URLs"
+        assert sdk_data["type"] == "URL List"
+        assert sdk_data["list"] == ["malware.example.com"]
+
+    def test_to_sdk_model_snippet(self):
+        """Test conversion with snippet container."""
+        category = URLCategory(name="test", snippet="My-Snippet")
+        sdk_data = category.to_sdk_model()
+        assert sdk_data["snippet"] == "My-Snippet"
+        assert "folder" not in sdk_data
+
+    def test_to_sdk_model_minimal(self):
+        """Test conversion with minimal fields."""
+        category = URLCategory(name="test", folder="Texas")
+        sdk_data = category.to_sdk_model()
+        assert sdk_data == {"name": "test", "folder": "Texas", "type": "URL List"}
