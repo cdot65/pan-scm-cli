@@ -1,176 +1,155 @@
-# Service Management
+# Service Objects
 
-This section covers the commands for managing service objects in Strata Cloud Manager.
+Service objects define network services by protocol and port combinations in Strata Cloud Manager. The `scm` CLI provides commands to create, update, delete, show, backup, and load service objects.
 
 ## Overview
 
-Service objects define network services by protocol and port combinations. The `service` commands allow you to:
+The `service` commands allow you to:
 
-- Create custom service definitions
-- Define TCP and UDP port configurations
+- Create custom service definitions with TCP or UDP protocols
+- Define port configurations (single, range, or comma-separated)
 - Set timeout values for connection handling
-- Manage service descriptions and tags
-- Group services for policy use
+- Delete services that are no longer needed
+- Bulk import services from YAML files
+- Export services for backup or migration
 
-## Commands
+## Port Specification Formats
 
-### Creating/Updating Services
+| Format | Example | Description |
+| --- | --- | --- |
+| Single port | `8080` | One specific port |
+| Port range | `8000-8100` | All ports in the range |
+| Multiple ports | `80,443,8080` | Specific listed ports |
+| Mixed | `80,443,8000-8100` | Combination of formats |
 
-Basic TCP service:
+## Set Service
 
-```bash
-$ scm set object service --folder Texas --name custom-web \
-  --protocol tcp --port "8080,8443" \
-  --description "Custom web service ports"
-<span style="color: green;">✓</span> Service 'custom-web' created successfully
-```
+Create or update a service object.
 
-UDP service with port range:
-
-```bash
-$ scm set object service --folder Texas --name custom-voip \
-  --protocol udp --port "5060-5070" \
-  --description "VoIP signaling ports"
-<span style="color: green;">✓</span> Service 'custom-voip' created successfully
-```
-
-TCP service with timeout overrides:
+### Syntax
 
 ```bash
-$ scm set object service --folder Texas --name database-service \
-  --protocol tcp --port "3306" \
-  --timeout 7200 --halfclose-timeout 120 --timewait-timeout 30 \
-  --description "MySQL with extended timeouts"
-<span style="color: green;">✓</span> Service 'database-service' created successfully
+scm set object service [OPTIONS]
 ```
 
-### Listing Services (Default Behavior)
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder for the service object | No\* |
+| `--snippet TEXT` | Snippet for the service object | No\* |
+| `--device TEXT` | Device for the service object | No\* |
+| `--name TEXT` | Name of the service | Yes |
+| `--protocol TEXT` | Protocol type (tcp or udp) | Yes |
+| `--port TEXT` | Port specification | Yes |
+| `--description TEXT` | Description of the service | No |
+| `--tag TEXT` | Tags for categorization (comma-separated) | No |
+| `--timeout INT` | Session timeout in seconds (TCP only) | No |
+| `--halfclose-timeout INT` | TCP half-close timeout | No |
+| `--timewait-timeout INT` | TCP time-wait timeout | No |
+
+\* One of --folder, --snippet, or --device is required.
+
+### Examples
+
+#### Create a Basic TCP Service
 
 ```bash
-$ scm show object service --folder Texas
-Services in folder 'Texas':
-- custom-web
-- custom-voip
-- database-service
-- legacy-app
+$ scm set object service \
+    --folder Texas \
+    --name custom-web \
+    --protocol tcp \
+    --port "8080,8443" \
+    --description "Custom web service ports"
+---> 100%
+Created service: custom-web in folder Texas
 ```
 
-!!! note
-When no --name is specified, all services are listed by default.
-
-### Showing Service Details
+#### Create a UDP Service with Port Range
 
 ```bash
-$ scm show object service --folder Texas --name custom-web
-Service: custom-web
-  Protocol: tcp
-  Ports: 8080,8443
-  Description: Custom web service ports
-  Tags: None
-  Folder: Texas
+$ scm set object service \
+    --folder Texas \
+    --name custom-voip \
+    --protocol udp \
+    --port "5060-5070" \
+    --description "VoIP signaling ports"
+---> 100%
+Created service: custom-voip in folder Texas
 ```
 
-### Deleting Services
+#### Create a TCP Service with Timeout Overrides
+
+```bash
+$ scm set object service \
+    --folder Texas \
+    --name database-service \
+    --protocol tcp \
+    --port "3306" \
+    --timeout 7200 \
+    --halfclose-timeout 120 \
+    --timewait-timeout 30 \
+    --description "MySQL with extended timeouts"
+---> 100%
+Created service: database-service in folder Texas
+```
+
+## Delete Service
+
+Delete a service object from SCM.
+
+### Syntax
+
+```bash
+scm delete object service [OPTIONS]
+```
+
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder containing the service object | No\* |
+| `--snippet TEXT` | Snippet containing the service object | No\* |
+| `--device TEXT` | Device containing the service object | No\* |
+| `--name TEXT` | Name of the service to delete | Yes |
+
+\* One of --folder, --snippet, or --device is required.
+
+### Example
 
 ```bash
 $ scm delete object service --folder Texas --name custom-web
-<span style="color: green;">✓</span> Service 'custom-web' deleted successfully
+---> 100%
+Deleted service: custom-web from folder Texas
 ```
 
-### Load Services
+## Load Services
 
-Load multiple services from a YAML file.
+Load multiple service objects from a YAML file.
 
-#### Syntax
+### Syntax
 
 ```bash
 scm load object service [OPTIONS]
 ```
 
-#### Options
+### Options
 
-| Option           | Description                                      | Required |
-| ---------------- | ------------------------------------------------ | -------- |
-| `--file TEXT`    | Path to YAML file containing service definitions | Yes      |
-| `--folder TEXT`  | Override folder location for all objects         | No       |
-| `--snippet TEXT` | Override snippet location for all objects        | No       |
-| `--device TEXT`  | Override device location for all objects         | No       |
-| `--dry-run`      | Preview changes without applying them            | No       |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--file TEXT` | Path to YAML file containing service definitions | Yes |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
+| `--dry-run` | Preview changes without applying them | No |
 
-#### Examples
-
-Load from file with original locations:
-
-```bash
-$ scm load object service --file services.yml
-<span style="color: green;">✓</span> Loaded service: custom-web
-<span style="color: green;">✓</span> Loaded service: database-cluster
-<span style="color: green;">✓</span> Loaded service: custom-dns
-<span style="color: green;">✓</span> Loaded service: legacy-app
-
-Successfully loaded 4 out of 4 services from 'services.yml'
-```
-
-Load with folder override:
-
-```bash
-$ scm load object service --file services.yml --folder Austin
-<span style="color: green;">✓</span> Loaded service: custom-web
-<span style="color: green;">✓</span> Loaded service: database-cluster
-<span style="color: green;">✓</span> Loaded service: custom-dns
-<span style="color: green;">✓</span> Loaded service: legacy-app
-
-Successfully loaded 4 out of 4 services from 'services.yml'
-```
-
-!!! note
-When using container override options (--folder, --snippet, --device), all services will be loaded into the specified container, ignoring the container specified in the YAML file.
-
-### Backup Services
-
-Backup all service objects from a specified location to a YAML file.
-
-#### Syntax
-
-```bash
-scm backup object service [OPTIONS]
-```
-
-#### Options
-
-| Option           | Description                                  | Required |
-| ---------------- | -------------------------------------------- | -------- |
-| `--folder TEXT`  | Folder to backup services from               | No\*     |
-| `--snippet TEXT` | Snippet to backup services from              | No\*     |
-| `--device TEXT`  | Device to backup services from               | No\*     |
-| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
-
-\* You must specify exactly one of --folder, --snippet, or --device.
-
-#### Examples
-
-Backup from folder:
-
-```bash
-$ scm backup object service --folder Texas
-<span style="color: green;">✓</span> Successfully backed up 15 services to service_folder_texas_20240115_120530.yaml
-```
-
-Backup with custom filename:
-
-```bash
-$ scm backup object service --folder Texas --file texas-services.yaml
-<span style="color: green;">✓</span> Successfully backed up 15 services to texas-services.yaml
-```
-
-## YAML Configuration Format
-
-Services can be defined in YAML for bulk operations:
+### YAML File Format
 
 ```yaml
+---
 services:
   - name: custom-web
-    folder: Texas # Container location (folder, snippet, or device)
+    folder: Texas
     protocol: tcp
     port: "8080,8443"
     description: "Custom web service ports"
@@ -204,128 +183,147 @@ services:
       - monitor
 ```
 
-## Configuration Options
+### Examples
 
-### Required Parameters
-
-- `--name`: Name of the service
-- `--protocol`: Protocol type (tcp or udp)
-- `--port`: Port specification (single, range, or comma-separated)
-
-### Optional Parameters
-
-- `--description`: Detailed description
-- `--tag`: Tags for categorization (comma-separated)
-
-### TCP-Only Optional Parameters
-
-- `--timeout`: Session timeout in seconds
-- `--halfclose-timeout`: TCP half-close timeout
-- `--timewait-timeout`: TCP time-wait timeout
-
-### Context Parameters
-
-Exactly one context parameter must be specified:
-
-- `--folder`: Folder name (e.g., "Texas", "Shared")
-- `--snippet`: Snippet name for Panorama
-- `--device`: Device name for NGFW
-
-## Port Specification Formats
-
-### Single Port
+#### Load with Original Locations
 
 ```bash
---port "8080"
+$ scm load object service --file services.yml
+---> 100%
+✓ Loaded service: custom-web
+✓ Loaded service: database-cluster
+✓ Loaded service: custom-dns
+✓ Loaded service: legacy-app
+
+Successfully loaded 4 out of 4 services from 'services.yml'
 ```
 
-### Port Range
+#### Load with Folder Override
 
 ```bash
---port "8000-8100"
+$ scm load object service --file services.yml --folder Austin
+---> 100%
+✓ Loaded service: custom-web
+✓ Loaded service: database-cluster
+✓ Loaded service: custom-dns
+✓ Loaded service: legacy-app
+
+Successfully loaded 4 out of 4 services from 'services.yml'
 ```
 
-### Multiple Ports
+!!! note
+    When using container override options (--folder, --snippet, --device), all services
+    will be loaded into the specified container, ignoring the container specified in the
+    YAML file.
+
+## Show Service
+
+Display service objects.
+
+### Syntax
 
 ```bash
---port "80,443,8080,8443"
+scm show object service [OPTIONS]
 ```
 
-### Mixed Format
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder containing the service object | No\* |
+| `--snippet TEXT` | Snippet containing the service object | No\* |
+| `--device TEXT` | Device containing the service object | No\* |
+| `--name TEXT` | Name of the service to show | No |
+
+!!! note
+    When no `--name` is specified, all items are listed by default.
+
+\* One of --folder, --snippet, or --device is required.
+
+### Examples
+
+#### Show Specific Service
 
 ```bash
---port "80,443,8000-8100"
+$ scm show object service --folder Texas --name custom-web
+---> 100%
+Service: custom-web
+  Location: Folder 'Texas'
+  Protocol: tcp
+  Ports: 8080,8443
+  Description: Custom web service ports
+  Tags: None
 ```
 
-## Examples
-
-### Create a Basic TCP Service
+#### List All Services (Default Behavior)
 
 ```bash
-scm set object service --folder Shared --name web-app \
-  --protocol tcp --port "8080"
+$ scm show object service --folder Texas
+---> 100%
+Services in folder 'Texas':
+------------------------------------------------------------
+Name: custom-web
+  Protocol: tcp
+  Ports: 8080,8443
+  Description: Custom web service ports
+------------------------------------------------------------
+Name: custom-voip
+  Protocol: udp
+  Ports: 5060-5070
+  Description: VoIP signaling ports
+------------------------------------------------------------
+Name: database-service
+  Protocol: tcp
+  Ports: 3306
+  Timeout: 7200s
+  Description: MySQL with extended timeouts
+------------------------------------------------------------
 ```
 
-### Create a UDP Service Range
+## Backup Services
+
+Backup all service objects from a specified location to a YAML file.
+
+### Syntax
 
 ```bash
-scm set object service --folder Shared --name voip-rtp \
-  --protocol udp --port "10000-20000" \
-  --description "RTP media ports for VoIP"
+scm backup object service [OPTIONS]
 ```
 
-### Create a Service with Extended Timeouts
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder to backup services from | No\* |
+| `--snippet TEXT` | Snippet to backup services from | No\* |
+| `--device TEXT` | Device to backup services from | No\* |
+| `--file TEXT` | Output filename (defaults to auto-generated) | No |
+
+\* One of --folder, --snippet, or --device is required.
+
+### Examples
+
+#### Backup from Folder
 
 ```bash
-scm set object service --folder Shared --name long-running-job \
-  --protocol tcp --port "9999" \
-  --timeout 14400 \
-  --description "Service for long-running batch jobs (4 hour timeout)"
+$ scm backup object service --folder Texas
+---> 100%
+Successfully backed up 15 services to service_folder_texas_20240115_120530.yaml
 ```
 
-### Create a Tagged Service
+#### Backup with Custom Filename
 
 ```bash
-scm set object service --folder Shared --name critical-db \
-  --protocol tcp --port "5432" \
-  --tag "critical,database,postgresql" \
-  --description "PostgreSQL database service"
+$ scm backup object service --folder Texas --file texas-services.yaml
+---> 100%
+Successfully backed up 15 services to texas-services.yaml
 ```
 
 ## Best Practices
 
-1. **Descriptive Names**: Use names that clearly identify the service purpose
-
-2. **Port Documentation**: Always include descriptions explaining port usage
-
-3. **Timeout Considerations**: Only override timeouts when necessary for application requirements
-
-4. **Tag Organization**: Use consistent tags for easier filtering and management
-
-5. **Port Range Efficiency**: Use ranges instead of listing sequential ports
-
-## Integration with Security Policies
-
-Services are used in security rules to control traffic:
-
-```bash
-# Allow custom web service
-scm set security rule --folder Shared --name "Allow-Custom-Web" \
-  --source-zones "Trust" --destination-zones "DMZ" \
-  --services "custom-web" --action allow
-
-# Use service in NAT rule
-scm set security nat --folder Shared --name "Web-NAT" \
-  --source-zones "Internet" --destination-zones "DMZ" \
-  --services "custom-web" --translated-port 80
-```
-
-## Notes
-
-- Service names must be unique within a folder
-- Valid port ranges are 1-65535
-- Timeout values are in seconds
-- Timeout overrides only apply to TCP services
-- Tags must exist before being referenced
-- Services can be grouped using service groups
-- Some built-in services cannot be modified
+1. **Descriptive Names**: Use names that clearly identify the service purpose.
+2. **Port Documentation**: Always include descriptions explaining port usage.
+3. **Timeout Considerations**: Only override timeouts when necessary for application requirements.
+4. **Tag Organization**: Use consistent tags for easier filtering and management.
+5. **Port Range Efficiency**: Use ranges instead of listing sequential ports.
+6. **Use YAML for Bulk Operations**: For large deployments, use YAML files.

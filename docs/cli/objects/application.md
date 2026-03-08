@@ -4,13 +4,13 @@ Application objects define custom applications with detailed security attributes
 
 ## Overview
 
-Application objects allow you to:
+The `application` commands allow you to:
 
 - Create and update custom application definitions
 - Define application category, subcategory, and technology
 - Set risk levels and security characteristics
 - Configure protocol and port mappings
-- Manage application descriptions and metadata
+- Export applications for backup or migration
 
 ## Set Application
 
@@ -24,35 +24,35 @@ scm set object application [OPTIONS]
 
 ### Options
 
-| Option                          | Description                          | Required |
-| ------------------------------- | ------------------------------------ | -------- |
-| `--folder TEXT`                 | Folder for the application object    | Yes\*    |
-| `--snippet TEXT`                | Snippet for the application object   | Yes\*    |
-| `--device TEXT`                 | Device for the application object    | Yes\*    |
-| `--name TEXT`                   | Name of the application              | Yes      |
-| `--category TEXT`               | Primary category                     | Yes      |
-| `--subcategory TEXT`            | Subcategory within the main category | Yes      |
-| `--technology TEXT`             | Technology type                      | Yes      |
-| `--risk INT`                    | Risk level (1-5)                     | Yes      |
-| `--ports LIST`                  | Protocol and port combinations       | Yes      |
-| `--description TEXT`            | Description of the application       | No       |
-| `--able-to-transfer-files`      | Can transfer files                   | No       |
-| `--has-known-vulnerabilities`   | Has known security vulnerabilities   | No       |
-| `--tunnels-other-applications`  | Can tunnel other applications        | No       |
-| `--evasive`                     | Uses evasive techniques              | No       |
-| `--pervasive`                   | Pervasive use                        | No       |
-| `--excessive-bandwidth-use`     | Consumes excessive bandwidth         | No       |
-| `--used-by-malware`             | Known to be used by malware          | No       |
-| `--no-app-id-caching`           | Disable app-id caching               | No       |
-| `--parent-app TEXT`             | Parent application name              | No       |
-| `--timeout INT`                 | Session timeout in seconds           | No       |
-| `--tcp-timeout INT`             | TCP session timeout                  | No       |
-| `--udp-timeout INT`             | UDP session timeout                  | No       |
-| `--tcp-half-closed-timeout INT` | TCP half-closed timeout              | No       |
-| `--tcp-time-wait-timeout INT`   | TCP time-wait timeout                | No       |
-| `--tag LIST`                    | Tags for categorization              | No       |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder for the application object | No\* |
+| `--snippet TEXT` | Snippet for the application object | No\* |
+| `--device TEXT` | Device for the application object | No\* |
+| `--name TEXT` | Name of the application | Yes |
+| `--category TEXT` | Primary category | Yes |
+| `--subcategory TEXT` | Subcategory within the main category | Yes |
+| `--technology TEXT` | Technology type | Yes |
+| `--risk INT` | Risk level (1-5) | Yes |
+| `--ports LIST` | Protocol and port combinations | Yes |
+| `--description TEXT` | Description of the application | No |
+| `--able-to-transfer-files` | Can transfer files | No |
+| `--has-known-vulnerabilities` | Has known security vulnerabilities | No |
+| `--tunnels-other-applications` | Can tunnel other applications | No |
+| `--evasive` | Uses evasive techniques | No |
+| `--pervasive` | Pervasive use | No |
+| `--excessive-bandwidth-use` | Consumes excessive bandwidth | No |
+| `--used-by-malware` | Known to be used by malware | No |
+| `--no-app-id-caching` | Disable app-id caching | No |
+| `--parent-app TEXT` | Parent application name | No |
+| `--timeout INT` | Session timeout in seconds | No |
+| `--tcp-timeout INT` | TCP session timeout | No |
+| `--udp-timeout INT` | UDP session timeout | No |
+| `--tcp-half-closed-timeout INT` | TCP half-closed timeout | No |
+| `--tcp-time-wait-timeout INT` | TCP time-wait timeout | No |
+| `--tag LIST` | Tags for categorization | No |
 
-\* You must specify exactly one of --folder, --snippet, or --device.
+\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
@@ -90,6 +90,24 @@ $ scm set object application \
 Created application: file-transfer-app in folder Texas
 ```
 
+#### Create an Application with Timeouts
+
+```bash
+$ scm set object application \
+    --folder Shared \
+    --name database-app \
+    --category business-systems \
+    --subcategory database \
+    --technology client-server \
+    --risk 1 \
+    --ports "tcp/1433" \
+    --timeout 7200 \
+    --tcp-timeout 1800 \
+    --description "SQL Server application with extended timeouts"
+---> 100%
+Created application: database-app in folder Shared
+```
+
 ## Delete Application
 
 Delete an application object from SCM.
@@ -102,14 +120,14 @@ scm delete object application [OPTIONS]
 
 ### Options
 
-| Option           | Description                               | Required |
-| ---------------- | ----------------------------------------- | -------- |
-| `--folder TEXT`  | Folder containing the application object  | Yes\*    |
-| `--snippet TEXT` | Snippet containing the application object | Yes\*    |
-| `--device TEXT`  | Device containing the application object  | Yes\*    |
-| `--name TEXT`    | Name of the application object to delete  | Yes      |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder containing the application object | No\* |
+| `--snippet TEXT` | Snippet containing the application object | No\* |
+| `--device TEXT` | Device containing the application object | No\* |
+| `--name TEXT` | Name of the application object to delete | Yes |
 
-\* You must specify exactly one of --folder, --snippet, or --device.
+\* One of --folder, --snippet, or --device is required.
 
 ### Example
 
@@ -131,13 +149,13 @@ scm load object application [OPTIONS]
 
 ### Options
 
-| Option           | Description                                          | Required |
-| ---------------- | ---------------------------------------------------- | -------- |
-| `--file TEXT`    | Path to YAML file containing application definitions | Yes      |
-| `--folder TEXT`  | Override folder location for all objects             | No       |
-| `--snippet TEXT` | Override snippet location for all objects            | No       |
-| `--device TEXT`  | Override device location for all objects             | No       |
-| `--dry-run`      | Preview changes without applying them                | No       |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--file TEXT` | Path to YAML file containing application definitions | Yes |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
+| `--dry-run` | Preview changes without applying them | No |
 
 ### YAML File Format
 
@@ -145,7 +163,7 @@ scm load object application [OPTIONS]
 ---
 applications:
   - name: custom-crm
-    folder: Texas # Container location (folder, snippet, or device)
+    folder: Texas
     category: business-systems
     subcategory: database
     technology: client-server
@@ -167,18 +185,6 @@ applications:
       - udp/2121
     able_to_transfer_files: true
     has_known_vulnerabilities: true
-
-  - name: mobile-sales
-    folder: Texas
-    category: business-systems
-    subcategory: sales-force-automation
-    technology: mobile-application
-    risk: 2
-    description: "Mobile sales application"
-    ports:
-      - tcp/443
-    uses_encryption: true
-    tunnel_applications: true
 ```
 
 ### Examples
@@ -190,9 +196,8 @@ $ scm load object application --file applications.yml
 ---> 100%
 ✓ Loaded application: custom-crm
 ✓ Loaded application: file-transfer-app
-✓ Loaded application: mobile-sales
 
-Successfully loaded 3 out of 3 applications from 'applications.yml'
+Successfully loaded 2 out of 2 applications from 'applications.yml'
 ```
 
 #### Load with Folder Override
@@ -202,13 +207,14 @@ $ scm load object application --file applications.yml --folder Austin
 ---> 100%
 ✓ Loaded application: custom-crm
 ✓ Loaded application: file-transfer-app
-✓ Loaded application: mobile-sales
 
-Successfully loaded 3 out of 3 applications from 'applications.yml'
+Successfully loaded 2 out of 2 applications from 'applications.yml'
 ```
 
 !!! note
-When using container override options (--folder, --snippet, --device), all applications will be loaded into the specified container, ignoring the container specified in the YAML file.
+    When using container override options (--folder, --snippet, --device), all applications
+    will be loaded into the specified container, ignoring the container specified in the
+    YAML file.
 
 ## Show Application
 
@@ -222,16 +228,17 @@ scm show object application [OPTIONS]
 
 ### Options
 
-| Option           | Description                               | Required |
-| ---------------- | ----------------------------------------- | -------- |
-| `--folder TEXT`  | Folder containing the application object  | Yes\*    |
-| `--snippet TEXT` | Snippet containing the application object | Yes\*    |
-| `--device TEXT`  | Device containing the application object  | Yes\*    |
-| `--name TEXT`    | Name of the application object to show    | No\*\*   |
-| `--list`         | List all applications in the container    | No\*\*   |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder containing the application object | No\* |
+| `--snippet TEXT` | Snippet containing the application object | No\* |
+| `--device TEXT` | Device containing the application object | No\* |
+| `--name TEXT` | Name of the application object to show | No |
 
-\* You must specify exactly one of --folder, --snippet, or --device.
-\*\* If --name is not specified, all items will be listed.
+!!! note
+    When no `--name` is specified, all items are listed by default.
+
+\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
@@ -241,14 +248,14 @@ scm show object application [OPTIONS]
 $ scm show object application --folder Texas --name custom-crm
 ---> 100%
 Application: custom-crm
-Location: Folder 'Texas'
-Category: business-systems
-Subcategory: database
-Technology: client-server
-Risk: 3
-Ports: tcp/8080, tcp/8443
-Description: Custom CRM application
-ID: 123e4567-e89b-12d3-a456-426614174000
+  Location: Folder 'Texas'
+  Category: business-systems
+  Subcategory: database
+  Technology: client-server
+  Risk: 3
+  Ports: tcp/8080, tcp/8443
+  Description: Custom CRM application
+  ID: 123e4567-e89b-12d3-a456-426614174000
 ```
 
 #### List All Applications (Default Behavior)
@@ -291,14 +298,14 @@ scm backup object application [OPTIONS]
 
 ### Options
 
-| Option           | Description                                  | Required |
-| ---------------- | -------------------------------------------- | -------- |
-| `--folder TEXT`  | Folder to backup applications from           | No\*     |
-| `--snippet TEXT` | Snippet to backup applications from          | No\*     |
-| `--device TEXT`  | Device to backup applications from           | No\*     |
-| `--file TEXT`    | Output filename (defaults to auto-generated) | No       |
+| Option | Description | Required |
+| --- | --- | --- |
+| `--folder TEXT` | Folder to backup applications from | No\* |
+| `--snippet TEXT` | Snippet to backup applications from | No\* |
+| `--device TEXT` | Device to backup applications from | No\* |
+| `--file TEXT` | Output filename (defaults to auto-generated) | No |
 
-\* You must specify exactly one of --folder, --snippet, or --device.
+\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
@@ -320,76 +327,10 @@ Successfully backed up 10 applications to texas-applications.yaml
 
 ## Best Practices
 
-1. **Use Descriptive Names**: Choose clear, descriptive names for applications
-2. **Set Appropriate Risk Levels**: Risk levels (1-5) help in policy decisions
-3. **Define All Security Attributes**: Include relevant security attributes like file transfer and vulnerability status
-4. **Use YAML for Bulk Operations**: For large deployments, use YAML files to manage applications
-5. **Validate First**: Use the `--dry-run` option to preview changes before applying them
-6. **Port Specifications**: Support ranges (e.g., "tcp/8000-8100") and comma-separated lists
-7. **Organize by Container**: Keep applications organized in appropriate folders, snippets, or devices
-
-## Additional Examples
-
-### Create a Web Application
-
-```bash
-$ scm set object application \
-    --folder Shared \
-    --name custom-portal \
-    --category collaboration \
-    --subcategory web-posting \
-    --technology browser-based \
-    --risk 2 \
-    --ports "tcp/443" \
-    --uses-encryption \
-    --description "Internal web portal"
----> 100%
-Created application: custom-portal in folder Shared
-```
-
-### Create a High-Risk Application
-
-```bash
-$ scm set object application \
-    --folder Shared \
-    --name risky-app \
-    --category networking \
-    --subcategory peer-to-peer \
-    --technology peer-to-peer \
-    --risk 5 \
-    --ports "tcp/6881-6889,udp/6881-6889" \
-    --able-to-transfer-files \
-    --has-known-vulnerabilities \
-    --used-by-malware \
-    --excessive-bandwidth-use \
-    --description "Known P2P application with security risks"
----> 100%
-Created application: risky-app in folder Shared
-```
-
-### Create Application with Timeouts
-
-```bash
-$ scm set object application \
-    --folder Shared \
-    --name database-app \
-    --category business-systems \
-    --subcategory database \
-    --technology client-server \
-    --risk 1 \
-    --ports "tcp/1433" \
-    --timeout 7200 \
-    --tcp-timeout 1800 \
-    --description "SQL Server application with extended timeouts"
----> 100%
-Created application: database-app in folder Shared
-```
-
-## Notes
-
-- Application names must be unique within a container
-- Port specifications support ranges (e.g., "tcp/8000-8100")
-- Multiple ports can be comma-separated
-- Risk levels help in policy decisions
-- Security attributes affect how the firewall handles the application
-- Tags must exist before being referenced
+1. **Use Descriptive Names**: Choose clear, descriptive names for applications that indicate their purpose.
+2. **Set Appropriate Risk Levels**: Risk levels (1-5) help in policy decisions and should reflect actual risk.
+3. **Define Security Attributes**: Include relevant attributes like file transfer capability and vulnerability status.
+4. **Use YAML for Bulk Operations**: For large deployments, use YAML files to manage applications.
+5. **Validate First**: Use the `--dry-run` option to preview changes before applying them.
+6. **Port Specifications**: Support ranges (e.g., "tcp/8000-8100") and comma-separated lists.
+7. **Organize by Container**: Keep applications organized in appropriate folders, snippets, or devices.
