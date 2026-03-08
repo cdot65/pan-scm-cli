@@ -4,6 +4,12 @@ import typer  # noqa: I001
 from scm_cli.commands.network import (
     delete_aggregate_interface,
     delete_app,
+    delete_bgp_address_family_profile,
+    delete_bgp_auth_profile,
+    delete_bgp_filtering_profile,
+    delete_bgp_redistribution_profile,
+    delete_bgp_route_map,
+    delete_bgp_route_map_redistribution,
     delete_dhcp_interface,
     delete_ethernet_interface,
     delete_ike_crypto_profile,
@@ -13,11 +19,19 @@ from scm_cli.commands.network import (
     delete_layer3_subinterface,
     delete_loopback_interface,
     delete_nat_rule,
+    delete_ospf_auth_profile,
+    delete_route_access_list,
+    delete_route_prefix_list,
     delete_tunnel_interface,
     delete_vlan_interface,
     delete_zone,
     load_aggregate_interface,
     load_app,
+    load_bgp_address_family_profile,
+    load_bgp_auth_profile,
+    load_bgp_filtering_profile,
+    load_bgp_route_map,
+    load_bgp_route_map_redistribution,
     load_dhcp_interface,
     load_ethernet_interface,
     load_ike_crypto_profile,
@@ -27,11 +41,20 @@ from scm_cli.commands.network import (
     load_layer3_subinterface,
     load_loopback_interface,
     load_nat_rule,
+    load_ospf_auth_profile,
+    load_route_access_list,
+    load_route_prefix_list,
     load_security_zone as load_zone,
     load_tunnel_interface,
     load_vlan_interface,
     set_aggregate_interface,
     set_app,
+    set_bgp_address_family_profile,
+    set_bgp_auth_profile,
+    set_bgp_filtering_profile,
+    set_bgp_redistribution_profile,
+    set_bgp_route_map,
+    set_bgp_route_map_redistribution,
     set_dhcp_interface,
     set_ethernet_interface,
     set_ike_crypto_profile,
@@ -41,10 +64,19 @@ from scm_cli.commands.network import (
     set_layer3_subinterface,
     set_loopback_interface,
     set_nat_rule,
+    set_ospf_auth_profile,
+    set_route_access_list,
+    set_route_prefix_list,
     set_tunnel_interface,
     set_vlan_interface,
     set_zone,
     show_aggregate_interface,
+    show_bgp_address_family_profile,
+    show_bgp_auth_profile,
+    show_bgp_filtering_profile,
+    show_bgp_redistribution_profile,
+    show_bgp_route_map,
+    show_bgp_route_map_redistribution,
     show_dhcp_interface,
     show_ethernet_interface,
     show_ike_crypto_profile,
@@ -54,6 +86,9 @@ from scm_cli.commands.network import (
     show_layer3_subinterface,
     show_loopback_interface,
     show_nat_rule,
+    show_ospf_auth_profile,
+    show_route_access_list,
+    show_route_prefix_list,
     show_tunnel_interface,
     show_vlan_interface,
 )
@@ -2002,3 +2037,494 @@ class TestVlanInterfaceCommands:
         result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
+
+
+class TestBgpAddressFamilyProfileCommands:
+    """Test the BGP address family profile commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set bgp-address-family-profile creates a new profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(data):
+            result = data.copy()
+            result["id"] = "bgp-af-12345"
+            result["__action__"] = "created"
+            return result
+
+        monkeypatch.setattr(scm_client, "create_bgp_address_family_profile", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_address_family_profile)
+        result = runner.invoke(test_app, ["test-af", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created BGP address family profile" in result.stdout
+
+    def test_set_error(self, runner, monkeypatch):
+        """Test set bgp-address-family-profile handles errors."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_bgp_address_family_profile", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_address_family_profile)
+        result = runner.invoke(test_app, ["test-af", "--folder", "test-folder"])
+        assert result.exit_code == 1
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show bgp-address-family-profile lists profiles."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_bgp_address_family_profiles", lambda **kw: [{"id": "1", "name": "af1", "folder": "test-folder"}])
+        test_app = typer.Typer()
+        test_app.command()(show_bgp_address_family_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "af1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete bgp-address-family-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_bgp_address_family_profile", lambda **kw: {"id": "1", "name": "test-af"})
+        monkeypatch.setattr(scm_client, "delete_bgp_address_family_profile", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_bgp_address_family_profile)
+        result = runner.invoke(test_app, ["test-af", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted BGP address family profile" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load bgp-address-family-profile command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"bgp_address_family_profiles": [{"name": "af1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "af.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_bgp_address_family_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_bgp_address_family_profile)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created BGP address family profile" in result.stdout
+
+
+class TestBgpAuthProfileCommands:
+    """Test the BGP auth profile commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set bgp-auth-profile creates a new profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_bgp_auth_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_auth_profile)
+        result = runner.invoke(test_app, ["test-auth", "--folder", "test-folder", "--secret", "my-key"])
+        assert result.exit_code == 0
+        assert "Created BGP auth profile" in result.stdout
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show bgp-auth-profile lists profiles."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_bgp_auth_profiles", lambda **kw: [{"id": "1", "name": "auth1", "folder": "f"}])
+        test_app = typer.Typer()
+        test_app.command()(show_bgp_auth_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "auth1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete bgp-auth-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_bgp_auth_profile", lambda **kw: {"id": "1", "name": "test-auth"})
+        monkeypatch.setattr(scm_client, "delete_bgp_auth_profile", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_bgp_auth_profile)
+        result = runner.invoke(test_app, ["test-auth", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted BGP auth profile" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load bgp-auth-profile command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"bgp_auth_profiles": [{"name": "auth1", "folder": "test-folder", "secret": "key"}]}
+        yaml_file = tmp_path / "auth.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_bgp_auth_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_bgp_auth_profile)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created BGP auth profile" in result.stdout
+
+
+class TestOspfAuthProfileCommands:
+    """Test the OSPF auth profile commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set ospf-auth-profile creates a new profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_ospf_auth_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_ospf_auth_profile)
+        result = runner.invoke(test_app, ["test-ospf", "--folder", "test-folder", "--password", "my-pass"])
+        assert result.exit_code == 0
+        assert "Created OSPF auth profile" in result.stdout
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show ospf-auth-profile lists profiles."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_ospf_auth_profiles", lambda **kw: [{"id": "1", "name": "ospf1", "folder": "f"}])
+        test_app = typer.Typer()
+        test_app.command()(show_ospf_auth_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "ospf1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete ospf-auth-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_ospf_auth_profile", lambda **kw: {"id": "1", "name": "test-ospf"})
+        monkeypatch.setattr(scm_client, "delete_ospf_auth_profile", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_ospf_auth_profile)
+        result = runner.invoke(test_app, ["test-ospf", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted OSPF auth profile" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load ospf-auth-profile command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"ospf_auth_profiles": [{"name": "ospf1", "folder": "test-folder", "password": "pass"}]}
+        yaml_file = tmp_path / "ospf.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_ospf_auth_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_ospf_auth_profile)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created OSPF auth profile" in result.stdout
+
+
+class TestRouteAccessListCommands:
+    """Test the route access list commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set route-access-list creates a new entry."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_route_access_list", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_route_access_list)
+        result = runner.invoke(test_app, ["test-acl", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created route access list" in result.stdout
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show route-access-list lists entries."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_route_access_lists", lambda **kw: [{"id": "1", "name": "acl1", "folder": "f"}])
+        test_app = typer.Typer()
+        test_app.command()(show_route_access_list)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "acl1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete route-access-list command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_route_access_list", lambda **kw: {"id": "1", "name": "test-acl"})
+        monkeypatch.setattr(scm_client, "delete_route_access_list", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_route_access_list)
+        result = runner.invoke(test_app, ["test-acl", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted route access list" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load route-access-list command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"route_access_lists": [{"name": "acl1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "acl.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_route_access_list", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_route_access_list)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created route access list" in result.stdout
+
+
+class TestRoutePrefixListCommands:
+    """Test the route prefix list commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set route-prefix-list creates a new entry."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_route_prefix_list", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_route_prefix_list)
+        result = runner.invoke(test_app, ["test-pl", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created route prefix list" in result.stdout
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show route-prefix-list lists entries."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_route_prefix_lists", lambda **kw: [{"id": "1", "name": "pl1", "folder": "f"}])
+        test_app = typer.Typer()
+        test_app.command()(show_route_prefix_list)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "pl1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete route-prefix-list command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_route_prefix_list", lambda **kw: {"id": "1", "name": "test-pl"})
+        monkeypatch.setattr(scm_client, "delete_route_prefix_list", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_route_prefix_list)
+        result = runner.invoke(test_app, ["test-pl", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted route prefix list" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load route-prefix-list command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"route_prefix_lists": [{"name": "pl1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "pl.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_route_prefix_list", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_route_prefix_list)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created route prefix list" in result.stdout
+
+
+class TestBgpFilteringProfileCommands:
+    """Test the BGP filtering profile commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set bgp-filtering-profile creates a new profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_bgp_filtering_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_filtering_profile)
+        result = runner.invoke(test_app, ["test-filter", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created BGP filtering profile" in result.stdout
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show bgp-filtering-profile lists profiles."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_bgp_filtering_profiles", lambda **kw: [{"id": "1", "name": "filter1", "folder": "f"}])
+        test_app = typer.Typer()
+        test_app.command()(show_bgp_filtering_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "filter1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete bgp-filtering-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_bgp_filtering_profile", lambda **kw: {"id": "1", "name": "test-filter"})
+        monkeypatch.setattr(scm_client, "delete_bgp_filtering_profile", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_bgp_filtering_profile)
+        result = runner.invoke(test_app, ["test-filter", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted BGP filtering profile" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load bgp-filtering-profile command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"bgp_filtering_profiles": [{"name": "filter1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "filter.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_bgp_filtering_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_bgp_filtering_profile)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+
+
+class TestBgpRedistributionProfileCommands:
+    """Test the BGP redistribution profile commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set bgp-redistribution-profile creates a new profile."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_bgp_redistribution_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_redistribution_profile)
+        result = runner.invoke(test_app, ["test-redist", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created BGP redistribution profile" in result.stdout
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show bgp-redistribution-profile lists profiles."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_bgp_redistribution_profiles", lambda **kw: [{"id": "1", "name": "redist1", "folder": "f"}])
+        test_app = typer.Typer()
+        test_app.command()(show_bgp_redistribution_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "redist1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete bgp-redistribution-profile command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_bgp_redistribution_profile", lambda **kw: {"id": "1", "name": "test-redist"})
+        monkeypatch.setattr(scm_client, "delete_bgp_redistribution_profile", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_bgp_redistribution_profile)
+        result = runner.invoke(test_app, ["test-redist", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted BGP redistribution profile" in result.stdout
+
+
+class TestBgpRouteMapCommands:
+    """Test the BGP route map commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set bgp-route-map creates a new entry."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_bgp_route_map", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_route_map)
+        result = runner.invoke(test_app, ["test-rm", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created BGP route map" in result.stdout
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show bgp-route-map lists entries."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_bgp_route_maps", lambda **kw: [{"id": "1", "name": "rm1", "folder": "f", "route_map": []}])
+        test_app = typer.Typer()
+        test_app.command()(show_bgp_route_map)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "rm1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete bgp-route-map command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_bgp_route_map", lambda **kw: {"id": "1", "name": "test-rm"})
+        monkeypatch.setattr(scm_client, "delete_bgp_route_map", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_bgp_route_map)
+        result = runner.invoke(test_app, ["test-rm", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted BGP route map" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load bgp-route-map command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"bgp_route_maps": [{"name": "rm1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "rm.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_bgp_route_map", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_bgp_route_map)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+
+
+class TestBgpRouteMapRedistributionCommands:
+    """Test the BGP route map redistribution commands."""
+
+    def test_set_created(self, runner, monkeypatch):
+        """Test set bgp-route-map-redistribution creates a new entry."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_bgp_route_map_redistribution", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_bgp_route_map_redistribution)
+        result = runner.invoke(test_app, ["test-rmr", "--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "Created BGP route map redistribution" in result.stdout
+
+    def test_show_list(self, runner, monkeypatch):
+        """Test show bgp-route-map-redistribution lists entries."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_bgp_route_map_redistributions", lambda **kw: [{"id": "1", "name": "rmr1", "folder": "f"}])
+        test_app = typer.Typer()
+        test_app.command()(show_bgp_route_map_redistribution)
+        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        assert result.exit_code == 0
+        assert "rmr1" in result.stdout
+
+    def test_delete_command(self, runner, monkeypatch):
+        """Test delete bgp-route-map-redistribution command."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_bgp_route_map_redistribution", lambda **kw: {"id": "1", "name": "test-rmr"})
+        monkeypatch.setattr(scm_client, "delete_bgp_route_map_redistribution", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(delete_bgp_route_map_redistribution)
+        result = runner.invoke(test_app, ["test-rmr", "--folder", "test-folder", "--force"])
+        assert result.exit_code == 0
+        assert "Deleted BGP route map redistribution" in result.stdout
+
+    def test_load_command(self, runner, monkeypatch, tmp_path):
+        """Test load bgp-route-map-redistribution command."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"bgp_route_map_redistributions": [{"name": "rmr1", "folder": "test-folder"}]}
+        yaml_file = tmp_path / "rmr.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+        monkeypatch.setattr(scm_client, "create_bgp_route_map_redistribution", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(load_bgp_route_map_redistribution)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
