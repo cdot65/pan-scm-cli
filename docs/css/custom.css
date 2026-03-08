@@ -64,20 +64,14 @@
 }
 
 .hero-logo {
-  width: 320px;
-  max-width: 80%;
-  height: auto;
+  width: 120px;
+  height: 120px;
   margin-bottom: 0.5rem;
   filter: drop-shadow(0 4px 12px rgba(248, 182, 32, 0.25));
 }
 
 [data-md-color-scheme="slate"] .hero-logo {
   filter: drop-shadow(0 4px 12px rgba(248, 182, 32, 0.4));
-}
-
-/* Invert dark text in banner SVG for dark mode */
-[data-md-color-scheme="slate"] .hero-logo .cls-3 {
-  fill: #fff;
 }
 
 /* ── Admonition accent colors ─────────────────────────────────────── */
