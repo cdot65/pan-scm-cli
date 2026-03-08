@@ -4,9 +4,9 @@ title: Home
 
 <div class="hero" markdown>
 
-![SCM CLI Logo](images/hero-logo.svg){ .hero-logo }
+![SCM CLI Banner](images/logo - banner.svg){ .hero-logo }
 
-# SCM CLI
+# pan-scm-cli
 
 **Command-line interface for Palo Alto Networks Strata Cloud Manager**
 
