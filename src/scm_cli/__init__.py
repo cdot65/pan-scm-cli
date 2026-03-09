@@ -1,6 +1,8 @@
 """pan-scm-cli: CLI for Palo Alto Networks Strata Cloud Manager."""
 
-__version__ = "0.3.0"
+from importlib.metadata import version
+
+__version__ = version("pan-scm-cli")
 
 from .main import app
 
