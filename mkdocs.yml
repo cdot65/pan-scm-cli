@@ -112,6 +112,7 @@ nav:
           - Layer3 Subinterface: cli/network/layer3-subinterface.md
           - Loopback Interface: cli/network/loopback-interface.md
           - NAT Rule: cli/network/nat-rule.md
+          - QoS Profile: cli/network/qos-profile.md
           - OSPF Auth Profile: cli/network/ospf-auth-profile.md
           - Route Access List: cli/network/route-access-list.md
           - Route Prefix List: cli/network/route-prefix-list.md

@@ -5,7 +5,7 @@ sending them to the SCM API. These models enforce data integrity and ensure
 that all required fields are present and correctly formatted.
 """
 
-from typing import Any, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
@@ -3315,13 +3315,17 @@ class QosProfile(BaseModel):
     aggregate_bandwidth: dict[str, Any] | None = Field(None, description="Aggregate bandwidth settings")
     class_bandwidth_type: dict[str, Any] | None = Field(None, description="Class bandwidth type config")
 
+    ALLOWED_FOLDERS: ClassVar[list[str]] = ["Remote Networks", "Service Connections"]
+
     @model_validator(mode="after")
     def validate_container(self) -> "QosProfile":
-        """Ensure exactly one container is provided."""
+        """Ensure exactly one container is provided and folder is allowed."""
         containers = [self.folder, self.snippet, self.device]
         provided = sum(1 for c in containers if c is not None)
         if provided != 1:
             raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be provided.")
+        if self.folder is not None and self.folder not in self.ALLOWED_FOLDERS:
+            raise ValueError(f"QoS profiles only support folders: {', '.join(self.ALLOWED_FOLDERS)}. Got: '{self.folder}'")
         return self
 
     def to_sdk_model(self) -> dict[str, Any]:

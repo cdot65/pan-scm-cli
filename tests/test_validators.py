@@ -3289,7 +3289,7 @@ class TestQosProfile:
 
     def test_valid_profile(self):
         """Test creating a valid QoS profile."""
-        profile = QosProfile(name="test-qos", folder="test-folder", aggregate_bandwidth={"egress_max": 100})
+        profile = QosProfile(name="test-qos", folder="Remote Networks", aggregate_bandwidth={"egress_max": 100})
         assert profile.name == "test-qos"
         assert profile.aggregate_bandwidth == {"egress_max": 100}
 
@@ -3305,16 +3305,16 @@ class TestQosProfile:
 
     def test_minimal_creation(self):
         """Test minimal creation without optional fields."""
-        profile = QosProfile(name="test-qos", folder="test-folder")
+        profile = QosProfile(name="test-qos", folder="Remote Networks")
         assert profile.aggregate_bandwidth is None
         assert profile.class_bandwidth_type is None
 
     def test_to_sdk_model(self):
         """Test conversion to SDK model format."""
-        profile = QosProfile(name="test-qos", folder="test-folder", aggregate_bandwidth={"egress_max": 100})
+        profile = QosProfile(name="test-qos", folder="Remote Networks", aggregate_bandwidth={"egress_max": 100})
         sdk_data = profile.to_sdk_model()
         assert sdk_data["name"] == "test-qos"
-        assert sdk_data["folder"] == "test-folder"
+        assert sdk_data["folder"] == "Remote Networks"
         assert sdk_data["aggregate_bandwidth"] == {"egress_max": 100}
 
     def test_to_sdk_model_snippet(self):
@@ -3323,6 +3323,31 @@ class TestQosProfile:
         sdk_data = profile.to_sdk_model()
         assert sdk_data["snippet"] == "test-snippet"
         assert "folder" not in sdk_data
+
+    def test_folder_restricted_to_allowed_values(self):
+        """Test that folder must be 'Remote Networks' or 'Service Connections'."""
+        with pytest.raises(ValidationError, match="Remote Networks.*Service Connections"):
+            QosProfile(name="test-qos", folder="Texas")
+
+    def test_folder_remote_networks_accepted(self):
+        """Test that 'Remote Networks' folder is accepted."""
+        profile = QosProfile(name="test-qos", folder="Remote Networks")
+        assert profile.folder == "Remote Networks"
+
+    def test_folder_service_connections_accepted(self):
+        """Test that 'Service Connections' folder is accepted."""
+        profile = QosProfile(name="test-qos", folder="Service Connections")
+        assert profile.folder == "Service Connections"
+
+    def test_snippet_not_restricted(self):
+        """Test that snippet container has no folder restriction."""
+        profile = QosProfile(name="test-qos", snippet="any-snippet")
+        assert profile.snippet == "any-snippet"
+
+    def test_device_not_restricted(self):
+        """Test that device container has no folder restriction."""
+        profile = QosProfile(name="test-qos", device="any-device")
+        assert profile.device == "any-device"
 
 
 class TestQosRule:
