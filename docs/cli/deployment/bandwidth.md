@@ -10,7 +10,7 @@ The `bandwidth` commands allow you to:
 - Assign allocations to specific Service Provider Networks (SPNs)
 - Delete bandwidth allocations that are no longer needed
 - Bulk import bandwidth allocations from YAML files
-- List all bandwidth allocations in a folder
+- List all bandwidth allocations
 
 ## Set Bandwidth Allocation
 
@@ -26,62 +26,39 @@ scm set sase bandwidth [OPTIONS]
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the bandwidth allocation | Yes |
 | `--name TEXT` | Name of the bandwidth allocation | Yes |
-| `--egress-guaranteed INT` | Guaranteed egress bandwidth in Mbps | Yes |
-| `--egress-max INT` | Maximum egress bandwidth in Mbps | Yes |
-| `--ingress-guaranteed INT` | Guaranteed ingress bandwidth in Mbps | Yes |
-| `--ingress-max INT` | Maximum ingress bandwidth in Mbps | Yes |
+| `--bandwidth INT` | Bandwidth value in Mbps | Yes |
+| `--spn-name-list TEXT` | SPN names (comma-separated if multiple) | Yes |
 | `--description TEXT` | Description for the bandwidth allocation | No |
-| `--tags LIST` | List of tags to apply | No |
-| `--spn-name-list LIST` | Comma-separated list of SPN names | No |
+| `--tags TEXT` | Tags (comma-separated if multiple) | No |
+
+!!! note
+    Bandwidth allocations are global resources and do not require a `--folder` parameter.
 
 ### Examples
 
 #### Create a Basic Bandwidth Allocation
 
 ```bash
-$ scm set sase bandwidth \
-    --folder Shared \
+$ scm set sase bandwidth-allocation \
     --name Standard-Branch \
-    --egress-guaranteed 50 \
-    --egress-max 100 \
-    --ingress-guaranteed 75 \
-    --ingress-max 150 \
+    --bandwidth 100 \
+    --spn-name-list "branch-spn-1" \
     --description "Standard bandwidth for branch offices"
 ---> 100%
-Created bandwidth allocation: Standard-Branch in folder Shared
+Created bandwidth allocation: Standard-Branch (100 Mbps)
 ```
 
-#### Create a Bandwidth Allocation with SPN Association
+#### Create a Bandwidth Allocation with Multiple SPNs
 
 ```bash
-$ scm set sase bandwidth \
-    --folder Shared \
+$ scm set sase bandwidth-allocation \
     --name HQ-Bandwidth \
-    --egress-guaranteed 500 \
-    --egress-max 1000 \
-    --ingress-guaranteed 750 \
-    --ingress-max 1500 \
+    --bandwidth 1000 \
     --spn-name-list "HQ-SPN-1,HQ-SPN-2" \
     --description "High bandwidth for headquarters"
 ---> 100%
-Created bandwidth allocation: HQ-Bandwidth in folder Shared
-```
-
-#### Assign Bandwidth Allocation to SPNs
-
-```bash
-$ scm set sase bandwidth \
-    --folder Shared \
-    --name Retail-Store \
-    --egress-guaranteed 25 \
-    --egress-max 50 \
-    --ingress-guaranteed 35 \
-    --ingress-max 70 \
-    --spn-name-list "retail-spn-east,retail-spn-west"
----> 100%
-Updated bandwidth allocation: Retail-Store in folder Shared
+Created bandwidth allocation: HQ-Bandwidth (1000 Mbps)
 ```
 
 ## Delete Bandwidth Allocation
@@ -98,15 +75,15 @@ scm delete sase bandwidth [OPTIONS]
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the bandwidth allocation | Yes |
 | `--name TEXT` | Name of the bandwidth allocation to delete | Yes |
+| `--spn-name-list TEXT` | SPN names (comma-separated if multiple) | Yes |
 
 ### Example
 
 ```bash
-$ scm delete sase bandwidth --folder Shared --name Standard-Branch
+$ scm delete sase bandwidth-allocation --name Standard-Branch --spn-name-list "branch-spn-1"
 ---> 100%
-Deleted bandwidth allocation: Standard-Branch from folder Shared
+Deleted bandwidth allocation: Standard-Branch
 ```
 
 ## Load Bandwidth Allocations
@@ -124,7 +101,7 @@ scm load sase bandwidth [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file containing bandwidth allocation definitions | Yes |
-| `--folder TEXT` | Folder override for all bandwidth allocations | No |
+| `--dry-run` | Preview changes without applying them | No |
 
 ### YAML File Format
 
@@ -132,34 +109,20 @@ scm load sase bandwidth [OPTIONS]
 ---
 bandwidth_allocations:
   - name: Standard-Branch
-    folder: Shared
+    bandwidth: 100
     description: "Standard bandwidth for branch offices"
-    egress_guaranteed: 50
-    egress_max: 100
-    ingress_guaranteed: 75
-    ingress_max: 150
+    spn_name_list:
+      - branch-spn-1
     tags:
       - branch
       - standard
 
   - name: HQ-Bandwidth
-    folder: Shared
+    bandwidth: 1000
     description: "High bandwidth for headquarters"
-    egress_guaranteed: 500
-    egress_max: 1000
-    ingress_guaranteed: 750
-    ingress_max: 1500
     spn_name_list:
       - HQ-SPN-1
       - HQ-SPN-2
-
-  - name: Retail-Store
-    folder: Shared
-    description: "Limited bandwidth for retail locations"
-    egress_guaranteed: 25
-    egress_max: 50
-    ingress_guaranteed: 35
-    ingress_max: 70
 ```
 
 ### Examples
@@ -176,22 +139,6 @@ $ scm load sase bandwidth --file bandwidth-allocations.yml
 Successfully loaded 3 out of 3 bandwidth allocations from 'bandwidth-allocations.yml'
 ```
 
-#### Load with Folder Override
-
-```bash
-$ scm load sase bandwidth --file bandwidth-allocations.yml --folder Shared
----> 100%
-✓ Loaded bandwidth allocation: Standard-Branch
-✓ Loaded bandwidth allocation: HQ-Bandwidth
-✓ Loaded bandwidth allocation: Retail-Store
-
-Successfully loaded 3 out of 3 bandwidth allocations from 'bandwidth-allocations.yml'
-```
-
-!!! note
-    When using the `--folder` override option, all bandwidth allocations will be loaded
-    into the specified folder, ignoring the folder specified in the YAML file.
-
 ## Show Bandwidth Allocation
 
 Display bandwidth allocation objects.
@@ -206,7 +153,6 @@ scm show sase bandwidth [OPTIONS]
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder to list bandwidth allocations from | Yes |
 | `--name TEXT` | Name of the bandwidth allocation to show | No |
 
 !!! note
@@ -217,40 +163,27 @@ scm show sase bandwidth [OPTIONS]
 #### Show Specific Bandwidth Allocation
 
 ```bash
-$ scm show sase bandwidth --folder Shared --name HQ-Bandwidth
+$ scm show sase bandwidth-allocation --name HQ-Bandwidth
 ---> 100%
 Bandwidth Allocation: HQ-Bandwidth
-  Location: Folder 'Shared'
-  Egress: 500/1000 Mbps (guaranteed/max)
-  Ingress: 750/1500 Mbps (guaranteed/max)
+  Allocated Bandwidth: 1000 Mbps
   SPNs: HQ-SPN-1, HQ-SPN-2
-  Description: High bandwidth for headquarters
 ```
 
 #### List All Bandwidth Allocations (Default Behavior)
 
 ```bash
-$ scm show sase bandwidth --folder Shared
+$ scm show sase bandwidth-allocation
 ---> 100%
-Bandwidth Allocations in folder 'Shared':
+Bandwidth Allocations:
 ------------------------------------------------------------
 Name: Standard-Branch
-  Egress: 50/100 Mbps (guaranteed/max)
-  Ingress: 75/150 Mbps (guaranteed/max)
-  SPNs: -
-  Description: Standard bandwidth for branch offices
+  Bandwidth: 100 Mbps
+  SPNs: branch-spn-1
 ------------------------------------------------------------
 Name: HQ-Bandwidth
-  Egress: 500/1000 Mbps (guaranteed/max)
-  Ingress: 750/1500 Mbps (guaranteed/max)
+  Bandwidth: 1000 Mbps
   SPNs: HQ-SPN-1, HQ-SPN-2
-  Description: High bandwidth for headquarters
-------------------------------------------------------------
-Name: Retail-Store
-  Egress: 25/50 Mbps (guaranteed/max)
-  Ingress: 35/70 Mbps (guaranteed/max)
-  SPNs: -
-  Description: Limited bandwidth for retail locations
 ------------------------------------------------------------
 ```
 
