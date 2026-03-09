@@ -1219,7 +1219,7 @@ def set_anti_spyware_profile(
                     "name": "Block Critical and High",
                     "severity": ["critical", "high"],
                     "category": "any",
-                    "action": {"block": {}},
+                    "action": "block",
                     "packet_capture": "single-packet",
                 }
             ]
@@ -1230,7 +1230,7 @@ def set_anti_spyware_profile(
                     "name": "simple-critical",
                     "severity": ["critical"],
                     "category": "any",
-                    "action": {"block": {}},
+                    "action": "block",
                 }
             ]
 
@@ -3121,7 +3121,8 @@ def set_vulnerability_protection_profile(
                     "category": "any",
                     "host": "any",
                     "cve": ["any"],
-                    "action": {"alert": {}},
+                    "vendor_id": ["any"],
+                    "action": "alert",
                     "packet_capture": "single-packet",
                 }
             ]
@@ -3134,7 +3135,8 @@ def set_vulnerability_protection_profile(
                     "category": "any",
                     "host": "any",
                     "cve": ["any"],
-                    "action": {"default": {}},
+                    "vendor_id": ["any"],
+                    "action": "default",
                 }
             ]
 

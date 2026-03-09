@@ -131,14 +131,15 @@ def wait_for_job(
         result = scm_client.wait_for_job(job_id=job_id, timeout=timeout)
 
         status = result.get("status_str", result.get("status", "unknown"))
-        typer.echo(f"\nJob {job_id} completed with status: {status}")
+        result_str = result.get("result_str", result.get("result", ""))
+        typer.echo(f"\nJob {job_id} completed with status: {status} (result: {result_str})")
         typer.echo("-" * 50)
         for key, value in result.items():
             if value is not None and value != [] and value != "":
                 typer.echo(f"  {key}: {value}")
 
         # Exit with error if job did not complete successfully
-        if status not in ("FIN", "OK", "completed"):
+        if result_str in ("FAIL", "PUSHABORT", "ABORTED"):
             raise typer.Exit(code=1)
 
     except typer.Exit:

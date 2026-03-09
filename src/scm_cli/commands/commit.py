@@ -82,8 +82,10 @@ def commit(
             typer.echo(f"Job ID: {job_id}")
 
             if sync:
-                status = result.get("status", "unknown")
+                status = result.get("result_str", result.get("status_str", result.get("status", "unknown")))
                 typer.echo(f"Status: {status}")
+                if result.get("details"):
+                    typer.echo(f"Details: {result.get('details')}")
         else:
             typer.echo("\nCommit initiated")
             job_id = result.get("job_id", "unknown")
