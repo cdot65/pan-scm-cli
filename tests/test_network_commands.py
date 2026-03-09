@@ -2678,7 +2678,7 @@ class TestQosProfileCommands:
         monkeypatch.setattr(scm_client, "create_qos_profile", lambda d: {**d, "id": "1", "__action__": "created"})
         test_app = typer.Typer()
         test_app.command()(set_qos_profile)
-        result = runner.invoke(test_app, ["test-qos", "--folder", "test-folder"])
+        result = runner.invoke(test_app, ["test-qos", "--folder", "Remote Networks"])
         assert result.exit_code == 0
         assert "Created QoS profile" in result.stdout
 
@@ -2689,17 +2689,17 @@ class TestQosProfileCommands:
         monkeypatch.setattr(scm_client, "create_qos_profile", lambda d: (_ for _ in ()).throw(ValueError("Test error")))
         test_app = typer.Typer()
         test_app.command()(set_qos_profile)
-        result = runner.invoke(test_app, ["test-qos", "--folder", "test-folder"])
+        result = runner.invoke(test_app, ["test-qos", "--folder", "Remote Networks"])
         assert result.exit_code == 1
 
     def test_show_list(self, runner, monkeypatch):
         """Test show qos-profile lists profiles."""
         from scm_cli.utils.sdk_client import scm_client
 
-        monkeypatch.setattr(scm_client, "list_qos_profiles", lambda **kw: [{"id": "1", "name": "qos1", "folder": "test-folder"}])
+        monkeypatch.setattr(scm_client, "list_qos_profiles", lambda **kw: [{"id": "1", "name": "qos1", "folder": "Remote Networks"}])
         test_app = typer.Typer()
         test_app.command()(show_qos_profile)
-        result = runner.invoke(test_app, ["--folder", "test-folder"])
+        result = runner.invoke(test_app, ["--folder", "Remote Networks"])
         assert result.exit_code == 0
         assert "qos1" in result.stdout
 
@@ -2711,7 +2711,7 @@ class TestQosProfileCommands:
         monkeypatch.setattr(scm_client, "delete_qos_profile", lambda **kw: None)
         test_app = typer.Typer()
         test_app.command()(delete_qos_profile)
-        result = runner.invoke(test_app, ["test-qos", "--folder", "test-folder", "--force"])
+        result = runner.invoke(test_app, ["test-qos", "--folder", "Remote Networks", "--force"])
         assert result.exit_code == 0
         assert "Deleted QoS profile" in result.stdout
 
@@ -2721,7 +2721,7 @@ class TestQosProfileCommands:
 
         from scm_cli.utils.sdk_client import scm_client
 
-        yaml_data = {"qos_profiles": [{"name": "qos1", "folder": "test-folder"}]}
+        yaml_data = {"qos_profiles": [{"name": "qos1", "folder": "Remote Networks"}]}
         yaml_file = tmp_path / "qos.yaml"
         with yaml_file.open("w") as f:
             yaml.dump(yaml_data, f)
@@ -2729,6 +2729,43 @@ class TestQosProfileCommands:
         test_app = typer.Typer()
         test_app.command()(load_qos_profile)
         result = runner.invoke(test_app, ["--file", str(yaml_file)])
+        assert result.exit_code == 0
+        assert "Created QoS profile" in result.stdout
+
+    def test_set_rejects_invalid_folder(self, runner, monkeypatch):
+        """Test set qos-profile rejects folders other than Remote Networks / Service Connections."""
+        test_app = typer.Typer()
+        test_app.command()(set_qos_profile)
+        result = runner.invoke(test_app, ["test-qos", "--folder", "Texas"])
+        assert result.exit_code == 1
+        assert "Remote Networks" in result.output or "Service Connections" in result.output
+
+    def test_show_rejects_invalid_folder(self, runner, monkeypatch):
+        """Test show qos-profile rejects folders other than Remote Networks / Service Connections."""
+        test_app = typer.Typer()
+        test_app.command()(show_qos_profile)
+        result = runner.invoke(test_app, ["--folder", "Texas"])
+        assert result.exit_code == 1
+
+    def test_set_accepts_remote_networks_folder(self, runner, monkeypatch):
+        """Test set qos-profile accepts Remote Networks folder."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_qos_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_qos_profile)
+        result = runner.invoke(test_app, ["test-qos", "--folder", "Remote Networks"])
+        assert result.exit_code == 0
+        assert "Created QoS profile" in result.stdout
+
+    def test_set_accepts_service_connections_folder(self, runner, monkeypatch):
+        """Test set qos-profile accepts Service Connections folder."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_qos_profile", lambda d: {**d, "id": "1", "__action__": "created"})
+        test_app = typer.Typer()
+        test_app.command()(set_qos_profile)
+        result = runner.invoke(test_app, ["test-qos", "--folder", "Service Connections"])
         assert result.exit_code == 0
         assert "Created QoS profile" in result.stdout
 

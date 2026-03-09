@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pan-scm-cli"
-version = "1.0.5"
+version = "1.0.6"
 description = "CICD and Network Engineer-friendly CLI tool for Palo Alto Networks Strata Cloud Manager"
 authors = ["Calvin Remsburg <dev@cdot.io>"]
 readme = "README.md"

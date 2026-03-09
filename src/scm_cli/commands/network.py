@@ -265,6 +265,19 @@ def validate_location_params(folder: str | None = None, snippet: str | None = No
         return "device", device
 
 
+QOS_PROFILE_ALLOWED_FOLDERS = ["Remote Networks", "Service Connections"]
+
+
+def validate_qos_profile_folder(folder: str | None) -> None:
+    """Validate that folder is allowed for QoS profiles."""
+    if folder is not None and folder not in QOS_PROFILE_ALLOWED_FOLDERS:
+        typer.echo(
+            f"Error: QoS profiles only support folders: {', '.join(QOS_PROFILE_ALLOWED_FOLDERS)}. Got: '{folder}'",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+
 def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
     """Generate the default backup filename.
 
@@ -6045,6 +6058,7 @@ def backup_qos_profile(
     """Export QoS profiles from a specified location to a YAML file."""
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        validate_qos_profile_folder(folder)
         typer.echo(f"Retrieving QoS profiles from {location_type} '{location_value}'...")
         kwargs = {location_type: location_value}
         profiles = scm_client.list_qos_profiles(**kwargs)
@@ -6073,6 +6087,7 @@ def delete_qos_profile(
     """Delete a QoS profile."""
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        validate_qos_profile_folder(folder)
         profile = scm_client.get_qos_profile(name=name, folder=folder, snippet=snippet, device=device)
         if not profile:
             typer.echo(f"QoS profile '{name}' not found", err=True)
@@ -6173,6 +6188,7 @@ def set_qos_profile(
     """Create or update a QoS profile."""
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        validate_qos_profile_folder(folder)
         profile_data: dict[str, Any] = {"name": name, location_type: location_value}
         if aggregate_bandwidth_json:
             profile_data["aggregate_bandwidth"] = json.loads(aggregate_bandwidth_json)
@@ -6206,6 +6222,7 @@ def show_qos_profile(
     """Show QoS profile details."""
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        validate_qos_profile_folder(folder)
         if name:
             profile = scm_client.get_qos_profile(name=name, folder=folder, snippet=snippet, device=device)
             if not profile:
