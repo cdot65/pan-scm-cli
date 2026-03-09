@@ -70,6 +70,7 @@ docker buildx build \
     --tag "${IMAGE_NAME}:apple" \
     --load \
     $NO_CACHE \
+    -f docker/Dockerfile \
     .
 
 if [ $? -ne 0 ]; then
@@ -92,6 +93,7 @@ docker buildx build \
     --platform linux/amd64 \
     --tag "${REGISTRY}${IMAGE_NAME}:latest" \
     $NO_CACHE \
+    -f docker/Dockerfile \
     .
 
 if [ $? -ne 0 ]; then
@@ -126,6 +128,7 @@ if [ "$PUSH_TO_REGISTRY" = true ]; then
         --tag "${REGISTRY}${IMAGE_NAME}:latest" \
         --push \
         $NO_CACHE \
+        -f docker/Dockerfile \
         .
     if [ $? -ne 0 ]; then
         echo -e "${RED}✗ Failed to push AMD64 image!${NC}"
