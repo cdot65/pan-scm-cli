@@ -3539,7 +3539,14 @@ class AntiSpywareProfile(BaseModel):
         if self.threat_exceptions:
             model_data["threat_exception"] = self.threat_exceptions
         if self.rules:
-            model_data["rules"] = self.rules
+            # Convert string actions to dict format required by API (e.g., "block" -> {"block": {}})
+            converted_rules = []
+            for rule in self.rules:
+                rule_copy = dict(rule)
+                if "action" in rule_copy and isinstance(rule_copy["action"], str):
+                    rule_copy["action"] = {rule_copy["action"]: {}}
+                converted_rules.append(rule_copy)
+            model_data["rules"] = converted_rules
         if self.mica_engine_spyware_enabled:
             model_data["mica_engine_spyware_enabled"] = self.mica_engine_spyware_enabled
         if self.cloud_inline_analysis is not None:
@@ -4526,7 +4533,17 @@ class VulnerabilityProtectionProfile(BaseModel):
         if self.threat_exceptions:
             model_data["threat_exception"] = self.threat_exceptions
         if self.rules:
-            model_data["rules"] = self.rules
+            # Convert string actions to dict format required by API (e.g., "default" -> {"default": {}})
+            # Also add default cve field if not specified
+            converted_rules = []
+            for rule in self.rules:
+                rule_copy = dict(rule)
+                if "action" in rule_copy and isinstance(rule_copy["action"], str):
+                    rule_copy["action"] = {rule_copy["action"]: {}}
+                if "cve" not in rule_copy:
+                    rule_copy["cve"] = ["any"]
+                converted_rules.append(rule_copy)
+            model_data["rules"] = converted_rules
 
         return model_data
 
@@ -4544,12 +4561,9 @@ class AuthSetting(BaseModel):
     snippet: str | None = Field(None, description="Snippet location")
     device: str | None = Field(None, description="Device location")
     description: str | None = Field(None, description="Description of the auth setting")
-    auth_type: str | None = Field(None, description="Authentication type (saml, client-certificate, ldap)")
+    authentication_profile: str | None = Field(None, description="Authentication profile name")
     os: str | None = Field(None, description="Operating system (Any, Windows, macOS, Linux, iOS, Android, ChromeOS)")
-    max_user: int | None = Field(None, description="Maximum number of concurrent users")
-    saml_idp: str | None = Field(None, description="SAML identity provider profile name")
-    certificate_profile: str | None = Field(None, description="Certificate profile name")
-    ldap_profile: str | None = Field(None, description="LDAP server profile name")
+    user_credential_or_client_cert_required: bool | None = Field(None, description="Whether user credential or client certificate is required")
 
     @model_validator(mode="after")
     def validate_container(self) -> "AuthSetting":
@@ -4588,18 +4602,12 @@ class AuthSetting(BaseModel):
         # Add optional fields
         if self.description is not None:
             model_data["description"] = self.description
-        if self.auth_type is not None:
-            model_data["auth_type"] = self.auth_type
+        if self.authentication_profile is not None:
+            model_data["authentication_profile"] = self.authentication_profile
         if self.os is not None:
             model_data["os"] = self.os
-        if self.max_user is not None:
-            model_data["max_user"] = self.max_user
-        if self.saml_idp is not None:
-            model_data["saml_idp"] = self.saml_idp
-        if self.certificate_profile is not None:
-            model_data["certificate_profile"] = self.certificate_profile
-        if self.ldap_profile is not None:
-            model_data["ldap_profile"] = self.ldap_profile
+        if self.user_credential_or_client_cert_required is not None:
+            model_data["user_credential_or_client_cert_required"] = self.user_credential_or_client_cert_required
 
         return model_data
 

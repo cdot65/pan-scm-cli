@@ -740,7 +740,11 @@ def set_address_group(
             tags=address_group.tags,
         )
 
-        typer.echo(f"Created address group: {result['name']} in folder {result['folder']}")
+        action = result.pop("__action__", "created")
+        if action == "updated":
+            typer.echo(f"Updated address group: {result['name']} in folder {result['folder']}")
+        else:
+            typer.echo(f"Created address group: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating address group: {str(e)}", err=True)
@@ -1566,7 +1570,11 @@ def set_application(
             no_certifications=application.no_certifications,
         )
 
-        typer.echo(f"Created application: {result['name']} in folder {result['folder']}")
+        action = result.pop("__action__", "created")
+        if action == "updated":
+            typer.echo(f"Updated application: {result['name']} in folder {result['folder']}")
+        else:
+            typer.echo(f"Created application: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating application: {str(e)}", err=True)
@@ -1917,7 +1925,11 @@ def set_application_group(
             members=app_group.members,
         )
 
-        typer.echo(f"Created application group: {result['name']} in folder {result['folder']}")
+        action = result.pop("__action__", "created")
+        if action == "updated":
+            typer.echo(f"Updated application group: {result['name']} in folder {result['folder']}")
+        else:
+            typer.echo(f"Created application group: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating application group: {str(e)}", err=True)
@@ -2642,7 +2654,11 @@ def set_dynamic_user_group(
             tags=dug.tags,
         )
 
-        typer.echo(f"Created dynamic user group: {result['name']} in folder {result['folder']}")
+        action = result.pop("__action__", "created")
+        if action == "updated":
+            typer.echo(f"Updated dynamic user group: {result['name']} in folder {result['folder']}")
+        else:
+            typer.echo(f"Created dynamic user group: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating dynamic user group: {str(e)}", err=True)

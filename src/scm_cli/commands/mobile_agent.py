@@ -153,35 +153,20 @@ LOAD_DEVICE_OPTION = typer.Option(
 )
 
 # Auth Setting specific options
-AUTH_TYPE_OPTION = typer.Option(
+AUTHENTICATION_PROFILE_OPTION = typer.Option(
     None,
-    "--auth-type",
-    help="Authentication type (e.g., saml, client-certificate, ldap)",
+    "--authentication-profile",
+    help="Authentication profile name (required for create)",
 )
 OS_OPTION = typer.Option(
     None,
     "--os",
     help="Operating system (e.g., Any, Windows, macOS, Linux, iOS, Android, ChromeOS)",
 )
-MAX_USER_OPTION = typer.Option(
+USER_CREDENTIAL_OR_CLIENT_CERT_REQUIRED_OPTION = typer.Option(
     None,
-    "--max-user",
-    help="Maximum number of concurrent users",
-)
-SAML_IDP_OPTION = typer.Option(
-    None,
-    "--saml-idp",
-    help="SAML identity provider profile name",
-)
-CERTIFICATE_PROFILE_OPTION = typer.Option(
-    None,
-    "--certificate-profile",
-    help="Certificate profile name for client certificate auth",
-)
-LDAP_PROFILE_OPTION = typer.Option(
-    None,
-    "--ldap-profile",
-    help="LDAP server profile name for LDAP auth",
+    "--user-credential-or-client-cert-required",
+    help="Whether user credential or client certificate is required",
 )
 
 
@@ -446,12 +431,9 @@ def set_auth_setting(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
-    auth_type: str | None = AUTH_TYPE_OPTION,
+    authentication_profile: str | None = AUTHENTICATION_PROFILE_OPTION,
     os: str | None = OS_OPTION,
-    max_user: int | None = MAX_USER_OPTION,
-    saml_idp: str | None = SAML_IDP_OPTION,
-    certificate_profile: str | None = CERTIFICATE_PROFILE_OPTION,
-    ldap_profile: str | None = LDAP_PROFILE_OPTION,
+    user_credential_or_client_cert_required: bool | None = USER_CREDENTIAL_OR_CLIENT_CERT_REQUIRED_OPTION,
 ):
     r"""Create or update an auth setting.
 
@@ -460,8 +442,7 @@ def set_auth_setting(
         scm set mobile-agent auth-setting \
         --folder "Mobile Users" \
         --name "saml-auth" \
-        --auth-type saml \
-        --saml-idp "okta-idp" \
+        --authentication-profile "best-practice" \
         --os Any
 
     """
@@ -475,18 +456,12 @@ def set_auth_setting(
             setting_data["folder"] = folder
         if description is not None:
             setting_data["description"] = description
-        if auth_type is not None:
-            setting_data["auth_type"] = auth_type
+        if authentication_profile is not None:
+            setting_data["authentication_profile"] = authentication_profile
         if os is not None:
             setting_data["os"] = os
-        if max_user is not None:
-            setting_data["max_user"] = max_user
-        if saml_idp is not None:
-            setting_data["saml_idp"] = saml_idp
-        if certificate_profile is not None:
-            setting_data["certificate_profile"] = certificate_profile
-        if ldap_profile is not None:
-            setting_data["ldap_profile"] = ldap_profile
+        if user_credential_or_client_cert_required is not None:
+            setting_data["user_credential_or_client_cert_required"] = user_credential_or_client_cert_required
 
         # Validate using the Pydantic model
         auth_setting = AuthSetting(**setting_data)
@@ -554,18 +529,12 @@ def show_auth_setting(
             # Display auth setting details
             if setting.get("description"):
                 typer.echo(f"Description: {setting['description']}")
-            if setting.get("auth_type"):
-                typer.echo(f"Auth Type: {setting['auth_type']}")
+            if setting.get("authentication_profile"):
+                typer.echo(f"Authentication Profile: {setting['authentication_profile']}")
             if setting.get("os"):
                 typer.echo(f"OS: {setting['os']}")
-            if setting.get("max_user") is not None:
-                typer.echo(f"Max Users: {setting['max_user']}")
-            if setting.get("saml_idp"):
-                typer.echo(f"SAML IDP: {setting['saml_idp']}")
-            if setting.get("certificate_profile"):
-                typer.echo(f"Certificate Profile: {setting['certificate_profile']}")
-            if setting.get("ldap_profile"):
-                typer.echo(f"LDAP Profile: {setting['ldap_profile']}")
+            if setting.get("user_credential_or_client_cert_required") is not None:
+                typer.echo(f"User Credential or Client Cert Required: {setting['user_credential_or_client_cert_required']}")
             if setting.get("id"):
                 typer.echo(f"ID: {setting['id']}")
 
@@ -584,8 +553,8 @@ def show_auth_setting(
 
             for setting in settings_list:
                 typer.echo(f"Name: {setting.get('name', 'N/A')}")
-                if setting.get("auth_type"):
-                    typer.echo(f"  Auth Type: {setting['auth_type']}")
+                if setting.get("authentication_profile"):
+                    typer.echo(f"  Authentication Profile: {setting['authentication_profile']}")
                 if setting.get("os"):
                     typer.echo(f"  OS: {setting['os']}")
                 if setting.get("description"):
