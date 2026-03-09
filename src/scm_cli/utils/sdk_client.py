@@ -12,8 +12,8 @@ from datetime import datetime
 from typing import Any, NoReturn
 
 from oauthlib.oauth2.rfc6749.errors import InvalidClientError
-from scm.client import Scm
 from pydantic import ValidationError
+from scm.client import Scm
 from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
 
 from .config import get_credentials, settings
@@ -690,6 +690,8 @@ class SCMClient:
                     data["qos"] = qos
 
                 self.logger.info(f"Creating new service connection '{name}' in folder: {folder}")
+                # Remove folder from data dict; SDK create() receives it separately
+                data.pop("folder", None)
                 created = self.client.service_connection.create(data)
                 self.logger.info(f"Successfully created service connection '{name}' in folder: {folder}")
                 result = json.loads(created.model_dump_json(exclude_unset=True))
@@ -965,6 +967,8 @@ class SCMClient:
                     data["protocol"] = protocol
 
                 self.logger.info(f"Creating new remote network '{name}' in folder '{folder}'")
+                # Remove folder from data dict; SDK create() receives it separately
+                data.pop("folder", None)
                 created = self.client.remote_network.create(data)
                 self.logger.info(f"Successfully created remote network '{name}' in folder '{folder}'")
                 result = json.loads(created.model_dump_json(exclude_unset=True))
@@ -1566,7 +1570,9 @@ class SCMClient:
                 self.logger.info(f"Successfully created address group '{name}'")
 
             # Convert SDK response to dict for compatibility
-            return result.dict()
+            result_dict = result.dict()
+            result_dict["__action__"] = "updated" if existing_group else "created"
+            return result_dict
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -1847,7 +1853,9 @@ class SCMClient:
                 self.logger.info(f"Successfully created application '{name}'")
 
             # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+            result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+            result_dict["__action__"] = "updated" if existing_app else "created"
+            return result_dict
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -2055,7 +2063,9 @@ class SCMClient:
                 self.logger.info(f"Successfully created application group '{name}'")
 
             # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+            result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+            result_dict["__action__"] = "updated" if existing_group else "created"
+            return result_dict
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -2564,7 +2574,9 @@ class SCMClient:
                 self.logger.info(f"Successfully created dynamic user group '{name}'")
 
             # Convert SDK response to dict for compatibility
-            return json.loads(result.model_dump_json(exclude_unset=True))
+            result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+            result_dict["__action__"] = "updated" if existing_group else "created"
+            return result_dict
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -2752,6 +2764,8 @@ class SCMClient:
                 # If the HIP object doesn't exist, create a new one
                 self.logger.debug(f"EDL {name} not found, creating a new one", exc_info=e)
                 # EDL doesn't exist, create a new one
+                # Strip 'id' field since the SDK create model doesn't accept it
+                edl_data.pop("id", None)
                 result = self.client.external_dynamic_list.create(edl_data)
 
             # Convert SDK response to dict for compatibility
@@ -7139,10 +7153,13 @@ class SCMClient:
                 existing_rule.log_start = log_start
                 existing_rule.log_end = log_end
                 if log_setting:
-                    existing_rule.log_setting = log_setting
+                    existing_rule.log_setting = str(log_setting)
                 else:
-                    # Clear log_setting if not specified
-                    existing_rule.log_setting = None
+                    # Ensure existing log_setting is a string type or cleared
+                    if existing_rule.log_setting is not None and not isinstance(existing_rule.log_setting, str):
+                        existing_rule.log_setting = str(existing_rule.log_setting)
+                    elif not log_setting:
+                        existing_rule.log_setting = None
 
                 # Perform update
                 result = self.client.security_rule.update(existing_rule)
@@ -10094,6 +10111,9 @@ class SCMClient:
 
         try:
             result = self.client.get_job_status(job_id=job_id)
+            if hasattr(result, "data") and result.data:
+                job_data = result.data[0]
+                return json.loads(job_data.model_dump_json(exclude_unset=True))
             if hasattr(result, "model_dump_json"):
                 return json.loads(result.model_dump_json(exclude_unset=True))
             return {"id": job_id, "status": str(result)}
@@ -10128,6 +10148,9 @@ class SCMClient:
 
         try:
             result = self.client.wait_for_job(job_id=job_id, timeout=timeout)
+            if hasattr(result, "data") and result.data:
+                job_data = result.data[0]
+                return json.loads(job_data.model_dump_json(exclude_unset=True))
             if hasattr(result, "model_dump_json"):
                 return json.loads(result.model_dump_json(exclude_unset=True))
             return {"id": job_id, "status": str(result)}
@@ -10243,10 +10266,11 @@ class SCMClient:
             data: dict[str, Any] = {
                 "backbone_routing": backbone_routing,
                 "accept_route_over_SC": accept_route_over_SC,
-                "outbound_routes_for_services": outbound_routes_for_services or [],
                 "add_host_route_to_ike_peer": add_host_route_to_ike_peer,
                 "withdraw_static_route": withdraw_static_route,
             }
+            if outbound_routes_for_services:
+                data["outbound_routes_for_services"] = outbound_routes_for_services
             if routing_preference:
                 data["routing_preference"] = routing_preference
 
@@ -10699,12 +10723,9 @@ class SCMClient:
         device: str | None = None,
         name: str = None,
         description: str | None = None,
-        auth_type: str | None = None,
+        authentication_profile: str | None = None,
         os: str | None = None,
-        max_user: int | None = None,
-        saml_idp: str | None = None,
-        certificate_profile: str | None = None,
-        ldap_profile: str | None = None,
+        user_credential_or_client_cert_required: bool | None = None,
     ) -> dict[str, Any]:
         """Create or update an auth setting using smart upsert logic.
 
@@ -10714,12 +10735,9 @@ class SCMClient:
             device: Device to create the auth setting in
             name: Name of the auth setting
             description: Optional description
-            auth_type: Authentication type
+            authentication_profile: Authentication profile name
             os: Operating system
-            max_user: Maximum concurrent users
-            saml_idp: SAML identity provider profile
-            certificate_profile: Certificate profile name
-            ldap_profile: LDAP server profile name
+            user_credential_or_client_cert_required: Whether user credential or client cert is required
 
         Returns:
             dict[str, Any]: The created/updated auth setting object with __action__ field
@@ -10738,12 +10756,9 @@ class SCMClient:
                 "device": device,
                 "name": name,
                 "description": description,
-                "auth_type": auth_type,
+                "authentication_profile": authentication_profile,
                 "os": os,
-                "max_user": max_user,
-                "saml_idp": saml_idp,
-                "certificate_profile": certificate_profile,
-                "ldap_profile": ldap_profile,
+                "user_credential_or_client_cert_required": user_credential_or_client_cert_required,
                 "__action__": "created",
             }
             return {k: v for k, v in result.items() if v is not None}
@@ -10774,9 +10789,9 @@ class SCMClient:
                     update_fields.append("description")
                     needs_update = True
 
-                if auth_type is not None and getattr(existing, "auth_type", None) != auth_type:
-                    existing.auth_type = auth_type
-                    update_fields.append("auth_type")
+                if authentication_profile is not None and getattr(existing, "authentication_profile", None) != authentication_profile:
+                    existing.authentication_profile = authentication_profile
+                    update_fields.append("authentication_profile")
                     needs_update = True
 
                 if os is not None and getattr(existing, "os", None) != os:
@@ -10784,24 +10799,9 @@ class SCMClient:
                     update_fields.append("os")
                     needs_update = True
 
-                if max_user is not None and getattr(existing, "max_user", None) != max_user:
-                    existing.max_user = max_user
-                    update_fields.append("max_user")
-                    needs_update = True
-
-                if saml_idp is not None and getattr(existing, "saml_idp", None) != saml_idp:
-                    existing.saml_idp = saml_idp
-                    update_fields.append("saml_idp")
-                    needs_update = True
-
-                if certificate_profile is not None and getattr(existing, "certificate_profile", None) != certificate_profile:
-                    existing.certificate_profile = certificate_profile
-                    update_fields.append("certificate_profile")
-                    needs_update = True
-
-                if ldap_profile is not None and getattr(existing, "ldap_profile", None) != ldap_profile:
-                    existing.ldap_profile = ldap_profile
-                    update_fields.append("ldap_profile")
+                if user_credential_or_client_cert_required is not None and getattr(existing, "user_credential_or_client_cert_required", None) != user_credential_or_client_cert_required:
+                    existing.user_credential_or_client_cert_required = user_credential_or_client_cert_required
+                    update_fields.append("user_credential_or_client_cert_required")
                     needs_update = True
 
                 if needs_update:
@@ -10828,18 +10828,12 @@ class SCMClient:
                     setting_data["device"] = device
                 if description is not None:
                     setting_data["description"] = description
-                if auth_type is not None:
-                    setting_data["auth_type"] = auth_type
+                if authentication_profile is not None:
+                    setting_data["authentication_profile"] = authentication_profile
                 if os is not None:
                     setting_data["os"] = os
-                if max_user is not None:
-                    setting_data["max_user"] = max_user
-                if saml_idp is not None:
-                    setting_data["saml_idp"] = saml_idp
-                if certificate_profile is not None:
-                    setting_data["certificate_profile"] = certificate_profile
-                if ldap_profile is not None:
-                    setting_data["ldap_profile"] = ldap_profile
+                if user_credential_or_client_cert_required is not None:
+                    setting_data["user_credential_or_client_cert_required"] = user_credential_or_client_cert_required
 
                 result = self.client.auth_setting.create(setting_data)
                 self.logger.info(f"Successfully created auth setting '{name}' in {container_type} '{container}'")
@@ -10881,10 +10875,8 @@ class SCMClient:
                 "folder": folder or "Mobile Users",
                 "name": name,
                 "description": f"Mock auth setting {name}",
-                "auth_type": "saml",
+                "authentication_profile": "best-practice",
                 "os": "Any",
-                "max_user": 100,
-                "saml_idp": "mock-idp-profile",
             }
 
         try:
@@ -10944,19 +10936,17 @@ class SCMClient:
                     "folder": folder or "Mobile Users",
                     "name": "saml-auth",
                     "description": "SAML authentication setting",
-                    "auth_type": "saml",
+                    "authentication_profile": "best-practice",
                     "os": "Any",
-                    "max_user": 100,
-                    "saml_idp": "okta-idp",
                 },
                 {
                     "id": "as-mock2",
                     "folder": folder or "Mobile Users",
                     "name": "cert-auth",
                     "description": "Certificate authentication setting",
-                    "auth_type": "client-certificate",
+                    "authentication_profile": "corp-cert-profile",
                     "os": "Windows",
-                    "certificate_profile": "corp-cert-profile",
+                    "user_credential_or_client_cert_required": True,
                 },
             ]
 
@@ -11147,6 +11137,9 @@ class SCMClient:
 
         try:
             result = self.client.folder.fetch(name=name)
+            if result is None:
+                self.logger.error(f"Folder '{name}' not found")
+                return {}
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", "N/A", name, e)
@@ -11210,6 +11203,9 @@ class SCMClient:
 
         try:
             folder = self.client.folder.fetch(name=name)
+            if folder is None:
+                self.logger.error(f"Folder '{name}' not found, cannot delete")
+                return False
             self.client.folder.delete(folder_id=str(folder.id))
             return True
         except Exception as e:
@@ -11546,7 +11542,7 @@ class SCMClient:
 
         try:
             snippet = self.client.snippet.fetch(name=name)
-            self.client.snippet.delete(snippet_id=str(snippet.id))
+            self.client.snippet.delete(object_id=str(snippet.id))
             return True
         except Exception as e:
             self._handle_api_exception("deletion", "N/A", name, e)
@@ -11696,7 +11692,8 @@ class SCMClient:
             return result
 
         try:
-            result = self.client.variable.fetch(name=name, folder=folder, snippet=snippet, device=device)
+            # SDK fetch() only supports name and folder kwargs
+            result = self.client.variable.fetch(name=name, folder=folder)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("retrieval", folder or snippet or device or "N/A", name, e)
@@ -11780,7 +11777,8 @@ class SCMClient:
             return True
 
         try:
-            variable = self.client.variable.fetch(name=name, folder=folder, snippet=snippet, device=device)
+            # SDK fetch() only supports name and folder kwargs
+            variable = self.client.variable.fetch(name=name, folder=folder)
             self.client.variable.delete(variable_id=str(variable.id))
             return True
         except Exception as e:

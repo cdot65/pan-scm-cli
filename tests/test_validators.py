@@ -1619,17 +1619,13 @@ class TestAuthSetting:
             name="saml-auth",
             folder="Mobile Users",
             description="SAML authentication",
-            auth_type="saml",
+            authentication_profile="best-practice",
             os="Any",
-            max_user=100,
-            saml_idp="okta-idp",
         )
         assert setting.name == "saml-auth"
         assert setting.folder == "Mobile Users"
-        assert setting.auth_type == "saml"
+        assert setting.authentication_profile == "best-practice"
         assert setting.os == "Any"
-        assert setting.max_user == 100
-        assert setting.saml_idp == "okta-idp"
 
     def test_missing_name(self):
         """Test that name is required."""
@@ -1674,19 +1670,15 @@ class TestAuthSetting:
             name="saml-auth",
             folder="Mobile Users",
             description="SAML auth",
-            auth_type="saml",
+            authentication_profile="best-practice",
             os="Any",
-            max_user=50,
-            saml_idp="okta-idp",
         )
         sdk_data = setting.to_sdk_model()
         assert sdk_data["name"] == "saml-auth"
         assert sdk_data["folder"] == "Mobile Users"
         assert sdk_data["description"] == "SAML auth"
-        assert sdk_data["auth_type"] == "saml"
+        assert sdk_data["authentication_profile"] == "best-practice"
         assert sdk_data["os"] == "Any"
-        assert sdk_data["max_user"] == 50
-        assert sdk_data["saml_idp"] == "okta-idp"
 
     def test_to_sdk_model_minimal(self):
         """Test conversion with minimal fields."""
@@ -1705,34 +1697,20 @@ class TestAuthSetting:
         assert sdk_data["snippet"] == "Shared"
         assert "folder" not in sdk_data
 
-    def test_to_sdk_model_certificate_auth(self):
-        """Test conversion with certificate authentication."""
+    def test_to_sdk_model_with_client_cert_required(self):
+        """Test conversion with user_credential_or_client_cert_required."""
         from scm_cli.utils.validators import AuthSetting
 
         setting = AuthSetting(
             name="cert-auth",
             folder="Mobile Users",
-            auth_type="client-certificate",
+            authentication_profile="corp-cert-profile",
             os="Windows",
-            certificate_profile="corp-cert",
+            user_credential_or_client_cert_required=True,
         )
         sdk_data = setting.to_sdk_model()
-        assert sdk_data["auth_type"] == "client-certificate"
-        assert sdk_data["certificate_profile"] == "corp-cert"
-
-    def test_to_sdk_model_ldap_auth(self):
-        """Test conversion with LDAP authentication."""
-        from scm_cli.utils.validators import AuthSetting
-
-        setting = AuthSetting(
-            name="ldap-auth",
-            folder="Mobile Users",
-            auth_type="ldap",
-            ldap_profile="corp-ldap",
-        )
-        sdk_data = setting.to_sdk_model()
-        assert sdk_data["auth_type"] == "ldap"
-        assert sdk_data["ldap_profile"] == "corp-ldap"
+        assert sdk_data["authentication_profile"] == "corp-cert-profile"
+        assert sdk_data["user_credential_or_client_cert_required"] is True
 
 
 class TestAggregateInterface:

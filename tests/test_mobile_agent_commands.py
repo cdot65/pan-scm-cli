@@ -162,9 +162,8 @@ class TestAuthSettingCommands:
                 "id": "as-saml-auth",
                 "folder": kwargs.get("folder"),
                 "name": kwargs.get("name"),
-                "auth_type": kwargs.get("auth_type"),
+                "authentication_profile": kwargs.get("authentication_profile"),
                 "os": kwargs.get("os"),
-                "saml_idp": kwargs.get("saml_idp"),
                 "__action__": "created",
             }
 
@@ -178,9 +177,8 @@ class TestAuthSettingCommands:
             [
                 "--folder", "Mobile Users",
                 "--name", "saml-auth",
-                "--auth-type", "saml",
+                "--authentication-profile", "best-practice",
                 "--os", "Any",
-                "--saml-idp", "okta-idp",
             ],
         )
 
@@ -210,7 +208,7 @@ class TestAuthSettingCommands:
             [
                 "--folder", "Mobile Users",
                 "--name", "saml-auth",
-                "--auth-type", "saml",
+                "--authentication-profile", "best-practice",
             ],
         )
 
@@ -255,14 +253,14 @@ class TestAuthSettingCommands:
                     "id": "as-mock1",
                     "folder": "Mobile Users",
                     "name": "saml-auth",
-                    "auth_type": "saml",
+                    "authentication_profile": "best-practice",
                     "os": "Any",
                 },
                 {
                     "id": "as-mock2",
                     "folder": "Mobile Users",
                     "name": "cert-auth",
-                    "auth_type": "client-certificate",
+                    "authentication_profile": "corp-cert-profile",
                     "os": "Windows",
                 },
             ]
@@ -291,10 +289,8 @@ class TestAuthSettingCommands:
                 "folder": "Mobile Users",
                 "name": "saml-auth",
                 "description": "SAML auth config",
-                "auth_type": "saml",
+                "authentication_profile": "best-practice",
                 "os": "Any",
-                "max_user": 100,
-                "saml_idp": "okta-idp",
             }
 
         monkeypatch.setattr(scm_client, "get_auth_setting", mock_get)
@@ -309,8 +305,7 @@ class TestAuthSettingCommands:
 
         assert result.exit_code == 0
         assert "saml-auth" in result.stdout
-        assert "saml" in result.stdout
-        assert "okta-idp" in result.stdout
+        assert "best-practice" in result.stdout
 
     def test_show_auth_setting_empty(self, runner, monkeypatch):
         """Test listing auth settings when none exist."""
@@ -379,14 +374,12 @@ class TestAuthSettingCommands:
 auth_settings:
   - name: saml-auth
     folder: "Mobile Users"
-    auth_type: saml
+    authentication_profile: best-practice
     os: Any
-    saml_idp: okta-idp
   - name: cert-auth
     folder: "Mobile Users"
-    auth_type: client-certificate
+    authentication_profile: corp-cert-profile
     os: Windows
-    certificate_profile: corp-cert
 """
         test_file = tmp_path / "auth_settings.yml"
         test_file.write_text(yaml_content)
@@ -418,7 +411,7 @@ auth_settings:
 auth_settings:
   - name: saml-auth
     folder: "Mobile Users"
-    auth_type: saml
+    authentication_profile: best-practice
 """
         test_file = tmp_path / "auth_settings.yml"
         test_file.write_text(yaml_content)
@@ -444,7 +437,7 @@ auth_settings:
                     "id": "as-1",
                     "folder": "Mobile Users",
                     "name": "saml-auth",
-                    "auth_type": "saml",
+                    "authentication_profile": "best-practice",
                     "os": "Any",
                 },
             ]
