@@ -302,7 +302,7 @@ def callback():
       - scm load network zone --file config/security_zones.yml
       - scm show object address --folder Texas --list
       - scm show object address --folder Texas --name webserver
-      - scm test-auth
+      - scm context test
 
     """
     pass
