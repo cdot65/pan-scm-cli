@@ -163,8 +163,13 @@ def show_alerts(
             alert = scm_client.get_alert(alert_id=alert_id, folder=folder)
             typer.echo(yaml.dump(alert, default_flow_style=False))
 
-        elif list_alerts:
-            # List alerts with filters
+        elif real_time:
+            typer.echo("Starting real-time alert monitoring... (Press Ctrl+C to stop)")
+            # TODO: Implement real-time monitoring with websocket or polling
+            typer.echo("Real-time monitoring not yet implemented")
+
+        else:
+            # List alerts with filters (default behavior)
             filters = {}
             if severity:
                 filters["severity"] = severity
@@ -189,14 +194,6 @@ def show_alerts(
                 export_data(alerts, export_format, output_file)
             else:
                 typer.echo(yaml.dump(alerts, default_flow_style=False))
-
-        elif real_time:
-            typer.echo("Starting real-time alert monitoring... (Press Ctrl+C to stop)")
-            # TODO: Implement real-time monitoring with websocket or polling
-            typer.echo("Real-time monitoring not yet implemented")
-
-        else:
-            typer.echo("Please specify --list, --id, or --real-time")
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
@@ -267,8 +264,8 @@ def show_mobile_users(
             user = scm_client.get_mobile_user(user_id=user_id, folder=folder)
             typer.echo(yaml.dump(user, default_flow_style=False))
 
-        elif list_users:
-            # List users with filters
+        else:
+            # List users with filters (default behavior)
             filters = {}
             if status:
                 filters["status"] = status
@@ -281,9 +278,6 @@ def show_mobile_users(
                 export_data(users, export_format, output_file)
             else:
                 typer.echo(yaml.dump(users, default_flow_style=False))
-
-        else:
-            typer.echo("Please specify --list or --id")
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
@@ -349,8 +343,8 @@ def show_locations(
             location = scm_client.get_location(location_id=location_id, folder=folder)
             typer.echo(yaml.dump(location, default_flow_style=False))
 
-        elif list_locations:
-            # List locations with filters
+        else:
+            # List locations with filters (default behavior)
             filters = {}
             if region:
                 filters["region"] = region
@@ -361,9 +355,6 @@ def show_locations(
                 export_data(locations, export_format, output_file)
             else:
                 typer.echo(yaml.dump(locations, default_flow_style=False))
-
-        else:
-            typer.echo("Please specify --list or --id")
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
@@ -434,8 +425,8 @@ def show_remote_networks(
             network = scm_client.get_remote_network_insights(network_id=network_id, folder=folder, include_metrics=show_metrics)
             typer.echo(yaml.dump(network, default_flow_style=False))
 
-        elif list_networks:
-            # List networks with filters
+        else:
+            # List networks with filters (default behavior)
             filters = {}
             if connectivity:
                 filters["connectivity"] = connectivity
@@ -446,9 +437,6 @@ def show_remote_networks(
                 export_data(networks, export_format, output_file)
             else:
                 typer.echo(yaml.dump(networks, default_flow_style=False))
-
-        else:
-            typer.echo("Please specify --list or --id")
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
@@ -519,8 +507,8 @@ def show_service_connections(
             connection = scm_client.get_service_connection_insights(connection_id=connection_id, folder=folder, include_metrics=show_metrics)
             typer.echo(yaml.dump(connection, default_flow_style=False))
 
-        elif list_connections:
-            # List connections with filters
+        else:
+            # List connections with filters (default behavior)
             filters = {}
             if health_status:
                 filters["health_status"] = health_status
@@ -531,9 +519,6 @@ def show_service_connections(
                 export_data(connections, export_format, output_file)
             else:
                 typer.echo(yaml.dump(connections, default_flow_style=False))
-
-        else:
-            typer.echo("Please specify --list or --id")
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
@@ -627,8 +612,8 @@ def show_tunnels(
             )
             typer.echo(yaml.dump(tunnel, default_flow_style=False))
 
-        elif list_tunnels:
-            # List tunnels with filters
+        else:
+            # List tunnels with filters (default behavior)
             filters = {}
             if status:
                 filters["status"] = status
@@ -643,9 +628,6 @@ def show_tunnels(
                 export_data(tunnels, export_format, output_file)
             else:
                 typer.echo(yaml.dump(tunnels, default_flow_style=False))
-
-        else:
-            typer.echo("Please specify --list or --id")
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)

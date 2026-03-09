@@ -4390,31 +4390,7 @@ def show_http_server_profile(
 
     """
     try:
-        if list:
-            # List all HTTP server profiles in the folder (default behavior)
-            http_server_profiles = scm_client.list_http_server_profiles(folder=folder)
-            if not http_server_profiles:
-                typer.echo(f"No HTTP server profiles found in folder '{folder}'")
-                return None
-
-            typer.echo(f"HTTP server profiles in folder '{folder}':")
-            typer.echo("-" * 80)
-
-            # Display in table format
-            for profile in http_server_profiles:
-                typer.echo(f"Name: {profile['name']}")
-                if profile.get("description"):
-                    typer.echo(f"  Description: {profile['description']}")
-                typer.echo(f"  Tag Registration: {profile.get('tag_registration', False)}")
-                typer.echo(f"  Servers: {len(profile.get('server', []))}")
-                for idx, server in enumerate(profile.get("server", [])):
-                    typer.echo(f"    Server {idx + 1}: {server.get('name', 'unnamed')} - {server.get('address', 'N/A')}:{server.get('port', 'N/A')} ({server.get('protocol', 'N/A')})")
-                typer.echo("")
-
-            typer.echo(f"Total: {len(http_server_profiles)} HTTP server profiles")
-            return None
-
-        elif name:
+        if name:
             # Show specific HTTP server profile
             http_server_profile = scm_client.get_http_server_profile(folder=folder, name=name)
 
@@ -4466,9 +4442,28 @@ def show_http_server_profile(
             return http_server_profile
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # List all HTTP server profiles in the folder (default behavior)
+            http_server_profiles = scm_client.list_http_server_profiles(folder=folder)
+            if not http_server_profiles:
+                typer.echo(f"No HTTP server profiles found in folder '{folder}'")
+                return None
+
+            typer.echo(f"HTTP server profiles in folder '{folder}':")
+            typer.echo("-" * 80)
+
+            # Display in table format
+            for profile in http_server_profiles:
+                typer.echo(f"Name: {profile['name']}")
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+                typer.echo(f"  Tag Registration: {profile.get('tag_registration', False)}")
+                typer.echo(f"  Servers: {len(profile.get('server', []))}")
+                for idx, server in enumerate(profile.get("server", [])):
+                    typer.echo(f"    Server {idx + 1}: {server.get('name', 'unnamed')} - {server.get('address', 'N/A')}:{server.get('port', 'N/A')} ({server.get('protocol', 'N/A')})")
+                typer.echo("")
+
+            typer.echo(f"Total: {len(http_server_profiles)} HTTP server profiles")
+            return None
 
     except Exception as e:
         typer.echo(f"Error showing HTTP server profile: {str(e)}", err=True)
@@ -4766,43 +4761,7 @@ def show_log_forwarding_profile(
 
     """
     try:
-        if list:
-            # List all log forwarding profiles in the folder (default behavior)
-            log_forwarding_profiles = scm_client.list_log_forwarding_profiles(folder=folder)
-            if not log_forwarding_profiles:
-                typer.echo(f"No log forwarding profiles found in folder '{folder}'")
-                return None
-
-            typer.echo(f"Log forwarding profiles in folder '{folder}':")
-            typer.echo("-" * 80)
-
-            # Display in table format
-            for profile in log_forwarding_profiles:
-                typer.echo(f"Name: {profile['name']}")
-                if profile.get("description"):
-                    typer.echo(f"  Description: {profile['description']}")
-                typer.echo(f"  Enhanced Application Logging: {profile.get('enhanced_application_logging', False)}")
-                match_list = profile.get("match_list", [])
-                typer.echo(f"  Match Rules: {len(match_list)}")
-                for idx, match in enumerate(match_list):
-                    typer.echo(f"    Rule {idx + 1}: {match.get('name', 'unnamed')} ({match.get('log_type', 'N/A')})")
-                    actions = []
-                    if match.get("send_to_panorama"):
-                        actions.append("Panorama")
-                    if match.get("send_syslog"):
-                        actions.append(f"Syslog: {', '.join(match['send_syslog'])}")
-                    if match.get("send_http"):
-                        actions.append(f"HTTP: {', '.join(match['send_http'])}")
-                    if match.get("quarantine"):
-                        actions.append("Quarantine")
-                    if actions:
-                        typer.echo(f"      Actions: {', '.join(actions)}")
-                typer.echo("")
-
-            typer.echo(f"Total: {len(log_forwarding_profiles)} log forwarding profiles")
-            return None
-
-        elif name:
+        if name:
             # Show specific log forwarding profile
             log_forwarding_profile = scm_client.get_log_forwarding_profile(folder=folder, name=name)
 
@@ -4844,9 +4803,40 @@ def show_log_forwarding_profile(
             return log_forwarding_profile
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # List all log forwarding profiles in the folder (default behavior)
+            log_forwarding_profiles = scm_client.list_log_forwarding_profiles(folder=folder)
+            if not log_forwarding_profiles:
+                typer.echo(f"No log forwarding profiles found in folder '{folder}'")
+                return None
+
+            typer.echo(f"Log forwarding profiles in folder '{folder}':")
+            typer.echo("-" * 80)
+
+            # Display in table format
+            for profile in log_forwarding_profiles:
+                typer.echo(f"Name: {profile['name']}")
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+                typer.echo(f"  Enhanced Application Logging: {profile.get('enhanced_application_logging', False)}")
+                match_list = profile.get("match_list", [])
+                typer.echo(f"  Match Rules: {len(match_list)}")
+                for idx, match in enumerate(match_list):
+                    typer.echo(f"    Rule {idx + 1}: {match.get('name', 'unnamed')} ({match.get('log_type', 'N/A')})")
+                    actions = []
+                    if match.get("send_to_panorama"):
+                        actions.append("Panorama")
+                    if match.get("send_syslog"):
+                        actions.append(f"Syslog: {', '.join(match['send_syslog'])}")
+                    if match.get("send_http"):
+                        actions.append(f"HTTP: {', '.join(match['send_http'])}")
+                    if match.get("quarantine"):
+                        actions.append("Quarantine")
+                    if actions:
+                        typer.echo(f"      Actions: {', '.join(actions)}")
+                typer.echo("")
+
+            typer.echo(f"Total: {len(log_forwarding_profiles)} log forwarding profiles")
+            return None
 
     except Exception as e:
         typer.echo(f"Error showing log forwarding profile: {str(e)}", err=True)
@@ -5646,7 +5636,49 @@ def show_service(
 
     """
     try:
-        if list:
+        if name:
+            # Show specific service
+            service = scm_client.get_service(folder=folder, name=name)
+
+            typer.echo(f"Service: {service['name']}")
+            typer.echo("-" * 80)
+            typer.echo(f"Folder: {service['folder']}")
+
+            if service.get("description"):
+                typer.echo(f"Description: {service['description']}")
+
+            # Display protocol details
+            protocol = service.get("protocol", {})
+            if "tcp" in protocol:
+                typer.echo("\nProtocol: TCP")
+                typer.echo(f"  Port: {protocol['tcp']['port']}")
+                if "override" in protocol["tcp"]:
+                    typer.echo("  Override Settings:")
+                    override = protocol["tcp"]["override"]
+                    if "timeout" in override:
+                        typer.echo(f"    Timeout: {override['timeout']} seconds")
+                    if "halfclose_timeout" in override:
+                        typer.echo(f"    Half-close Timeout: {override['halfclose_timeout']} seconds")
+                    if "timewait_timeout" in override:
+                        typer.echo(f"    Time-wait Timeout: {override['timewait_timeout']} seconds")
+            elif "udp" in protocol:
+                typer.echo("\nProtocol: UDP")
+                typer.echo(f"  Port: {protocol['udp']['port']}")
+                if "override" in protocol["udp"]:
+                    override = protocol["udp"]["override"]
+                    if "timeout" in override:
+                        typer.echo(f"  Timeout Override: {override['timeout']} seconds")
+
+            if service.get("tag"):
+                typer.echo(f"\nTags: {', '.join(service['tag'])}")
+
+            # Display ID if present
+            if service.get("id"):
+                typer.echo(f"\nID: {service['id']}")
+
+            return service
+
+        else:
             # List all services in the folder (default behavior)
             services = scm_client.list_services(folder=folder)
             if not services:
@@ -5692,53 +5724,6 @@ def show_service(
 
             typer.echo(f"Total: {len(services)} services")
             return None
-
-        elif name:
-            # Show specific service
-            service = scm_client.get_service(folder=folder, name=name)
-
-            typer.echo(f"Service: {service['name']}")
-            typer.echo("-" * 80)
-            typer.echo(f"Folder: {service['folder']}")
-
-            if service.get("description"):
-                typer.echo(f"Description: {service['description']}")
-
-            # Display protocol details
-            protocol = service.get("protocol", {})
-            if "tcp" in protocol:
-                typer.echo("\nProtocol: TCP")
-                typer.echo(f"  Port: {protocol['tcp']['port']}")
-                if "override" in protocol["tcp"]:
-                    typer.echo("  Override Settings:")
-                    override = protocol["tcp"]["override"]
-                    if "timeout" in override:
-                        typer.echo(f"    Timeout: {override['timeout']} seconds")
-                    if "halfclose_timeout" in override:
-                        typer.echo(f"    Half-close Timeout: {override['halfclose_timeout']} seconds")
-                    if "timewait_timeout" in override:
-                        typer.echo(f"    Time-wait Timeout: {override['timewait_timeout']} seconds")
-            elif "udp" in protocol:
-                typer.echo("\nProtocol: UDP")
-                typer.echo(f"  Port: {protocol['udp']['port']}")
-                if "override" in protocol["udp"]:
-                    override = protocol["udp"]["override"]
-                    if "timeout" in override:
-                        typer.echo(f"  Timeout Override: {override['timeout']} seconds")
-
-            if service.get("tag"):
-                typer.echo(f"\nTags: {', '.join(service['tag'])}")
-
-            # Display ID if present
-            if service.get("id"):
-                typer.echo(f"\nID: {service['id']}")
-
-            return service
-
-        else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
 
     except Exception as e:
         typer.echo(f"Error showing service: {str(e)}", err=True)
@@ -6011,28 +5996,7 @@ def show_service_group(
 
     """
     try:
-        if list:
-            # List all service groups in the folder (default behavior)
-            service_groups = scm_client.list_service_groups(folder=folder)
-            if not service_groups:
-                typer.echo(f"No service groups found in folder '{folder}'")
-                return None
-
-            typer.echo(f"Service groups in folder '{folder}':")
-            typer.echo("-" * 80)
-
-            # Display in table format
-            for group in service_groups:
-                typer.echo(f"Name: {group['name']}")
-                typer.echo(f"  Members ({len(group.get('members', []))}): {', '.join(group.get('members', []))}")
-                if group.get("tag"):
-                    typer.echo(f"  Tags: {', '.join(group['tag'])}")
-                typer.echo("")
-
-            typer.echo(f"Total: {len(service_groups)} service groups")
-            return None
-
-        elif name:
+        if name:
             # Show specific service group
             service_group = scm_client.get_service_group(folder=folder, name=name)
 
@@ -6056,9 +6020,25 @@ def show_service_group(
             return service_group
 
         else:
-            # Neither --list nor --name was provided
-            typer.echo("Error: Either --list or --name must be specified", err=True)
-            raise typer.Exit(code=1)
+            # List all service groups in the folder (default behavior)
+            service_groups = scm_client.list_service_groups(folder=folder)
+            if not service_groups:
+                typer.echo(f"No service groups found in folder '{folder}'")
+                return None
+
+            typer.echo(f"Service groups in folder '{folder}':")
+            typer.echo("-" * 80)
+
+            # Display in table format
+            for group in service_groups:
+                typer.echo(f"Name: {group['name']}")
+                typer.echo(f"  Members ({len(group.get('members', []))}): {', '.join(group.get('members', []))}")
+                if group.get("tag"):
+                    typer.echo(f"  Tags: {', '.join(group['tag'])}")
+                typer.echo("")
+
+            typer.echo(f"Total: {len(service_groups)} service groups")
+            return None
 
     except Exception as e:
         typer.echo(f"Error showing service group: {str(e)}", err=True)
