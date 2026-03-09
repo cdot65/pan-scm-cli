@@ -1099,7 +1099,7 @@ def set_address(
         --name webserver \
         --ip-netmask 192.168.1.100/32 \
         --description "Web server" \
-        --tags ["server", "web"]
+        --tags server,web
 
     Note: Exactly one of ip-netmask, ip-range, ip-wildcard, or fqdn must be provided.
 

@@ -179,7 +179,7 @@ Always refer to the appropriate style guide when writing or modifying code to en
 
 ## Important Notes
 
-- The SDK version requires `pan-scm-sdk>=0.12.1` - verify compatibility when updating
+- The SDK version requires `pan-scm-sdk>=0.12.0` - verify compatibility when updating
 - Mock mode allows full testing without API credentials
 - Bulk operations use YAML files - see `examples/` for formats
 - All commands support `--mock` flag for testing

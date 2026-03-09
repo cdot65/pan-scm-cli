@@ -60,7 +60,7 @@ $ scm set object address \
     --name webserver \
     --ip-netmask 192.168.1.100/32 \
     --description "Web server" \
-    --tags ["server", "web"]
+    --tags server,web
 ---> 100%
 Created address: webserver in folder Texas
 ```
