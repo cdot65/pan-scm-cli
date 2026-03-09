@@ -54,7 +54,7 @@ help:
 	@echo "  $(YELLOW)ruff$(NC)        - Format Python code in src/ directory using ruff"
 	@echo "  $(YELLOW)lint$(NC)        - Run flake8 and yamllint on src/ directory"
 	@echo "  $(YELLOW)reinstall$(NC)   - Rebuild and reinstall the package in Poetry environment"
-	@echo "  $(YELLOW)tests$(NC)       - Run pytest suite (TEMPORARILY DISABLED)"
+	@echo "  $(YELLOW)tests$(NC)       - Run pytest suite"
 	@echo "  $(YELLOW)clean$(NC)       - Remove build artifacts and cache files"
 	@echo ""
 	@echo "$(GREEN)Documentation targets:$(NC)"
@@ -86,8 +86,8 @@ reinstall:
 	@echo "Reinstallation complete!"
 
 tests:
-	@echo "Tests are temporarily disabled. They will be reimplemented in a future update."
-	@echo "Skipping test execution..."
+	@echo "Running tests..."
+	$(PYTEST) tests/ --ignore=tests/test_dynaconf_config.py --ignore=tests/test_sdk_client_with_dynaconf.py --ignore=tests/test_sdk_client.py
 	@echo "Tests complete!"
 
 clean:

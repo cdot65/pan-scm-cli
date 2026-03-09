@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install poetry
+          poetry install
+
+      - name: Lint
+        run: |
+          poetry run ruff check src/
+          poetry run ruff format --check src/
+
+      - name: Type check
+        continue-on-error: true
+        run: |
+          poetry run mypy src/
+
+      - name: Run tests
+        run: |
+          poetry run pytest -m "not integration" --cov=src/scm_cli --cov-report=xml --cov-report=term-missing tests/ --ignore=tests/test_dynaconf_config.py --ignore=tests/test_sdk_client_with_dynaconf.py --ignore=tests/test_sdk_client.py
