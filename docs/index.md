@@ -10,7 +10,7 @@ title: Home
 
 **Command-line interface for Palo Alto Networks Strata Cloud Manager**
 
-[![CI](https://github.com/cdot65/pan-scm-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/cdot65/pan-scm-cli/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/pan-scm-cli.svg)](https://pypi.org/project/pan-scm-cli/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.12+](https://img.shields.io/badge/python-%3E%3D3.12-brightgreen.svg)](https://www.python.org/)
 
