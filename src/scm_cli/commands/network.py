@@ -409,18 +409,19 @@ def set_ike_crypto_profile(
     """Create or update an IKE crypto profile."""
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
-        profile_data = {"name": name, "hash": hash, "dh_group": dh_group, "encryption": encryption, location_type: location_value}
-        if lifetime_seconds is not None:
-            profile_data["lifetime_seconds"] = lifetime_seconds
-        if lifetime_minutes is not None:
-            profile_data["lifetime_minutes"] = lifetime_minutes
-        if lifetime_hours is not None:
-            profile_data["lifetime_hours"] = lifetime_hours
-        if lifetime_days is not None:
-            profile_data["lifetime_days"] = lifetime_days
-        if authentication_multiple is not None:
-            profile_data["authentication_multiple"] = authentication_multiple
-        validated_profile = IKECryptoProfile(**profile_data)
+        location_kwargs = {location_type: location_value}
+        validated_profile = IKECryptoProfile(
+            name=name,
+            hash=hash,
+            dh_group=dh_group,
+            encryption=encryption,
+            lifetime_seconds=lifetime_seconds,
+            lifetime_minutes=lifetime_minutes,
+            lifetime_hours=lifetime_hours,
+            lifetime_days=lifetime_days,
+            authentication_multiple=authentication_multiple,
+            **location_kwargs,
+        )
         sdk_data = validated_profile.to_sdk_model()
         result = scm_client.create_ike_crypto_profile(sdk_data)
         action = result.pop("__action__", "created")
@@ -939,10 +940,11 @@ def set_ike_gateway(
             raise typer.Exit(code=1)
 
         # Build protocol
+        protocol: dict[str, Any]
         if protocol_json:
             protocol = json.loads(protocol_json)
         else:
-            protocol: dict[str, Any] = {"version": protocol_version}
+            protocol = {"version": protocol_version}
             if protocol_version in ("ikev1", "ikev2-preferred"):
                 ikev1_config: dict[str, Any] = {}
                 if ike_crypto_profile:
@@ -1653,12 +1655,20 @@ def set_ipsec_crypto_profile(
     try:
         profile = IPSecCryptoProfile(
             folder=folder,
+            snippet=None,
+            device=None,
             name=name,
             esp_encryption=esp_encryption,
             esp_authentication=esp_authentication,
             dh_group=dh_group,
             lifetime_seconds=lifetime_seconds,
+            lifetime_minutes=None,
             lifetime_hours=lifetime_hours,
+            lifetime_days=None,
+            lifesize_kb=None,
+            lifesize_mb=None,
+            lifesize_gb=None,
+            lifesize_tb=None,
         )
 
         sdk_data = profile.to_sdk_model()

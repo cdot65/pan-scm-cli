@@ -31,7 +31,6 @@ jobs:
           poetry run ruff format --check src/
 
       - name: Type check
-        continue-on-error: true
         run: |
           poetry run mypy src/
 
