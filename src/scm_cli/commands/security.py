@@ -389,6 +389,7 @@ def delete_security_rule(
     device: str = typer.Option(None, "--device", help="Device containing the security rule"),
     name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a security rule.
 
@@ -405,6 +406,11 @@ def delete_security_rule(
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete security rule '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         # For now, SDK only supports folder
@@ -1002,6 +1008,7 @@ def delete_anti_spyware_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the anti-spyware profile"),
     device: str = typer.Option(None, "--device", help="Device containing the anti-spyware profile"),
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an anti-spyware profile.
 
@@ -1018,6 +1025,11 @@ def delete_anti_spyware_profile(
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete anti-spyware profile '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -1489,6 +1501,7 @@ def delete_decryption_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the decryption profile"),
     device: str = typer.Option(None, "--device", help="Device containing the decryption profile"),
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a decryption profile.
 
@@ -1505,6 +1518,11 @@ def delete_decryption_profile(
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete decryption profile '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -1972,6 +1990,7 @@ def delete_wildfire_antivirus_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the WildFire antivirus profile"),
     device: str = typer.Option(None, "--device", help="Device containing the WildFire antivirus profile"),
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a WildFire antivirus profile.
 
@@ -1988,6 +2007,11 @@ def delete_wildfire_antivirus_profile(
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete WildFire antivirus profile '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -2447,6 +2471,7 @@ def delete_dns_security_profile(
     snippet: str = DNS_SEC_SNIPPET_OPTION,
     device: str = DNS_SEC_DEVICE_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a DNS security profile.
 
@@ -2460,6 +2485,11 @@ def delete_dns_security_profile(
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete DNS security profile '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -2909,6 +2939,7 @@ def delete_vulnerability_protection_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the vulnerability protection profile"),
     device: str = typer.Option(None, "--device", help="Device containing the vulnerability protection profile"),
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a vulnerability protection profile.
 
@@ -2925,6 +2956,11 @@ def delete_vulnerability_protection_profile(
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete vulnerability protection profile '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -3384,6 +3420,7 @@ def delete_url_category(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the URL category"),
     device: str = typer.Option(None, "--device", help="Device containing the URL category"),
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a URL category.
 
@@ -3400,6 +3437,11 @@ def delete_url_category(
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete URL category '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -3789,6 +3831,7 @@ def delete_app_override_rule(
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
     name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an app override rule.
 
@@ -3797,6 +3840,11 @@ def delete_app_override_rule(
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete app override rule '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -4093,6 +4141,7 @@ def delete_authentication_rule(
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
     name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an authentication rule.
 
@@ -4101,6 +4150,11 @@ def delete_authentication_rule(
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete authentication rule '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -4399,6 +4453,7 @@ def delete_decryption_rule(
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
     name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a decryption rule.
 
@@ -4407,6 +4462,11 @@ def delete_decryption_rule(
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete decryption rule '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}
@@ -4707,6 +4767,7 @@ def delete_url_access_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the profile"),
     device: str = typer.Option(None, "--device", help="Device containing the profile"),
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a URL access profile.
 
@@ -4715,6 +4776,11 @@ def delete_url_access_profile(
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
+
+    if not force:
+        confirm = typer.confirm(f"Delete URL access profile '{name}' from {location_type} '{location_value}'?")
+        if not confirm:
+            raise typer.Abort()
 
     try:
         kwargs = {location_type: location_value}

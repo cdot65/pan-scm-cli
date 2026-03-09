@@ -547,6 +547,7 @@ def backup_address_group(
 def delete_address_group(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an address group.
 
@@ -555,6 +556,10 @@ def delete_address_group(
         scm delete object address-group --folder Texas --name test123
 
     """
+    if not force:
+        confirm = typer.confirm(f"Delete address group '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         result = scm_client.delete_address_group(folder=folder, name=name)
         if result:
@@ -937,6 +942,7 @@ def backup_address(
 def delete_address(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an address object.
 
@@ -945,6 +951,10 @@ def delete_address(
         scm delete object address --folder Texas --name webserver
 
     """
+    if not force:
+        confirm = typer.confirm(f"Delete address '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         result = scm_client.delete_address(folder=folder, name=name)
         if result:
@@ -1344,6 +1354,7 @@ def backup_application(
 def delete_application(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an application.
 
@@ -1352,6 +1363,10 @@ def delete_application(
     scm delete object application --folder Texas --name custom-app
 
     """
+    if not force:
+        confirm = typer.confirm(f"Delete application '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         result = scm_client.delete_application(folder=folder, name=name)
         if result:
@@ -1777,6 +1792,7 @@ def backup_application_group(
 def delete_application_group(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an application group.
 
@@ -1785,6 +1801,10 @@ def delete_application_group(
     scm delete object application-group --folder Texas --name web-apps
 
     """
+    if not force:
+        confirm = typer.confirm(f"Delete application group '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         result = scm_client.delete_application_group(folder=folder, name=name)
         if result:
@@ -2092,6 +2112,7 @@ def backup_application_filter(
 def delete_application_filter(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an application filter.
 
@@ -2100,6 +2121,10 @@ def delete_application_filter(
     scm delete object application-filter --folder Texas --name high-risk-apps
 
     """
+    if not force:
+        confirm = typer.confirm(f"Delete application filter '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         result = scm_client.delete_application_filter(folder=folder, name=name)
         if result:
@@ -2499,6 +2524,7 @@ def backup_dynamic_user_group(
 def delete_dynamic_user_group(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a dynamic user group.
 
@@ -2507,6 +2533,10 @@ def delete_dynamic_user_group(
     scm delete object dynamic-user-group --folder Texas --name it-admins
 
     """
+    if not force:
+        confirm = typer.confirm(f"Delete dynamic user group '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         result = scm_client.delete_dynamic_user_group(folder=folder, name=name)
         if result:
@@ -2849,6 +2879,7 @@ def backup_external_dynamic_list(
 def delete_external_dynamic_list(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an external dynamic list.
 
@@ -2857,6 +2888,10 @@ def delete_external_dynamic_list(
     scm delete object external-dynamic-list --folder Texas --name malicious-ips
 
     """
+    if not force:
+        confirm = typer.confirm(f"Delete external dynamic list '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         result = scm_client.delete_external_dynamic_list(folder=folder, name=name)
         if result:
@@ -3377,6 +3412,7 @@ def backup_hip_object(
 def delete_hip_object(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a HIP object.
 
@@ -3385,6 +3421,10 @@ def delete_hip_object(
     scm delete object hip-object --folder Texas --name windows-compliance
 
     """
+    if not force:
+        confirm = typer.confirm(f"Delete HIP object '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         result = scm_client.delete_hip_object(folder=folder, name=name)
         if result:
@@ -3934,8 +3974,13 @@ def backup_hip_profile(
 def delete_hip_profile(
     folder: str = typer.Option(..., "--folder", help="Folder containing the HIP profile"),
     name: str = typer.Option(..., "--name", help="Name of the HIP profile to delete"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a HIP profile from a specific folder."""
+    if not force:
+        confirm = typer.confirm(f"Delete HIP profile '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         # Delete the HIP profile
         typer.echo(f"Deleting HIP profile '{name}' from folder '{folder}'...")
@@ -4229,8 +4274,13 @@ def backup_http_server_profile(
 def delete_http_server_profile(
     folder: str = typer.Option(..., "--folder", help="Folder containing the HTTP server profile"),
     name: str = typer.Option(..., "--name", help="Name of the HTTP server profile to delete"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete an HTTP server profile from a specific folder."""
+    if not force:
+        confirm = typer.confirm(f"Delete HTTP server profile '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         # Delete the HTTP server profile
         typer.echo(f"Deleting HTTP server profile '{name}' from folder '{folder}'...")
@@ -4587,8 +4637,13 @@ def backup_log_forwarding_profile(
 def delete_log_forwarding_profile(
     folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
     name: str = typer.Option(..., "--name", help="Name of the log forwarding profile to delete"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a log forwarding profile."""
+    if not force:
+        confirm = typer.confirm(f"Delete log forwarding profile '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         # Delete the log forwarding profile
         success = scm_client.delete_log_forwarding_profile(folder=folder, name=name)
@@ -5062,10 +5117,16 @@ def load_region(
 @delete_app.command("quarantined-device", help="Delete a quarantined device.")
 def delete_quarantined_device(
     host_id: str = typer.Argument(..., help="Host ID of the quarantined device to delete"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a quarantined device by host ID."""
     try:
         show_context_info()
+
+        if not force:
+            confirm = typer.confirm(f"Delete quarantined device '{host_id}'?")
+            if not confirm:
+                raise typer.Abort()
 
         scm_client.delete_quarantined_device(host_id=host_id)
         typer.echo(f"Deleted quarantined device: {host_id}")
@@ -5430,8 +5491,13 @@ def backup_service(
 def delete_service(
     folder: str = typer.Option(..., "--folder", help="Folder path for the service"),
     name: str = typer.Option(..., "--name", help="Name of the service to delete"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a service."""
+    if not force:
+        confirm = typer.confirm(f"Delete service '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         # Delete the service
         success = scm_client.delete_service(folder=folder, name=name)
@@ -5839,8 +5905,13 @@ def backup_service_group(
 def delete_service_group(
     folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
     name: str = typer.Option(..., "--name", help="Name of the service group to delete"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a service group."""
+    if not force:
+        confirm = typer.confirm(f"Delete service group '{name}' from folder '{folder}'?")
+        if not confirm:
+            raise typer.Abort()
     try:
         # Delete the service group
         success = scm_client.delete_service_group(folder=folder, name=name)
@@ -7219,11 +7290,20 @@ def delete_auto_tag_action(
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete an auto tag action."""
     try:
         if not any([folder, snippet, device]):
             folder = "Texas"
+
+        location_type = "folder" if folder else ("snippet" if snippet else "device")
+        location_value = folder or snippet or device
+
+        if not force:
+            confirm = typer.confirm(f"Delete auto tag action '{name}' from {location_type} '{location_value}'?")
+            if not confirm:
+                raise typer.Abort()
 
         scm_client.delete_auto_tag_action(
             name=name,

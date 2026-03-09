@@ -142,7 +142,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(delete_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted address group: test-group" in result.stdout
@@ -159,7 +159,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(delete_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group", "--force"])
 
         assert result.exit_code == 1
         assert "Error" in result.stdout

@@ -183,6 +183,7 @@ class TestSecurityRuleCommands:
                 "test-folder",
                 "--name",
                 "test-rule",
+                "--force",
             ],
         )
 
@@ -213,6 +214,7 @@ class TestSecurityRuleCommands:
                 "test-folder",
                 "--name",
                 "test-rule",
+                "--force",
             ],
         )
 
@@ -391,6 +393,7 @@ class TestWildfireAntivirusProfileCommands:
                 "Texas",
                 "--name",
                 "wf-test",
+                "--force",
             ],
         )
 
@@ -608,6 +611,7 @@ class TestDNSSecurityProfileCommands:
                 "Texas",
                 "--name",
                 "dns-sec-test",
+                "--force",
             ],
         )
 
@@ -766,6 +770,7 @@ class TestVulnerabilityProtectionProfileCommands:
                 "Texas",
                 "--name",
                 "test-vuln",
+                "--force",
             ],
         )
 
@@ -792,6 +797,7 @@ class TestVulnerabilityProtectionProfileCommands:
                 "Texas",
                 "--name",
                 "test-vuln",
+                "--force",
             ],
         )
 
@@ -1040,6 +1046,7 @@ class TestURLCategoryCommands:
                 "Texas",
                 "--name",
                 "custom-block",
+                "--force",
             ],
         )
 
@@ -1195,7 +1202,7 @@ class TestAppOverrideRuleCommands:
         test_app = typer.Typer()
         test_app.command()(delete_app_override_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "override-https"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "override-https", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted app override rule" in result.stdout
@@ -1287,7 +1294,7 @@ class TestAuthenticationRuleCommands:
         test_app = typer.Typer()
         test_app.command()(delete_authentication_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted authentication rule" in result.stdout
@@ -1399,7 +1406,7 @@ class TestDecryptionRuleCommands:
         test_app = typer.Typer()
         test_app.command()(delete_decryption_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "decrypt-web"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "decrypt-web", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted decryption rule" in result.stdout
@@ -1502,7 +1509,7 @@ class TestURLAccessProfileCommands:
         test_app = typer.Typer()
         test_app.command()(delete_url_access_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "strict-url"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "strict-url", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted URL access profile" in result.stdout
