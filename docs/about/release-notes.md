@@ -575,4 +575,4 @@ $ scm context test
 
 ---
 
-For more detailed information on each release, visit the [GitHub repository](https://github.com/cdot65/pan-scm-sdk/releases) or check the [commit history](https://github.com/cdot65/pan-scm-sdk/commits/main).
+For more detailed information on each release, visit the [GitHub repository](https://github.com/cdot65/pan-scm-cli/releases) or check the [commit history](https://github.com/cdot65/pan-scm-cli/commits/main).
