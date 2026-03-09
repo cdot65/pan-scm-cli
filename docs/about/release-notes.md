@@ -2,6 +2,15 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.4
+
+**Released:** March 9, 2026
+
+### Changed
+
+- **SDK Dependency**: Bumped `pan-scm-sdk` from `^0.12.0` to `^0.12.2`, picking up AutoTagActions service implementation and DecryptionRule optional action field fix.
+- **Version Tracking**: `__version__` now sourced from package metadata via `importlib.metadata` instead of a hardcoded string.
+
 ## Version 1.0.3
 
 **Released:** March 9, 2026

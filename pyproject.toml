@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pan-scm-cli"
-version = "1.0.3"
+version = "1.0.4"
 description = "CICD and Network Engineer-friendly CLI tool for Palo Alto Networks Strata Cloud Manager"
 authors = ["Calvin Remsburg <dev@cdot.io>"]
 readme = "README.md"
@@ -11,7 +11,7 @@ python = ">=3.12,<3.14"
 typer = "^0.15.4"
 pyyaml = "^6.0.2"
 pydantic = "^2.11.5"
-pan-scm-sdk = "^0.12.0"
+pan-scm-sdk = "^0.12.2"
 dynaconf = "^3.2.11"
 
 [tool.poetry.group.dev.dependencies]
