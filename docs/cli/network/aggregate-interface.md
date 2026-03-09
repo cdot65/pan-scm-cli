@@ -78,13 +78,14 @@ scm delete network aggregate-interface NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete network aggregate-interface ae1 --folder Texas
+$ scm delete network aggregate-interface ae1 --folder Texas --force
 ---> 100%
 Deleted aggregate interface: ae1 from folder Texas
 ```

@@ -94,13 +94,14 @@ scm delete object service-group [OPTIONS]
 | `--snippet TEXT` | Snippet containing the service group object | No\* |
 | `--device TEXT` | Device containing the service group object | No\* |
 | `--name TEXT` | Name of the service group to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object service-group --folder Texas --name web-services
+$ scm delete object service-group --folder Texas --name web-services --force
 ---> 100%
 Deleted service group: web-services from folder Texas
 ```

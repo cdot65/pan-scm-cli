@@ -79,11 +79,12 @@ scm delete network ipsec-crypto-profile [OPTIONS]
 | --- | --- | --- |
 | `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete network ipsec-crypto-profile --folder Texas --name my-ipsec-profile
+$ scm delete network ipsec-crypto-profile --folder Texas --name my-ipsec-profile --force
 ---> 100%
 Deleted IPsec crypto profile: my-ipsec-profile from folder Texas
 ```

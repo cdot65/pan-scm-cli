@@ -100,13 +100,14 @@ scm delete network ike-gateway NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete network ike-gateway my-gateway --folder Texas
+$ scm delete network ike-gateway my-gateway --folder Texas --force
 ---> 100%
 Deleted IKE gateway: my-gateway from folder Texas
 ```

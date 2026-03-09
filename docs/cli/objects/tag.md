@@ -108,13 +108,14 @@ scm delete object tag [OPTIONS]
 | `--snippet TEXT` | Snippet containing the tag object | No\* |
 | `--device TEXT` | Device containing the tag object | No\* |
 | `--name TEXT` | Name of the tag to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object tag --folder Texas --name production
+$ scm delete object tag --folder Texas --name production --force
 ---> 100%
 Deleted tag: production from folder Texas
 ```

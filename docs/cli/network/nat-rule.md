@@ -88,11 +88,12 @@ scm delete network nat-rule [OPTIONS]
 | --- | --- | --- |
 | `--name TEXT` | Rule name | Yes |
 | `--folder TEXT` | Folder location | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete network nat-rule --folder Texas --name outbound-nat
+$ scm delete network nat-rule --folder Texas --name outbound-nat --force
 ---> 100%
 Deleted NAT rule: outbound-nat from folder Texas
 ```

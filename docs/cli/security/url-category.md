@@ -88,6 +88,7 @@ scm delete security url-category [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Category name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -96,7 +97,8 @@ scm delete security url-category [OPTIONS]
 ```bash
 $ scm delete security url-category \
     --folder Texas \
-    --name custom-block
+    --name custom-block \
+    --force
 ---> 100%
 Deleted URL category: custom-block from folder Texas
 ```

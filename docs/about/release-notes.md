@@ -2,6 +2,20 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.3
+
+**Released:** March 9, 2026
+
+### Added
+
+- **Delete Confirmation Prompts**: All delete commands now prompt for confirmation before proceeding. Use `--force` to skip the prompt for scripting and automation.
+
+### Fixed
+
+- **Stale References**: Removed deprecated `scm test-auth` reference from CLI help text (now `scm context test`).
+- **Config Mismatch**: Updated `mypy.ini` to target Python 3.12 (was incorrectly set to 3.10).
+- **Documentation**: Fixed CLI syntax in address docs, corrected repository link in release notes.
+
 ## Version 0.5.1
 
 **Released:** June 19, 2025

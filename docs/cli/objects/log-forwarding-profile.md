@@ -108,13 +108,14 @@ scm delete object log-forwarding-profile [OPTIONS]
 | `--snippet TEXT` | Snippet containing the log forwarding profile object | No\* |
 | `--device TEXT` | Device containing the log forwarding profile object | No\* |
 | `--name TEXT` | Name of the log forwarding profile object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object log-forwarding-profile --folder Texas --name traffic-logs
+$ scm delete object log-forwarding-profile --folder Texas --name traffic-logs --force
 ---> 100%
 Deleted log forwarding profile: traffic-logs from folder Texas
 ```

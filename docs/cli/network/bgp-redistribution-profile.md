@@ -74,13 +74,14 @@ scm delete network bgp-redistribution-profile NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete network bgp-redistribution-profile my-redist --folder Texas
+$ scm delete network bgp-redistribution-profile my-redist --folder Texas --force
 ---> 100%
 Deleted BGP redistribution profile: my-redist from folder Texas
 ```

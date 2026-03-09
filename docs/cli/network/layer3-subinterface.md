@@ -85,13 +85,14 @@ scm delete network layer3-subinterface NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete network layer3-subinterface ethernet1/1.200 --folder Texas
+$ scm delete network layer3-subinterface ethernet1/1.200 --folder Texas --force
 ---> 100%
 Deleted layer3 subinterface: ethernet1/1.200 from folder Texas
 ```

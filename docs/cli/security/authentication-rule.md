@@ -142,6 +142,7 @@ scm delete security authentication-rule [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Rule name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -150,7 +151,8 @@ scm delete security authentication-rule [OPTIONS]
 ```bash
 $ scm delete security authentication-rule \
     --folder Texas \
-    --name auth-web
+    --name auth-web \
+    --force
 ---> 100%
 Deleted authentication rule: auth-web from folder Texas
 ```

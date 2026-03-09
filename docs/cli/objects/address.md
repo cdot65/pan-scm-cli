@@ -105,11 +105,12 @@ scm delete object address [OPTIONS]
 | --- | --- | --- |
 | `--folder TEXT` | Folder containing the address object | Yes |
 | `--name TEXT` | Name of the address object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete object address --folder Texas --name webserver
+$ scm delete object address --folder Texas --name webserver --force
 ---> 100%
 Deleted address: webserver from folder Texas
 ```

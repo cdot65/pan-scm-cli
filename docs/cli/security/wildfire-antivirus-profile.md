@@ -89,6 +89,7 @@ scm delete security wildfire-antivirus-profile [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Profile name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -97,7 +98,8 @@ scm delete security wildfire-antivirus-profile [OPTIONS]
 ```bash
 $ scm delete security wildfire-antivirus-profile \
     --folder Texas \
-    --name wf-basic
+    --name wf-basic \
+    --force
 ---> 100%
 Deleted WildFire antivirus profile: wf-basic from folder Texas
 ```

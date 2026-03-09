@@ -142,6 +142,7 @@ scm delete security app-override-rule [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Rule name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -150,7 +151,8 @@ scm delete security app-override-rule [OPTIONS]
 ```bash
 $ scm delete security app-override-rule \
     --folder Texas \
-    --name override-https
+    --name override-https \
+    --force
 ---> 100%
 Deleted app override rule: override-https from folder Texas
 ```
