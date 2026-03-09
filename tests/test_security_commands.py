@@ -1555,3 +1555,412 @@ class TestMoveCommands:
         assert move_app_override_rule_cmd
         assert move_authentication_rule_cmd
         assert move_decryption_rule_cmd
+
+    # ------------------------------------------------------------------------------- Security Rule Move -------------------------------------------------------------------------------
+
+    def test_move_security_rule_top(self, runner, monkeypatch):
+        """Test moving a security rule to top."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called_with = {}
+
+        def mock_move(*args, **kwargs):
+            mock_called_with.update(kwargs)
+
+        monkeypatch.setattr(scm_client, "move_security_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "Allow Web", "--destination", "top"],
+        )
+
+        assert result.exit_code == 0
+        assert "Moved security rule" in result.stdout
+        assert mock_called_with["name"] == "Allow Web"
+        assert mock_called_with["destination"] == "top"
+
+    def test_move_security_rule_bottom(self, runner, monkeypatch):
+        """Test moving a security rule to bottom."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_move(*args, **kwargs):
+            pass
+
+        monkeypatch.setattr(scm_client, "move_security_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "Allow Web", "--destination", "bottom"],
+        )
+
+        assert result.exit_code == 0
+        assert "Moved security rule" in result.stdout
+        assert "bottom" in result.stdout
+
+    def test_move_security_rule_before(self, runner, monkeypatch):
+        """Test moving a security rule before a reference rule."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called_with = {}
+
+        def mock_move(*args, **kwargs):
+            mock_called_with.update(kwargs)
+
+        monkeypatch.setattr(scm_client, "move_security_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "Allow Web",
+                "--destination",
+                "before",
+                "--destination-rule",
+                "abc-123",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert mock_called_with["destination"] == "before"
+        assert mock_called_with["destination_rule"] == "abc-123"
+
+    def test_move_security_rule_after(self, runner, monkeypatch):
+        """Test moving a security rule after a reference rule."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called_with = {}
+
+        def mock_move(*args, **kwargs):
+            mock_called_with.update(kwargs)
+
+        monkeypatch.setattr(scm_client, "move_security_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "Allow Web",
+                "--destination",
+                "after",
+                "--destination-rule",
+                "def-456",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert mock_called_with["destination"] == "after"
+        assert mock_called_with["destination_rule"] == "def-456"
+
+    def test_move_security_rule_before_missing_reference(self, runner, monkeypatch):
+        """Test error when before destination is used without reference rule."""
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "Allow Web", "--destination", "before"],
+        )
+
+        assert result.exit_code == 1
+        assert "--destination-rule is required" in result.output
+
+    def test_move_security_rule_after_missing_reference(self, runner, monkeypatch):
+        """Test error when after destination is used without reference rule."""
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "Allow Web", "--destination", "after"],
+        )
+
+        assert result.exit_code == 1
+        assert "--destination-rule is required" in result.output
+
+    def test_move_security_rule_error(self, runner, monkeypatch):
+        """Test error handling when move fails."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_move_error(*args, **kwargs):
+            raise ValueError("Rule not found")
+
+        monkeypatch.setattr(scm_client, "move_security_rule", mock_move_error)
+
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "Nonexistent", "--destination", "top"],
+        )
+
+        assert result.exit_code == 1
+        assert "Error moving security rule" in result.output
+
+    def test_move_security_rule_post_rulebase(self, runner, monkeypatch):
+        """Test moving a security rule in post rulebase."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called_with = {}
+
+        def mock_move(*args, **kwargs):
+            mock_called_with.update(kwargs)
+
+        monkeypatch.setattr(scm_client, "move_security_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "Allow Web",
+                "--destination",
+                "top",
+                "--rulebase",
+                "post",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert mock_called_with["rulebase"] == "post"
+
+    # ----------------------------------------------------------------------------- App Override Rule Move -----------------------------------------------------------------------------
+
+    def test_move_app_override_rule_top(self, runner, monkeypatch):
+        """Test moving an app override rule to top."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called_with = {}
+
+        def mock_move(*args, **kwargs):
+            mock_called_with.update(kwargs)
+
+        monkeypatch.setattr(scm_client, "move_app_override_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_app_override_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "override-https", "--destination", "top"],
+        )
+
+        assert result.exit_code == 0
+        assert "Moved app override rule" in result.stdout
+        assert mock_called_with["name"] == "override-https"
+
+    def test_move_app_override_rule_before_missing_reference(self, runner, monkeypatch):
+        """Test error when before destination without reference rule."""
+        test_app = typer.Typer()
+        test_app.command()(move_app_override_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "override-https", "--destination", "before"],
+        )
+
+        assert result.exit_code == 1
+        assert "--destination-rule is required" in result.output
+
+    def test_move_app_override_rule_error(self, runner, monkeypatch):
+        """Test error handling for app override rule move."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_move_error(*args, **kwargs):
+            raise ValueError("Rule not found")
+
+        monkeypatch.setattr(scm_client, "move_app_override_rule", mock_move_error)
+
+        test_app = typer.Typer()
+        test_app.command()(move_app_override_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "Nonexistent", "--destination", "top"],
+        )
+
+        assert result.exit_code == 1
+        assert "Error moving app override rule" in result.output
+
+    # ---------------------------------------------------------------------------- Authentication Rule Move ----------------------------------------------------------------------------
+
+    def test_move_authentication_rule_bottom(self, runner, monkeypatch):
+        """Test moving an authentication rule to bottom."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called_with = {}
+
+        def mock_move(*args, **kwargs):
+            mock_called_with.update(kwargs)
+
+        monkeypatch.setattr(scm_client, "move_authentication_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_authentication_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "auth-rule", "--destination", "bottom"],
+        )
+
+        assert result.exit_code == 0
+        assert "Moved authentication rule" in result.stdout
+        assert mock_called_with["name"] == "auth-rule"
+
+    def test_move_authentication_rule_after_missing_reference(self, runner, monkeypatch):
+        """Test error when after destination without reference rule."""
+        test_app = typer.Typer()
+        test_app.command()(move_authentication_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "auth-rule", "--destination", "after"],
+        )
+
+        assert result.exit_code == 1
+        assert "--destination-rule is required" in result.output
+
+    def test_move_authentication_rule_error(self, runner, monkeypatch):
+        """Test error handling for authentication rule move."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_move_error(*args, **kwargs):
+            raise ValueError("Rule not found")
+
+        monkeypatch.setattr(scm_client, "move_authentication_rule", mock_move_error)
+
+        test_app = typer.Typer()
+        test_app.command()(move_authentication_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "Nonexistent", "--destination", "top"],
+        )
+
+        assert result.exit_code == 1
+        assert "Error moving authentication rule" in result.output
+
+    # ------------------------------------------------------------------------------- Decryption Rule Move -------------------------------------------------------------------------------
+
+    def test_move_decryption_rule_top(self, runner, monkeypatch):
+        """Test moving a decryption rule to top."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called_with = {}
+
+        def mock_move(*args, **kwargs):
+            mock_called_with.update(kwargs)
+
+        monkeypatch.setattr(scm_client, "move_decryption_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_decryption_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "decrypt-rule", "--destination", "top"],
+        )
+
+        assert result.exit_code == 0
+        assert "Moved decryption rule" in result.stdout
+        assert mock_called_with["name"] == "decrypt-rule"
+
+    def test_move_decryption_rule_before_with_reference(self, runner, monkeypatch):
+        """Test moving a decryption rule before a reference rule."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_called_with = {}
+
+        def mock_move(*args, **kwargs):
+            mock_called_with.update(kwargs)
+
+        monkeypatch.setattr(scm_client, "move_decryption_rule", mock_move)
+
+        test_app = typer.Typer()
+        test_app.command()(move_decryption_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder",
+                "Texas",
+                "--name",
+                "decrypt-rule",
+                "--destination",
+                "before",
+                "--destination-rule",
+                "ref-uuid",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert mock_called_with["destination"] == "before"
+        assert mock_called_with["destination_rule"] == "ref-uuid"
+
+    def test_move_decryption_rule_before_missing_reference(self, runner, monkeypatch):
+        """Test error when before destination without reference rule."""
+        test_app = typer.Typer()
+        test_app.command()(move_decryption_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "decrypt-rule", "--destination", "before"],
+        )
+
+        assert result.exit_code == 1
+        assert "--destination-rule is required" in result.output
+
+    def test_move_decryption_rule_error(self, runner, monkeypatch):
+        """Test error handling for decryption rule move."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_move_error(*args, **kwargs):
+            raise ValueError("Rule not found")
+
+        monkeypatch.setattr(scm_client, "move_decryption_rule", mock_move_error)
+
+        test_app = typer.Typer()
+        test_app.command()(move_decryption_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "Nonexistent", "--destination", "top"],
+        )
+
+        assert result.exit_code == 1
+        assert "Error moving decryption rule" in result.output
+
+    # ---------------------------------------------------------------------------- No Location Param Tests ----------------------------------------------------------------------------
+
+    def test_move_security_rule_no_location(self, runner, monkeypatch):
+        """Test error when no location parameter is provided."""
+        test_app = typer.Typer()
+        test_app.command()(move_security_rule_cmd)
+
+        result = runner.invoke(
+            test_app,
+            ["--name", "Allow Web", "--destination", "top"],
+        )
+
+        assert result.exit_code == 1
+        assert "must be specified" in result.output
