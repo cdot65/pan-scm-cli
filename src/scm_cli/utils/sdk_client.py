@@ -244,10 +244,7 @@ class SCMClient:
                 "Consider updating pan-scm-sdk."
             )
         elif isinstance(exception, AttributeError) and "has no attribute" in str(exception):
-            self.logger.error(
-                f"SDK service not available for {resource_name}: {str(exception)}. "
-                "This feature may not be implemented in the current pan-scm-sdk version."
-            )
+            self.logger.error(f"SDK service not available for {resource_name}: {str(exception)}. This feature may not be implemented in the current pan-scm-sdk version.")
         elif isinstance(exception, ClientError):
             self.logger.error(f"Validation error during {operation} of {resource_name}: {str(exception)}")
         elif isinstance(exception, APIError):
