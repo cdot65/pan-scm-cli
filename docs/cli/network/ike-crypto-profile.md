@@ -87,13 +87,14 @@ scm delete network ike-crypto-profile NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete network ike-crypto-profile my-ike-profile --folder Texas
+$ scm delete network ike-crypto-profile my-ike-profile --folder Texas --force
 ---> 100%
 Deleted IKE crypto profile: my-ike-profile from folder Texas
 ```

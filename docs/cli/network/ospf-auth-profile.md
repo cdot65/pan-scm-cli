@@ -75,13 +75,14 @@ scm delete network ospf-auth-profile NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete network ospf-auth-profile my-ospf-auth --folder Texas
+$ scm delete network ospf-auth-profile my-ospf-auth --folder Texas --force
 ---> 100%
 Deleted OSPF auth profile: my-ospf-auth from folder Texas
 ```

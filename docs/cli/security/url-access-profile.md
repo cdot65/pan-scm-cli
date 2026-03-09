@@ -87,6 +87,7 @@ scm delete security url-access-profile [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Profile name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -95,7 +96,8 @@ scm delete security url-access-profile [OPTIONS]
 ```bash
 $ scm delete security url-access-profile \
     --folder Texas \
-    --name strict-url
+    --name strict-url \
+    --force
 ---> 100%
 Deleted URL access profile: strict-url from folder Texas
 ```

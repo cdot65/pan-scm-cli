@@ -112,13 +112,14 @@ scm delete object service [OPTIONS]
 | `--snippet TEXT` | Snippet containing the service object | No\* |
 | `--device TEXT` | Device containing the service object | No\* |
 | `--name TEXT` | Name of the service to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object service --folder Texas --name custom-web
+$ scm delete object service --folder Texas --name custom-web --force
 ---> 100%
 Deleted service: custom-web from folder Texas
 ```

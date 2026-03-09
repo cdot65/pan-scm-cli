@@ -81,13 +81,14 @@ scm delete object application-group [OPTIONS]
 | `--snippet TEXT` | Snippet containing the application group object | No\* |
 | `--device TEXT` | Device containing the application group object | No\* |
 | `--name TEXT` | Name of the application group object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object application-group --folder Texas --name business-apps
+$ scm delete object application-group --folder Texas --name business-apps --force
 ---> 100%
 Deleted application group: business-apps from folder Texas
 ```

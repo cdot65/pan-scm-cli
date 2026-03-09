@@ -118,13 +118,14 @@ scm delete object hip-object [OPTIONS]
 | `--snippet TEXT` | Snippet containing the HIP object | No\* |
 | `--device TEXT` | Device containing the HIP object | No\* |
 | `--name TEXT` | Name of the HIP object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object hip-object --folder Texas --name windows-patches
+$ scm delete object hip-object --folder Texas --name windows-patches --force
 ---> 100%
 Deleted HIP object: windows-patches from folder Texas
 ```

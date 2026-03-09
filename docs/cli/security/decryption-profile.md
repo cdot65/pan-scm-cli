@@ -102,6 +102,7 @@ scm delete security decryption-profile [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Profile name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -110,7 +111,8 @@ scm delete security decryption-profile [OPTIONS]
 ```bash
 $ scm delete security decryption-profile \
     --folder Texas \
-    --name ssl-forward
+    --name ssl-forward \
+    --force
 ---> 100%
 Deleted decryption profile: ssl-forward from folder Texas
 ```

@@ -88,11 +88,12 @@ scm delete object address-group [OPTIONS]
 | --- | --- | --- |
 | `--folder TEXT` | Folder containing the address group | Yes |
 | `--name TEXT` | Name of the address group to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete object address-group --folder Shared --name web-servers
+$ scm delete object address-group --folder Shared --name web-servers --force
 ---> 100%
 Deleted address group: web-servers from folder Shared
 ```

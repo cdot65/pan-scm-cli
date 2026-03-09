@@ -141,6 +141,7 @@ scm delete security decryption-rule [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Rule name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -149,7 +150,8 @@ scm delete security decryption-rule [OPTIONS]
 ```bash
 $ scm delete security decryption-rule \
     --folder Texas \
-    --name no-decrypt-internal
+    --name no-decrypt-internal \
+    --force
 ---> 100%
 Deleted decryption rule: no-decrypt-internal from folder Texas
 ```

@@ -77,6 +77,7 @@ scm delete security dns-security-profile [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Profile name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -85,7 +86,8 @@ scm delete security dns-security-profile [OPTIONS]
 ```bash
 $ scm delete security dns-security-profile \
     --folder Texas \
-    --name dns-sec-default
+    --name dns-sec-default \
+    --force
 ---> 100%
 Deleted DNS security profile: dns-sec-default from folder Texas
 ```
