@@ -41,6 +41,20 @@ from ..utils.validators import (
 # ========================================================================================================================================================================================
 
 
+def parse_comma_separated_list(values: list[str]) -> list[str]:
+    """Split comma-separated values in list options.
+
+    Allows both `--members a,b,c` and `--members a --members b --members c`.
+    """
+    result = []
+    for value in values:
+        for item in value.split(","):
+            stripped = item.strip()
+            if stripped:
+                result.append(stripped)
+    return result
+
+
 def show_context_info() -> None:
     """Display current context information if log level is INFO."""
     log_level = settings.get("log_level", "INFO").upper()
@@ -700,15 +714,19 @@ def set_address_group(
 
     """
     try:
+        # Parse comma-separated list options
+        parsed_members = parse_comma_separated_list(members) if members else []
+        parsed_tags = parse_comma_separated_list(tags) if tags else []
+
         # Validate inputs using the Pydantic model
         address_group = AddressGroup(
             folder=folder,
             name=name,
             type=type,
-            members=members or [],
+            members=parsed_members,
             filter=filter,
             description=description or "",
-            tags=tags or [],
+            tags=parsed_tags,
         )
 
         # Call the SDK client to create the address group
@@ -1882,11 +1900,14 @@ def set_application_group(
 
     """
     try:
+        # Parse comma-separated members
+        parsed_members = parse_comma_separated_list(members)
+
         # Validate inputs using the Pydantic model
         app_group = ApplicationGroup(
             folder=folder,
             name=name,
-            members=members,
+            members=parsed_members,
         )
 
         # Call the SDK client to create the application group
@@ -6851,7 +6872,7 @@ def backup_tag(
 
 @delete_app.command("tag", help="Delete a tag.")
 def delete_tag(
-    name: str = typer.Argument(..., help="Name of the tag to delete"),
+    name: str = typer.Option(..., "--name", help="Name of the tag to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
@@ -6969,7 +6990,7 @@ def load_tag(
 
 @set_app.command("tag", help="Create or update a tag.")
 def set_tag(
-    name: str = typer.Argument(..., help="Name of the tag"),
+    name: str = typer.Option(..., "--name", help="Name of the tag"),
     color: str = typer.Option(None, "--color", help="Color for the tag (e.g., Red, Blue, Green)"),
     comments: str = typer.Option(None, "--comments", help="Comments for the tag"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),

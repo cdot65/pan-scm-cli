@@ -219,6 +219,20 @@ URL_PROFILE_ALLOW_OPTION = typer.Option(None, "--allow", help="URL categories to
 # ========================================================================================================================================================================================
 
 
+def parse_comma_separated_list(values: list[str]) -> list[str]:
+    """Split comma-separated values in list options.
+
+    Allows both `--members a,b,c` and `--members a --members b --members c`.
+    """
+    result = []
+    for value in values:
+        for item in value.split(","):
+            stripped = item.strip()
+            if stripped:
+                result.append(stripped)
+    return result
+
+
 def validate_location_params(
     folder: str = None,
     snippet: str = None,
@@ -621,19 +635,28 @@ def set_security_rule(
         raise typer.Exit(code=1)
 
     try:
+        # Parse comma-separated list options
+        parsed_src_zones = parse_comma_separated_list(source_zones)
+        parsed_dst_zones = parse_comma_separated_list(destination_zones)
+        parsed_src_addrs = parse_comma_separated_list(source_addresses) if source_addresses else ["any"]
+        parsed_dst_addrs = parse_comma_separated_list(destination_addresses) if destination_addresses else ["any"]
+        parsed_apps = parse_comma_separated_list(applications) if applications else ["any"]
+        parsed_svcs = parse_comma_separated_list(services) if services else ["any"]
+        parsed_tags = parse_comma_separated_list(tags) if tags else []
+
         # Validate and create security rule
         rule = SecurityRule(
             folder=location_value,
             name=name,
-            source_zones=source_zones,
-            destination_zones=destination_zones,
-            source_addresses=source_addresses or ["any"],
-            destination_addresses=destination_addresses or ["any"],
-            applications=applications or ["any"],
-            service=services or ["any"],
+            source_zones=parsed_src_zones,
+            destination_zones=parsed_dst_zones,
+            source_addresses=parsed_src_addrs,
+            destination_addresses=parsed_dst_addrs,
+            applications=parsed_apps,
+            service=parsed_svcs,
             action=action,
             description=description or "",
-            tags=tags or [],
+            tags=parsed_tags,
             enabled=enabled,
             rulebase=rulebase,
             log_start=log_start,
