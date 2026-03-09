@@ -2,6 +2,15 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.5
+
+**Released:** March 9, 2026
+
+### Fixed
+
+- **Type Safety**: Resolved all 13 mypy type errors in `network.py` — IKE crypto profile, IKE gateway, and IPsec crypto profile model construction now uses correct typed kwargs.
+- **CI Enforcement**: mypy type checking now blocks PRs (removed `continue-on-error`).
+
 ## Version 1.0.4
 
 **Released:** March 9, 2026
