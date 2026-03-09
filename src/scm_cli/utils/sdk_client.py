@@ -967,8 +967,6 @@ class SCMClient:
                     data["protocol"] = protocol
 
                 self.logger.info(f"Creating new remote network '{name}' in folder '{folder}'")
-                # Remove folder from data dict; SDK create() receives it separately
-                data.pop("folder", None)
                 created = self.client.remote_network.create(data)
                 self.logger.info(f"Successfully created remote network '{name}' in folder '{folder}'")
                 result = json.loads(created.model_dump_json(exclude_unset=True))
@@ -2747,25 +2745,31 @@ class SCMClient:
             }
 
         try:
-            # Prepare the EDL data
-            edl_data = {
-                "folder": folder,
-                "name": name,
-                "type": type_config,
-            }
-
             # First, try to fetch the existing EDL
+            existing_edl = None
             try:
                 existing_edl = self.client.external_dynamic_list.fetch(name=name, folder=folder)
-                # Update existing EDL
-                edl_data["id"] = str(existing_edl.id)
-                result = self.client.external_dynamic_list.update(edl_data)
-            except Exception as e:
-                # If the HIP object doesn't exist, create a new one
-                self.logger.debug(f"EDL {name} not found, creating a new one", exc_info=e)
-                # EDL doesn't exist, create a new one
-                # Strip 'id' field since the SDK create model doesn't accept it
-                edl_data.pop("id", None)
+                self.logger.info(f"Found existing EDL '{name}' in folder '{folder}', updating...")
+            except NotFoundError:
+                self.logger.info(f"EDL '{name}' not found in folder '{folder}', creating new...")
+            except Exception as fetch_error:
+                # Log but continue - we'll try to create if fetch failed for other reasons
+                self.logger.warning(f"Error fetching EDL '{name}': {str(fetch_error)}")
+
+            if existing_edl:
+                # Update existing EDL by modifying the model object's attributes
+                existing_edl.type = type_config
+                result = self.client.external_dynamic_list.update(existing_edl)
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "updated"
+                return response
+            else:
+                # Create a new EDL
+                edl_data = {
+                    "folder": folder,
+                    "name": name,
+                    "type": type_config,
+                }
                 result = self.client.external_dynamic_list.create(edl_data)
 
             # Convert SDK response to dict for compatibility
@@ -7155,11 +7159,8 @@ class SCMClient:
                 if log_setting:
                     existing_rule.log_setting = str(log_setting)
                 else:
-                    # Ensure existing log_setting is a string type or cleared
-                    if existing_rule.log_setting is not None and not isinstance(existing_rule.log_setting, str):
-                        existing_rule.log_setting = str(existing_rule.log_setting)
-                    elif not log_setting:
-                        existing_rule.log_setting = None
+                    # Clear log_setting - handle complex objects from API response
+                    existing_rule.log_setting = None
 
                 # Perform update
                 result = self.client.security_rule.update(existing_rule)
@@ -10117,6 +10118,25 @@ class SCMClient:
             if hasattr(result, "model_dump_json"):
                 return json.loads(result.model_dump_json(exclude_unset=True))
             return {"id": job_id, "status": str(result)}
+        except (ValidationError, ValueError) as e:
+            # SDK may fail to parse in-progress jobs with empty end_ts.
+            # Try extracting status from the raw API response.
+            self.logger.warning(f"SDK validation error for job {job_id}, attempting raw extraction: {e}")
+            try:
+                response = self.client._client.get(f"/config/operations/v1/jobs/{job_id}")  # noqa: SLF001
+                if hasattr(response, "json"):
+                    raw = response.json()
+                elif isinstance(response, dict):
+                    raw = response
+                else:
+                    raw = {"id": job_id, "status": "unknown", "error": str(e)}
+                # Normalize: API may nest data under "data" key
+                if "data" in raw and isinstance(raw["data"], list) and raw["data"]:
+                    return raw["data"][0]
+                return raw
+            except Exception:
+                # Last resort: return what we know
+                return {"id": job_id, "status": "unknown", "parse_error": str(e)}
         except Exception as e:
             self._handle_api_exception("getting status of", "", f"job {job_id}", e)
 
@@ -10146,16 +10166,30 @@ class SCMClient:
                 "details": "Configuration committed successfully",
             }
 
-        try:
-            result = self.client.wait_for_job(job_id=job_id, timeout=timeout)
-            if hasattr(result, "data") and result.data:
-                job_data = result.data[0]
-                return json.loads(job_data.model_dump_json(exclude_unset=True))
-            if hasattr(result, "model_dump_json"):
-                return json.loads(result.model_dump_json(exclude_unset=True))
-            return {"id": job_id, "status": str(result)}
-        except Exception as e:
-            self._handle_api_exception("waiting for", "", f"job {job_id}", e)
+        import time
+
+        terminal_results = {"OK", "FAIL", "PUSHABORT", "ABORTED"}
+        terminal_statuses = {"FIN"}
+
+        start = time.time()
+        poll_interval = 5
+
+        while True:
+            elapsed = time.time() - start
+            if elapsed >= timeout:
+                raise TimeoutError(f"Job {job_id} did not complete within {timeout}s")
+
+            job = self.get_job_status(job_id=job_id)
+            status = job.get("status_str", job.get("status", ""))
+            result_str = job.get("result_str", job.get("result", ""))
+
+            self.logger.info(f"Job {job_id} poll: status={status}, result={result_str}")
+
+            # Job is terminal when status is FIN, or result is a known terminal value
+            if status in terminal_statuses or result_str in terminal_results:
+                return job
+
+            time.sleep(min(poll_interval, max(0, timeout - elapsed)))
 
     # ----------------------------------------------------------------------------------- Commit -----------------------------------------------------------------------------------
 
@@ -10203,16 +10237,32 @@ class SCMClient:
             if admin:
                 commit_kwargs["admin"] = [admin]
 
-            result = self.client.commit(**commit_kwargs)
+            # Always commit asynchronously, then use our own wait_for_job if sync
+            async_kwargs = {k: v for k, v in commit_kwargs.items() if k not in ("sync", "timeout")}
+            async_kwargs["sync"] = False
+
+            result = self.client.commit(**async_kwargs)
+
+            # Extract job_id from the commit response
             if hasattr(result, "model_dump_json"):
-                return json.loads(result.model_dump_json(exclude_unset=True))
-            if isinstance(result, dict):
-                return result
-            return {
-                "success": True,
-                "job_id": str(result) if result else "unknown",
-                "status": "FIN" if sync else "PEND",
-            }
+                result_dict = json.loads(result.model_dump_json(exclude_unset=True))
+            elif isinstance(result, dict):
+                result_dict = result
+            else:
+                result_dict = {"job_id": str(result) if result else "unknown"}
+
+            job_id = str(result_dict.get("job_id", result_dict.get("id", result_dict.get("jobid", ""))))
+
+            if sync and job_id and job_id != "unknown":
+                # Use our own polling which handles all terminal states and empty end_ts
+                job_result = self.wait_for_job(job_id=job_id, timeout=timeout)
+                job_result["success"] = job_result.get("result_str", job_result.get("result", "")) == "OK"
+                job_result["job_id"] = job_id
+                return job_result
+
+            result_dict.setdefault("success", not sync)
+            result_dict.setdefault("job_id", job_id)
+            return result_dict
         except Exception as e:
             self._handle_api_exception("committing", ", ".join(folders), "configuration", e)
 

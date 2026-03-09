@@ -80,7 +80,6 @@ class ServiceConnection(BaseModel):
         """Convert CLI model to SDK model format."""
         model_data = {
             "name": self.name,
-            "folder": self.folder,
             "ipsec_tunnel": self.ipsec_tunnel,
             "region": self.region,
             "onboarding_type": self.onboarding_type,
@@ -207,7 +206,6 @@ class RemoteNetwork(BaseModel):
         """Convert CLI model to SDK model format."""
         model_data = {
             "name": self.name,
-            "folder": self.folder,
             "region": self.region,
             "license_type": self.license_type,
             "ecmp_load_balancing": self.ecmp_load_balancing,
@@ -3511,8 +3509,8 @@ class AntiSpywareProfile(BaseModel):
                     "reset-server",
                 ]
                 action = rule["action"]
-                if isinstance(action, dict) and "alert" in action:
-                    # It's an alert with packet capture
+                if isinstance(action, dict):
+                    # Dict format actions are accepted (e.g., from API responses)
                     pass
                 elif action not in valid_actions:
                     raise ValueError(f"Rule {idx}: Invalid action '{action}'")
@@ -3539,14 +3537,7 @@ class AntiSpywareProfile(BaseModel):
         if self.threat_exceptions:
             model_data["threat_exception"] = self.threat_exceptions
         if self.rules:
-            # Convert string actions to dict format required by API (e.g., "block" -> {"block": {}})
-            converted_rules = []
-            for rule in self.rules:
-                rule_copy = dict(rule)
-                if "action" in rule_copy and isinstance(rule_copy["action"], str):
-                    rule_copy["action"] = {rule_copy["action"]: {}}
-                converted_rules.append(rule_copy)
-            model_data["rules"] = converted_rules
+            model_data["rules"] = self.rules
         if self.mica_engine_spyware_enabled:
             model_data["mica_engine_spyware_enabled"] = self.mica_engine_spyware_enabled
         if self.cloud_inline_analysis is not None:
@@ -4533,13 +4524,10 @@ class VulnerabilityProtectionProfile(BaseModel):
         if self.threat_exceptions:
             model_data["threat_exception"] = self.threat_exceptions
         if self.rules:
-            # Convert string actions to dict format required by API (e.g., "default" -> {"default": {}})
-            # Also add default cve field if not specified
+            # Add default cve field if not specified
             converted_rules = []
             for rule in self.rules:
                 rule_copy = dict(rule)
-                if "action" in rule_copy and isinstance(rule_copy["action"], str):
-                    rule_copy["action"] = {rule_copy["action"]: {}}
                 if "cve" not in rule_copy:
                     rule_copy["cve"] = ["any"]
                 converted_rules.append(rule_copy)
