@@ -2,6 +2,14 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.6
+
+**Released:** March 9, 2026
+
+### Added
+
+- **QoS Profile Folder Validation**: CLI now validates that QoS profiles only accept `Remote Networks` or `Service Connections` as folder values, matching SCM API enforcement. Invalid folders produce a clear error message instead of an API 400 response.
+
 ## Version 1.0.5
 
 **Released:** March 9, 2026
