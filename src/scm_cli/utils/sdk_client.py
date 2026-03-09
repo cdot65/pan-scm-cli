@@ -364,8 +364,9 @@ class SCMClient:
                     "name": name,
                     "allocated_bandwidth": bandwidth,
                     "spn_name_list": spn_name_list,
-                    "description": description or "",
                 }
+                if description:
+                    allocation_data["description"] = description
                 if tags:
                     allocation_data["tags"] = tags
                 created = self.client.bandwidth_allocation.create(allocation_data)
@@ -1487,8 +1488,9 @@ class SCMClient:
             group_data = {
                 "name": name,
                 "folder": folder,
-                "description": description or "",
             }
+            if description:
+                group_data["description"] = description
 
             # SDK expects either 'static' or 'dynamic' key, not 'type'
             if type.lower() == "static":
@@ -1528,7 +1530,8 @@ class SCMClient:
                     self.logger.info(f"Successfully recreated address group '{name}' with new type")
                 else:
                     # Update only the fields that are changing
-                    existing_group.description = description or ""
+                    if description:
+                        existing_group.description = description
                     if tags is not None:  # Only update tags if explicitly provided
                         existing_group.tag = tags
 
@@ -1774,8 +1777,9 @@ class SCMClient:
                 "subcategory": subcategory,
                 "technology": technology,
                 "risk": risk,
-                "description": description or "",
             }
+            if description:
+                app_data["description"] = description
 
             # Add optional fields only if they have non-default values
             if ports:
@@ -1806,7 +1810,8 @@ class SCMClient:
                 existing_app.subcategory = subcategory
                 existing_app.technology = technology
                 existing_app.risk = risk
-                existing_app.description = description or ""
+                if description:
+                    existing_app.description = description
 
                 # Update optional fields
                 if ports is not None:
@@ -2522,8 +2527,9 @@ class SCMClient:
                 "name": name,
                 "folder": folder,
                 "filter": filter,
-                "description": description or "",
             }
+            if description:
+                group_data["description"] = description
 
             if tags:
                 group_data["tag"] = tags  # SDK expects 'tag', not 'tags'
@@ -2532,7 +2538,8 @@ class SCMClient:
             if existing_group:
                 # Update fields
                 existing_group.filter = filter
-                existing_group.description = description or ""
+                if description:
+                    existing_group.description = description
                 if tags is not None:  # Only update tags if explicitly provided
                     existing_group.tag = tags
 
@@ -4073,7 +4080,7 @@ class SCMClient:
             return device_data
 
         try:
-            created = self.client.quarantined_devices.create(device_data)
+            created = self.client.quarantined_device.create(device_data)
             self.logger.info(f"Created quarantined device: {device_data.get('host_id')}")
             return json.loads(created.model_dump_json(exclude_unset=True))
         except Exception as e:
@@ -4096,7 +4103,7 @@ class SCMClient:
             return
 
         try:
-            self.client.quarantined_devices.delete(host_id=host_id)
+            self.client.quarantined_device.delete(host_id=host_id)
             self.logger.info(f"Deleted quarantined device: {host_id}")
         except Exception as e:
             self._handle_api_exception("deleting", "quarantined-devices", f"device '{host_id}'", e)
@@ -4131,7 +4138,7 @@ class SCMClient:
             ]
 
         try:
-            results = self.client.quarantined_devices.list(
+            results = self.client.quarantined_device.list(
                 host_id=host_id,
                 serial_number=serial_number,
             )
@@ -5156,7 +5163,7 @@ class SCMClient:
             if needs_update:
                 self.logger.info(f"Updating tag fields: {', '.join(update_fields)}")
                 try:
-                    updated = existing_tag.update()
+                    updated = self.client.tag.update(existing_tag)
                     self.logger.info(f"Successfully updated tag '{tag_data['name']}' in {container_field} '{container_value}'")
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
                     result["__action__"] = "updated"
@@ -7078,11 +7085,13 @@ class SCMClient:
                 "application": applications,  # SDK uses application instead of applications
                 "service": services,  # Use provided services or default to any
                 "action": action,
-                "description": description or "",
                 "disabled": not enabled,  # SDK uses disabled instead of enabled
                 "category": ["any"],  # Required by SDK
                 "source_user": ["any"],  # Required by SDK
             }
+
+            if description:
+                rule_data["description"] = description
 
             if tags:
                 rule_data["tag"] = tags  # SDK expects 'tag', not 'tags'
@@ -7105,7 +7114,8 @@ class SCMClient:
                 existing_rule.application = applications
                 existing_rule.service = services
                 existing_rule.action = action
-                existing_rule.description = description or ""
+                if description:
+                    existing_rule.description = description
                 existing_rule.disabled = not enabled
                 existing_rule.category = ["any"]  # Required by SDK
                 existing_rule.source_user = ["any"]  # Required by SDK
