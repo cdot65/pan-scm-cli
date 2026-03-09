@@ -97,7 +97,7 @@ class TestSecurityRuleCommands:
         with patch("scm_cli.commands.security.scm_client") as mock_client:
             mock_client.delete_security_rule.return_value = True
 
-            result = runner.invoke(app, ["delete", "security", "rule", "--folder", "Shared", "--name", "test-rule"])
+            result = runner.invoke(app, ["delete", "security", "rule", "--folder", "Shared", "--name", "test-rule", "--force"])
 
             assert result.exit_code == 0
             assert "Deleted" in result.stdout

@@ -142,7 +142,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(delete_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted address group: test-group" in result.stdout
@@ -159,7 +159,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(delete_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group", "--force"])
 
         assert result.exit_code == 1
         assert "Error" in result.stdout
@@ -700,7 +700,7 @@ class TestQuarantinedDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(delete_quarantined_device)
 
-        result = runner.invoke(test_app, ["host-123"])
+        result = runner.invoke(test_app, ["host-123", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted quarantined device: host-123" in result.stdout
@@ -854,7 +854,7 @@ class TestAutoTagActionCommands:
         test_app = typer.Typer()
         test_app.command()(delete_auto_tag_action)
 
-        result = runner.invoke(test_app, ["test-action", "--folder", "Texas"])
+        result = runner.invoke(test_app, ["test-action", "--folder", "Texas", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted auto tag action" in result.stdout
