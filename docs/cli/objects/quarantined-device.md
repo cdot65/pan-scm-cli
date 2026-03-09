@@ -52,11 +52,12 @@ scm delete object quarantined-device HOST_ID
 | Option | Description | Required |
 | --- | --- | --- |
 | `HOST_ID` | Host ID of the device (positional) | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete object quarantined-device abc123
+$ scm delete object quarantined-device abc123 --force
 ---> 100%
 Deleted quarantined device: abc123
 ```

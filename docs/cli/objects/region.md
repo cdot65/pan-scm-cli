@@ -78,13 +78,14 @@ scm delete object region NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object region us-west --folder Texas
+$ scm delete object region us-west --folder Texas --force
 ---> 100%
 Deleted region: us-west from folder Texas
 ```

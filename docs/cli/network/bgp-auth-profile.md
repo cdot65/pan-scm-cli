@@ -74,13 +74,14 @@ scm delete network bgp-auth-profile NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete network bgp-auth-profile my-bgp-auth --folder Texas
+$ scm delete network bgp-auth-profile my-bgp-auth --folder Texas --force
 ---> 100%
 Deleted BGP auth profile: my-bgp-auth from folder Texas
 ```

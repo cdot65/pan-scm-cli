@@ -110,13 +110,14 @@ scm delete object http-server-profile [OPTIONS]
 | `--snippet TEXT` | Snippet containing the HTTP server profile object | No\* |
 | `--device TEXT` | Device containing the HTTP server profile object | No\* |
 | `--name TEXT` | Name of the HTTP server profile object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object http-server-profile --folder Texas --name syslog-http
+$ scm delete object http-server-profile --folder Texas --name syslog-http --force
 ---> 100%
 Deleted HTTP server profile: syslog-http from folder Texas
 ```

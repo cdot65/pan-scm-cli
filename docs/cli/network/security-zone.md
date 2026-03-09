@@ -87,11 +87,12 @@ scm delete network security-zone [OPTIONS]
 | --- | --- | --- |
 | `--name TEXT` | Name of the security zone to delete | Yes |
 | `--folder TEXT` | Folder location | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete network security-zone --folder Shared --name DMZ
+$ scm delete network security-zone --folder Shared --name DMZ --force
 ---> 100%
 Deleted security zone: DMZ from folder Shared
 ```

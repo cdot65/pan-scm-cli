@@ -75,13 +75,14 @@ scm delete network route-prefix-list NAME [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete network route-prefix-list my-prefix-list --folder Texas
+$ scm delete network route-prefix-list my-prefix-list --folder Texas --force
 ---> 100%
 Deleted route prefix list: my-prefix-list from folder Texas
 ```

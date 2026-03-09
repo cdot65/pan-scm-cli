@@ -103,13 +103,14 @@ scm delete object syslog-server-profile [OPTIONS]
 | `--snippet TEXT` | Snippet containing the syslog server profile object | No\* |
 | `--device TEXT` | Device containing the syslog server profile object | No\* |
 | `--name TEXT` | Name of the syslog server profile to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object syslog-server-profile --folder Texas --name central-syslog
+$ scm delete object syslog-server-profile --folder Texas --name central-syslog --force
 ---> 100%
 Deleted syslog server profile: central-syslog from folder Texas
 ```

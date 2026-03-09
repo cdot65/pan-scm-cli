@@ -91,13 +91,14 @@ scm delete object dynamic-user-group [OPTIONS]
 | `--snippet TEXT` | Snippet containing the dynamic user group object | No\* |
 | `--device TEXT` | Device containing the dynamic user group object | No\* |
 | `--name TEXT` | Name of the dynamic user group object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object dynamic-user-group --folder Texas --name it-admins
+$ scm delete object dynamic-user-group --folder Texas --name it-admins --force
 ---> 100%
 Deleted dynamic user group: it-admins from folder Texas
 ```

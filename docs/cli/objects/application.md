@@ -126,13 +126,14 @@ scm delete object application [OPTIONS]
 | `--snippet TEXT` | Snippet containing the application object | No\* |
 | `--device TEXT` | Device containing the application object | No\* |
 | `--name TEXT` | Name of the application object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object application --folder Texas --name custom-crm
+$ scm delete object application --folder Texas --name custom-crm --force
 ---> 100%
 Deleted application: custom-crm from folder Texas
 ```

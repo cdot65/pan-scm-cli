@@ -89,6 +89,7 @@ scm delete security anti-spyware-profile [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--name TEXT` | Profile name to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -97,7 +98,8 @@ scm delete security anti-spyware-profile [OPTIONS]
 ```bash
 $ scm delete security anti-spyware-profile \
     --folder Texas \
-    --name strict-security
+    --name strict-security \
+    --force
 ---> 100%
 Deleted anti-spyware profile: strict-security from folder Texas
 ```

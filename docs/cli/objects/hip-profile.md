@@ -93,13 +93,14 @@ scm delete object hip-profile [OPTIONS]
 | `--snippet TEXT` | Snippet containing the HIP profile object | No\* |
 | `--device TEXT` | Device containing the HIP profile object | No\* |
 | `--name TEXT` | Name of the HIP profile object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object hip-profile --folder Texas --name secure-endpoints
+$ scm delete object hip-profile --folder Texas --name secure-endpoints --force
 ---> 100%
 Deleted HIP profile: secure-endpoints from folder Texas
 ```

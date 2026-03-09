@@ -140,13 +140,14 @@ scm delete object external-dynamic-list [OPTIONS]
 | `--snippet TEXT` | Snippet containing the external dynamic list object | No\* |
 | `--device TEXT` | Device containing the external dynamic list object | No\* |
 | `--name TEXT` | Name of the external dynamic list object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object external-dynamic-list --folder Texas --name custom-threats
+$ scm delete object external-dynamic-list --folder Texas --name custom-threats --force
 ---> 100%
 Deleted external dynamic list: custom-threats from folder Texas
 ```

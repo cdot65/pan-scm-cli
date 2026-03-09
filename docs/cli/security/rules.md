@@ -166,13 +166,15 @@ scm delete security rule [OPTIONS]
 | --- | --- | --- |
 | `--folder TEXT` | Folder containing the security rule | Yes |
 | `--name TEXT` | Name of the security rule to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
 $ scm delete security rule \
     --folder Shared \
-    --name "Allow-Internal-Web"
+    --name "Allow-Internal-Web" \
+    --force
 ---> 100%
 Deleted security rule: Allow-Internal-Web from folder Shared
 ```

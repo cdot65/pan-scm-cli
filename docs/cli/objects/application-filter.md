@@ -97,13 +97,14 @@ scm delete object application-filter [OPTIONS]
 | `--snippet TEXT` | Snippet containing the application filter object | No\* |
 | `--device TEXT` | Device containing the application filter object | No\* |
 | `--name TEXT` | Name of the application filter object to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete object application-filter --folder Texas --name high-risk-apps
+$ scm delete object application-filter --folder Texas --name high-risk-apps --force
 ---> 100%
 Deleted application filter: high-risk-apps from folder Texas
 ```
