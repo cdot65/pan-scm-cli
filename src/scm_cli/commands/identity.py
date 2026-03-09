@@ -180,23 +180,7 @@ def show_authentication_profile(
 
     """
     try:
-        if list_items:
-            profiles = scm_client.list_authentication_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No authentication profiles found")
-                return
-
-            typer.echo(f"\nAuthentication Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("user_domain"):
-                    typer.echo(f"  User Domain: {p['user_domain']}")
-                if p.get("method"):
-                    typer.echo(f"  Method: {list(p['method'].keys())}")
-                typer.echo("-" * 80)
-
-        elif name:
+        if name:
             location_type, location_value = validate_location_params(folder, snippet, device)
             profile = scm_client.get_authentication_profile(name=name, **{location_type: location_value})
 
@@ -211,8 +195,21 @@ def show_authentication_profile(
             if profile.get("id"):
                 typer.echo(f"ID: {profile['id']}")
         else:
-            typer.echo("Please specify either --list or --name option")
-            raise typer.Exit(code=1)
+            # List all authentication profiles (default behavior)
+            profiles = scm_client.list_authentication_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No authentication profiles found")
+                return
+
+            typer.echo(f"\nAuthentication Profiles ({len(profiles)}):")
+            typer.echo("-" * 80)
+            for p in profiles:
+                typer.echo(f"Name: {p.get('name', 'N/A')}")
+                if p.get("user_domain"):
+                    typer.echo(f"  User Domain: {p['user_domain']}")
+                if p.get("method"):
+                    typer.echo(f"  Method: {list(p['method'].keys())}")
+                typer.echo("-" * 80)
 
     except Exception as e:
         typer.echo(f"Error showing authentication profiles: {str(e)}", err=True)
@@ -432,21 +429,7 @@ def show_kerberos_server_profile(
 
     """
     try:
-        if list_items:
-            profiles = scm_client.list_kerberos_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No Kerberos server profiles found")
-                return
-
-            typer.echo(f"\nKerberos Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("server"):
-                    typer.echo(f"  Servers: {len(p['server'])}")
-                typer.echo("-" * 80)
-
-        elif name:
+        if name:
             location_type, location_value = validate_location_params(folder, snippet, device)
             profile = scm_client.get_kerberos_server_profile(name=name, **{location_type: location_value})
 
@@ -459,8 +442,19 @@ def show_kerberos_server_profile(
             if profile.get("id"):
                 typer.echo(f"ID: {profile['id']}")
         else:
-            typer.echo("Please specify either --list or --name option")
-            raise typer.Exit(code=1)
+            # List all Kerberos server profiles (default behavior)
+            profiles = scm_client.list_kerberos_server_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No Kerberos server profiles found")
+                return
+
+            typer.echo(f"\nKerberos Server Profiles ({len(profiles)}):")
+            typer.echo("-" * 80)
+            for p in profiles:
+                typer.echo(f"Name: {p.get('name', 'N/A')}")
+                if p.get("server"):
+                    typer.echo(f"  Servers: {len(p['server'])}")
+                typer.echo("-" * 80)
 
     except Exception as e:
         typer.echo(f"Error showing Kerberos server profiles: {str(e)}", err=True)
@@ -691,23 +685,7 @@ def show_ldap_server_profile(
 
     """
     try:
-        if list_items:
-            profiles = scm_client.list_ldap_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No LDAP server profiles found")
-                return
-
-            typer.echo(f"\nLDAP Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("ldap_type"):
-                    typer.echo(f"  Type: {p['ldap_type']}")
-                if p.get("server"):
-                    typer.echo(f"  Servers: {len(p['server'])}")
-                typer.echo("-" * 80)
-
-        elif name:
+        if name:
             location_type, location_value = validate_location_params(folder, snippet, device)
             profile = scm_client.get_ldap_server_profile(name=name, **{location_type: location_value})
 
@@ -728,8 +706,21 @@ def show_ldap_server_profile(
             if profile.get("id"):
                 typer.echo(f"ID: {profile['id']}")
         else:
-            typer.echo("Please specify either --list or --name option")
-            raise typer.Exit(code=1)
+            # List all LDAP server profiles (default behavior)
+            profiles = scm_client.list_ldap_server_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No LDAP server profiles found")
+                return
+
+            typer.echo(f"\nLDAP Server Profiles ({len(profiles)}):")
+            typer.echo("-" * 80)
+            for p in profiles:
+                typer.echo(f"Name: {p.get('name', 'N/A')}")
+                if p.get("ldap_type"):
+                    typer.echo(f"  Type: {p['ldap_type']}")
+                if p.get("server"):
+                    typer.echo(f"  Servers: {len(p['server'])}")
+                typer.echo("-" * 80)
 
     except Exception as e:
         typer.echo(f"Error showing LDAP server profiles: {str(e)}", err=True)
@@ -957,23 +948,7 @@ def show_radius_server_profile(
 
     """
     try:
-        if list_items:
-            profiles = scm_client.list_radius_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No RADIUS server profiles found")
-                return
-
-            typer.echo(f"\nRADIUS Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("server"):
-                    typer.echo(f"  Servers: {len(p['server'])}")
-                if p.get("timeout"):
-                    typer.echo(f"  Timeout: {p['timeout']}s")
-                typer.echo("-" * 80)
-
-        elif name:
+        if name:
             location_type, location_value = validate_location_params(folder, snippet, device)
             profile = scm_client.get_radius_server_profile(name=name, **{location_type: location_value})
 
@@ -992,8 +967,21 @@ def show_radius_server_profile(
             if profile.get("id"):
                 typer.echo(f"ID: {profile['id']}")
         else:
-            typer.echo("Please specify either --list or --name option")
-            raise typer.Exit(code=1)
+            # List all RADIUS server profiles (default behavior)
+            profiles = scm_client.list_radius_server_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No RADIUS server profiles found")
+                return
+
+            typer.echo(f"\nRADIUS Server Profiles ({len(profiles)}):")
+            typer.echo("-" * 80)
+            for p in profiles:
+                typer.echo(f"Name: {p.get('name', 'N/A')}")
+                if p.get("server"):
+                    typer.echo(f"  Servers: {len(p['server'])}")
+                if p.get("timeout"):
+                    typer.echo(f"  Timeout: {p['timeout']}s")
+                typer.echo("-" * 80)
 
     except Exception as e:
         typer.echo(f"Error showing RADIUS server profiles: {str(e)}", err=True)
@@ -1226,23 +1214,7 @@ def show_saml_server_profile(
 
     """
     try:
-        if list_items:
-            profiles = scm_client.list_saml_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No SAML server profiles found")
-                return
-
-            typer.echo(f"\nSAML Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("entity_id"):
-                    typer.echo(f"  Entity ID: {p['entity_id']}")
-                if p.get("sso_url"):
-                    typer.echo(f"  SSO URL: {p['sso_url']}")
-                typer.echo("-" * 80)
-
-        elif name:
+        if name:
             location_type, location_value = validate_location_params(folder, snippet, device)
             profile = scm_client.get_saml_server_profile(name=name, **{location_type: location_value})
 
@@ -1263,8 +1235,21 @@ def show_saml_server_profile(
             if profile.get("id"):
                 typer.echo(f"ID: {profile['id']}")
         else:
-            typer.echo("Please specify either --list or --name option")
-            raise typer.Exit(code=1)
+            # List all SAML server profiles (default behavior)
+            profiles = scm_client.list_saml_server_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No SAML server profiles found")
+                return
+
+            typer.echo(f"\nSAML Server Profiles ({len(profiles)}):")
+            typer.echo("-" * 80)
+            for p in profiles:
+                typer.echo(f"Name: {p.get('name', 'N/A')}")
+                if p.get("entity_id"):
+                    typer.echo(f"  Entity ID: {p['entity_id']}")
+                if p.get("sso_url"):
+                    typer.echo(f"  SSO URL: {p['sso_url']}")
+                typer.echo("-" * 80)
 
     except Exception as e:
         typer.echo(f"Error showing SAML server profiles: {str(e)}", err=True)
@@ -1491,23 +1476,7 @@ def show_tacacs_server_profile(
 
     """
     try:
-        if list_items:
-            profiles = scm_client.list_tacacs_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No TACACS+ server profiles found")
-                return
-
-            typer.echo(f"\nTACACS+ Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("protocol"):
-                    typer.echo(f"  Protocol: {p['protocol']}")
-                if p.get("server"):
-                    typer.echo(f"  Servers: {len(p['server'])}")
-                typer.echo("-" * 80)
-
-        elif name:
+        if name:
             location_type, location_value = validate_location_params(folder, snippet, device)
             profile = scm_client.get_tacacs_server_profile(name=name, **{location_type: location_value})
 
@@ -1526,8 +1495,21 @@ def show_tacacs_server_profile(
             if profile.get("id"):
                 typer.echo(f"ID: {profile['id']}")
         else:
-            typer.echo("Please specify either --list or --name option")
-            raise typer.Exit(code=1)
+            # List all TACACS+ server profiles (default behavior)
+            profiles = scm_client.list_tacacs_server_profiles(folder=folder, snippet=snippet, device=device)
+            if not profiles:
+                typer.echo("No TACACS+ server profiles found")
+                return
+
+            typer.echo(f"\nTACACS+ Server Profiles ({len(profiles)}):")
+            typer.echo("-" * 80)
+            for p in profiles:
+                typer.echo(f"Name: {p.get('name', 'N/A')}")
+                if p.get("protocol"):
+                    typer.echo(f"  Protocol: {p['protocol']}")
+                if p.get("server"):
+                    typer.echo(f"  Servers: {len(p['server'])}")
+                typer.echo("-" * 80)
 
     except Exception as e:
         typer.echo(f"Error showing TACACS+ server profiles: {str(e)}", err=True)
