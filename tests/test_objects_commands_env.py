@@ -62,7 +62,7 @@ class TestAddressCommands:
         with patch("scm_cli.commands.objects.scm_client") as mock_client:
             mock_client.delete_address.return_value = True
 
-            result = runner.invoke(app, ["delete", "object", "address", "--folder", "Shared", "--name", "test-address"])
+            result = runner.invoke(app, ["delete", "object", "address", "--folder", "Shared", "--name", "test-address", "--force"])
 
             assert result.exit_code == 0
             assert "Deleted address" in result.stdout
