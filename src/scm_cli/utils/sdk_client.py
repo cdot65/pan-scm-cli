@@ -13,6 +13,7 @@ from typing import Any, NoReturn
 
 from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 from scm.client import Scm
+from pydantic import ValidationError
 from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
 
 from .config import get_credentials, settings
@@ -236,6 +237,17 @@ class SCMClient:
             self.logger.error(f"Authentication error during {operation} of {resource_name}: {str(exception)}")
         elif isinstance(exception, NotFoundError):
             self.logger.error(f"Resource not found: {resource_name} in folder {folder}")
+        elif isinstance(exception, ValidationError):
+            self.logger.error(
+                f"SDK model validation error during {operation} of {resource_name}: {str(exception)}. "
+                "This is likely a mismatch between the SDK model and the API response. "
+                "Consider updating pan-scm-sdk."
+            )
+        elif isinstance(exception, AttributeError) and "has no attribute" in str(exception):
+            self.logger.error(
+                f"SDK service not available for {resource_name}: {str(exception)}. "
+                "This feature may not be implemented in the current pan-scm-sdk version."
+            )
         elif isinstance(exception, ClientError):
             self.logger.error(f"Validation error during {operation} of {resource_name}: {str(exception)}")
         elif isinstance(exception, APIError):
