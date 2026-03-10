@@ -2,6 +2,15 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.7
+
+**Released:** March 10, 2026
+
+### Fixed
+
+- **Error Logging**: Fixed 23 `_handle_api_exception()` calls with swapped `folder` and `resource_name` arguments, correcting error messages for service connections, remote networks, HIP profiles, HTTP server profiles, log forwarding profiles, services, service groups, internal DNS servers, and network locations.
+- **Deprecated API**: Replaced 3 deprecated Pydantic v1 `.dict()` calls with `.model_dump_json()` in address group, security zone, and security rule creation methods.
+
 ## Version 1.0.6
 
 **Released:** March 9, 2026
