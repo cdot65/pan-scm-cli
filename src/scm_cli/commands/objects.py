@@ -2315,7 +2315,16 @@ def set_application_filter(
             no_certifications=app_filter.no_certifications,
         )
 
-        typer.echo(f"Created application filter: {result['name']} in folder {result['folder']}")
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created application filter: {result['name']} in folder {result['folder']}")
+        elif action == "updated":
+            typer.echo(f"Updated application filter: {result['name']} in folder {result['folder']}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for application filter: {result['name']} in folder {result['folder']}")
+
         return result
     except Exception as e:
         typer.echo(f"Error creating application filter: {str(e)}", err=True)
@@ -3092,7 +3101,16 @@ def set_external_dynamic_list(
             type_config=edl_data["type"],
         )
 
-        typer.echo(f"Created external dynamic list: {name} in folder {folder}")
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created external dynamic list: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "updated":
+            typer.echo(f"Updated external dynamic list: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for external dynamic list: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
         return result
 
     except Exception as e:
@@ -3671,7 +3689,16 @@ def set_hip_object(
             certificate=sdk_data.get("certificate"),
         )
 
-        typer.echo(f"Created HIP object: {result['name']} in folder {result['folder']}")
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created HIP object: {result['name']} in folder {result['folder']}")
+        elif action == "updated":
+            typer.echo(f"Updated HIP object: {result['name']} in folder {result['folder']}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for HIP object: {result['name']} in folder {result['folder']}")
+
         return result
     except Exception as e:
         typer.echo(f"Error creating HIP object: {str(e)}", err=True)
@@ -4124,8 +4151,16 @@ def set_hip_profile(
             description=profile_data.get("description"),
         )
 
-        # Display result
-        typer.echo(f"Created HIP profile: {result['name']} in folder {result['folder']}")
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created HIP profile: {result['name']} in folder {result['folder']}")
+        elif action == "updated":
+            typer.echo(f"Updated HIP profile: {result['name']} in folder {result['folder']}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for HIP profile: {result['name']} in folder {result['folder']}")
+
         return result
 
     except Exception as e:
@@ -4447,8 +4482,16 @@ def set_http_server_profile(
             format_config=profile_data.get("format"),
         )
 
-        # Display result
-        typer.echo(f"Created HTTP server profile: {result['name']} in folder {result['folder']}")
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created HTTP server profile: {result['name']} in folder {result['folder']}")
+        elif action == "updated":
+            typer.echo(f"Updated HTTP server profile: {result['name']} in folder {result['folder']}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for HTTP server profile: {result['name']} in folder {result['folder']}")
+
         return result
 
     except ValueError as e:
@@ -4822,7 +4865,15 @@ def set_log_forwarding_profile(
         )
 
         if result:
-            typer.echo(f"Created log forwarding profile: {name} in folder {folder}")
+            # Get the action performed
+            action = result.pop("__action__", "created")
+
+            if action == "created":
+                typer.echo(f"Created log forwarding profile: {name} in folder {folder}")
+            elif action == "updated":
+                typer.echo(f"Updated log forwarding profile: {name} in folder {folder}")
+            elif action == "no_change":
+                typer.echo(f"No changes needed for log forwarding profile: {name} in folder {folder}")
         else:
             typer.echo(f"Failed to create/update log forwarding profile '{name}'", err=True)
             raise typer.Exit(code=1)
@@ -6073,7 +6124,15 @@ def set_service_group(
         )
 
         if result:
-            typer.echo(f"Created service group: {name} in folder {folder}")
+            # Get the action performed
+            action = result.pop("__action__", "created")
+
+            if action == "created":
+                typer.echo(f"Created service group: {name} in folder {folder}")
+            elif action == "updated":
+                typer.echo(f"Updated service group: {name} in folder {folder}")
+            elif action == "no_change":
+                typer.echo(f"No changes needed for service group: {name} in folder {folder}")
         else:
             typer.echo(f"Failed to create/update service group '{name}'", err=True)
             raise typer.Exit(code=1)
@@ -6429,10 +6488,19 @@ def set_syslog_server_profile(
         sdk_data = validated_profile.to_sdk_model()
 
         # Create/update the profile
-        scm_client.create_syslog_server_profile(sdk_data)
+        result = scm_client.create_syslog_server_profile(sdk_data)
 
         container = folder or snippet or device
-        typer.echo(f"Created syslog server profile: {name} in {container}")
+
+        # Get the action performed
+        action = result.pop("__action__", "created") if result else "created"
+
+        if action == "created":
+            typer.echo(f"Created syslog server profile: {name} in {container}")
+        elif action == "updated":
+            typer.echo(f"Updated syslog server profile: {name} in {container}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for syslog server profile: {name} in {container}")
 
     except Exception as e:
         typer.echo(f"❌ Error creating/updating syslog server profile: {str(e)}", err=True)

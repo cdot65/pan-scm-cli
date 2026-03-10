@@ -1320,7 +1320,13 @@ def set_zone(
             enable_device_identification=sdk_model.get("enable_device_identification"),
         )
 
-        typer.echo(f"Created zone: {result['name']} in folder {result['folder']}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created zone: {result['name']} in folder {result['folder']}")
+        elif action == "updated":
+            typer.echo(f"Updated zone: {result['name']} in folder {result['folder']}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for zone: {result['name']} in folder {result['folder']}")
         return result
     except Exception as e:
         typer.echo(f"Error creating security zone: {str(e)}", err=True)
@@ -1697,7 +1703,12 @@ def set_ipsec_crypto_profile(
         )
 
         action = result.get("__action__", "created")
-        typer.echo(f"IPsec crypto profile '{result['name']}' {action} in folder {result.get('folder', folder)}")
+        if action == "created":
+            typer.echo(f"Created IPsec crypto profile: {result['name']} in folder {result.get('folder', folder)}")
+        elif action == "updated":
+            typer.echo(f"Updated IPsec crypto profile: {result['name']} in folder {result.get('folder', folder)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for IPsec crypto profile: {result['name']} in folder {result.get('folder', folder)}")
         return result
     except Exception as e:
         typer.echo(f"Error creating IPsec crypto profile: {str(e)}", err=True)

@@ -265,6 +265,56 @@ class TestBandwidthAllocationCommands:
         assert "Error loading bandwidth allocations" in result.stdout
         assert "YAML parsing error" in result.stdout
 
+    def test_set_bandwidth_allocation_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "ba-123",
+                "name": kwargs.get("name"),
+                "allocated_bandwidth": kwargs.get("bandwidth"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_bandwidth_allocation", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_bandwidth_allocation)
+
+        result = runner.invoke(
+            test_app,
+            ["--name", "test-allocation", "--bandwidth", "1000",
+             "--spn-name-list", "spn1,spn2", "--description", "Test"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated bandwidth allocation" in result.stdout
+
+    def test_set_bandwidth_allocation_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "ba-123",
+                "name": kwargs.get("name"),
+                "allocated_bandwidth": kwargs.get("bandwidth"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_bandwidth_allocation", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_bandwidth_allocation)
+
+        result = runner.invoke(
+            test_app,
+            ["--name", "test-allocation", "--bandwidth", "1000",
+             "--spn-name-list", "spn1,spn2", "--description", "Test"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
 
 class TestDeploymentApps:
     """Test that all deployment apps exist."""

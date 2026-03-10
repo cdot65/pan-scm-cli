@@ -2,6 +2,15 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.9
+
+**Released:** March 10, 2026
+
+### Fixed
+
+- **Set Command Output**: Fixed 24 `set` commands that always displayed "Created" even when updating existing objects. Commands now correctly show "Created", "Updated", or "No changes needed" based on the action performed. Affected commands span objects (9), security (9), network (2), and deployment (1) modules.
+- **IPsec Crypto Profile Output**: Replaced raw action string interpolation with consistent Created/Updated/No changes message format.
+
 ## Version 1.0.8
 
 **Released:** March 10, 2026
