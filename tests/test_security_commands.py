@@ -22,9 +22,11 @@ from scm_cli.commands.security import (  # noqa: F401
     move_authentication_rule_cmd,
     move_decryption_rule_cmd,
     move_security_rule_cmd,
+    set_anti_spyware_profile,
     set_app,
     set_app_override_rule,
     set_authentication_rule,
+    set_decryption_profile,
     set_decryption_rule,
     set_dns_security_profile,
     set_security_rule,
@@ -285,6 +287,58 @@ class TestSecurityRuleCommands:
         assert "Dry run mode" in result.stdout
         assert not mock_called  # Ensure the create method was not called
 
+    def test_set_security_rule_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "sr-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_security_rule", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_security_rule)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "test-folder", "--name", "test-rule",
+             "--source-zones", "trust", "--destination-zones", "untrust",
+             "--action", "allow"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated security rule" in result.stdout
+
+    def test_set_security_rule_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "sr-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_security_rule", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_security_rule)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "test-folder", "--name", "test-rule",
+             "--source-zones", "trust", "--destination-zones", "untrust",
+             "--action", "allow"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
 
 class TestWildfireAntivirusProfileCommands:
     """Test the WildFire antivirus profile commands."""
@@ -528,6 +582,46 @@ wildfire_antivirus_profiles:
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         mock_client.create_wildfire_antivirus_profile.assert_not_called()
+
+    def test_set_wildfire_antivirus_profile_updated(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_wildfire_antivirus_profile.return_value = {
+            "id": "wfav-123",
+            "name": "wf-test",
+            "folder": "Texas",
+            "__action__": "updated",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_wildfire_antivirus_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "wf-test", "--description", "Test"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated WildFire antivirus profile" in result.stdout
+
+    def test_set_wildfire_antivirus_profile_no_change(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_wildfire_antivirus_profile.return_value = {
+            "id": "wfav-123",
+            "name": "wf-test",
+            "folder": "Texas",
+            "__action__": "no_change",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_wildfire_antivirus_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "wf-test", "--description", "Test"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
 
 
 class TestDNSSecurityProfileCommands:
@@ -961,6 +1055,162 @@ vulnerability_protection_profiles:
         assert "Dry run mode" in result.stdout
         assert not mock_called
 
+    def test_set_vulnerability_protection_profile_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "vpp-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_vulnerability_protection_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "test-vuln-profile", "--description", "Test"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated vulnerability protection profile" in result.stdout
+
+    def test_set_vulnerability_protection_profile_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "vpp-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_vulnerability_protection_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_vulnerability_protection_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "test-vuln-profile", "--description", "Test"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestAntiSpywareProfileUpsert:
+    """Test anti-spyware profile updated/no_change actions."""
+
+    def _mock_scm_client(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_anti_spyware_profile_updated(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_anti_spyware_profile.return_value = {
+            "id": "asp-123",
+            "name": "strict-security",
+            "folder": "Texas",
+            "__action__": "updated",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_anti_spyware_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "strict-security"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated anti-spyware profile" in result.stdout
+
+    def test_set_anti_spyware_profile_no_change(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_anti_spyware_profile.return_value = {
+            "id": "asp-123",
+            "name": "strict-security",
+            "folder": "Texas",
+            "__action__": "no_change",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_anti_spyware_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "strict-security"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestDecryptionProfileUpsert:
+    """Test decryption profile updated/no_change actions."""
+
+    def _mock_scm_client(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_decryption_profile_updated(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_decryption_profile.return_value = {
+            "id": "dp-123",
+            "name": "ssl-forward",
+            "folder": "Texas",
+            "__action__": "updated",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_decryption_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "ssl-forward",
+             "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated decryption profile" in result.stdout
+
+    def test_set_decryption_profile_no_change(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_decryption_profile.return_value = {
+            "id": "dp-123",
+            "name": "ssl-forward",
+            "folder": "Texas",
+            "__action__": "no_change",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_decryption_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "ssl-forward",
+             "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
 
 class TestURLCategoryCommands:
     """Test the URL category commands."""
@@ -1243,6 +1493,48 @@ class TestAppOverrideRuleCommands:
         assert "App Override Rule: override-https" in result.stdout
         assert "ssl" in result.stdout
 
+    def test_set_app_override_rule_updated(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_app_override_rule.return_value = {
+            "id": "aor-1",
+            "name": "override-https",
+            "folder": "Texas",
+            "__action__": "updated",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_app_override_rule)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "override-https",
+             "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated app override rule" in result.stdout
+
+    def test_set_app_override_rule_no_change(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_app_override_rule.return_value = {
+            "id": "aor-1",
+            "name": "override-https",
+            "folder": "Texas",
+            "__action__": "no_change",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_app_override_rule)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "override-https",
+             "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
 
 class TestAuthenticationRuleCommands:
     """Test the authentication rule commands."""
@@ -1333,6 +1625,40 @@ class TestAuthenticationRuleCommands:
 
         assert result.exit_code == 0
         assert "Authentication Rule: auth-web" in result.stdout
+
+    def test_set_authentication_rule_updated(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_authentication_rule.return_value = {
+            "id": "authr-1",
+            "name": "auth-web",
+            "folder": "Texas",
+            "__action__": "updated",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_authentication_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+
+        assert result.exit_code == 0
+        assert "Updated authentication rule" in result.stdout
+
+    def test_set_authentication_rule_no_change(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_authentication_rule.return_value = {
+            "id": "authr-1",
+            "name": "auth-web",
+            "folder": "Texas",
+            "__action__": "no_change",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_authentication_rule)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
 
 
 class TestDecryptionRuleCommands:
@@ -1446,6 +1772,46 @@ class TestDecryptionRuleCommands:
         assert result.exit_code == 0
         assert "Decryption Rule: decrypt-outbound" in result.stdout
 
+    def test_set_decryption_rule_updated(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_decryption_rule.return_value = {
+            "id": "decr-1",
+            "name": "no-decrypt-internal",
+            "folder": "Texas",
+            "__action__": "updated",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_decryption_rule)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "no-decrypt-internal", "--action", "no-decrypt"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated decryption rule" in result.stdout
+
+    def test_set_decryption_rule_no_change(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_decryption_rule.return_value = {
+            "id": "decr-1",
+            "name": "no-decrypt-internal",
+            "folder": "Texas",
+            "__action__": "no_change",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_decryption_rule)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "no-decrypt-internal", "--action", "no-decrypt"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
 
 class TestURLAccessProfileCommands:
     """Test the URL access profile commands."""
@@ -1547,6 +1913,46 @@ class TestURLAccessProfileCommands:
 
         assert result.exit_code == 0
         assert "URL Access Profile: strict-url" in result.stdout
+
+    def test_set_url_access_profile_updated(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_url_access_profile.return_value = {
+            "id": "uap-1",
+            "name": "strict-url",
+            "folder": "Texas",
+            "__action__": "updated",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_access_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "strict-url", "--block", "adult", "--block", "malware"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated URL access profile" in result.stdout
+
+    def test_set_url_access_profile_no_change(self, runner, monkeypatch):
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_url_access_profile.return_value = {
+            "id": "uap-1",
+            "name": "strict-url",
+            "folder": "Texas",
+            "__action__": "no_change",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_access_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "strict-url", "--block", "adult", "--block", "malware"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
 
 
 class TestMoveCommands:

@@ -17,10 +17,18 @@ from scm_cli.commands.objects import (  # noqa: F401
     load_region,
     set_address_group,
     set_app,
+    set_application_filter,
     set_auto_tag_action,
+    set_external_dynamic_list,
+    set_hip_object,
+    set_hip_profile,
+    set_http_server_profile,
+    set_log_forwarding_profile,
     set_quarantined_device,
     set_region,
     set_schedule,
+    set_service_group,
+    set_syslog_server_profile,
     show_app,
     show_auto_tag_action,
     show_quarantined_device,
@@ -858,3 +866,471 @@ class TestAutoTagActionCommands:
 
         assert result.exit_code == 0
         assert "Deleted auto tag action" in result.stdout
+
+
+class TestApplicationFilterUpsert:
+    """Test application filter updated/no_change actions."""
+
+    def test_set_application_filter_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "af-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_application_filter", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_application_filter)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "high-risk-apps",
+             "--category", "business-systems", "--subcategory", "database",
+             "--technology", "client-server", "--risk", "4"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated application filter" in result.stdout
+
+    def test_set_application_filter_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "af-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_application_filter", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_application_filter)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "high-risk-apps",
+             "--category", "business-systems", "--subcategory", "database",
+             "--technology", "client-server", "--risk", "4"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestExternalDynamicListUpsert:
+    """Test external dynamic list updated/no_change actions."""
+
+    def test_set_external_dynamic_list_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "edl-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_external_dynamic_list", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_external_dynamic_list)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder", "Texas",
+                "--name", "test-edl",
+                "--type", "ip",
+                "--url", "https://example.com/blocklist.txt",
+                "--recurring", "hourly",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated external dynamic list" in result.stdout
+
+    def test_set_external_dynamic_list_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "edl-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_external_dynamic_list", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_external_dynamic_list)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder", "Texas",
+                "--name", "test-edl",
+                "--type", "ip",
+                "--url", "https://example.com/blocklist.txt",
+                "--recurring", "hourly",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestHIPObjectUpsert:
+    """Test HIP object updated/no_change actions."""
+
+    def test_set_hip_object_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "hip-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_hip_object", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_hip_object)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder", "Texas",
+                "--name", "wifi-only",
+                "--network-info-type", "is",
+                "--network-info-value", "wifi",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated HIP object" in result.stdout
+
+    def test_set_hip_object_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "hip-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_hip_object", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_hip_object)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder", "Texas",
+                "--name", "wifi-only",
+                "--network-info-type", "is",
+                "--network-info-value", "wifi",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestHIPProfileUpsert:
+    """Test HIP profile updated/no_change actions."""
+
+    def test_set_hip_profile_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "hpp-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_hip_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_hip_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "test-profile", "--match", "\"wifi-only\" is"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated HIP profile" in result.stdout
+
+    def test_set_hip_profile_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "hpp-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_hip_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_hip_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "test-profile", "--match", "\"wifi-only\" is"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestHTTPServerProfileUpsert:
+    """Test HTTP server profile updated/no_change actions."""
+
+    def test_set_http_server_profile_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "hsp-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_http_server_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_http_server_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder", "Texas",
+                "--name", "test-http-profile",
+                "--servers", '[{"name": "srv1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]',
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated HTTP server profile" in result.stdout
+
+    def test_set_http_server_profile_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "hsp-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_http_server_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_http_server_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--folder", "Texas",
+                "--name", "test-http-profile",
+                "--servers", '[{"name": "srv1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]',
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestLogForwardingProfileUpsert:
+    """Test log forwarding profile updated/no_change actions."""
+
+    def test_set_log_forwarding_profile_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "lfp-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_log_forwarding_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_log_forwarding_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "test-lfp"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated log forwarding profile" in result.stdout
+
+    def test_set_log_forwarding_profile_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "lfp-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_log_forwarding_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_log_forwarding_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "test-lfp"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestServiceGroupUpsert:
+    """Test service group updated/no_change actions."""
+
+    def test_set_service_group_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "sg-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_service_group", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_service_group)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "web-services", "--members", "http,https"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated service group" in result.stdout
+
+    def test_set_service_group_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "sg-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_service_group", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_service_group)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "web-services", "--members", "http,https"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
+
+class TestSyslogServerProfileUpsert:
+    """Test syslog server profile updated/no_change actions."""
+
+    def test_set_syslog_server_profile_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "ssp-123",
+                "name": "test-syslog",
+                "folder": "Texas",
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_syslog_server_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_syslog_server_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "test-syslog",
+                "--server-name", "syslog-srv",
+                "--server-address", "10.0.0.1",
+                "--transport", "UDP",
+                "--port", "514",
+                "--format", "BSD",
+                "--facility", "LOG_USER",
+                "--folder", "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated syslog server profile" in result.stdout
+
+    def test_set_syslog_server_profile_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "ssp-123",
+                "name": "test-syslog",
+                "folder": "Texas",
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_syslog_server_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_syslog_server_profile)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "test-syslog",
+                "--server-name", "syslog-srv",
+                "--server-address", "10.0.0.1",
+                "--transport", "UDP",
+                "--port", "514",
+                "--format", "BSD",
+                "--facility", "LOG_USER",
+                "--folder", "Texas",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout

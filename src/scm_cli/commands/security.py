@@ -699,7 +699,13 @@ def set_security_rule(
         )
 
         # Format and display output
-        typer.echo(f"Created security rule: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created security rule: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated security rule: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for security rule: {result['name']} in {location_type} {location_value}")
 
     except Exception as e:
         typer.echo(f"Error creating security rule: {str(e)}", err=True)
@@ -1266,7 +1272,13 @@ def set_anti_spyware_profile(
         result = scm_client.create_anti_spyware_profile(**container_kwargs, **sdk_data)
 
         # Format and display output
-        typer.echo(f"Created anti-spyware profile: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created anti-spyware profile: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated anti-spyware profile: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for anti-spyware profile: {result['name']} in {location_type} {location_value}")
 
     except Exception as e:
         typer.echo(f"Error creating anti-spyware profile: {str(e)}", err=True)
@@ -1763,7 +1775,13 @@ def set_decryption_profile(
         result = scm_client.create_decryption_profile(**container_kwargs, **sdk_data)
 
         # Format and display output
-        typer.echo(f"Created decryption profile: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created decryption profile: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated decryption profile: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for decryption profile: {result['name']} in {location_type} {location_value}")
 
     except json.JSONDecodeError as e:
         typer.echo(f"Error parsing JSON settings: {str(e)}", err=True)
@@ -2243,7 +2261,13 @@ def set_wildfire_antivirus_profile(
         result = scm_client.create_wildfire_antivirus_profile(**container_kwargs, **sdk_data)
 
         # Format and display output
-        typer.echo(f"Created WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
 
     except Exception as e:
         typer.echo(f"Error creating WildFire antivirus profile: {str(e)}", err=True)
@@ -3195,7 +3219,13 @@ def set_vulnerability_protection_profile(
         result = scm_client.create_vulnerability_protection_profile(**container_kwargs, **sdk_data)
 
         # Format and display output
-        typer.echo(f"Created vulnerability protection profile: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created vulnerability protection profile: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated vulnerability protection profile: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for vulnerability protection profile: {result['name']} in {location_type} {location_value}")
 
     except Exception as e:
         typer.echo(f"Error creating vulnerability protection profile: {str(e)}", err=True)
@@ -4004,7 +4034,13 @@ def set_app_override_rule(
             container_kwargs["device"] = sdk_data.pop("device")
 
         result = scm_client.create_app_override_rule(**container_kwargs, **sdk_data)
-        typer.echo(f"Created app override rule: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created app override rule: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated app override rule: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for app override rule: {result['name']} in {location_type} {location_value}")
 
     except Exception as e:
         typer.echo(f"Error creating app override rule: {str(e)}", err=True)
@@ -4316,7 +4352,13 @@ def set_authentication_rule(
             container_kwargs["device"] = sdk_data.pop("device")
 
         result = scm_client.create_authentication_rule(**container_kwargs, **sdk_data)
-        typer.echo(f"Created authentication rule: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created authentication rule: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated authentication rule: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for authentication rule: {result['name']} in {location_type} {location_value}")
 
     except Exception as e:
         typer.echo(f"Error creating authentication rule: {str(e)}", err=True)
@@ -4630,7 +4672,13 @@ def set_decryption_rule(
             container_kwargs["device"] = sdk_data.pop("device")
 
         result = scm_client.create_decryption_rule(**container_kwargs, **sdk_data)
-        typer.echo(f"Created decryption rule: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created decryption rule: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated decryption rule: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for decryption rule: {result['name']} in {location_type} {location_value}")
 
     except json.JSONDecodeError as e:
         typer.echo(f"Error parsing JSON: {str(e)}", err=True)
@@ -4937,7 +4985,13 @@ def set_url_access_profile(
             container_kwargs["device"] = sdk_data.pop("device")
 
         result = scm_client.create_url_access_profile(**container_kwargs, **sdk_data)
-        typer.echo(f"Created URL access profile: {result['name']} in {location_type} {location_value}")
+        action = result.get("__action__", "created")
+        if action == "created":
+            typer.echo(f"Created URL access profile: {result['name']} in {location_type} {location_value}")
+        elif action == "updated":
+            typer.echo(f"Updated URL access profile: {result['name']} in {location_type} {location_value}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for URL access profile: {result['name']} in {location_type} {location_value}")
 
     except json.JSONDecodeError as e:
         typer.echo(f"Error parsing JSON: {str(e)}", err=True)
