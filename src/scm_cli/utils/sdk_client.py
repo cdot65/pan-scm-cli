@@ -696,7 +696,7 @@ class SCMClient:
                 return result
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "service connection", e)
+            self._handle_api_exception("creating/updating", "service connection", name, e)
 
     def delete_service_connection(self, name: str) -> bool:
         """Delete a service connection.
@@ -721,7 +721,7 @@ class SCMClient:
             self.logger.info(f"Successfully deleted service connection '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deleting", name, "service connection", e)
+            self._handle_api_exception("deleting", "service connection", name, e)
 
     def get_service_connection(self, name: str) -> dict[str, Any]:
         """Get a specific service connection by name.
@@ -752,7 +752,7 @@ class SCMClient:
             result = self.client.service_connection.fetch(name=name)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("fetching", name, "service connection", e)
+            self._handle_api_exception("fetching", "service connection", name, e)
 
     def list_service_connections(self) -> list[dict[str, Any]]:
         """List all service connections.
@@ -971,7 +971,7 @@ class SCMClient:
                 return result
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "remote network", e)
+            self._handle_api_exception("creating/updating", "remote network", name, e)
 
     def delete_remote_network(self, folder: str, name: str) -> bool:
         """Delete a remote network.
@@ -997,7 +997,7 @@ class SCMClient:
             self.logger.info(f"Successfully deleted remote network '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deleting", name, "remote network", e)
+            self._handle_api_exception("deleting", "remote network", name, e)
 
     def get_remote_network(self, name: str) -> dict[str, Any]:
         """Get a specific remote network by name (folder is always 'Remote Networks').
@@ -1031,7 +1031,7 @@ class SCMClient:
             result = self.client.remote_network.fetch(name=name, folder=folder)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("fetching", name, "remote network", e)
+            self._handle_api_exception("fetching", "remote network", name, e)
 
     def list_remote_networks(self) -> list[dict[str, Any]]:
         """List all remote networks (folder is always 'Remote Networks').
@@ -1565,7 +1565,7 @@ class SCMClient:
                 self.logger.info(f"Successfully created address group '{name}'")
 
             # Convert SDK response to dict for compatibility
-            result_dict = result.dict()
+            result_dict = json.loads(result.model_dump_json(exclude_unset=True))
             result_dict["__action__"] = "updated" if existing_group else "created"
             return result_dict
         except Exception as e:
@@ -3257,7 +3257,7 @@ class SCMClient:
             return json.loads(result.model_dump_json(exclude_unset=True))
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "HIP profile", e)
+            self._handle_api_exception("creating/updating", "HIP profile", name, e)
 
     def delete_hip_profile(self, folder: str, name: str) -> bool:
         """Delete a HIP profile.
@@ -3283,7 +3283,7 @@ class SCMClient:
             self.logger.info(f"Successfully deleted HIP profile '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deleting", name, "HIP profile", e)
+            self._handle_api_exception("deleting", "HIP profile", name, e)
 
     def get_hip_profile(self, folder: str, name: str) -> dict[str, Any]:
         """Get a specific HIP profile by name.
@@ -3313,7 +3313,7 @@ class SCMClient:
             result = self.client.hip_profile.fetch(name=name, folder=folder)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("fetching", name, "HIP profile", e)
+            self._handle_api_exception("fetching", "HIP profile", name, e)
 
     def list_hip_profiles(
         self,
@@ -3451,7 +3451,7 @@ class SCMClient:
             return json.loads(result.model_dump_json(exclude_unset=True))
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "HTTP server profile", e)
+            self._handle_api_exception("creating/updating", "HTTP server profile", name, e)
 
     def delete_http_server_profile(self, folder: str, name: str) -> bool:
         """Delete an HTTP server profile.
@@ -3477,7 +3477,7 @@ class SCMClient:
             self.logger.info(f"Successfully deleted HTTP server profile '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deleting", name, "HTTP server profile", e)
+            self._handle_api_exception("deleting", "HTTP server profile", name, e)
 
     def get_http_server_profile(self, folder: str, name: str) -> dict[str, Any]:
         """Get a specific HTTP server profile by name.
@@ -3516,7 +3516,7 @@ class SCMClient:
             result = self.client.http_server_profile.fetch(name=name, folder=folder)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("fetching", name, "HTTP server profile", e)
+            self._handle_api_exception("fetching", "HTTP server profile", name, e)
 
     def list_http_server_profiles(
         self,
@@ -3679,7 +3679,7 @@ class SCMClient:
             return json.loads(result.model_dump_json(exclude_unset=True))
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "log-forwarding profile", e)
+            self._handle_api_exception("creating/updating", "log-forwarding profile", name, e)
 
     def delete_log_forwarding_profile(self, folder: str, name: str) -> bool:
         """Delete a log-forwarding profile.
@@ -3711,7 +3711,7 @@ class SCMClient:
                 self.logger.warning(f"log-forwarding profile '{name}' not found in folder '{folder}'")
                 return False
         except Exception as e:
-            self._handle_api_exception("deleting", name, "log-forwarding profile", e)
+            self._handle_api_exception("deleting", "log-forwarding profile", name, e)
 
     def get_log_forwarding_profile(self, folder: str, name: str) -> dict[str, Any] | None:
         """Get a specific log-forwarding profile by name.
@@ -4308,7 +4308,7 @@ class SCMClient:
             self.logger.info(f"Successfully deleted service '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deleting", name, "service", e)
+            self._handle_api_exception("deleting", "service", name, e)
 
     def get_service(self, folder: str, name: str) -> dict[str, Any]:
         """Get a specific service by name.
@@ -4348,7 +4348,7 @@ class SCMClient:
             result = self.client.service.fetch(name=name, folder=folder)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("fetching", name, "service", e)
+            self._handle_api_exception("fetching", "service", name, e)
 
     def list_services(
         self,
@@ -4498,7 +4498,7 @@ class SCMClient:
             return json.loads(result.model_dump_json(exclude_unset=True))
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "service group", e)
+            self._handle_api_exception("creating/updating", "service group", name, e)
 
     def delete_service_group(self, folder: str, name: str) -> bool:
         """Delete a service group.
@@ -4524,7 +4524,7 @@ class SCMClient:
             self.logger.info(f"Successfully deleted service group '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deleting", name, "service group", e)
+            self._handle_api_exception("deleting", "service group", name, e)
 
     def get_service_group(self, folder: str, name: str) -> dict[str, Any]:
         """Get a specific service group by name.
@@ -4554,7 +4554,7 @@ class SCMClient:
             result = self.client.service_group.fetch(name=name, folder=folder)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("fetching", name, "service group", e)
+            self._handle_api_exception("fetching", "service group", name, e)
 
     def list_service_groups(
         self,
@@ -6581,7 +6581,7 @@ class SCMClient:
                 self.logger.info(f"Successfully created security zone '{name}'")
 
             # Convert SDK response to dict for compatibility
-            return result.dict()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -7168,7 +7168,7 @@ class SCMClient:
                 self.logger.info(f"Successfully created security rule '{name}'")
 
             # Convert SDK response to dict for compatibility
-            return result.dict()
+            return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("creation/update", folder, name, e)
 
@@ -10484,7 +10484,7 @@ class SCMClient:
                 return result
 
         except Exception as e:
-            self._handle_api_exception("creating/updating", name, "internal DNS server", e)
+            self._handle_api_exception("creating/updating", "internal DNS server", name, e)
 
     def get_internal_dns_server(self, name: str) -> dict[str, Any]:
         """Get a specific internal DNS server by name.
@@ -10511,7 +10511,7 @@ class SCMClient:
             result = self.client.internal_dns_server.fetch(name=name)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("fetching", name, "internal DNS server", e)
+            self._handle_api_exception("fetching", "internal DNS server", name, e)
 
     def list_internal_dns_servers(self) -> list[dict[str, Any]]:
         """List all internal DNS servers.
@@ -10567,7 +10567,7 @@ class SCMClient:
             self.logger.info(f"Successfully deleted internal DNS server '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deleting", name, "internal DNS server", e)
+            self._handle_api_exception("deleting", "internal DNS server", name, e)
 
     # ----------------------- Network Location Methods ---------------------------
 
@@ -10598,7 +10598,7 @@ class SCMClient:
             result = self.client.network_location.fetch(value=value)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("fetching", value, "network location", e)
+            self._handle_api_exception("fetching", "network location", value, e)
 
     def list_network_locations(self) -> list[dict[str, Any]]:
         """List all network locations.
