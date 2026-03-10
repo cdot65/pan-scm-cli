@@ -76,6 +76,7 @@ scm delete identity kerberos-server-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -84,7 +85,8 @@ scm delete identity kerberos-server-profile [OPTIONS]
 ```bash
 $ scm delete identity kerberos-server-profile \
     --folder Texas \
-    --name corp-kerberos
+    --name corp-kerberos \
+    --force
 ---> 100%
 Deleted kerberos-server-profile: corp-kerberos from folder Texas
 ```

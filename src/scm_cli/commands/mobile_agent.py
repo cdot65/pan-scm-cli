@@ -321,6 +321,7 @@ def backup_auth_setting(
 def delete_auth_setting(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an auth setting.
 
@@ -330,6 +331,8 @@ def delete_auth_setting(
 
     """
     try:
+        if not force:
+            typer.confirm(f"Delete auth setting '{name}' from folder '{folder}'?", abort=True)
         result = scm_client.delete_auth_setting(folder=folder, name=name)
         if result:
             typer.echo(f"Deleted auth setting: {name} from folder {folder}")

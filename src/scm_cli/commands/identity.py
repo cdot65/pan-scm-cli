@@ -222,6 +222,7 @@ def delete_authentication_profile(
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an authentication profile.
 
@@ -230,6 +231,8 @@ def delete_authentication_profile(
     """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        if not force:
+            typer.confirm(f"Delete authentication profile '{name}' from {location_type} '{location_value}'?", abort=True)
         result = scm_client.delete_authentication_profile(name=name, **{location_type: location_value})
 
         if result:
@@ -467,6 +470,7 @@ def delete_kerberos_server_profile(
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a Kerberos server profile.
 
@@ -475,6 +479,8 @@ def delete_kerberos_server_profile(
     """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        if not force:
+            typer.confirm(f"Delete Kerberos server profile '{name}' from {location_type} '{location_value}'?", abort=True)
         result = scm_client.delete_kerberos_server_profile(name=name, **{location_type: location_value})
 
         if result:
@@ -733,6 +739,7 @@ def delete_ldap_server_profile(
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an LDAP server profile.
 
@@ -741,6 +748,8 @@ def delete_ldap_server_profile(
     """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        if not force:
+            typer.confirm(f"Delete LDAP server profile '{name}' from {location_type} '{location_value}'?", abort=True)
         result = scm_client.delete_ldap_server_profile(name=name, **{location_type: location_value})
 
         if result:
@@ -994,6 +1003,7 @@ def delete_radius_server_profile(
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a RADIUS server profile.
 
@@ -1002,6 +1012,8 @@ def delete_radius_server_profile(
     """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        if not force:
+            typer.confirm(f"Delete RADIUS server profile '{name}' from {location_type} '{location_value}'?", abort=True)
         result = scm_client.delete_radius_server_profile(name=name, **{location_type: location_value})
 
         if result:
@@ -1262,6 +1274,7 @@ def delete_saml_server_profile(
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a SAML server profile.
 
@@ -1270,6 +1283,8 @@ def delete_saml_server_profile(
     """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        if not force:
+            typer.confirm(f"Delete SAML server profile '{name}' from {location_type} '{location_value}'?", abort=True)
         result = scm_client.delete_saml_server_profile(name=name, **{location_type: location_value})
 
         if result:
@@ -1522,6 +1537,7 @@ def delete_tacacs_server_profile(
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a TACACS+ server profile.
 
@@ -1530,6 +1546,8 @@ def delete_tacacs_server_profile(
     """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
+        if not force:
+            typer.confirm(f"Delete TACACS+ server profile '{name}' from {location_type} '{location_value}'?", abort=True)
         result = scm_client.delete_tacacs_server_profile(name=name, **{location_type: location_value})
 
         if result:

@@ -110,6 +110,7 @@ scm delete identity ldap-server-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -118,7 +119,8 @@ scm delete identity ldap-server-profile [OPTIONS]
 ```bash
 $ scm delete identity ldap-server-profile \
     --folder Texas \
-    --name corp-ldap
+    --name corp-ldap \
+    --force
 ---> 100%
 Deleted ldap-server-profile: corp-ldap from folder Texas
 ```

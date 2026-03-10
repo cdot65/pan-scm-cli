@@ -137,6 +137,7 @@ class TestBandwidthAllocationCommands:
                 "test-allocation",
                 "--spn-name-list",
                 "spn1",
+                "--force",
             ],
         )
 
@@ -166,6 +167,7 @@ class TestBandwidthAllocationCommands:
                 "test-allocation",
                 "--spn-name-list",
                 "spn1",
+                "--force",
             ],
         )
 
@@ -367,7 +369,7 @@ class TestBGPRoutingCommands:
         test_app = typer.Typer()
         test_app.command()(delete_bgp_routing)
 
-        result = runner.invoke(test_app, [])
+        result = runner.invoke(test_app, ["--force"])
 
         assert result.exit_code == 0
         assert "Reset BGP routing" in result.stdout
@@ -509,7 +511,7 @@ class TestInternalDNSServerCommands:
         test_app = typer.Typer()
         test_app.command()(delete_internal_dns_server)
 
-        result = runner.invoke(test_app, ["--name", "corp-dns"])
+        result = runner.invoke(test_app, ["--name", "corp-dns", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted internal DNS server" in result.stdout

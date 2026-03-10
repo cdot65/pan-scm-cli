@@ -2,6 +2,14 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.8
+
+**Released:** March 10, 2026
+
+### Added
+
+- **Delete Confirmation Prompts**: Added `--force` flag and confirmation prompts to 16 remaining delete commands across identity (6), deployment (5), setup (4), and mobile-agent (1) modules. All delete commands now consistently require confirmation before proceeding.
+
 ## Version 1.0.7
 
 **Released:** March 10, 2026

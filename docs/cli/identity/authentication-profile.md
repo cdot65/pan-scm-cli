@@ -97,6 +97,7 @@ scm delete identity authentication-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -105,7 +106,8 @@ scm delete identity authentication-profile [OPTIONS]
 ```bash
 $ scm delete identity authentication-profile \
     --folder Texas \
-    --name corp-ldap-auth
+    --name corp-ldap-auth \
+    --force
 ---> 100%
 Deleted authentication-profile: corp-ldap-auth from folder Texas
 ```

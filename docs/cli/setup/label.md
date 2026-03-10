@@ -64,11 +64,12 @@ scm delete setup label [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--name TEXT` | Name of the label to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete setup label --name staging
+$ scm delete setup label --name staging --force
 ---> 100%
 Deleted label: staging
 ```

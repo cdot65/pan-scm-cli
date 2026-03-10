@@ -107,13 +107,14 @@ scm delete setup variable [OPTIONS]
 | `--folder TEXT` | Folder scope | No\* |
 | `--snippet TEXT` | Snippet scope | No\* |
 | `--device TEXT` | Device scope | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 ### Example
 
 ```bash
-$ scm delete setup variable --name "\$egress-max" --folder Texas
+$ scm delete setup variable --name "\$egress-max" --folder Texas --force
 ---> 100%
 Deleted variable: $egress-max from folder Texas
 ```
