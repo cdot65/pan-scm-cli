@@ -107,6 +107,7 @@ scm delete identity saml-server-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -115,7 +116,8 @@ scm delete identity saml-server-profile [OPTIONS]
 ```bash
 $ scm delete identity saml-server-profile \
     --folder Texas \
-    --name corp-saml
+    --name corp-saml \
+    --force
 ---> 100%
 Deleted saml-server-profile: corp-saml from folder Texas
 ```

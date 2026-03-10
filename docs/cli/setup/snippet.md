@@ -78,11 +78,12 @@ scm delete setup snippet [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--name TEXT` | Name of the snippet to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete setup snippet --name "DNS-Best-Practice"
+$ scm delete setup snippet --name "DNS-Best-Practice" --force
 ---> 100%
 Deleted snippet: DNS-Best-Practice
 ```

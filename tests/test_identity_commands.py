@@ -104,7 +104,7 @@ class TestAuthenticationProfileCommands:
         test_app = typer.Typer()
         test_app.command()(delete_authentication_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-auth"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-auth", "--force"])
         assert result.exit_code == 0
         assert "Deleted authentication profile" in result.output
 

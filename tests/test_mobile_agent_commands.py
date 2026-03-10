@@ -341,7 +341,7 @@ class TestAuthSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "saml-auth"],
+            ["--folder", "Mobile Users", "--name", "saml-auth", "--force"],
         )
 
         assert result.exit_code == 0
@@ -361,7 +361,7 @@ class TestAuthSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent"],
+            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1

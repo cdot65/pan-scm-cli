@@ -104,13 +104,15 @@ scm delete mobile-agent auth-setting [OPTIONS]
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | Yes |
 | `--name TEXT` | Name of the auth setting to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
 $ scm delete mobile-agent auth-setting \
     --folder "Mobile Users" \
-    --name "saml-auth"
+    --name "saml-auth" \
+    --force
 ---> 100%
 Deleted auth setting: saml-auth from folder Mobile Users
 ```

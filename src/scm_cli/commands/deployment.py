@@ -110,6 +110,7 @@ def backup_bandwidth_allocation():
 def delete_bandwidth_allocation(
     name: str = NAME_OPTION,
     spn_name_list: str = typer.Option(..., "--spn-name-list", help="SPN names (comma-separated if multiple)"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a bandwidth allocation.
 
@@ -127,6 +128,9 @@ def delete_bandwidth_allocation(
         if isinstance(spn_name_list, list):
             typer.echo("Error: --spn-name-list must be a comma-separated string (e.g., --spn-name-list foo,bar)", err=True)
             raise typer.Exit(code=1)
+
+        if not force:
+            typer.confirm(f"Delete bandwidth allocation '{name}'?", abort=True)
 
         # Convert comma-separated string to list
         spn_list = ([spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]) if isinstance(spn_name_list, str) else spn_name_list
@@ -424,6 +428,7 @@ def backup_service_connection():
 @delete_app.command("service-connection")
 def delete_service_connection(
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a service connection.
 
@@ -433,6 +438,8 @@ def delete_service_connection(
 
     """
     try:
+        if not force:
+            typer.confirm(f"Delete service connection '{name}'?", abort=True)
         result = scm_client.delete_service_connection(name=name)
         if result:
             typer.echo(f"Deleted service connection: {name}")
@@ -755,6 +762,7 @@ def backup_remote_network():
 @delete_app.command("remote-network")
 def delete_remote_network(
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a remote network.
 
@@ -764,6 +772,8 @@ def delete_remote_network(
 
     """
     try:
+        if not force:
+            typer.confirm(f"Delete remote network '{name}'?", abort=True)
         result = scm_client.delete_remote_network(
             name=name,
         )
@@ -1046,7 +1056,9 @@ BGP_WITHDRAW_STATIC_OPTION = typer.Option(False, "--withdraw-static-route", help
 
 
 @delete_app.command("bgp-routing")
-def delete_bgp_routing():
+def delete_bgp_routing(
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
     """Reset BGP routing configuration to defaults.
 
     Example:
@@ -1057,6 +1069,8 @@ def delete_bgp_routing():
 
     """
     try:
+        if not force:
+            typer.confirm("Reset BGP routing configuration to defaults?", abort=True)
         result = scm_client.delete_bgp_routing()
         if result:
             typer.echo("Reset BGP routing configuration to defaults")
@@ -1222,6 +1236,7 @@ def backup_internal_dns_server():
 @delete_app.command("internal-dns-server")
 def delete_internal_dns_server(
     name: str = DNS_NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an internal DNS server.
 
@@ -1231,6 +1246,8 @@ def delete_internal_dns_server(
 
     """
     try:
+        if not force:
+            typer.confirm(f"Delete internal DNS server '{name}'?", abort=True)
         result = scm_client.delete_internal_dns_server(name=name)
         if result:
             typer.echo(f"Deleted internal DNS server: {name}")

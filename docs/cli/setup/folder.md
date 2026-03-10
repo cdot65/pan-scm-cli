@@ -82,11 +82,12 @@ scm delete setup folder [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--name TEXT` | Name of the folder to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete setup folder --name Branch
+$ scm delete setup folder --name Branch --force
 ---> 100%
 Deleted folder: Branch
 ```

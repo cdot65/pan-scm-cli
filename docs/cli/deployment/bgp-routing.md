@@ -74,13 +74,19 @@ Reset BGP routing configuration to defaults.
 ### Syntax
 
 ```bash
-scm delete sase bgp-routing
+scm delete sase bgp-routing [OPTIONS]
 ```
+
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase bgp-routing
+$ scm delete sase bgp-routing --force
 ---> 100%
 Reset BGP routing configuration to defaults
 ```

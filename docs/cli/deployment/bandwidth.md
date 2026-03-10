@@ -77,11 +77,12 @@ scm delete sase bandwidth [OPTIONS]
 | --- | --- | --- |
 | `--name TEXT` | Name of the bandwidth allocation to delete | Yes |
 | `--spn-name-list TEXT` | SPN names (comma-separated if multiple) | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase bandwidth-allocation --name Standard-Branch --spn-name-list "branch-spn-1"
+$ scm delete sase bandwidth-allocation --name Standard-Branch --spn-name-list "branch-spn-1" --force
 ---> 100%
 Deleted bandwidth allocation: Standard-Branch
 ```

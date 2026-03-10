@@ -71,11 +71,12 @@ scm delete sase internal-dns-server [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--name TEXT` | Name of the DNS server entry to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase internal-dns-server --name corp-dns
+$ scm delete sase internal-dns-server --name corp-dns --force
 ---> 100%
 Deleted internal DNS server: corp-dns
 ```

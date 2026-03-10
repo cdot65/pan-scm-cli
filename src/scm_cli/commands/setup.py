@@ -253,12 +253,15 @@ def show_folder(
 @delete_app.command("folder")
 def delete_folder(
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a folder.
 
     Example: scm delete setup folder --name Branch
     """
     try:
+        if not force:
+            typer.confirm(f"Delete folder '{name}'?", abort=True)
         result = scm_client.delete_folder(name=name)
 
         if result:
@@ -443,12 +446,15 @@ def show_label(
 @delete_app.command("label")
 def delete_label(
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a label.
 
     Example: scm delete setup label --name staging
     """
     try:
+        if not force:
+            typer.confirm(f"Delete label '{name}'?", abort=True)
         result = scm_client.delete_label(name=name)
 
         if result:
@@ -645,12 +651,15 @@ def show_snippet(
 @delete_app.command("snippet")
 def delete_snippet(
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a snippet.
 
     Example: scm delete setup snippet --name "DNS-Best-Practice"
     """
     try:
+        if not force:
+            typer.confirm(f"Delete snippet '{name}'?", abort=True)
         result = scm_client.delete_snippet(name=name)
 
         if result:
@@ -863,6 +872,7 @@ def delete_variable(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     r"""Delete a variable.
 
@@ -870,6 +880,8 @@ def delete_variable(
     """
     try:
         container_type, container_value = validate_container_params(folder, snippet, device)
+        if not force:
+            typer.confirm(f"Delete variable '{name}' from {container_type} '{container_value}'?", abort=True)
         result = scm_client.delete_variable(name=name, folder=folder, snippet=snippet, device=device)
 
         if result:
