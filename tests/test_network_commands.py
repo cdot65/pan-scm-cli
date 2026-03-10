@@ -321,6 +321,56 @@ class TestZoneCommands:
         assert "Dry run mode" in result.stdout
         assert not mock_called  # Ensure the create method was not called
 
+    def test_set_zone_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "zone-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_zone", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_zone)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "test-folder", "--name", "test-zone", "--mode", "layer3",
+             "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated zone" in result.stdout
+
+    def test_set_zone_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "zone-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_zone", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_zone)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "test-folder", "--name", "test-zone", "--mode", "layer3",
+             "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
+
 
 class TestIKECryptoProfileCommands:
     """Test the IKE crypto profile commands."""
@@ -727,7 +777,7 @@ class TestIPsecCryptoProfileCommands:
 
         assert result.exit_code == 0
         assert "test-profile" in result.stdout
-        assert "created" in result.stdout
+        assert "Created IPsec crypto profile" in result.stdout
 
     def test_set_ipsec_crypto_profile_error(self, runner, monkeypatch):
         """Test the set ipsec-crypto-profile command with an error."""
@@ -753,6 +803,32 @@ class TestIPsecCryptoProfileCommands:
 
         assert result.exit_code == 1
         assert "Error creating IPsec crypto profile" in result.stdout
+
+    def test_set_ipsec_crypto_profile_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {"id": "icp-1", "name": "test-profile", "folder": "Texas", "__action__": "updated"}
+
+        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_ipsec_crypto_profile)
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"])
+        assert result.exit_code == 0
+        assert "Updated IPsec crypto profile" in result.stdout
+
+    def test_set_ipsec_crypto_profile_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {"id": "icp-1", "name": "test-profile", "folder": "Texas", "__action__": "no_change"}
+
+        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_ipsec_crypto_profile)
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"])
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
 
     def test_delete_ipsec_crypto_profile_command(self, runner, monkeypatch):
         """Test the delete ipsec-crypto-profile command."""
@@ -919,6 +995,58 @@ class TestIPsecCryptoProfileCommands:
         assert result.exit_code == 0
         assert "Dry run mode" in result.stdout
         assert not mock_called
+
+    def test_set_ipsec_crypto_profile_updated(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "ipsec-crypto-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_ipsec_crypto_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "test-profile",
+             "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256",
+             "--dh-group", "group14"],
+        )
+
+        assert result.exit_code == 0
+        assert "Updated IPsec crypto profile" in result.stdout
+
+    def test_set_ipsec_crypto_profile_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*args, **kwargs):
+            return {
+                "id": "ipsec-crypto-123",
+                "name": kwargs.get("name"),
+                "folder": kwargs.get("folder"),
+                "__action__": "no_change",
+            }
+
+        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_ipsec_crypto_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Texas", "--name", "test-profile",
+             "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256",
+             "--dh-group", "group14"],
+        )
+
+        assert result.exit_code == 0
+        assert "No changes needed" in result.stdout
 
 
 class TestNATRuleCommands:

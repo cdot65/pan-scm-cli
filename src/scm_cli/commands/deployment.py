@@ -251,7 +251,14 @@ def set_bandwidth_allocation(
         )
 
         # Include bandwidth in the output message to match test expectations
-        typer.echo(f"Created bandwidth allocation: {result['name']} ({result.get('allocated_bandwidth', result.get('bandwidth', 'N/A'))} Mbps)")
+        action = result.get("__action__", "created")
+        bw = result.get("allocated_bandwidth", result.get("bandwidth", "N/A"))
+        if action == "created":
+            typer.echo(f"Created bandwidth allocation: {result['name']} ({bw} Mbps)")
+        elif action == "updated":
+            typer.echo(f"Updated bandwidth allocation: {result['name']} ({bw} Mbps)")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for bandwidth allocation: {result['name']} ({bw} Mbps)")
         return result
     except Exception as e:
         typer.echo(f"Error creating bandwidth allocation: {str(e)}", err=True)
