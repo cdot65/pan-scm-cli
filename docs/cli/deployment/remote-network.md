@@ -130,11 +130,12 @@ scm delete sase remote-network [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--name TEXT` | Name of the remote network to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase remote-network --name branch-office-nyc
+$ scm delete sase remote-network --name branch-office-nyc --force
 ---> 100%
 Deleted remote network: branch-office-nyc
 ```

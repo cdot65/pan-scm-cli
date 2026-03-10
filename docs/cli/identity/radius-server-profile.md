@@ -97,6 +97,7 @@ scm delete identity radius-server-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -105,7 +106,8 @@ scm delete identity radius-server-profile [OPTIONS]
 ```bash
 $ scm delete identity radius-server-profile \
     --folder Texas \
-    --name corp-radius
+    --name corp-radius \
+    --force
 ---> 100%
 Deleted radius-server-profile: corp-radius from folder Texas
 ```

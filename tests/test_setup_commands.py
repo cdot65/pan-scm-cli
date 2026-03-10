@@ -119,7 +119,7 @@ class TestFolderCommands:
         test_app = typer.Typer()
         test_app.command()(delete_folder)
 
-        result = runner.invoke(test_app, ["--name", "Texas"])
+        result = runner.invoke(test_app, ["--name", "Texas", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted folder" in result.stdout
@@ -179,7 +179,7 @@ class TestLabelCommands:
         test_app = typer.Typer()
         test_app.command()(delete_label)
 
-        result = runner.invoke(test_app, ["--name", "staging"])
+        result = runner.invoke(test_app, ["--name", "staging", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted label" in result.stdout
@@ -239,7 +239,7 @@ class TestSnippetCommands:
         test_app = typer.Typer()
         test_app.command()(delete_snippet)
 
-        result = runner.invoke(test_app, ["--name", "Web-Security"])
+        result = runner.invoke(test_app, ["--name", "Web-Security", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted snippet" in result.stdout
@@ -300,7 +300,7 @@ class TestVariableCommands:
         test_app = typer.Typer()
         test_app.command()(delete_variable)
 
-        result = runner.invoke(test_app, ["--name", "$egress-max", "--folder", "Texas"])
+        result = runner.invoke(test_app, ["--name", "$egress-max", "--folder", "Texas", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted variable" in result.stdout

@@ -104,11 +104,12 @@ scm delete sase service-connection [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--name TEXT` | Name of the service connection to delete | Yes |
+| `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase service-connection --name branch-office-1
+$ scm delete sase service-connection --name branch-office-1 --force
 ---> 100%
 Deleted service connection: branch-office-1
 ```
