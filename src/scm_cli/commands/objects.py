@@ -11,6 +11,7 @@ import typer
 import yaml
 
 # Removed unused import: from the `..utils.config` import load_from_yaml
+from ..utils import parse_comma_separated_list
 from ..utils.config import settings
 from ..utils.context import get_current_context
 from ..utils.sdk_client import scm_client
@@ -39,20 +40,6 @@ from ..utils.validators import (
 # ========================================================================================================================================================================================
 # HELPER FUNCTIONS
 # ========================================================================================================================================================================================
-
-
-def parse_comma_separated_list(values: list[str]) -> list[str]:
-    """Split comma-separated values in list options.
-
-    Allows both `--members a,b,c` and `--members a --members b --members c`.
-    """
-    result = []
-    for value in values:
-        for item in value.split(","):
-            stripped = item.strip()
-            if stripped:
-                result.append(stripped)
-    return result
 
 
 def show_context_info() -> None:
@@ -1149,11 +1136,11 @@ def set_address(
         action = result.pop("__action__", "created")
 
         if action == "created":
-            typer.echo(f"✅ Created address: {result['name']} in folder {result['folder']}")
+            typer.echo(f"Created address: {result['name']} in folder {result['folder']}")
         elif action == "updated":
-            typer.echo(f"✅ Updated address: {result['name']} in folder {result['folder']}")
+            typer.echo(f"Updated address: {result['name']} in folder {result['folder']}")
         elif action == "no_change":
-            typer.echo(f"ℹ️  No changes needed for address: {result['name']} in folder {result['folder']}")
+            typer.echo(f"No changes needed for address: {result['name']} in folder {result['folder']}")
 
         return result
     except Exception as e:
@@ -2996,7 +2983,7 @@ def load_external_dynamic_list(
                         **container_params,
                         **sdk_data,
                     )
-                    typer.echo(f"✓ Loaded external dynamic list: {edl.name}")
+                    typer.echo(f"Loaded external dynamic list: {edl.name}")
                     loaded_count += 1
                     results.append(
                         {
@@ -3007,7 +2994,7 @@ def load_external_dynamic_list(
                     )
             except Exception as e:
                 typer.echo(
-                    f"✗ Error with external dynamic list '{edl_config.get('name', 'unknown')}': {str(e)}",
+                    f"Error with external dynamic list '{edl_config.get('name', 'unknown')}': {str(e)}",
                     err=True,
                 )
                 results.append(
@@ -3528,7 +3515,7 @@ def load_hip_object(
                         **sdk_data,
                     )
 
-                    typer.echo(f"✓ Loaded HIP object: {hip_obj.name}")
+                    typer.echo(f"Loaded HIP object: {hip_obj.name}")
                     loaded_count += 1
                     results.append(
                         {
@@ -3539,7 +3526,7 @@ def load_hip_object(
                     )
             except Exception as e:
                 typer.echo(
-                    f"✗ Error with HIP object '{hip_data.get('name', 'unknown')}': {str(e)}",
+                    f"Error with HIP object '{hip_data.get('name', 'unknown')}': {str(e)}",
                     err=True,
                 )
                 results.append(
@@ -4090,7 +4077,7 @@ def load_hip_profile(
                         match=profile_sdk["match"],
                         description=profile_sdk.get("description"),
                     )
-                    typer.echo(f"✓ Loaded HIP profile: {profile.name}")
+                    typer.echo(f"Loaded HIP profile: {profile.name}")
                     loaded_count += 1
                     results.append(
                         {
@@ -4101,7 +4088,7 @@ def load_hip_profile(
                     )
             except Exception as e:
                 typer.echo(
-                    f"✗ Error with HIP profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    f"Error with HIP profile '{profile_data.get('name', 'unknown')}': {str(e)}",
                     err=True,
                 )
                 results.append(
@@ -4402,7 +4389,7 @@ def load_http_server_profile(
                         **container_params,
                         **profile_sdk,
                     )
-                    typer.echo(f"✓ Loaded HTTP server profile: {profile.name}")
+                    typer.echo(f"Loaded HTTP server profile: {profile.name}")
                     loaded_count += 1
                     results.append(
                         {
@@ -4413,7 +4400,7 @@ def load_http_server_profile(
                     )
             except Exception as e:
                 typer.echo(
-                    f"✗ Error with HTTP server profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    f"Error with HTTP server profile '{profile_data.get('name', 'unknown')}': {str(e)}",
                     err=True,
                 )
                 results.append(
@@ -4779,7 +4766,7 @@ def load_log_forwarding_profile(
                         match_list=profile.match_list,
                     )
 
-                    typer.echo(f"✓ Loaded log forwarding profile: {profile.name}")
+                    typer.echo(f"Loaded log forwarding profile: {profile.name}")
                     loaded_count += 1
                     results.append(
                         {
@@ -4790,7 +4777,7 @@ def load_log_forwarding_profile(
                     )
             except Exception as e:
                 typer.echo(
-                    f"✗ Error with log forwarding profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    f"Error with log forwarding profile '{profile_data.get('name', 'unknown')}': {str(e)}",
                     err=True,
                 )
                 results.append(
@@ -5648,7 +5635,7 @@ def load_service(
                         tag=service.tag,
                     )
 
-                    typer.echo(f"✓ Loaded service: {service.name}")
+                    typer.echo(f"Loaded service: {service.name}")
                     loaded_count += 1
                     results.append(
                         {
@@ -5660,7 +5647,7 @@ def load_service(
 
             except Exception as e:
                 typer.echo(
-                    f"✗ Error with service '{service_data.get('name', 'unknown')}': {str(e)}",
+                    f"Error with service '{service_data.get('name', 'unknown')}': {str(e)}",
                     err=True,
                 )
                 results.append(
@@ -5756,11 +5743,11 @@ def set_service(
             action = result.pop("__action__", "created")
 
             if action == "created":
-                typer.echo(f"✅ Created service: {name} in folder {folder}")
+                typer.echo(f"Created service: {name} in folder {folder}")
             elif action == "updated":
-                typer.echo(f"✅ Updated service: {name} in folder {folder}")
+                typer.echo(f"Updated service: {name} in folder {folder}")
             elif action == "no_change":
-                typer.echo(f"ℹ️  No changes needed for service: {name} in folder {folder}")
+                typer.echo(f"No changes needed for service: {name} in folder {folder}")
         else:
             typer.echo(f"Failed to create/update service '{name}'", err=True)
             raise typer.Exit(code=1)
@@ -6049,7 +6036,7 @@ def load_service_group(
                         tag=service_group.tag,
                     )
 
-                    typer.echo(f"✓ Loaded service group: {service_group.name}")
+                    typer.echo(f"Loaded service group: {service_group.name}")
                     loaded_count += 1
                     results.append(
                         {
@@ -6061,7 +6048,7 @@ def load_service_group(
 
             except Exception as e:
                 typer.echo(
-                    f"✗ Error with service group '{group_data.get('name', 'unknown')}': {str(e)}",
+                    f"Error with service group '{group_data.get('name', 'unknown')}': {str(e)}",
                     err=True,
                 )
                 results.append(
@@ -6319,7 +6306,7 @@ def delete_syslog_server_profile(
         typer.echo(f"Deleted syslog server profile: {name} from {container}")
 
     except Exception as e:
-        typer.echo(f"❌ Error deleting syslog server profile: {str(e)}", err=True)
+        typer.echo(f"Error deleting syslog server profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
@@ -6395,7 +6382,7 @@ def load_syslog_server_profile(
                     # Create/update the profile
                     scm_client.create_syslog_server_profile(sdk_data)
 
-                    typer.echo(f"✓ Loaded syslog server profile: {profile.name}")
+                    typer.echo(f"Loaded syslog server profile: {profile.name}")
                     loaded_count += 1
                     results.append(
                         {
@@ -6407,7 +6394,7 @@ def load_syslog_server_profile(
 
             except Exception as e:
                 typer.echo(
-                    f"✗ Error with syslog server profile '{profile_data.get('name', 'unknown')}': {str(e)}",
+                    f"Error with syslog server profile '{profile_data.get('name', 'unknown')}': {str(e)}",
                     err=True,
                 )
                 results.append(
@@ -6504,7 +6491,7 @@ def set_syslog_server_profile(
             typer.echo(f"No changes needed for syslog server profile: {name} in {container}")
 
     except Exception as e:
-        typer.echo(f"❌ Error creating/updating syslog server profile: {str(e)}", err=True)
+        typer.echo(f"Error creating/updating syslog server profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
@@ -6724,7 +6711,7 @@ def delete_schedule(
         typer.echo(f"Deleted schedule: {name} from {container}")
 
     except Exception as e:
-        typer.echo(f"❌ Error deleting schedule: {str(e)}", err=True)
+        typer.echo(f"Error deleting schedule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
@@ -6767,13 +6754,13 @@ def load_schedule(
                 typer.echo(f"Created schedule: {schedule_data['name']} in {container}")
 
             except Exception as e:
-                typer.echo(f"❌ Error processing schedule: {str(e)}", err=True)
+                typer.echo(f"Error processing schedule: {str(e)}", err=True)
                 continue
 
-        typer.echo(f"\n✅ Summary: Processed {created_count} schedules")
+        typer.echo(f"\nSummary: Processed {created_count} schedules")
 
     except Exception as e:
-        typer.echo(f"❌ Error loading schedules: {str(e)}", err=True)
+        typer.echo(f"Error loading schedules: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
@@ -6852,14 +6839,14 @@ def set_schedule(
 
         container = folder or snippet or device
         if action == "created":
-            typer.echo(f"✅ Created schedule: {name} in {container}")
+            typer.echo(f"Created schedule: {name} in {container}")
         elif action == "updated":
-            typer.echo(f"✅ Updated schedule: {name} in {container}")
+            typer.echo(f"Updated schedule: {name} in {container}")
         elif action == "no_change":
-            typer.echo(f"ℹ️  No changes needed for schedule: {name} in {container}")
+            typer.echo(f"No changes needed for schedule: {name} in {container}")
 
     except Exception as e:
-        typer.echo(f"❌ Error creating/updating schedule: {str(e)}", err=True)
+        typer.echo(f"Error creating/updating schedule: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
@@ -7071,7 +7058,7 @@ def delete_tag(
         typer.echo(f"Deleted tag: {name} from {container}")
 
     except Exception as e:
-        typer.echo(f"❌ Error deleting tag: {str(e)}", err=True)
+        typer.echo(f"Error deleting tag: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
@@ -7134,13 +7121,13 @@ def load_tag(
                 typer.echo(f"Created tag: {validated_tag.name} in {container}")
 
             except Exception as e:
-                typer.echo(f"❌ Error processing tag: {str(e)}", err=True)
+                typer.echo(f"Error processing tag: {str(e)}", err=True)
                 continue
 
-        typer.echo(f"\n✅ Summary: Processed {created_count} tags")
+        typer.echo(f"\nSummary: Processed {created_count} tags")
 
     except Exception as e:
-        typer.echo(f"❌ Error loading tags: {str(e)}", err=True)
+        typer.echo(f"Error loading tags: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
@@ -7192,14 +7179,14 @@ def set_tag(
 
         container = folder or snippet or device
         if action == "created":
-            typer.echo(f"✅ Created tag: {name} in {container}")
+            typer.echo(f"Created tag: {name} in {container}")
         elif action == "updated":
-            typer.echo(f"✅ Updated tag: {name} in {container}")
+            typer.echo(f"Updated tag: {name} in {container}")
         elif action == "no_change":
-            typer.echo(f"ℹ️  No changes needed for tag: {name} in {container}")
+            typer.echo(f"No changes needed for tag: {name} in {container}")
 
     except Exception as e:
-        typer.echo(f"❌ Error creating/updating tag: {str(e)}", err=True)
+        typer.echo(f"Error creating/updating tag: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
 
 
