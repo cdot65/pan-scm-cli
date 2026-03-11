@@ -1334,3 +1334,42 @@ class TestSyslogServerProfileUpsert:
 
         assert result.exit_code == 0
         assert "No changes needed" in result.stdout
+
+
+class TestCommaParsingConsistency:
+    """Test that set_service and set_service_group use parse_comma_separated_list."""
+
+    def test_set_service_parses_comma_tags(self, runner, monkeypatch):
+        """Tags with commas should be split correctly."""
+        from scm_cli.commands.objects import set_service
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_create(*args, **kwargs):
+            captured.update(kwargs)
+            return {"id": "svc-1", "name": kwargs.get("name"), "folder": kwargs.get("folder"), "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_service", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_service)
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-svc", "--protocol", "tcp", "--port", "80", "--tag", "web, production"])
+        assert result.exit_code == 0
+        assert captured.get("tag") == ["web", "production"]
+
+    def test_set_service_group_parses_comma_members(self, runner, monkeypatch):
+        """Members with commas should be split correctly."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_create(*args, **kwargs):
+            captured.update(kwargs)
+            return {"id": "sg-1", "name": kwargs.get("name"), "folder": kwargs.get("folder"), "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_service_group", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_service_group)
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-sg", "--members", "HTTP, HTTPS, SSH"])
+        assert result.exit_code == 0
+        assert captured.get("members") == ["HTTP", "HTTPS", "SSH"]

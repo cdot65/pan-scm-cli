@@ -5725,7 +5725,7 @@ def set_service(
         # Parse tags if provided
         tag_list = None
         if tag:
-            tag_list = [t.strip() for t in tag.split(",") if t.strip()]
+            tag_list = parse_comma_separated_list([tag])
 
         # Validate using Pydantic model
         service_data: dict[str, Any] = {
@@ -6093,7 +6093,7 @@ def set_service_group(
     """Create or update a service group."""
     try:
         # Parse members
-        member_list = [m.strip() for m in members.split(",") if m.strip()]
+        member_list = parse_comma_separated_list([members])
         if not member_list:
             typer.echo("Error: At least one member must be provided", err=True)
             raise typer.Exit(code=1)
@@ -6101,7 +6101,7 @@ def set_service_group(
         # Parse tags if provided
         tag_list = None
         if tag:
-            tag_list = [t.strip() for t in tag.split(",") if t.strip()]
+            tag_list = parse_comma_separated_list([tag])
 
         # Validate using Pydantic model
         service_group_data: dict[str, Any] = {
