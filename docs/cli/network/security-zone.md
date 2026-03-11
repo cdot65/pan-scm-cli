@@ -4,7 +4,7 @@ Security zones are logical divisions of the network that define boundaries for t
 
 ## Overview
 
-The `security-zone` commands allow you to:
+The `zone` commands allow you to:
 
 - Create security zones with layer3, layer2, virtual-wire, or TAP mode
 - Update existing security zone configurations
@@ -28,7 +28,7 @@ Create or update a security zone.
 ### Syntax
 
 ```bash
-scm set network security-zone [OPTIONS]
+scm set network zone [OPTIONS]
 ```
 
 ### Options
@@ -49,7 +49,7 @@ scm set network security-zone [OPTIONS]
 #### Create a Layer3 Security Zone
 
 ```bash
-$ scm set network security-zone \
+$ scm set network zone \
     --folder Shared \
     --name Trust \
     --mode layer3 \
@@ -62,7 +62,7 @@ Created security zone: Trust in folder Shared
 #### Create a Virtual-Wire Security Zone
 
 ```bash
-$ scm set network security-zone \
+$ scm set network zone \
     --folder Shared \
     --name DMZ \
     --mode virtual-wire \
@@ -78,7 +78,7 @@ Delete a security zone from SCM.
 ### Syntax
 
 ```bash
-scm delete network security-zone [OPTIONS]
+scm delete network zone [OPTIONS]
 ```
 
 ### Options
@@ -92,7 +92,7 @@ scm delete network security-zone [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete network security-zone --folder Shared --name DMZ --force
+$ scm delete network zone --folder Shared --name DMZ --force
 ---> 100%
 Deleted security zone: DMZ from folder Shared
 ```
@@ -104,7 +104,7 @@ Load multiple security zones from a YAML file.
 ### Syntax
 
 ```bash
-scm load network security-zone [OPTIONS]
+scm load network zone [OPTIONS]
 ```
 
 ### Options
@@ -156,7 +156,7 @@ security_zones:
 #### Load with Original Locations
 
 ```bash
-$ scm load network security-zone --file security-zones.yml
+$ scm load network zone --file security-zones.yml
 ---> 100%
 ✓ Loaded security zone: Trust
 ✓ Loaded security zone: Untrust
@@ -168,7 +168,7 @@ Successfully loaded 3 out of 3 security zones from 'security-zones.yml'
 #### Load with Folder Override
 
 ```bash
-$ scm load network security-zone --file security-zones.yml --folder Austin
+$ scm load network zone --file security-zones.yml --folder Austin
 ---> 100%
 ✓ Loaded security zone: Trust
 ✓ Loaded security zone: Untrust
@@ -189,7 +189,7 @@ Display security zone objects.
 ### Syntax
 
 ```bash
-scm show network security-zone [OPTIONS]
+scm show network zone [OPTIONS]
 ```
 
 ### Options
@@ -211,7 +211,7 @@ scm show network security-zone [OPTIONS]
 #### Show Specific Security Zone
 
 ```bash
-$ scm show network security-zone --folder Shared --name Trust
+$ scm show network zone --folder Shared --name Trust
 ---> 100%
 Security Zone: Trust
   Location: Folder 'Shared'
@@ -224,7 +224,7 @@ Security Zone: Trust
 #### List All Security Zones (Default Behavior)
 
 ```bash
-$ scm show network security-zone --folder Shared
+$ scm show network zone --folder Shared
 ---> 100%
 Security zones in folder 'Shared':
 ------------------------------------------------------------
@@ -249,7 +249,7 @@ Backup all security zone objects from a specified location to a YAML file.
 ### Syntax
 
 ```bash
-scm backup network security-zone [OPTIONS]
+scm backup network zone [OPTIONS]
 ```
 
 ### Options
@@ -268,7 +268,7 @@ scm backup network security-zone [OPTIONS]
 #### Backup from Folder
 
 ```bash
-$ scm backup network security-zone --folder Shared
+$ scm backup network zone --folder Shared
 ---> 100%
 Successfully backed up 5 security zones to security_zone_folder_shared_20240115_120530.yaml
 ```
@@ -276,7 +276,7 @@ Successfully backed up 5 security zones to security_zone_folder_shared_20240115_
 #### Backup with Custom Filename
 
 ```bash
-$ scm backup network security-zone --folder Shared --file shared-zones.yaml
+$ scm backup network zone --folder Shared --file shared-zones.yaml
 ---> 100%
 Successfully backed up 5 security zones to shared-zones.yaml
 ```
