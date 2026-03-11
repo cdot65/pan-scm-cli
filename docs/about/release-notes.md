@@ -2,6 +2,20 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.12
+
+**Released:** March 11, 2026
+
+### Fixed
+
+- **Security Zone Docs**: Fixed command name from `security-zone` to `zone` in all CLI examples in `docs/cli/network/security-zone.md`.
+- **Bandwidth Allocation Docs**: Fixed command name from `bandwidth` to `bandwidth-allocation` in syntax blocks in `docs/cli/deployment/bandwidth.md`.
+- **Docstring Typo**: Fixed `Returnas:` → `Returns:` in `validate_location_params()` docstring.
+
+### Added
+
+- **Auto Tag Action Documentation**: Added full CLI reference page for auto-tag-action commands (set, delete, load, show, backup).
+
 ## Version 1.0.11
 
 **Released:** March 11, 2026

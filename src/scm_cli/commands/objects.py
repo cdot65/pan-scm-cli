@@ -430,11 +430,12 @@ LOAD_DEVICE_OPTION = typer.Option(
 def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
     """Validate that exactly one location parameter is provided.
 
-    Returnas:
+    Returns:
         tuple: (location_type, location_value)
 
-    Raise:
+    Raises:
         typer.Exit: If validation fails
+
     """
     location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
 

@@ -77,6 +77,7 @@ nav:
   - CLI Reference:
       - Overview: cli/index.md
       - Objects:
+          - Auto Tag Action: cli/objects/auto-tag-action.md
           - Address: cli/objects/address.md
           - Address Group: cli/objects/address-group.md
           - Application: cli/objects/application.md
