@@ -2,6 +2,14 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.14
+
+**Released:** March 11, 2026
+
+### Changed
+
+- **Section Separator Consistency**: Standardized all section separators across 10 source files to exactly 191 characters, matching the documented style guide convention.
+
 ## Version 1.0.13
 
 **Released:** March 11, 2026
