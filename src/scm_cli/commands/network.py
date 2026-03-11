@@ -343,10 +343,7 @@ def delete_ike_crypto_profile(
             typer.echo(f"IKE crypto profile '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete IKE crypto profile '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete IKE crypto profile '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_ike_crypto_profile(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted IKE crypto profile: {name} from {location_value}")
     except Exception as e:
@@ -560,10 +557,7 @@ def delete_aggregate_interface(
             typer.echo(f"Aggregate interface '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete aggregate interface '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete aggregate interface '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_aggregate_interface(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted aggregate interface: {name} from {location_value}")
     except Exception as e:
@@ -813,10 +807,7 @@ def delete_ike_gateway(
             typer.echo(f"IKE gateway '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete IKE gateway '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete IKE gateway '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_ike_gateway(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted IKE gateway: {name} from {location_value}")
     except Exception as e:
@@ -2231,10 +2222,7 @@ def delete_dhcp_interface(
             typer.echo(f"DHCP interface '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete DHCP interface '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete DHCP interface '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_dhcp_interface(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted DHCP interface: {name} from {location_value}")
     except Exception as e:
@@ -2450,10 +2438,7 @@ def delete_ethernet_interface(
             typer.echo(f"Ethernet interface '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete ethernet interface '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete ethernet interface '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_ethernet_interface(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted ethernet interface: {name} from {location_value}")
     except Exception as e:
@@ -2704,10 +2689,7 @@ def delete_layer2_subinterface(
             typer.echo(f"Layer2 subinterface '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete layer2 subinterface '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete layer2 subinterface '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_layer2_subinterface(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted layer2 subinterface: {name} from {location_value}")
     except Exception as e:
@@ -2923,10 +2905,7 @@ def delete_layer3_subinterface(
             typer.echo(f"Layer3 subinterface '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete layer3 subinterface '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete layer3 subinterface '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_layer3_subinterface(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted layer3 subinterface: {name} from {location_value}")
     except Exception as e:
@@ -3161,10 +3140,7 @@ def delete_loopback_interface(
             typer.echo(f"Loopback interface '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete loopback interface '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete loopback interface '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_loopback_interface(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted loopback interface: {name} from {location_value}")
     except Exception as e:
@@ -3392,10 +3368,7 @@ def delete_tunnel_interface(
             typer.echo(f"Tunnel interface '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete tunnel interface '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete tunnel interface '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_tunnel_interface(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted tunnel interface: {name} from {location_value}")
     except Exception as e:
@@ -3620,10 +3593,7 @@ def delete_vlan_interface(
             typer.echo(f"VLAN interface '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete VLAN interface '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete VLAN interface '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_vlan_interface(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted VLAN interface: {name} from {location_value}")
     except Exception as e:
@@ -3858,10 +3828,7 @@ def delete_bgp_address_family_profile(
             typer.echo(f"BGP address family profile '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete BGP address family profile '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete BGP address family profile '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_bgp_address_family_profile(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted BGP address family profile: {name} from {location_value}")
     except Exception as e:
@@ -4065,10 +4032,7 @@ def delete_bgp_auth_profile(
             typer.echo(f"BGP auth profile '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete BGP auth profile '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete BGP auth profile '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_bgp_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted BGP auth profile: {name} from {location_value}")
     except Exception as e:
@@ -4263,10 +4227,7 @@ def delete_ospf_auth_profile(
             typer.echo(f"OSPF auth profile '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete OSPF auth profile '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete OSPF auth profile '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_ospf_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted OSPF auth profile: {name} from {location_value}")
     except Exception as e:
@@ -4469,10 +4430,7 @@ def delete_route_access_list(
             typer.echo(f"Route access list '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete route access list '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete route access list '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_route_access_list(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted route access list: {name} from {location_value}")
     except Exception as e:
@@ -4677,10 +4635,7 @@ def delete_route_prefix_list(
             typer.echo(f"Route prefix list '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete route prefix list '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete route prefix list '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_route_prefix_list(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted route prefix list: {name} from {location_value}")
     except Exception as e:
@@ -4885,10 +4840,7 @@ def delete_bgp_filtering_profile(
             typer.echo(f"BGP filtering profile '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete BGP filtering profile '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete BGP filtering profile '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_bgp_filtering_profile(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted BGP filtering profile: {name} from {location_value}")
     except Exception as e:
@@ -5077,10 +5029,7 @@ def delete_bgp_redistribution_profile(
             typer.echo(f"BGP redistribution profile '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete BGP redistribution profile '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete BGP redistribution profile '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_bgp_redistribution_profile(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted BGP redistribution profile: {name} from {location_value}")
     except Exception as e:
@@ -5269,10 +5218,7 @@ def delete_bgp_route_map(
             typer.echo(f"BGP route map '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete BGP route map '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete BGP route map '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_bgp_route_map(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted BGP route map: {name} from {location_value}")
     except Exception as e:
@@ -5465,10 +5411,7 @@ def delete_bgp_route_map_redistribution(
             typer.echo(f"BGP route map redistribution '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete BGP route map redistribution '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete BGP route map redistribution '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_bgp_route_map_redistribution(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted BGP route map redistribution: {name} from {location_value}")
     except Exception as e:
@@ -5668,10 +5611,7 @@ def delete_dns_proxy(
             typer.echo(f"DNS proxy '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete DNS proxy '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete DNS proxy '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_dns_proxy(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted DNS proxy: {name} from {location_value}")
     except Exception as e:
@@ -5885,10 +5825,7 @@ def delete_pbf_rule(
             typer.echo(f"PBF rule '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete PBF rule '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete PBF rule '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_pbf_rule(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted PBF rule: {name} from {location_value}")
     except Exception as e:
@@ -6104,10 +6041,7 @@ def delete_qos_profile(
             typer.echo(f"QoS profile '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete QoS profile '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete QoS profile '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_qos_profile(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted QoS profile: {name} from {location_value}")
     except Exception as e:
@@ -6318,10 +6252,7 @@ def delete_qos_rule(
             typer.echo(f"QoS rule '{name}' not found", err=True)
             raise typer.Exit(code=1)
         if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete QoS rule '{name}'?")
-            if not confirm:
-                typer.echo("Deletion cancelled")
-                raise typer.Exit(code=0)
+            typer.confirm(f"Delete QoS rule '{name}' from {location_type} '{location_value}'?", abort=True)
         scm_client.delete_qos_rule(name=name, folder=folder, snippet=snippet, device=device)
         typer.echo(f"Deleted QoS rule: {name} from {location_value}")
     except Exception as e:

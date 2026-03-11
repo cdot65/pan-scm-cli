@@ -2,6 +2,16 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.13
+
+**Released:** March 11, 2026
+
+### Changed
+
+- **Deduplicate Utility Function**: Extracted `parse_comma_separated_list()` from objects.py and security.py into `utils/__init__.py` as the single canonical definition.
+- **Standardize Delete Confirmations**: Converted 23 network.py delete commands from manual confirm+Exit(0) pattern to `typer.confirm(..., abort=True)` matching all other modules.
+- **Remove Emoji Output**: Replaced 40 emoji-prefixed messages in objects.py with plain text to match the consistent style used in security.py, network.py, and deployment.py.
+
 ## Version 1.0.12
 
 **Released:** March 11, 2026
