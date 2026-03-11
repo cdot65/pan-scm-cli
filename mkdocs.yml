@@ -95,6 +95,7 @@ nav:
           - Service Group: cli/objects/service-group.md
           - Syslog Server Profile: cli/objects/syslog-server-profile.md
           - Tag: cli/objects/tag.md
+          - SDK Reference: cli/objects/sdk-objects.md
       - Network:
           - Aggregate Interface: cli/network/aggregate-interface.md
           - BGP Address Family Profile: cli/network/bgp-address-family-profile.md
@@ -119,6 +120,7 @@ nav:
           - Security Zone: cli/network/security-zone.md
           - Tunnel Interface: cli/network/tunnel-interface.md
           - VLAN Interface: cli/network/vlan-interface.md
+          - SDK Reference: cli/network/sdk-network.md
       - Security:
           - Anti-Spyware Profile: cli/security/anti-spyware-profile.md
           - App Override Rule: cli/security/app-override-rule.md
@@ -131,6 +133,7 @@ nav:
           - URL Category: cli/security/url-category.md
           - Vulnerability Protection Profile: cli/security/vulnerability-protection-profile.md
           - WildFire Antivirus Profile: cli/security/wildfire-antivirus-profile.md
+          - SDK Reference: cli/security/sdk-security.md
       - Deployment:
           - Bandwidth Allocation: cli/deployment/bandwidth.md
           - BGP Routing: cli/deployment/bgp-routing.md
@@ -138,12 +141,14 @@ nav:
           - Network Location: cli/deployment/network-location.md
           - Remote Network: cli/deployment/remote-network.md
           - Service Connection: cli/deployment/service-connection.md
+          - SDK Reference: cli/deployment/sdk-deployment.md
       - Setup:
           - Device: cli/setup/device.md
           - Folder: cli/setup/folder.md
           - Label: cli/setup/label.md
           - Snippet: cli/setup/snippet.md
           - Variable: cli/setup/variable.md
+          - SDK Reference: cli/setup/sdk-setup.md
       - Identity:
           - Authentication Profile: cli/identity/authentication-profile.md
           - Kerberos Server Profile: cli/identity/kerberos-server-profile.md
@@ -154,6 +159,7 @@ nav:
       - Mobile Agent:
           - Agent Version: cli/mobile-agent/agent-version.md
           - Auth Setting: cli/mobile-agent/auth-setting.md
+          - SDK Reference: cli/mobile-agent/sdk-mobile-agent.md
       - Jobs: cli/jobs.md
       - Commit: cli/commit.md
       - Insights: cli/insights.md

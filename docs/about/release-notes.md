@@ -2,6 +2,16 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.10
+
+**Released:** March 10, 2026
+
+### Fixed
+
+- **Syslog Server Profile Delete**: Fixed `delete_syslog_server_profile()` to use fetch→delete-by-ID pattern instead of name-based deletion, matching the pattern used by all other delete methods.
+- **Comma Parsing Consistency**: Replaced 3 manual `.split(",")` calls in `set_service` and `set_service_group` with `parse_comma_separated_list()` for consistent comma-separated value handling.
+- **SDK Documentation Navigation**: Added 6 missing SDK Reference doc links to mkdocs.yml navigation (objects, network, security, deployment, setup, mobile-agent).
+
 ## Version 1.0.9
 
 **Released:** March 10, 2026
