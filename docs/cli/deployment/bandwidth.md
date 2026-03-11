@@ -4,7 +4,7 @@ Bandwidth allocations control and optimize bandwidth usage across your SASE netw
 
 ## Overview
 
-The `bandwidth` commands allow you to:
+The `bandwidth-allocation` commands allow you to:
 
 - Create bandwidth allocations with guaranteed and maximum bandwidth limits
 - Assign allocations to specific Service Provider Networks (SPNs)
@@ -19,7 +19,7 @@ Create or update a bandwidth allocation.
 ### Syntax
 
 ```bash
-scm set sase bandwidth [OPTIONS]
+scm set sase bandwidth-allocation [OPTIONS]
 ```
 
 ### Options
@@ -68,7 +68,7 @@ Delete a bandwidth allocation from SCM.
 ### Syntax
 
 ```bash
-scm delete sase bandwidth [OPTIONS]
+scm delete sase bandwidth-allocation [OPTIONS]
 ```
 
 ### Options
@@ -94,7 +94,7 @@ Load multiple bandwidth allocations from a YAML file.
 ### Syntax
 
 ```bash
-scm load sase bandwidth [OPTIONS]
+scm load sase bandwidth-allocation [OPTIONS]
 ```
 
 ### Options
@@ -131,7 +131,7 @@ bandwidth_allocations:
 #### Load with Original Locations
 
 ```bash
-$ scm load sase bandwidth --file bandwidth-allocations.yml
+$ scm load sase bandwidth-allocation --file bandwidth-allocations.yml
 ---> 100%
 ✓ Loaded bandwidth allocation: Standard-Branch
 ✓ Loaded bandwidth allocation: HQ-Bandwidth
@@ -147,7 +147,7 @@ Display bandwidth allocation objects.
 ### Syntax
 
 ```bash
-scm show sase bandwidth [OPTIONS]
+scm show sase bandwidth-allocation [OPTIONS]
 ```
 
 ### Options
