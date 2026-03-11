@@ -12,6 +12,7 @@ from typing import Any
 import typer
 import yaml
 
+from ..utils import parse_comma_separated_list
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     AntiSpywareProfile,
@@ -217,20 +218,6 @@ URL_PROFILE_ALLOW_OPTION = typer.Option(None, "--allow", help="URL categories to
 # ========================================================================================================================================================================================
 # HELPER FUNCTIONS
 # ========================================================================================================================================================================================
-
-
-def parse_comma_separated_list(values: list[str]) -> list[str]:
-    """Split comma-separated values in list options.
-
-    Allows both `--members a,b,c` and `--members a --members b --members c`.
-    """
-    result = []
-    for value in values:
-        for item in value.split(","):
-            stripped = item.strip()
-            if stripped:
-                result.append(stripped)
-    return result
 
 
 def validate_location_params(
