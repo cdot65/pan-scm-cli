@@ -2,6 +2,15 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.11
+
+**Released:** March 11, 2026
+
+### Changed
+
+- **Python Version Support**: Lowered minimum Python version from 3.12 to 3.10, broadening compatibility for more environments.
+- **Ruff Target Version**: Updated ruff target-version from `py312` to `py310` to match the new minimum Python version.
+
 ## Version 1.0.10
 
 **Released:** March 10, 2026
