@@ -4711,7 +4711,9 @@ class SCMClient:
             container_kwargs["device"] = device
 
         try:
-            self.client.syslog_server_profile.delete(name, **container_kwargs)
+            # Fetch first to get the ID, then delete by ID (consistent with other delete methods)
+            profile = self.client.syslog_server_profile.fetch(name=name, **container_kwargs)
+            self.client.syslog_server_profile.delete(str(profile.id))
             self.logger.info(f"Deleted syslog server profile: {name}")
         except Exception as e:
             location_value = folder or snippet or device or "unknown"
