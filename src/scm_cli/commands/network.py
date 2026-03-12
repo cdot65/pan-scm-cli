@@ -2186,7 +2186,13 @@ def delete_dhcp_interface(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a DHCP interface."""
+    """Delete a DHCP interface.
+
+    Examples
+    --------
+        scm delete network dhcp-interface eth0 --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         iface = scm_client.get_dhcp_interface(name=name, folder=folder, snippet=snippet, device=device)
@@ -2653,7 +2659,13 @@ def delete_layer2_subinterface(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a layer2 subinterface."""
+    """Delete a layer2 subinterface.
+
+    Examples
+    --------
+        scm delete network layer2-subinterface ethernet1/1.100 --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         iface = scm_client.get_layer2_subinterface(name=name, folder=folder, snippet=snippet, device=device)
@@ -2869,7 +2881,13 @@ def delete_layer3_subinterface(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a layer3 subinterface."""
+    """Delete a layer3 subinterface.
+
+    Examples
+    --------
+        scm delete network layer3-subinterface ethernet1/1.200 --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         iface = scm_client.get_layer3_subinterface(name=name, folder=folder, snippet=snippet, device=device)
@@ -3104,7 +3122,13 @@ def delete_loopback_interface(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a loopback interface."""
+    """Delete a loopback interface.
+
+    Examples
+    --------
+        scm delete network loopback-interface loopback.1 --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         iface = scm_client.get_loopback_interface(name=name, folder=folder, snippet=snippet, device=device)
@@ -3332,7 +3356,13 @@ def delete_tunnel_interface(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a tunnel interface."""
+    """Delete a tunnel interface.
+
+    Examples
+    --------
+        scm delete network tunnel-interface tunnel.1 --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         iface = scm_client.get_tunnel_interface(name=name, folder=folder, snippet=snippet, device=device)
@@ -3557,7 +3587,13 @@ def delete_vlan_interface(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a VLAN interface."""
+    """Delete a VLAN interface.
+
+    Examples
+    --------
+        scm delete network vlan-interface vlan.100 --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         iface = scm_client.get_vlan_interface(name=name, folder=folder, snippet=snippet, device=device)
@@ -3792,7 +3828,13 @@ def delete_bgp_address_family_profile(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a BGP address family profile."""
+    """Delete a BGP address family profile.
+
+    Examples
+    --------
+        scm delete network bgp-address-family-profile my-af-profile --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_bgp_address_family_profile(name=name, folder=folder, snippet=snippet, device=device)
@@ -3996,7 +4038,13 @@ def delete_bgp_auth_profile(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a BGP auth profile."""
+    """Delete a BGP auth profile.
+
+    Examples
+    --------
+        scm delete network bgp-auth-profile my-auth-profile --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_bgp_auth_profile(name=name, folder=folder, snippet=snippet, device=device)
@@ -4394,7 +4442,13 @@ def delete_route_access_list(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a route access list."""
+    """Delete a route access list.
+
+    Examples
+    --------
+        scm delete network route-access-list my-access-list --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         item = scm_client.get_route_access_list(name=name, folder=folder, snippet=snippet, device=device)
@@ -4599,7 +4653,13 @@ def delete_route_prefix_list(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a route prefix list."""
+    """Delete a route prefix list.
+
+    Examples
+    --------
+        scm delete network route-prefix-list my-prefix-list --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         item = scm_client.get_route_prefix_list(name=name, folder=folder, snippet=snippet, device=device)
@@ -4804,7 +4864,13 @@ def delete_bgp_filtering_profile(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a BGP filtering profile."""
+    """Delete a BGP filtering profile.
+
+    Examples
+    --------
+        scm delete network bgp-filtering-profile my-filter --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_bgp_filtering_profile(name=name, folder=folder, snippet=snippet, device=device)
@@ -4993,7 +5059,13 @@ def delete_bgp_redistribution_profile(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a BGP redistribution profile."""
+    """Delete a BGP redistribution profile.
+
+    Examples
+    --------
+        scm delete network bgp-redistribution-profile my-redist --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_bgp_redistribution_profile(name=name, folder=folder, snippet=snippet, device=device)
@@ -5182,7 +5254,13 @@ def delete_bgp_route_map(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a BGP route map."""
+    """Delete a BGP route map.
+
+    Examples
+    --------
+        scm delete network bgp-route-map my-route-map --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         item = scm_client.get_bgp_route_map(name=name, folder=folder, snippet=snippet, device=device)
@@ -5375,7 +5453,13 @@ def delete_bgp_route_map_redistribution(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a BGP route map redistribution."""
+    """Delete a BGP route map redistribution.
+
+    Examples
+    --------
+        scm delete network bgp-route-map-redistribution my-redist-map --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         item = scm_client.get_bgp_route_map_redistribution(name=name, folder=folder, snippet=snippet, device=device)
@@ -5575,7 +5659,13 @@ def delete_dns_proxy(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a DNS proxy."""
+    """Delete a DNS proxy.
+
+    Examples
+    --------
+        scm delete network dns-proxy my-dns-proxy --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         proxy = scm_client.get_dns_proxy(name=name, folder=folder, snippet=snippet, device=device)
@@ -5789,7 +5879,13 @@ def delete_pbf_rule(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a PBF rule."""
+    """Delete a PBF rule.
+
+    Examples
+    --------
+        scm delete network pbf-rule my-pbf-rule --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         rule = scm_client.get_pbf_rule(name=name, folder=folder, snippet=snippet, device=device)
@@ -6004,7 +6100,13 @@ def delete_qos_profile(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a QoS profile."""
+    """Delete a QoS profile.
+
+    Examples
+    --------
+        scm delete network qos-profile my-qos-profile --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         validate_qos_profile_folder(folder)
@@ -6216,7 +6318,13 @@ def delete_qos_rule(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a QoS rule."""
+    """Delete a QoS rule.
+
+    Examples
+    --------
+        scm delete network qos-rule my-qos-rule --folder Texas
+
+    """
     try:
         location_type, location_value = validate_location_params(folder, snippet, device)
         rule = scm_client.get_qos_rule(name=name, folder=folder, snippet=snippet, device=device)

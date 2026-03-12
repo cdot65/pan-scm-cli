@@ -3961,7 +3961,13 @@ def delete_hip_profile(
     name: str = typer.Option(..., "--name", help="Name of the HIP profile to delete"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a HIP profile from a specific folder."""
+    """Delete a HIP profile.
+
+    Examples
+    --------
+        scm delete object hip-profile --folder Texas --name my-hip-profile
+
+    """
     if not force:
         confirm = typer.confirm(f"Delete HIP profile '{name}' from folder '{folder}'?")
         if not confirm:
@@ -4640,7 +4646,13 @@ def delete_log_forwarding_profile(
     name: str = typer.Option(..., "--name", help="Name of the log forwarding profile to delete"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a log forwarding profile."""
+    """Delete a log forwarding profile.
+
+    Examples
+    --------
+        scm delete object log-forwarding-profile --folder Texas --name my-lfp
+
+    """
     if not force:
         confirm = typer.confirm(f"Delete log forwarding profile '{name}' from folder '{folder}'?")
         if not confirm:
@@ -5008,7 +5020,13 @@ def delete_region(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a region."""
+    """Delete a region.
+
+    Examples
+    --------
+        scm delete object region us-east --folder Texas
+
+    """
     try:
         # Determine container location
         if not any([folder, snippet, device]):
@@ -5128,7 +5146,13 @@ def delete_quarantined_device(
     host_id: str = typer.Argument(..., help="Host ID of the quarantined device to delete"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a quarantined device by host ID."""
+    """Delete a quarantined device by host ID.
+
+    Examples
+    --------
+        scm delete object quarantined-device 01abcdef-2345-6789-abcd-ef0123456789
+
+    """
     try:
         show_context_info()
 
@@ -5502,7 +5526,13 @@ def delete_service(
     name: str = typer.Option(..., "--name", help="Name of the service to delete"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a service."""
+    """Delete a service.
+
+    Examples
+    --------
+        scm delete object service --folder Texas --name web-service
+
+    """
     if not force:
         confirm = typer.confirm(f"Delete service '{name}' from folder '{folder}'?")
         if not confirm:
@@ -5916,7 +5946,13 @@ def delete_service_group(
     name: str = typer.Option(..., "--name", help="Name of the service group to delete"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a service group."""
+    """Delete a service group.
+
+    Examples
+    --------
+        scm delete object service-group --folder Texas --name web-services
+
+    """
     if not force:
         confirm = typer.confirm(f"Delete service group '{name}' from folder '{folder}'?")
         if not confirm:
@@ -6237,7 +6273,13 @@ def delete_syslog_server_profile(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a syslog server profile."""
+    """Delete a syslog server profile.
+
+    Examples
+    --------
+        scm delete object syslog-server-profile my-syslog --folder Texas
+
+    """
     try:
         # Use the imported scm_client
 
@@ -6644,7 +6686,13 @@ def delete_schedule(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a schedule."""
+    """Delete a schedule.
+
+    Examples
+    --------
+        scm delete object schedule business-hours --folder Texas
+
+    """
     try:
         # Determine container location
         if not any([folder, snippet, device]):
@@ -6991,7 +7039,13 @@ def delete_tag(
     device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete a tag."""
+    """Delete a tag.
+
+    Examples
+    --------
+        scm delete object tag --name production --folder Texas
+
+    """
     try:
         # Determine container location
         if not any([folder, snippet, device]):
