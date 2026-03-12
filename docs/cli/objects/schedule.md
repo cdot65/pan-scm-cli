@@ -33,13 +33,13 @@ scm set object schedule NAME [OPTIONS]
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
 | `--time-range TEXT` | Time ranges (for daily/non-recurring) | No |
-| `--days-monday TEXT` | Monday time ranges (for weekly) | No |
-| `--days-tuesday TEXT` | Tuesday time ranges (for weekly) | No |
-| `--days-wednesday TEXT` | Wednesday time ranges (for weekly) | No |
-| `--days-thursday TEXT` | Thursday time ranges (for weekly) | No |
-| `--days-friday TEXT` | Friday time ranges (for weekly) | No |
-| `--days-saturday TEXT` | Saturday time ranges (for weekly) | No |
-| `--days-sunday TEXT` | Sunday time ranges (for weekly) | No |
+| `--monday TEXT` | Monday time ranges (for weekly) | No |
+| `--tuesday TEXT` | Tuesday time ranges (for weekly) | No |
+| `--wednesday TEXT` | Wednesday time ranges (for weekly) | No |
+| `--thursday TEXT` | Thursday time ranges (for weekly) | No |
+| `--friday TEXT` | Friday time ranges (for weekly) | No |
+| `--saturday TEXT` | Saturday time ranges (for weekly) | No |
+| `--sunday TEXT` | Sunday time ranges (for weekly) | No |
 
 \* One of --folder, --snippet, or --device is required.
 
@@ -62,11 +62,11 @@ Created schedule: business-hours in folder Texas
 $ scm set object schedule weekday-schedule \
     --schedule-type recurring-weekly \
     --folder Texas \
-    --days-monday "09:00-17:00" \
-    --days-tuesday "09:00-17:00" \
-    --days-wednesday "09:00-17:00" \
-    --days-thursday "09:00-17:00" \
-    --days-friday "09:00-12:00"
+    --monday "09:00-17:00" \
+    --tuesday "09:00-17:00" \
+    --wednesday "09:00-17:00" \
+    --thursday "09:00-17:00" \
+    --friday "09:00-12:00"
 ---> 100%
 Created schedule: weekday-schedule in folder Texas
 ```
