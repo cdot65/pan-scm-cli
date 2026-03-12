@@ -2,6 +2,18 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.15
+
+**Released:** March 11, 2026
+
+### Changed
+
+- **Deduplicate Location Validation**: Extracted `validate_location_params()` from 5 command modules (objects, network, security, identity, mobile_agent) into `utils/__init__.py` as the single canonical definition with correct `str | None` type hints and `Raises:` docstring.
+
+### Added
+
+- **Utils Tests**: Added unit tests for `validate_location_params()` covering all valid inputs, error cases, and return types.
+
 ## Version 1.0.14
 
 **Released:** March 11, 2026

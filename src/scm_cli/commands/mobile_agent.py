@@ -11,6 +11,7 @@ import typer
 import yaml
 from pydantic import ValidationError
 
+from ..utils import validate_location_params
 from ..utils.config import load_from_yaml, settings
 from ..utils.context import get_current_context
 from ..utils.sdk_client import scm_client
@@ -33,36 +34,6 @@ def show_context_info() -> None:
                 "[INFO] No context set, using environment variables or default settings",
                 err=True,
             )
-
-
-def validate_location_params(folder: str = None, snippet: str = None, device: str = None) -> tuple[str, str]:
-    """Validate that exactly one location parameter is provided.
-
-    Returns:
-        tuple: (location_type, location_value)
-
-    Raise:
-        typer.Exit: If validation fails
-
-    """
-    location_count = sum(1 for loc in [folder, snippet, device] if loc is not None)
-
-    if location_count == 0:
-        typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
-        raise typer.Exit(code=1)
-    elif location_count > 1:
-        typer.echo(
-            "Error: Only one of --folder, --snippet, or --device can be specified",
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    if folder:
-        return "folder", folder
-    elif snippet:
-        return "snippet", snippet
-    else:
-        return "device", device
 
 
 def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
