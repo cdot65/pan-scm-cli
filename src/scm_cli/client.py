@@ -36,6 +36,18 @@ class MockSCMClient:
         """
 
         def mock_callable(*args, **kwargs):
+            """Simulate an SCM API call and return a mock success response.
+
+            Args:
+            ----
+                *args: Positional arguments passed to the mock call
+                **kwargs: Keyword arguments passed to the mock call
+
+            Returns:
+            -------
+                A dictionary with status and message keys
+
+            """
             logger.info(f"Mock SCM API call: {name}(*{args}, **{kwargs})")
             return {"status": "success", "message": f"Mock call to {name}"}
 
