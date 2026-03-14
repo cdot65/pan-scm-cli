@@ -171,6 +171,7 @@ nav:
       - Advanced Topics: guide/advanced-topics.md
       - Data Models: guide/data-models.md
       - Operations: guide/operations.md
+      - AI Agent Integration: guide/ai-agents.md
   - About:
       - Release Notes: about/release-notes.md
       - Contributing: about/contributing.md
