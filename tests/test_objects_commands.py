@@ -136,7 +136,7 @@ class TestAddressGroupCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error" in result.stdout
+        assert "Error" in result.output
 
     def test_delete_address_group_command(self, runner, monkeypatch):
         """Test the delete address group command."""
@@ -170,7 +170,7 @@ class TestAddressGroupCommands:
         result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group", "--force"])
 
         assert result.exit_code == 1
-        assert "Error" in result.stdout
+        assert "Error" in result.output
 
     def test_load_address_group_command(self, runner, monkeypatch, mock_address_groups_yaml_file):
         """Test the load address group command."""
@@ -392,7 +392,7 @@ class TestScheduleCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating/updating schedule" in result.stdout
+        assert "Error creating/updating schedule" in result.output
 
     def test_show_schedule_list(self, runner, monkeypatch):
         """Test the show schedule command listing all."""
@@ -522,7 +522,7 @@ class TestRegionCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating/updating region" in result.stdout
+        assert "Error creating/updating region" in result.output
 
     def test_delete_region_command(self, runner, monkeypatch):
         """Test the delete region command."""
@@ -789,7 +789,7 @@ quarantined_devices:
         result = runner.invoke(test_app, ["--file", "/nonexistent/file.yml"])
 
         assert result.exit_code == 1
-        assert "File not found" in result.stdout
+        assert "File not found" in result.output
 
 
 class TestAutoTagActionCommands:

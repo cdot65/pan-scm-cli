@@ -112,8 +112,8 @@ class TestBandwidthAllocationCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating bandwidth allocation" in result.stdout
-        assert "Test error" in result.stdout
+        assert "Error creating bandwidth allocation" in result.output
+        assert "Test error" in result.output
 
     def test_delete_bandwidth_allocation_command(self, runner, monkeypatch):
         """Test the delete bandwidth allocation command."""
@@ -172,8 +172,8 @@ class TestBandwidthAllocationCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error deleting bandwidth allocation" in result.stdout
-        assert "Test error" in result.stdout
+        assert "Error deleting bandwidth allocation" in result.output
+        assert "Test error" in result.output
 
     def test_load_bandwidth_allocation_command(self, runner, monkeypatch, mock_yaml_file):
         """Test the load bandwidth allocation command."""
@@ -262,8 +262,8 @@ class TestBandwidthAllocationCommands:
         monkeypatch.setattr(deployment_module, "load_from_yaml", original_load_from_yaml)
 
         assert result.exit_code == 1
-        assert "Error loading bandwidth allocations" in result.stdout
-        assert "YAML parsing error" in result.stdout
+        assert "Error loading bandwidth allocations" in result.output
+        assert "YAML parsing error" in result.output
 
     def test_set_bandwidth_allocation_updated(self, runner, monkeypatch):
         from scm_cli.utils.sdk_client import scm_client
@@ -380,7 +380,7 @@ class TestBGPRoutingCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating BGP routing" in result.stdout
+        assert "Error creating BGP routing" in result.output
 
     def test_show_bgp_routing_command(self, runner, monkeypatch):
         """Test the show bgp-routing command."""
@@ -490,7 +490,7 @@ class TestInternalDNSServerCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating internal DNS server" in result.stdout
+        assert "Error creating internal DNS server" in result.output
 
     def test_show_internal_dns_server_specific(self, runner, monkeypatch):
         """Test showing a specific internal DNS server."""
