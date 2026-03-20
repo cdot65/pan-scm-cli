@@ -201,8 +201,8 @@ class TestZoneCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating security zone" in result.stdout
-        assert "Test error" in result.stdout
+        assert "Error creating security zone" in result.output
+        assert "Test error" in result.output
 
     def test_delete_zone_command(self, runner, monkeypatch):
         """Test the delete zone command."""
@@ -260,8 +260,8 @@ class TestZoneCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error deleting security zone" in result.stdout
-        assert "Test error" in result.stdout
+        assert "Error deleting security zone" in result.output
+        assert "Test error" in result.output
 
     def test_load_zone_command(self, runner, monkeypatch, mock_zones_yaml_file):
         """Test the load zone command."""
@@ -405,7 +405,7 @@ class TestIKECryptoProfileCommands:
         test_app.command()(set_ike_crypto_profile)
         result = runner.invoke(test_app, ["test-profile", "--hash", "sha256", "--dh-group", "group14", "--encryption", "aes-256-cbc", "--folder", "test-folder"])
         assert result.exit_code == 1
-        assert "Error" in result.stdout
+        assert "Error" in result.output
 
     def test_show_ike_crypto_profile_list(self, runner, monkeypatch):
         """Test show ike-crypto-profile command lists profiles."""
@@ -561,7 +561,7 @@ class TestIKEGatewayCommands:
             ],
         )
         assert result.exit_code == 1
-        assert "Error" in result.stdout
+        assert "Error" in result.output
 
     def test_set_ike_gateway_missing_auth(self, runner, monkeypatch):
         """Test set ike-gateway command requires authentication."""
@@ -802,7 +802,7 @@ class TestIPsecCryptoProfileCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating IPsec crypto profile" in result.stdout
+        assert "Error creating IPsec crypto profile" in result.output
 
     def test_set_ipsec_crypto_profile_updated(self, runner, monkeypatch):
         from scm_cli.utils.sdk_client import scm_client
@@ -1148,7 +1148,7 @@ class TestNATRuleCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating NAT rule" in result.stdout
+        assert "Error creating NAT rule" in result.output
 
     def test_delete_nat_rule_command(self, runner, monkeypatch):
         """Test the delete nat-rule command."""
@@ -1199,7 +1199,7 @@ class TestNATRuleCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error deleting NAT rule" in result.stdout
+        assert "Error deleting NAT rule" in result.output
 
     def test_show_nat_rule_single(self, runner, monkeypatch):
         """Test showing a single NAT rule."""
@@ -1383,7 +1383,7 @@ class TestAggregateInterfaceCommands:
             ],
         )
         assert result.exit_code == 1
-        assert "Error" in result.stdout
+        assert "Error" in result.output
 
     def test_show_aggregate_interface_list(self, runner, monkeypatch):
         """Test show aggregate-interface command lists interfaces."""

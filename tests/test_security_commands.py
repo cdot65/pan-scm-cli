@@ -160,8 +160,8 @@ class TestSecurityRuleCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating security rule" in result.stdout
-        assert "Test error" in result.stdout
+        assert "Error creating security rule" in result.output
+        assert "Test error" in result.output
 
     def test_delete_security_rule_command(self, runner, monkeypatch):
         """Test the delete security rule command."""
@@ -221,8 +221,8 @@ class TestSecurityRuleCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error deleting security rule" in result.stdout
-        assert "Test error" in result.stdout
+        assert "Error deleting security rule" in result.output
+        assert "Test error" in result.output
 
     def test_load_security_rule_command(self, runner, monkeypatch, mock_security_rules_yaml_file):
         """Test the load security rule command."""
@@ -430,7 +430,7 @@ class TestWildfireAntivirusProfileCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating WildFire antivirus profile" in result.stdout
+        assert "Error creating WildFire antivirus profile" in result.output
 
     def test_delete_wildfire_antivirus_profile_command(self, runner, monkeypatch):
         """Test the delete wildfire-antivirus-profile command."""
@@ -688,7 +688,7 @@ class TestDNSSecurityProfileCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating DNS security profile" in result.stdout
+        assert "Error creating DNS security profile" in result.output
 
     def test_delete_dns_security_profile_command(self, runner, monkeypatch):
         """Test the delete DNS security profile command."""
@@ -843,7 +843,7 @@ class TestVulnerabilityProtectionProfileCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating vulnerability protection profile" in result.stdout
+        assert "Error creating vulnerability protection profile" in result.output
 
     def test_delete_vulnerability_protection_profile_command(self, runner, monkeypatch):
         """Test the delete vulnerability protection profile command."""
@@ -896,7 +896,7 @@ class TestVulnerabilityProtectionProfileCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error deleting vulnerability protection profile" in result.stdout
+        assert "Error deleting vulnerability protection profile" in result.output
 
     def test_show_vulnerability_protection_profile_single(self, runner, monkeypatch):
         """Test the show command for a single profile."""
@@ -1275,7 +1275,7 @@ class TestURLCategoryCommands:
         )
 
         assert result.exit_code == 1
-        assert "Error creating URL category" in result.stdout
+        assert "Error creating URL category" in result.output
 
     def test_delete_url_category_command(self, runner, monkeypatch):
         """Test the delete URL category command."""

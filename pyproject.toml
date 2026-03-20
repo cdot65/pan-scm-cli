@@ -8,6 +8,7 @@ packages = [{ include = "scm_cli", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
+click = ">=8.0.0,<8.2"
 typer = "^0.15.4"
 pyyaml = "^6.0.2"
 pydantic = "^2.11.5"
