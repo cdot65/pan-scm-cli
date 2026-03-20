@@ -113,11 +113,35 @@ poetry run mkdocs serve
 When adding new CLI commands:
 
 1. **Follow existing patterns** in the appropriate command module under `src/scm_cli/commands/`
-2. **Add Pydantic validators** in `utils/validators.py` if needed
-3. **Register the command** in `main.py`
-4. **Include helpful error messages** and proper input validation
+2. **Use the error handling decorator** — apply `@handle_command_errors("operation description")` after `@app.command()` instead of writing manual try/except blocks (see below)
+3. **Add Pydantic validators** in `utils/validators.py` if needed
+4. **Register the command** in `main.py`
 5. **Add tests** in `tests/`
 6. **Document the command** with examples in `docs/cli/`
+
+### Error Handling
+
+All command functions use the `@handle_command_errors` decorator from `utils/decorators.py` for consistent error handling. The decorator catches exceptions, prints a formatted error message to stderr, and exits with code 1.
+
+```python
+from ..utils.decorators import handle_command_errors
+
+@set_app.command("my-resource")
+@handle_command_errors("creating my resource")
+def set_my_resource(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+):
+    """Create or update a resource."""
+    # No try/except needed — the decorator handles it
+    result = scm_client.create_my_resource(folder=folder, name=name)
+    typer.echo(f"Created resource: {result['name']}")
+```
+
+The operation string should be a lowercase present participle describing the action (e.g., `"deleting address"`, `"loading zones"`, `"backing up security rules"`). Error output follows the format: `Error <operation>: <details>`.
+
+!!! note
+    Inner try/except blocks (e.g., per-item error handling inside bulk load loops) should still be written manually — the decorator only replaces the outermost error handler.
 
 ## Bug Reports and Feature Requests
 

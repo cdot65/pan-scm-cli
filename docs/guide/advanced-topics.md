@@ -180,7 +180,12 @@ The CLI uses standard exit codes for scripting:
 | Exit Code | Meaning |
 | --- | --- |
 | `0` | Success |
-| Non-zero | Failure |
+| `1` | Error (details printed to stderr) |
+
+!!! info
+    Success output (e.g., "Created address: test-server") goes to **stdout**.
+    Error output (e.g., "Error creating address: ...") goes to **stderr**.
+    This separation allows clean output parsing in scripts.
 
 #### Error Checking in Scripts
 
@@ -190,12 +195,13 @@ The CLI uses standard exit codes for scripting:
 scm set object address \
     --folder Shared \
     --name test-server \
-    --ip-netmask 10.1.1.10/32
+    --ip-netmask 10.1.1.10/32 2>error.log
 
 if [ $? -eq 0 ]; then
     echo "Address created successfully"
 else
-    echo "Failed to create address"
+    echo "Failed to create address:"
+    cat error.log
     exit 1
 fi
 ```
