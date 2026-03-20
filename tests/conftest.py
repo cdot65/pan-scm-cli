@@ -26,9 +26,9 @@ from scm_cli.utils.context import get_context_aware_settings as _get_settings  #
 _config_module.settings = _get_settings()
 
 # Patch Scm SDK client before any test modules import it, preventing real HTTP auth calls.
-# This must happen at module level (not in a fixture) because test module collection
-# triggers imports of command modules which import sdk_client.
-_scm_patcher = patch("scm.client.Scm", return_value=MagicMock())
+# Must patch where Scm is used (sdk_client module), not where it's defined (scm.client),
+# because sdk_client.py does `from scm.client import Scm` creating a local reference.
+_scm_patcher = patch("scm_cli.utils.sdk_client.Scm", return_value=MagicMock())
 _scm_patcher.start()
 
 
