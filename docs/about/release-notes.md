@@ -2,6 +2,23 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.0.16
+
+**Released:** March 20, 2026
+
+### Changed
+
+- **Centralized Error Handling**: Replaced duplicated try/except boilerplate across 278 command functions with the `@handle_command_errors` decorator. All error handling now flows through a single decorator in `utils/decorators.py`, producing consistent `Error <operation>: <details>` messages on stderr with exit code 1.
+- **Error Handling Coverage**: Applied decorator to all functions in `objects.py` (89), `security.py` (59), and `network.py` (130). Inner try/except blocks in bulk load loops preserved for per-item error reporting.
+
+### Fixed
+
+- **Test Suite**: Resolved all 37 pre-existing test failures:
+    - Fixed 25 error assertion tests to use `result.output` instead of `result.stdout` for compatibility with typer 0.15.4's stderr separation in CliRunner.
+    - Fixed credential isolation in tests — real `~/.scm-cli/contexts/` credentials no longer leak into test environment.
+    - Pinned `click>=8.0.0,<8.2` to fix typer 0.15.4 compatibility with click 8.3's breaking `make_metavar()` API change.
+    - Fixed Scm SDK mock to patch at usage site (`scm_cli.utils.sdk_client.Scm`) instead of definition site (`scm.client.Scm`), preventing real API calls in CI.
+
 ## Version 1.0.15
 
 **Released:** March 11, 2026
