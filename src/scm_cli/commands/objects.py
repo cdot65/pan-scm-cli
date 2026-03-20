@@ -14,6 +14,7 @@ import yaml
 from ..utils import parse_comma_separated_list, validate_location_params
 from ..utils.config import settings
 from ..utils.context import get_current_context
+from ..utils.decorators import handle_command_errors
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     Address,
@@ -502,6 +503,7 @@ def backup_address_group(
 
 
 @delete_app.command("address-group")
+@handle_command_errors("deleting address group")
 def delete_address_group(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -518,14 +520,10 @@ def delete_address_group(
         confirm = typer.confirm(f"Delete address group '{name}' from folder '{folder}'?")
         if not confirm:
             raise typer.Abort()
-    try:
-        result = scm_client.delete_address_group(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted address group: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting address group: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    result = scm_client.delete_address_group(folder=folder, name=name)
+    if result:
+        typer.echo(f"Deleted address group: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("address-group", help="Load address groups from a YAML file.")
@@ -897,6 +895,7 @@ def backup_address(
 
 
 @delete_app.command("address")
+@handle_command_errors("deleting address")
 def delete_address(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -913,14 +912,10 @@ def delete_address(
         confirm = typer.confirm(f"Delete address '{name}' from folder '{folder}'?")
         if not confirm:
             raise typer.Abort()
-    try:
-        result = scm_client.delete_address(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted address: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting address: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    result = scm_client.delete_address(folder=folder, name=name)
+    if result:
+        typer.echo(f"Deleted address: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("address", help="Load addresses from a YAML file.")
@@ -1309,6 +1304,7 @@ def backup_application(
 
 
 @delete_app.command("application")
+@handle_command_errors("deleting application")
 def delete_application(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -1325,14 +1321,10 @@ def delete_application(
         confirm = typer.confirm(f"Delete application '{name}' from folder '{folder}'?")
         if not confirm:
             raise typer.Abort()
-    try:
-        result = scm_client.delete_application(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted application: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting application: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    result = scm_client.delete_application(folder=folder, name=name)
+    if result:
+        typer.echo(f"Deleted application: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("application", help="Load applications from a YAML file.")
@@ -1747,6 +1739,7 @@ def backup_application_group(
 
 
 @delete_app.command("application-group")
+@handle_command_errors("deleting application group")
 def delete_application_group(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -1763,14 +1756,10 @@ def delete_application_group(
         confirm = typer.confirm(f"Delete application group '{name}' from folder '{folder}'?")
         if not confirm:
             raise typer.Abort()
-    try:
-        result = scm_client.delete_application_group(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted application group: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting application group: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    result = scm_client.delete_application_group(folder=folder, name=name)
+    if result:
+        typer.echo(f"Deleted application group: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("application-group", help="Load application groups from a YAML file.")
@@ -2067,6 +2056,7 @@ def backup_application_filter(
 
 
 @delete_app.command("application-filter")
+@handle_command_errors("deleting application filter")
 def delete_application_filter(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -2083,14 +2073,10 @@ def delete_application_filter(
         confirm = typer.confirm(f"Delete application filter '{name}' from folder '{folder}'?")
         if not confirm:
             raise typer.Abort()
-    try:
-        result = scm_client.delete_application_filter(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted application filter: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting application filter: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    result = scm_client.delete_application_filter(folder=folder, name=name)
+    if result:
+        typer.echo(f"Deleted application filter: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("application-filter", help="Load application filters from a YAML file.")
