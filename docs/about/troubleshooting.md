@@ -134,15 +134,39 @@ scm show object address --folder Texas
 
 This produces verbose output showing each API call, request payloads, and response details.
 
+## Error Message Format
+
+All CLI errors follow a consistent format and are written to **stderr**:
+
+```
+Error <operation>: <details>
+```
+
+For example:
+
+```
+Error creating address: Folder Texas doesn't exist
+Error deleting zone: Resource not found: my-zone in folder Shared
+Error loading services: Empty or invalid YAML file: services.yaml
+```
+
+This format is produced by the `@handle_command_errors` decorator used across all command functions. The CLI exits with code 1 on any error.
+
+!!! tip
+    Since errors go to stderr, you can separate them from normal output in scripts:
+    ```bash
+    scm set object address --folder Texas --name test --ip-netmask 10.0.0.1/32 2>errors.log
+    ```
+
 ## Common Error Messages
 
 | Error Message | Likely Cause | Solution |
 | --- | --- | --- |
-| `Authentication failed` | Invalid credentials | Check your client ID, secret, and TSG ID |
-| `Resource not found` | Accessing a non-existent resource | Verify the resource name or create it first |
-| `Validation error` | Input data does not meet requirements | Check error details for specific field issues |
-| `Permission denied` | Insufficient permissions | Request necessary permissions for your API credentials |
-| `Connection error` | Network or API endpoint issues | Check your network connection and SCM service status |
+| `Error ... Authentication failed` | Invalid credentials | Check your client ID, secret, and TSG ID |
+| `Error ... Resource not found` | Accessing a non-existent resource | Verify the resource name or create it first |
+| `Error ... Validation error` | Input data does not meet requirements | Check error details for specific field issues |
+| `Error ... Permission denied` | Insufficient permissions | Request necessary permissions for your API credentials |
+| `Error ... Connection error` | Network or API endpoint issues | Check your network connection and SCM service status |
 
 ## Getting Help
 
