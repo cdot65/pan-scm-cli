@@ -1,6 +1,7 @@
 """Tests for dynaconf configuration module."""
 
 import pytest
+
 from scm_cli.utils.config import get_credentials, settings
 
 

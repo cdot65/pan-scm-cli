@@ -14,10 +14,21 @@ from typer.testing import CliRunner
 # Add the src directory to the path so we can import the package
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
+# Patch context before any module imports config.py, preventing real credentials
+# from ~/.scm-cli/contexts/ from leaking into tests.
+_ctx_patcher = patch("scm_cli.utils.context.get_current_context", return_value=None)
+_ctx_patcher.start()
+
+# Recreate settings without context file (must happen after context patch, before Scm patch)
+import scm_cli.utils.config as _config_module  # noqa: E402
+from scm_cli.utils.context import get_context_aware_settings as _get_settings  # noqa: E402
+
+_config_module.settings = _get_settings()
+
 # Patch Scm SDK client before any test modules import it, preventing real HTTP auth calls.
-# This must happen at module level (not in a fixture) because test module collection
-# triggers imports of command modules which import sdk_client.
-_scm_patcher = patch("scm.client.Scm", return_value=MagicMock())
+# Must patch where Scm is used (sdk_client module), not where it's defined (scm.client),
+# because sdk_client.py does `from scm.client import Scm` creating a local reference.
+_scm_patcher = patch("scm_cli.utils.sdk_client.Scm", return_value=MagicMock())
 _scm_patcher.start()
 
 
