@@ -190,7 +190,7 @@ class TestSCMClientPostureMethods:
             assert "report_url" in result["result"]
 
 
-from scm_cli.commands.posture import export_config, posture_app
+from scm_cli.commands.posture import assess_config, export_config, posture_app
 
 
 class TestPostureCommands:
@@ -252,6 +252,133 @@ class TestPostureExportCommand:
                 "--host", "10.0.0.1",
                 "--user", "automation",
                 "--output", str(tmp_path / "config.xml"),
+            ],
+        )
+
+        assert result.exit_code == 1
+
+
+class TestPostureAssessCommand:
+    """Test the posture assess command."""
+
+    def test_assess_success(self, runner, monkeypatch, tmp_path):
+        """Test successful BPA assessment."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        config_file = tmp_path / "config.xml"
+        config_file.write_text("<config><devices></devices></config>")
+
+        report_file = tmp_path / "report.json"
+        fake_report = {"checks": [{"name": "test", "status": "PASS"}]}
+
+        monkeypatch.setattr(
+            scm_client,
+            "initiate_bpa_upload",
+            lambda **kwargs: {
+                "task_id": "550e8400-e29b-41d4-a716-446655440000",
+                "upload_url": "https://storage.googleapis.com/presigned-url",
+            },
+        )
+        monkeypatch.setattr(
+            scm_client,
+            "upload_config_to_presigned_url",
+            lambda **kwargs: None,
+        )
+        monkeypatch.setattr(
+            scm_client,
+            "get_bpa_status",
+            lambda **kwargs: {
+                "status": "COMPLETED",
+                "result": {"report_url": "https://example.com/report.json"},
+            },
+        )
+        monkeypatch.setattr(
+            scm_client,
+            "fetch_bpa_report",
+            lambda **kwargs: fake_report,
+        )
+
+        test_app = typer.Typer()
+        test_app.command()(assess_config)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--config", str(config_file),
+                "--output", str(report_file),
+                "--timeout", "60",
+                "--delete-after",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert report_file.exists()
+        import json
+        report_data = json.loads(report_file.read_text())
+        assert "checks" in report_data
+
+    def test_assess_config_not_found(self, runner, tmp_path):
+        """Test assess with missing config file."""
+        test_app = typer.Typer()
+        test_app.command()(assess_config)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--config", str(tmp_path / "nonexistent.xml"),
+                "--output", str(tmp_path / "report.json"),
+            ],
+        )
+
+        assert result.exit_code == 1
+
+    def test_assess_timeout(self, runner, monkeypatch, tmp_path):
+        """Test assess times out correctly."""
+        import time as time_module
+        from scm_cli.utils.sdk_client import scm_client
+
+        config_file = tmp_path / "config.xml"
+        config_file.write_text("<config></config>")
+
+        monkeypatch.setattr(
+            scm_client,
+            "initiate_bpa_upload",
+            lambda **kwargs: {
+                "task_id": "test-task-id",
+                "upload_url": "https://storage.googleapis.com/presigned-url",
+            },
+        )
+        monkeypatch.setattr(
+            scm_client,
+            "upload_config_to_presigned_url",
+            lambda **kwargs: None,
+        )
+        monkeypatch.setattr(
+            scm_client,
+            "get_bpa_status",
+            lambda **kwargs: {"status": "IN_PROGRESS", "message": "Still processing..."},
+        )
+
+        call_count = {"value": 0}
+
+        def mock_time():
+            call_count["value"] += 1
+            if call_count["value"] == 1:
+                return 1000.0
+            return 1400.0
+
+        monkeypatch.setattr(time_module, "time", mock_time)
+        monkeypatch.setattr(time_module, "sleep", lambda s: None)
+
+        test_app = typer.Typer()
+        test_app.command()(assess_config)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--config", str(config_file),
+                "--output", str(tmp_path / "report.json"),
+                "--timeout", "300",
             ],
         )
 
