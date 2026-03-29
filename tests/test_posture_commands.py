@@ -100,6 +100,7 @@ class TestBpaStatusResponseValidator:
             BpaStatusResponse(status="UNKNOWN")
 
 
+import typer
 from unittest.mock import MagicMock, patch
 
 
@@ -187,3 +188,71 @@ class TestSCMClientPostureMethods:
             )
             assert result["status"] == "COMPLETED"
             assert "report_url" in result["result"]
+
+
+from scm_cli.commands.posture import export_config, posture_app
+
+
+class TestPostureCommands:
+    """Test the posture command app exists."""
+
+    def test_posture_app_exists(self):
+        """Test that the posture app exists."""
+        assert posture_app
+
+
+class TestPostureExportCommand:
+    """Test the posture export command."""
+
+    def test_export_success(self, runner, monkeypatch, tmp_path):
+        """Test successful config export."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(
+            scm_client,
+            "generate_panos_api_key",
+            lambda **kwargs: "LUFRPT1234",
+        )
+        monkeypatch.setattr(
+            scm_client,
+            "export_panos_config",
+            lambda **kwargs: "<config><devices></devices></config>",
+        )
+        monkeypatch.setenv("PANOS_PASSWORD", "secret")
+
+        output_file = tmp_path / "config.xml"
+
+        test_app = typer.Typer()
+        test_app.command()(export_config)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--host", "10.0.0.1",
+                "--user", "automation",
+                "--output", str(output_file),
+                "--category", "running",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert output_file.exists()
+        assert "<config>" in output_file.read_text()
+
+    def test_export_missing_password(self, runner, monkeypatch, tmp_path):
+        """Test export fails without password."""
+        monkeypatch.delenv("PANOS_PASSWORD", raising=False)
+
+        test_app = typer.Typer()
+        test_app.command()(export_config)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--host", "10.0.0.1",
+                "--user", "automation",
+                "--output", str(tmp_path / "config.xml"),
+            ],
+        )
+
+        assert result.exit_code == 1
