@@ -190,7 +190,7 @@ class TestSCMClientPostureMethods:
             assert "report_url" in result["result"]
 
 
-from scm_cli.commands.posture import assess_config, export_config, posture_app
+from scm_cli.commands.posture import assess_config, export_config, posture_app, score_report
 
 
 class TestPostureCommands:
@@ -380,6 +380,103 @@ class TestPostureAssessCommand:
                 "--output", str(tmp_path / "report.json"),
                 "--timeout", "300",
             ],
+        )
+
+        assert result.exit_code == 1
+
+
+class TestPostureScoreCommand:
+    """Test the posture score command."""
+
+    def test_score_plain_output(self, runner, tmp_path):
+        """Test score with plain output format."""
+        import json
+
+        report_file = tmp_path / "report.json"
+        report_data = {
+            "checks": [
+                {"name": "check-1", "status": "PASS", "category": "security"},
+                {"name": "check-2", "status": "FAIL", "category": "security"},
+                {"name": "check-3", "status": "PASS", "category": "security"},
+                {"name": "check-4", "status": "PASS", "category": "decryption"},
+            ]
+        }
+        report_file.write_text(json.dumps(report_data))
+
+        test_app = typer.Typer()
+        test_app.command()(score_report)
+
+        result = runner.invoke(
+            test_app,
+            ["--report", str(report_file), "--scope", "all", "--format", "plain"],
+        )
+
+        assert result.exit_code == 0
+        assert "75.0" in result.stdout
+
+    def test_score_json_output(self, runner, tmp_path):
+        """Test score with JSON output format."""
+        import json
+
+        report_file = tmp_path / "report.json"
+        report_data = {
+            "checks": [
+                {"name": "check-1", "status": "PASS", "category": "security"},
+                {"name": "check-2", "status": "FAIL", "category": "security"},
+            ]
+        }
+        report_file.write_text(json.dumps(report_data))
+
+        test_app = typer.Typer()
+        test_app.command()(score_report)
+
+        result = runner.invoke(
+            test_app,
+            ["--report", str(report_file), "--scope", "all", "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["score"] == 50.0
+        assert output["passed"] == 1
+        assert output["failed"] == 1
+        assert output["total"] == 2
+
+    def test_score_security_scope(self, runner, tmp_path):
+        """Test score filtered to security scope only."""
+        import json
+
+        report_file = tmp_path / "report.json"
+        report_data = {
+            "checks": [
+                {"name": "check-1", "status": "PASS", "category": "security"},
+                {"name": "check-2", "status": "FAIL", "category": "security"},
+                {"name": "check-3", "status": "PASS", "category": "decryption"},
+            ]
+        }
+        report_file.write_text(json.dumps(report_data))
+
+        test_app = typer.Typer()
+        test_app.command()(score_report)
+
+        result = runner.invoke(
+            test_app,
+            ["--report", str(report_file), "--scope", "security", "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["score"] == 50.0
+        assert output["total"] == 2
+
+    def test_score_report_not_found(self, runner, tmp_path):
+        """Test score with missing report file."""
+        test_app = typer.Typer()
+        test_app.command()(score_report)
+
+        result = runner.invoke(
+            test_app,
+            ["--report", str(tmp_path / "nonexistent.json"), "--format", "plain"],
         )
 
         assert result.exit_code == 1
