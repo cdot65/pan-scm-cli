@@ -4812,3 +4812,77 @@ class InternalDNSServer(BaseModel):
         if self.secondary:
             data["secondary"] = self.secondary
         return data
+
+
+# ===============================================================================================================================================================================================
+# POSTURE / BPA VALIDATORS
+# ===============================================================================================================================================================================================
+
+
+class PostureExport(BaseModel):
+    """Validator for posture export command parameters.
+
+    Attributes:
+        host: PAN-OS firewall hostname or IP address.
+        user: Admin username for XML API authentication.
+        password: Admin password (optional, can come from env).
+        output: Output file path for exported config.
+        category: Config category to export (running or candidate).
+
+    """
+
+    host: str = Field(..., min_length=1, description="Firewall hostname or IP")
+    user: str = Field(..., min_length=1, description="Admin username")
+    password: str | None = Field(None, description="Admin password")
+    output: str = Field("config.xml", description="Output file path")
+    category: str = Field("running", description="Config category")
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        """Validate category is running or candidate."""
+        allowed = {"running", "candidate"}
+        if v not in allowed:
+            raise ValueError(f"category must be one of {allowed}, got '{v}'")
+        return v
+
+
+class BpaAssessRequest(BaseModel):
+    """Validator for BPA assess command parameters.
+
+    Attributes:
+        config: Path to the config file to assess.
+        delete_after_processing: Delete config from cloud after assessment.
+        output: Output file path for BPA report JSON.
+        timeout: Maximum seconds to wait for BPA processing.
+
+    """
+
+    config: str = Field(..., min_length=1, description="Config file path")
+    delete_after_processing: bool = Field(True, description="Delete config after processing")
+    output: str = Field("report.json", description="Output file path for report")
+    timeout: int = Field(300, ge=30, le=600, description="Max wait seconds")
+
+
+class BpaStatusResponse(BaseModel):
+    """Validator for BPA processing status API response.
+
+    Attributes:
+        status: Processing status (QUEUED, IN_PROGRESS, COMPLETED, FAILED).
+        message: Optional status message.
+        result: Result object populated when status is COMPLETED.
+
+    """
+
+    status: str = Field(..., description="Processing status")
+    message: str | None = Field(None, description="Status message")
+    result: dict | None = Field(None, description="Result when completed")
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        """Validate status is a known BPA status."""
+        allowed = {"QUEUED", "IN_PROGRESS", "COMPLETED", "FAILED"}
+        if v not in allowed:
+            raise ValueError(f"status must be one of {allowed}, got '{v}'")
+        return v
