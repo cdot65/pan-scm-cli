@@ -147,3 +147,90 @@ def export_config(
     output_path = Path(export_params.output)
     output_path.write_text(config_xml)
     typer.echo(f"Exported {export_params.category} config to {output_path}")
+
+
+# ===============================================================================================================================================================================================
+# ASSESS COMMAND
+# ===============================================================================================================================================================================================
+
+
+@posture_app.command("assess")
+@handle_command_errors("assessing config")
+def assess_config(
+    config: str = CONFIG_OPTION,
+    delete_after: bool = DELETE_AFTER_OPTION,
+    output: str = typer.Option("report.json", "--output", help="Output file path for report"),
+    timeout: int = TIMEOUT_OPTION,
+):
+    r"""Upload config to BPA API, poll for completion, and save report.
+
+    Example:
+    -------
+        scm posture assess \
+        --config config.xml \
+        --delete-after \
+        --output report.json \
+        --timeout 300
+
+    """
+    config_path = Path(config)
+    if not config_path.exists():
+        typer.echo(f"Error: config file not found: {config_path}", err=True)
+        raise typer.Exit(code=1)
+
+    assess_params = BpaAssessRequest(
+        config=config,
+        delete_after_processing=delete_after,
+        output=output,
+        timeout=timeout,
+    )
+
+    # Step 1: Initiate upload
+    typer.echo("Initiating BPA upload...", err=True)
+    initiate_result = scm_client.initiate_bpa_upload(
+        delete_after_processing=assess_params.delete_after_processing,
+    )
+    task_id = initiate_result["task_id"]
+    upload_url = initiate_result["upload_url"]
+    typer.echo(f"Task ID: {task_id}", err=True)
+
+    # Step 2: Upload config to presigned URL
+    typer.echo("Uploading config...", err=True)
+    config_data = config_path.read_bytes()
+    scm_client.upload_config_to_presigned_url(
+        upload_url=upload_url,
+        config_data=config_data,
+    )
+    typer.echo("Upload complete. Waiting for processing...", err=True)
+
+    # Step 3: Poll for completion
+    start_time = time.time()
+    poll_interval = 5
+
+    while True:
+        elapsed = time.time() - start_time
+        if elapsed >= assess_params.timeout:
+            typer.echo(f"Error: BPA processing timed out after {assess_params.timeout}s", err=True)
+            raise typer.Exit(code=1)
+
+        status_result = scm_client.get_bpa_status(task_id=task_id)
+        status = BpaStatusResponse(**status_result)
+
+        if status.status == "COMPLETED":
+            break
+        elif status.status == "FAILED":
+            msg = status.message or "unknown error"
+            typer.echo(f"Error: BPA processing failed: {msg}", err=True)
+            raise typer.Exit(code=1)
+
+        typer.echo(f"  Status: {status.status} ({status.message or 'processing...'})", err=True)
+        time.sleep(poll_interval)
+
+    # Step 4: Fetch report
+    report_url = status.result["report_url"]
+    typer.echo("Fetching report...", err=True)
+    report = scm_client.fetch_bpa_report(report_url=report_url)
+
+    output_path = Path(assess_params.output)
+    output_path.write_text(json.dumps(report, indent=2))
+    typer.echo(f"BPA report saved to {output_path}")
