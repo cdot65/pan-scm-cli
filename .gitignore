@@ -395,3 +395,8 @@ Thumbs.db
 
 # Adobe Illustrator source files
 *.ai
+
+# Posture / BPA autoresearch artifacts
+config.xml
+report.json
+results.tsv
