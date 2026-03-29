@@ -480,3 +480,17 @@ class TestPostureScoreCommand:
         )
 
         assert result.exit_code == 1
+
+
+class TestPostureRegistration:
+    """Test posture command is registered in main app."""
+
+    def test_posture_registered(self):
+        """Test that posture is registered as a top-level command."""
+        from scm_cli.main import app
+
+        group_names = []
+        for group in app.registered_groups:
+            if hasattr(group, "typer_instance") and group.typer_instance:
+                group_names.append(group.name)
+        assert "posture" in group_names
