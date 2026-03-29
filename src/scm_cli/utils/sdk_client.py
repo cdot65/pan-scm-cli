@@ -8,6 +8,8 @@ dynaconf settings.
 import contextlib
 import json
 import logging
+import requests
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any, NoReturn
 
@@ -7157,9 +7159,6 @@ class SCMClient:
                 existing_rule.log_end = log_end
                 if log_setting:
                     existing_rule.log_setting = str(log_setting)
-                else:
-                    # Clear log_setting - handle complex objects from API response
-                    existing_rule.log_setting = None
 
                 # Perform update
                 result = self.client.security_rule.update(existing_rule)
@@ -15875,6 +15874,123 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("listing", folder or snippet or device or "", "QoS rules", e)
 
+    # ======================================================================================================================================================================================
+    # POSTURE / BPA METHODS
+    # ======================================================================================================================================================================================
+
+    def generate_panos_api_key(self, host: str, user: str, password: str) -> str:
+        """Generate an API key from PAN-OS XML API using username/password.
+
+        Args:
+            host: Firewall hostname or IP address.
+            user: Admin username.
+            password: Admin password.
+
+        Returns:
+            str: The generated API key.
+
+        """
+        self.logger.info(f"Generating API key for {user}@{host}")
+        url = f"https://{host}/api/?type=keygen&user={user}&password={password}"
+        response = requests.get(url, verify=False)  # noqa: S501
+        response.raise_for_status()
+        root = ET.fromstring(response.text)
+        key_element = root.find(".//key")
+        if key_element is None or key_element.text is None:
+            raise ValueError(f"Failed to generate API key: {response.text}")
+        return key_element.text
+
+    def export_panos_config(self, host: str, api_key: str, category: str = "running") -> str:
+        """Export configuration from PAN-OS firewall via XML API.
+
+        Args:
+            host: Firewall hostname or IP address.
+            api_key: PAN-OS API key.
+            category: Config category ('running' or 'candidate').
+
+        Returns:
+            str: The configuration XML as a string.
+
+        """
+        self.logger.info(f"Exporting {category} config from {host}")
+        url = f"https://{host}/api/?type=export&category=configuration&key={api_key}"
+        response = requests.get(url, verify=False)  # noqa: S501
+        response.raise_for_status()
+        return response.text
+
+    def _get_scm_session(self) -> Any:
+        """Get an authenticated requests session for SCM API calls.
+
+        Returns:
+            Any: Authenticated session from the SCM SDK client.
+
+        """
+        if not self.client:
+            raise RuntimeError("SCM client not initialized — check credentials")
+        return self.client.session
+
+    def initiate_bpa_upload(self, delete_after_processing: bool = True) -> dict[str, Any]:
+        """Initiate a BPA config file upload.
+
+        Args:
+            delete_after_processing: Delete config from cloud after assessment.
+
+        Returns:
+            dict[str, Any]: Response with task_id and upload_url.
+
+        """
+        self.logger.info("Initiating BPA config upload")
+        session = self._get_scm_session()
+        url = "https://api.strata.paloaltonetworks.com/posture/checks/v1/reports/config-file-upload"
+        response = session.post(url, json={"delete_after_processing": delete_after_processing})
+        response.raise_for_status()
+        return response.json()
+
+    def upload_config_to_presigned_url(self, upload_url: str, config_data: bytes) -> None:
+        """Upload config file to a presigned GCS URL.
+
+        Args:
+            upload_url: Presigned GCS URL from initiate_bpa_upload.
+            config_data: Raw config file bytes.
+
+        """
+        self.logger.info("Uploading config to presigned URL")
+        response = requests.put(upload_url, data=config_data, headers={"Content-Type": "application/octet-stream"})
+        response.raise_for_status()
+
+    def get_bpa_status(self, task_id: str) -> dict[str, Any]:
+        """Get BPA processing status for a task.
+
+        Args:
+            task_id: The task ID from initiate_bpa_upload.
+
+        Returns:
+            dict[str, Any]: Status response with status, message, and result fields.
+
+        """
+        self.logger.info(f"Checking BPA status for task {task_id}")
+        session = self._get_scm_session()
+        url = f"https://api.strata.paloaltonetworks.com/posture/checks/v1/reports/{task_id}/bpa-result"
+        response = session.get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def fetch_bpa_report(self, report_url: str) -> dict[str, Any]:
+        """Fetch the completed BPA report from its URL.
+
+        Args:
+            report_url: URL to the completed BPA report.
+
+        Returns:
+            dict[str, Any]: The full BPA report as a dict.
+
+        """
+        self.logger.info(f"Fetching BPA report from {report_url}")
+        session = self._get_scm_session()
+        response = session.get(report_url)
+        response.raise_for_status()
+        return response.json()
+
 
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
@@ -15888,6 +16004,21 @@ class LazyClient:
         if self._client is None:
             self._client = SCMClient()
         return getattr(self._client, name)
+
+    def __setattr__(self, name, value):
+        """Forward attribute setting to inner client (except _client itself)."""
+        if name == "_client":
+            object.__setattr__(self, name, value)
+        else:
+            if self._client is None:
+                self._client = SCMClient()
+            setattr(self._client, name, value)
+
+    def __delattr__(self, name):
+        """Forward attribute deletion to inner client."""
+        if self._client is None:
+            raise AttributeError(name)
+        delattr(self._client, name)
 
 
 # Create a singleton instance of the SCM client with lazy initialization

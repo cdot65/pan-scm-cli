@@ -98,3 +98,92 @@ class TestBpaStatusResponseValidator:
         """Test that invalid status is rejected."""
         with pytest.raises(ValidationError):
             BpaStatusResponse(status="UNKNOWN")
+
+
+from unittest.mock import MagicMock, patch
+
+
+class TestSCMClientPostureMethods:
+    """Test posture-related methods on SCMClient."""
+
+    def test_generate_api_key(self, monkeypatch):
+        """Test XML API key generation from username/password."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "<response><result><key>LUFRPT1234</key></result></response>"
+
+        with patch("scm_cli.utils.sdk_client.requests.get", return_value=mock_response) as mock_get:
+            key = scm_client.generate_panos_api_key(
+                host="10.0.0.1",
+                user="automation",
+                password="secret",
+            )
+            assert key == "LUFRPT1234"
+            mock_get.assert_called_once()
+
+    def test_export_config(self, monkeypatch):
+        """Test config export via XML API."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "<config><devices></devices></config>"
+
+        with patch("scm_cli.utils.sdk_client.requests.get", return_value=mock_response):
+            config_xml = scm_client.export_panos_config(
+                host="10.0.0.1",
+                api_key="LUFRPT1234",
+                category="running",
+            )
+            assert "<config>" in config_xml
+
+    def test_initiate_bpa_upload(self, monkeypatch):
+        """Test BPA upload initiation."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+            "task_id": "550e8400-e29b-41d4-a716-446655440000",
+            "upload_url": "https://storage.googleapis.com/presigned-url",
+        }
+
+        with patch.object(scm_client, "_get_scm_session", return_value=MagicMock()) as mock_session:
+            mock_session.return_value.post.return_value = mock_response
+            result = scm_client.initiate_bpa_upload(delete_after_processing=True)
+            assert result["task_id"] == "550e8400-e29b-41d4-a716-446655440000"
+            assert "upload_url" in result
+
+    def test_upload_config_to_presigned_url(self, monkeypatch):
+        """Test config upload to presigned GCS URL."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        with patch("scm_cli.utils.sdk_client.requests.put", return_value=mock_response):
+            scm_client.upload_config_to_presigned_url(
+                upload_url="https://storage.googleapis.com/presigned-url",
+                config_data=b"<config></config>",
+            )
+
+    def test_get_bpa_status_completed(self, monkeypatch):
+        """Test BPA status check when completed."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "status": "COMPLETED",
+            "result": {"report_url": "https://example.com/report.json"},
+        }
+
+        with patch.object(scm_client, "_get_scm_session", return_value=MagicMock()) as mock_session:
+            mock_session.return_value.get.return_value = mock_response
+            result = scm_client.get_bpa_status(
+                task_id="550e8400-e29b-41d4-a716-446655440000",
+            )
+            assert result["status"] == "COMPLETED"
+            assert "report_url" in result["result"]
