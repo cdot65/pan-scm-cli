@@ -234,3 +234,60 @@ def assess_config(
     output_path = Path(assess_params.output)
     output_path.write_text(json.dumps(report, indent=2))
     typer.echo(f"BPA report saved to {output_path}")
+
+
+# ===============================================================================================================================================================================================
+# SCORE COMMAND
+# ===============================================================================================================================================================================================
+
+
+@posture_app.command("score")
+@handle_command_errors("scoring report")
+def score_report(
+    report: str = REPORT_OPTION,
+    scope: str = SCOPE_OPTION,
+    format: str = FORMAT_OPTION,
+):
+    r"""Parse BPA report JSON and return a numeric score.
+
+    The score is the percentage of checks that passed. Use --scope to filter
+    by category and --format to control output.
+
+    Note: The report JSON schema is discovered at runtime from the first real
+    BPA run. The scoring logic assumes checks have 'name', 'status', and
+    'category' fields. Adjust after inspecting a real report.
+
+    Example:
+    -------
+        scm posture score \
+        --report report.json \
+        --scope security \
+        --format plain
+
+    """
+    report_path = Path(report)
+    if not report_path.exists():
+        typer.echo(f"Error: report file not found: {report_path}", err=True)
+        raise typer.Exit(code=1)
+
+    report_data = json.loads(report_path.read_text())
+
+    checks = report_data.get("checks", [])
+
+    if scope != "all":
+        checks = [c for c in checks if c.get("category") == scope]
+
+    if not checks:
+        typer.echo("Error: no checks found for the given scope", err=True)
+        raise typer.Exit(code=1)
+
+    total = len(checks)
+    passed = sum(1 for c in checks if c.get("status") == "PASS")
+    failed = total - passed
+    score = round((passed / total) * 100, 1)
+
+    if format == "json":
+        output = json.dumps({"score": score, "passed": passed, "failed": failed, "total": total})
+        typer.echo(output)
+    else:
+        typer.echo(str(score))
