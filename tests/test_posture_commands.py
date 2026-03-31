@@ -1,5 +1,6 @@
 """Tests for the posture commands module."""
 
+import gzip
 import pytest
 from pydantic import ValidationError
 
@@ -157,10 +158,8 @@ class TestSCMClientPostureMethods:
             assert result["task_id"] == "550e8400-e29b-41d4-a716-446655440000"
             assert "upload_url" in result
 
-    def test_upload_config_to_presigned_url(self, monkeypatch):
+    def test_upload_config_to_presigned_url(self):
         """Test config upload sends gzip-compressed data with correct headers."""
-        import gzip
-
         from scm_cli.utils.sdk_client import scm_client
 
         mock_response = MagicMock()
