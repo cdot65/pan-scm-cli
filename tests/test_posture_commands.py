@@ -158,17 +158,33 @@ class TestSCMClientPostureMethods:
             assert "upload_url" in result
 
     def test_upload_config_to_presigned_url(self, monkeypatch):
-        """Test config upload to presigned GCS URL."""
+        """Test config upload sends gzip-compressed data with correct headers."""
+        import gzip
+
         from scm_cli.utils.sdk_client import scm_client
 
         mock_response = MagicMock()
         mock_response.status_code = 200
 
-        with patch("scm_cli.utils.sdk_client.requests.put", return_value=mock_response):
+        captured = {}
+
+        def capture_put(url, data=None, headers=None):
+            captured["url"] = url
+            captured["data"] = data
+            captured["headers"] = headers
+            return mock_response
+
+        with patch("scm_cli.utils.sdk_client.requests.put", side_effect=capture_put):
             scm_client.upload_config_to_presigned_url(
                 upload_url="https://storage.googleapis.com/presigned-url",
                 config_data=b"<config></config>",
             )
+
+        assert captured["headers"]["Content-Type"] == "plain/text"
+        assert captured["headers"]["Content-Encoding"] == "gzip"
+        # Verify the data is valid gzip
+        decompressed = gzip.decompress(captured["data"])
+        assert decompressed == b"<config></config>"
 
     def test_get_bpa_status_completed(self, monkeypatch):
         """Test BPA status check when completed."""
