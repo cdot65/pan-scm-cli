@@ -4882,7 +4882,7 @@ class BpaStatusResponse(BaseModel):
     @classmethod
     def validate_status(cls, v: str) -> str:
         """Validate status is a known BPA status."""
-        allowed = {"QUEUED", "IN_PROGRESS", "COMPLETED", "FAILED"}
+        allowed = {"QUEUED", "UPLOAD_COMPLETE", "IN_PROGRESS", "COMPLETED", "FAILED"}
         if v not in allowed:
             raise ValueError(f"status must be one of {allowed}, got '{v}'")
         return v
