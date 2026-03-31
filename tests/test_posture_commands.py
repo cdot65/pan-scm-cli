@@ -1,6 +1,7 @@
 """Tests for the posture commands module."""
 
 import gzip
+import json
 import pytest
 from pydantic import ValidationError
 
@@ -276,15 +277,43 @@ class TestPostureExportCommand:
 class TestPostureAssessCommand:
     """Test the posture assess command."""
 
-    def test_assess_success(self, runner, monkeypatch, tmp_path):
-        """Test successful BPA assessment."""
+    FAKE_REPORT = {
+        "information": {"bpa_version": "26.3.6"},
+        "best_practices": {
+            "device": {
+                "device_setup_session": [
+                    {
+                        "configuration": {},
+                        "warnings": [
+                            {
+                                "check_id": 121,
+                                "check_name": "Accelerated Aging should be enabled",
+                                "check_type": "Informational",
+                                "check_message": None,
+                                "check_passed": True,
+                                "uuid": None,
+                                "remediation": None,
+                                "user_excluded": False,
+                                "check_excluded": False,
+                            },
+                        ],
+                        "notes": [],
+                    }
+                ],
+            },
+        },
+        "adoption": {},
+        "adoption_summary": {},
+    }
+
+    def test_assess_success_json(self, monkeypatch, tmp_path):
+        """Test successful BPA assessment with JSON output."""
+        from typer.testing import CliRunner as _CliRunner
         from scm_cli.utils.sdk_client import scm_client
 
         config_file = tmp_path / "config.xml"
         config_file.write_text("<config><devices></devices></config>")
-
         report_file = tmp_path / "report.json"
-        fake_report = {"checks": [{"name": "test", "status": "PASS"}]}
 
         monkeypatch.setattr(
             scm_client,
@@ -310,27 +339,77 @@ class TestPostureAssessCommand:
         monkeypatch.setattr(
             scm_client,
             "fetch_bpa_report",
-            lambda **kwargs: fake_report,
+            lambda **kwargs: self.FAKE_REPORT,
         )
 
         test_app = typer.Typer()
         test_app.command()(assess_config)
 
-        result = runner.invoke(
+        result = _CliRunner(mix_stderr=False).invoke(
             test_app,
             [
                 "--config", str(config_file),
                 "--output", str(report_file),
                 "--timeout", "60",
                 "--delete-after",
+                "--format", "json",
             ],
         )
 
         assert result.exit_code == 0
+        # Raw report saved to file
         assert report_file.exists()
-        import json
-        report_data = json.loads(report_file.read_text())
-        assert "checks" in report_data
+        saved = json.loads(report_file.read_text())
+        assert "best_practices" in saved
+        # Formatted output on stdout
+        stdout_data = json.loads(result.stdout)
+        assert "score" in stdout_data
+        assert stdout_data["total"] == 1
+
+    def test_assess_success_markdown(self, monkeypatch, tmp_path):
+        """Test successful BPA assessment with Markdown output."""
+        from typer.testing import CliRunner as _CliRunner
+        from scm_cli.utils.sdk_client import scm_client
+
+        config_file = tmp_path / "config.xml"
+        config_file.write_text("<config></config>")
+        report_file = tmp_path / "report.json"
+
+        monkeypatch.setattr(
+            scm_client,
+            "initiate_bpa_upload",
+            lambda **kwargs: {
+                "task_id": "test-id",
+                "upload_url": "https://storage.googleapis.com/presigned-url",
+            },
+        )
+        monkeypatch.setattr(scm_client, "upload_config_to_presigned_url", lambda **kwargs: None)
+        monkeypatch.setattr(
+            scm_client,
+            "get_bpa_status",
+            lambda **kwargs: {
+                "status": "COMPLETED",
+                "result": {"report_url": "https://example.com/report.json"},
+            },
+        )
+        monkeypatch.setattr(scm_client, "fetch_bpa_report", lambda **kwargs: self.FAKE_REPORT)
+
+        test_app = typer.Typer()
+        test_app.command()(assess_config)
+
+        result = _CliRunner(mix_stderr=False).invoke(
+            test_app,
+            [
+                "--config", str(config_file),
+                "--output", str(report_file),
+                "--timeout", "60",
+                "--delete-after",
+                "--format", "markdown",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "## BPA Score:" in result.stdout
 
     def test_assess_config_not_found(self, runner, tmp_path):
         """Test assess with missing config file."""
@@ -342,6 +421,7 @@ class TestPostureAssessCommand:
             [
                 "--config", str(tmp_path / "nonexistent.xml"),
                 "--output", str(tmp_path / "report.json"),
+                "--format", "json",
             ],
         )
 
@@ -363,11 +443,7 @@ class TestPostureAssessCommand:
                 "upload_url": "https://storage.googleapis.com/presigned-url",
             },
         )
-        monkeypatch.setattr(
-            scm_client,
-            "upload_config_to_presigned_url",
-            lambda **kwargs: None,
-        )
+        monkeypatch.setattr(scm_client, "upload_config_to_presigned_url", lambda **kwargs: None)
         monkeypatch.setattr(
             scm_client,
             "get_bpa_status",
@@ -394,6 +470,7 @@ class TestPostureAssessCommand:
                 "--config", str(config_file),
                 "--output", str(tmp_path / "report.json"),
                 "--timeout", "300",
+                "--format", "json",
             ],
         )
 
@@ -694,9 +771,6 @@ class TestBpaReportParser:
         report = {"best_practices": {}, "information": {}}
         checks = flatten_bpa_checks(report)
         assert checks == []
-
-
-import json
 
 
 class TestBpaFormatters:
