@@ -638,6 +638,147 @@ class TestBpaReportParser:
         assert checks == []
 
 
+import json
+
+
+class TestBpaFormatters:
+    """Test BPA output formatting functions."""
+
+    SAMPLE_CHECKS = [
+        {
+            "category": "device",
+            "subcategory": "device_setup_session",
+            "check_id": 121,
+            "check_name": "Accelerated Aging should be enabled",
+            "check_type": "Informational",
+            "check_message": None,
+            "check_passed": True,
+            "remediation": None,
+        },
+        {
+            "category": "device",
+            "subcategory": "device_setup_session",
+            "check_id": 214,
+            "check_name": "TCP out-of-order queue should be disabled",
+            "check_type": "Critical",
+            "check_message": None,
+            "check_passed": True,
+            "remediation": None,
+        },
+        {
+            "category": "device",
+            "subcategory": "device_setup_secure_communication",
+            "check_id": 223,
+            "check_name": "Client communication with secure custom certificates",
+            "check_type": "Warning",
+            "check_message": "Configure Local or SCEP Certificate Type",
+            "check_passed": False,
+            "remediation": "Enable secure communication",
+        },
+        {
+            "category": "policies",
+            "subcategory": "security_rulebase",
+            "check_id": 10,
+            "check_name": "Security rules should use App-ID",
+            "check_type": "Critical",
+            "check_message": "Use application-based rules",
+            "check_passed": False,
+            "remediation": "Convert to App-ID rules",
+        },
+    ]
+
+    def test_format_json(self):
+        """Test JSON output contains score and all checks."""
+        from scm_cli.commands.posture import format_bpa_output
+
+        output = format_bpa_output(self.SAMPLE_CHECKS, fmt="json")
+        data = json.loads(output)
+        assert data["score"] == 50.0
+        assert data["passed"] == 2
+        assert data["failed"] == 2
+        assert data["total"] == 4
+        assert len(data["checks"]) == 4
+
+    def test_format_json_by_type(self):
+        """Test JSON output includes by_type breakdown."""
+        from scm_cli.commands.posture import format_bpa_output
+
+        output = format_bpa_output(self.SAMPLE_CHECKS, fmt="json")
+        data = json.loads(output)
+        assert data["by_type"]["Critical"]["total"] == 2
+        assert data["by_type"]["Critical"]["passed"] == 1
+        assert data["by_type"]["Critical"]["failed"] == 1
+        assert data["by_type"]["Warning"]["total"] == 1
+        assert data["by_type"]["Informational"]["total"] == 1
+
+    def test_format_markdown_has_sections(self):
+        """Test Markdown output has all required sections."""
+        from scm_cli.commands.posture import format_bpa_output
+
+        output = format_bpa_output(self.SAMPLE_CHECKS, fmt="markdown")
+        assert "## BPA Score: 50.0% (2/4)" in output
+        assert "### Summary by Severity" in output
+        assert "### Failing Checks (2)" in output
+        assert "### Passing Checks (2)" in output
+
+    def test_format_markdown_tables(self):
+        """Test Markdown output contains table rows."""
+        from scm_cli.commands.posture import format_bpa_output
+
+        output = format_bpa_output(self.SAMPLE_CHECKS, fmt="markdown")
+        assert "| Critical" in output
+        assert "| Warning" in output
+        assert "| Informational" in output
+        # Failing check present
+        assert "| 223 |" in output
+        # Passing check present
+        assert "| 121 |" in output
+
+    def test_format_csv(self):
+        """Test CSV output has header and data rows."""
+        from scm_cli.commands.posture import format_bpa_output
+
+        output = format_bpa_output(self.SAMPLE_CHECKS, fmt="csv")
+        lines = output.strip().split("\n")
+        assert lines[0] == "check_id,check_name,check_type,check_passed,category,subcategory,check_message,remediation"
+        assert len(lines) == 5  # header + 4 checks
+
+    def test_format_csv_quoting(self):
+        """Test CSV properly quotes fields with commas."""
+        from scm_cli.commands.posture import format_bpa_output
+
+        checks = [
+            {
+                "category": "device",
+                "subcategory": "test",
+                "check_id": 1,
+                "check_name": "Check with, comma",
+                "check_type": "Warning",
+                "check_message": "Message with, comma",
+                "check_passed": False,
+                "remediation": None,
+            },
+        ]
+        output = format_bpa_output(checks, fmt="csv")
+        lines = output.strip().split("\n")
+        assert len(lines) == 2
+        # csv module handles quoting — just verify it parses back correctly
+        import csv
+        import io
+        reader = csv.DictReader(io.StringIO(output))
+        row = next(reader)
+        assert row["check_name"] == "Check with, comma"
+
+    def test_format_empty_checks(self):
+        """Test formatting with no checks."""
+        from scm_cli.commands.posture import format_bpa_output
+
+        output = format_bpa_output([], fmt="json")
+        data = json.loads(output)
+        assert data["score"] == 0.0
+        assert data["total"] == 0
+
+
 class TestPostureRegistration:
     """Test posture command is registered in main app."""
 

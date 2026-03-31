@@ -4,6 +4,8 @@ This module implements commands for PAN-OS firewall Best Practice Assessment (BP
 including config export, BPA assessment upload, and report scoring.
 """
 
+import csv
+import io
 import json
 import os
 import time
@@ -56,6 +58,99 @@ def flatten_bpa_checks(
                     checks.append(check)
 
     return checks
+
+
+def format_bpa_output(checks: list[dict], fmt: str = "json") -> str:
+    """Format flattened BPA checks into the requested output format.
+
+    Args:
+        checks: Flattened list of BPA checks from flatten_bpa_checks.
+        fmt: Output format — 'json', 'markdown', or 'csv'.
+
+    Returns:
+        str: Formatted output string.
+
+    """
+    total = len(checks)
+    passed = sum(1 for c in checks if c.get("check_passed"))
+    failed = total - passed
+    score = round((passed / total) * 100, 1) if total > 0 else 0.0
+
+    # Build by_type breakdown
+    by_type: dict[str, dict[str, int]] = {}
+    for c in checks:
+        ct = c.get("check_type", "Unknown")
+        if ct not in by_type:
+            by_type[ct] = {"total": 0, "passed": 0, "failed": 0}
+        by_type[ct]["total"] += 1
+        if c.get("check_passed"):
+            by_type[ct]["passed"] += 1
+        else:
+            by_type[ct]["failed"] += 1
+
+    if fmt == "json":
+        data = {
+            "score": score,
+            "total": total,
+            "passed": passed,
+            "failed": failed,
+            "by_type": by_type,
+            "checks": checks,
+        }
+        return json.dumps(data, indent=2)
+
+    if fmt == "markdown":
+        lines = [
+            f"## BPA Score: {score}% ({passed}/{total})",
+            "",
+            "### Summary by Severity",
+            "| Severity | Passed | Failed | Total |",
+            "|---|---|---|---|",
+        ]
+        for severity in ["Critical", "Warning", "Informational"]:
+            if severity in by_type:
+                s = by_type[severity]
+                lines.append(f"| {severity} | {s['passed']} | {s['failed']} | {s['total']} |")
+
+        failing = [c for c in checks if not c.get("check_passed")]
+        passing = [c for c in checks if c.get("check_passed")]
+
+        lines.append("")
+        lines.append(f"### Failing Checks ({len(failing)})")
+        lines.append("| ID | Name | Severity | Category | Message |")
+        lines.append("|---|---|---|---|---|")
+        for c in failing:
+            msg = c.get("check_message") or ""
+            lines.append(f"| {c['check_id']} | {c['check_name']} | {c['check_type']} | {c['category']} | {msg} |")
+
+        lines.append("")
+        lines.append(f"### Passing Checks ({len(passing)})")
+        lines.append("| ID | Name | Severity | Category |")
+        lines.append("|---|---|---|---|")
+        for c in passing:
+            lines.append(f"| {c['check_id']} | {c['check_name']} | {c['check_type']} | {c['category']} |")
+
+        return "\n".join(lines)
+
+    if fmt == "csv":
+        output = io.StringIO()
+        fieldnames = [
+            "check_id",
+            "check_name",
+            "check_type",
+            "check_passed",
+            "category",
+            "subcategory",
+            "check_message",
+            "remediation",
+        ]
+        writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+        writer.writeheader()
+        for c in checks:
+            writer.writerow(c)
+        return output.getvalue()
+
+    raise ValueError(f"Unknown format: {fmt}")
 
 
 # ===============================================================================================================================================================================================
