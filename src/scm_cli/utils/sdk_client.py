@@ -6,6 +6,7 @@ dynaconf settings.
 """
 
 import contextlib
+import gzip
 import json
 import logging
 import requests
@@ -15955,7 +15956,12 @@ class SCMClient:
 
         """
         self.logger.info("Uploading config to presigned URL")
-        response = requests.put(upload_url, data=config_data, headers={"Content-Type": "application/octet-stream"})
+        compressed = gzip.compress(config_data)
+        headers = {
+            "Content-Type": "plain/text",
+            "Content-Encoding": "gzip",
+        }
+        response = requests.put(upload_url, data=compressed, headers=headers)
         response.raise_for_status()
 
     def get_bpa_status(self, task_id: str) -> dict[str, Any]:
