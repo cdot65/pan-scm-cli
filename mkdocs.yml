@@ -164,6 +164,7 @@ nav:
       - Jobs: cli/jobs.md
       - Commit: cli/commit.md
       - Insights: cli/insights.md
+      - Posture: cli/posture.md
   - User Guide:
       - Getting Started: guide/getting-started.md
       - Configuration: guide/configuration.md
