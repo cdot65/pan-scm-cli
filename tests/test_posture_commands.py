@@ -2,6 +2,7 @@
 
 import gzip
 import json
+
 import pytest
 from pydantic import ValidationError
 
@@ -102,8 +103,9 @@ class TestBpaStatusResponseValidator:
             BpaStatusResponse(status="UNKNOWN")
 
 
-import typer
 from unittest.mock import MagicMock, patch
+
+import typer
 
 
 class TestSCMClientPostureMethods:
@@ -309,6 +311,7 @@ class TestPostureAssessCommand:
     def test_assess_success_json(self, monkeypatch, tmp_path):
         """Test successful BPA assessment with JSON output."""
         from typer.testing import CliRunner as _CliRunner
+
         from scm_cli.utils.sdk_client import scm_client
 
         config_file = tmp_path / "config.xml"
@@ -369,6 +372,7 @@ class TestPostureAssessCommand:
     def test_assess_success_markdown(self, monkeypatch, tmp_path):
         """Test successful BPA assessment with Markdown output."""
         from typer.testing import CliRunner as _CliRunner
+
         from scm_cli.utils.sdk_client import scm_client
 
         config_file = tmp_path / "config.xml"
@@ -430,6 +434,7 @@ class TestPostureAssessCommand:
     def test_assess_timeout(self, runner, monkeypatch, tmp_path):
         """Test assess times out correctly."""
         import time as time_module
+
         from scm_cli.utils.sdk_client import scm_client
 
         config_file = tmp_path / "config.xml"
