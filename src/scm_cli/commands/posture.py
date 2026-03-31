@@ -370,7 +370,7 @@ def assess_config(
         time.sleep(poll_interval)
 
     # Step 4: Fetch report
-    report_url = status.result["report_url"]
+    report_url = status.result["report_url"]  # type: ignore[index]
     typer.echo("Fetching report...", err=True)
     report = scm_client.fetch_bpa_report(report_url=report_url)
 
