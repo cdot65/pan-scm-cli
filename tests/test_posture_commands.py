@@ -401,46 +401,62 @@ class TestPostureAssessCommand:
 
 
 class TestPostureScoreCommand:
-    """Test the posture score command."""
+    """Test the posture score command with real BPA schema."""
 
-    def test_score_plain_output(self, runner, tmp_path):
-        """Test score with plain output format."""
-        import json
-
-        report_file = tmp_path / "report.json"
-        report_data = {
-            "checks": [
-                {"name": "check-1", "status": "PASS", "category": "security"},
-                {"name": "check-2", "status": "FAIL", "category": "security"},
-                {"name": "check-3", "status": "PASS", "category": "security"},
-                {"name": "check-4", "status": "PASS", "category": "decryption"},
-            ]
-        }
-        report_file.write_text(json.dumps(report_data))
-
-        test_app = typer.Typer()
-        test_app.command()(score_report)
-
-        result = runner.invoke(
-            test_app,
-            ["--report", str(report_file), "--scope", "all", "--format", "plain"],
-        )
-
-        assert result.exit_code == 0
-        assert "75.0" in result.stdout
+    SAMPLE_REPORT = {
+        "information": {"bpa_version": "26.3.6"},
+        "best_practices": {
+            "device": {
+                "device_setup_session": [
+                    {
+                        "configuration": {},
+                        "warnings": [
+                            {
+                                "check_id": 121,
+                                "check_name": "Accelerated Aging should be enabled",
+                                "check_type": "Informational",
+                                "check_message": None,
+                                "check_passed": True,
+                                "uuid": None,
+                                "remediation": None,
+                                "user_excluded": False,
+                                "check_excluded": False,
+                            },
+                        ],
+                        "notes": [],
+                    }
+                ],
+            },
+            "policies": {
+                "security_rulebase": [
+                    {
+                        "configuration": {},
+                        "warnings": [
+                            {
+                                "check_id": 10,
+                                "check_name": "Security rules should use App-ID",
+                                "check_type": "Critical",
+                                "check_message": "Use application-based rules",
+                                "check_passed": False,
+                                "uuid": None,
+                                "remediation": "Convert to App-ID rules",
+                                "user_excluded": False,
+                                "check_excluded": False,
+                            },
+                        ],
+                        "notes": [],
+                    }
+                ],
+            },
+        },
+        "adoption": {},
+        "adoption_summary": {},
+    }
 
     def test_score_json_output(self, runner, tmp_path):
         """Test score with JSON output format."""
-        import json
-
         report_file = tmp_path / "report.json"
-        report_data = {
-            "checks": [
-                {"name": "check-1", "status": "PASS", "category": "security"},
-                {"name": "check-2", "status": "FAIL", "category": "security"},
-            ]
-        }
-        report_file.write_text(json.dumps(report_data))
+        report_file.write_text(json.dumps(self.SAMPLE_REPORT))
 
         test_app = typer.Typer()
         test_app.command()(score_report)
@@ -457,32 +473,59 @@ class TestPostureScoreCommand:
         assert output["failed"] == 1
         assert output["total"] == 2
 
-    def test_score_security_scope(self, runner, tmp_path):
-        """Test score filtered to security scope only."""
-        import json
-
+    def test_score_markdown_output(self, runner, tmp_path):
+        """Test score with Markdown output format."""
         report_file = tmp_path / "report.json"
-        report_data = {
-            "checks": [
-                {"name": "check-1", "status": "PASS", "category": "security"},
-                {"name": "check-2", "status": "FAIL", "category": "security"},
-                {"name": "check-3", "status": "PASS", "category": "decryption"},
-            ]
-        }
-        report_file.write_text(json.dumps(report_data))
+        report_file.write_text(json.dumps(self.SAMPLE_REPORT))
 
         test_app = typer.Typer()
         test_app.command()(score_report)
 
         result = runner.invoke(
             test_app,
-            ["--report", str(report_file), "--scope", "security", "--format", "json"],
+            ["--report", str(report_file), "--scope", "all", "--format", "markdown"],
+        )
+
+        assert result.exit_code == 0
+        assert "## BPA Score: 50.0% (1/2)" in result.stdout
+        assert "### Failing Checks (1)" in result.stdout
+        assert "### Passing Checks (1)" in result.stdout
+
+    def test_score_csv_output(self, runner, tmp_path):
+        """Test score with CSV output format."""
+        report_file = tmp_path / "report.json"
+        report_file.write_text(json.dumps(self.SAMPLE_REPORT))
+
+        test_app = typer.Typer()
+        test_app.command()(score_report)
+
+        result = runner.invoke(
+            test_app,
+            ["--report", str(report_file), "--scope", "all", "--format", "csv"],
+        )
+
+        assert result.exit_code == 0
+        lines = result.stdout.strip().split("\n")
+        assert lines[0] == "check_id,check_name,check_type,check_passed,category,subcategory,check_message,remediation"
+        assert len(lines) == 3  # header + 2 checks
+
+    def test_score_scope_filter(self, runner, tmp_path):
+        """Test score filtered to policies scope only."""
+        report_file = tmp_path / "report.json"
+        report_file.write_text(json.dumps(self.SAMPLE_REPORT))
+
+        test_app = typer.Typer()
+        test_app.command()(score_report)
+
+        result = runner.invoke(
+            test_app,
+            ["--report", str(report_file), "--scope", "policies", "--format", "json"],
         )
 
         assert result.exit_code == 0
         output = json.loads(result.stdout)
-        assert output["score"] == 50.0
-        assert output["total"] == 2
+        assert output["total"] == 1
+        assert output["score"] == 0.0
 
     def test_score_report_not_found(self, runner, tmp_path):
         """Test score with missing report file."""
@@ -491,7 +534,22 @@ class TestPostureScoreCommand:
 
         result = runner.invoke(
             test_app,
-            ["--report", str(tmp_path / "nonexistent.json"), "--format", "plain"],
+            ["--report", str(tmp_path / "nonexistent.json"), "--format", "json"],
+        )
+
+        assert result.exit_code == 1
+
+    def test_score_empty_scope(self, runner, tmp_path):
+        """Test score with scope that has no checks."""
+        report_file = tmp_path / "report.json"
+        report_file.write_text(json.dumps(self.SAMPLE_REPORT))
+
+        test_app = typer.Typer()
+        test_app.command()(score_report)
+
+        result = runner.invoke(
+            test_app,
+            ["--report", str(report_file), "--scope", "network", "--format", "json"],
         )
 
         assert result.exit_code == 1

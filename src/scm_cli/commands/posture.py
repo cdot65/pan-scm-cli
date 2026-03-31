@@ -214,12 +214,12 @@ REPORT_OPTION = typer.Option(
 SCOPE_OPTION = typer.Option(
     "all",
     "--scope",
-    help="BPA check scope (all, security, decryption, threat)",
+    help="BPA check scope (all, device, service_health, network, policies, objects)",
 )
 FORMAT_OPTION = typer.Option(
-    "plain",
+    "json",
     "--format",
-    help="Output format (plain or json)",
+    help="Output format (json, markdown, csv)",
 )
 
 # ===============================================================================================================================================================================================
@@ -386,21 +386,18 @@ def score_report(
     scope: str = SCOPE_OPTION,
     format: str = FORMAT_OPTION,
 ):
-    r"""Parse BPA report JSON and return a numeric score.
+    r"""Parse BPA report JSON and output scored results.
 
-    The score is the percentage of checks that passed. Use --scope to filter
+    Reads the nested best_practices structure, flattens all checks, and
+    outputs scored results in the requested format. Use --scope to filter
     by category and --format to control output.
-
-    Note: The report JSON schema is discovered at runtime from the first real
-    BPA run. The scoring logic assumes checks have 'name', 'status', and
-    'category' fields. Adjust after inspecting a real report.
 
     Example:
     -------
         scm posture score \
         --report report.json \
-        --scope security \
-        --format plain
+        --scope device \
+        --format json
 
     """
     report_path = Path(report)
@@ -409,23 +406,10 @@ def score_report(
         raise typer.Exit(code=1)
 
     report_data = json.loads(report_path.read_text())
-
-    checks = report_data.get("checks", [])
-
-    if scope != "all":
-        checks = [c for c in checks if c.get("category") == scope]
+    checks = flatten_bpa_checks(report_data, scope=scope)
 
     if not checks:
         typer.echo("Error: no checks found for the given scope", err=True)
         raise typer.Exit(code=1)
 
-    total = len(checks)
-    passed = sum(1 for c in checks if c.get("status") == "PASS")
-    failed = total - passed
-    score = round((passed / total) * 100, 1)
-
-    if format == "json":
-        output = json.dumps({"score": score, "passed": passed, "failed": failed, "total": total})
-        typer.echo(output)
-    else:
-        typer.echo(str(score))
+    typer.echo(format_bpa_output(checks, fmt=format))
