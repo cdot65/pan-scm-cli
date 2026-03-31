@@ -299,8 +299,12 @@ def assess_config(
     delete_after: bool = DELETE_AFTER_OPTION,
     output: str = typer.Option("report.json", "--output", help="Output file path for report"),
     timeout: int = TIMEOUT_OPTION,
+    format: str = FORMAT_OPTION,
 ):
-    r"""Upload config to BPA API, poll for completion, and save report.
+    r"""Upload config to BPA API, poll for completion, and output scored results.
+
+    Saves the raw BPA report to --output and prints formatted results to stdout.
+    Progress messages go to stderr so stdout can be piped cleanly.
 
     Example:
     -------
@@ -308,6 +312,7 @@ def assess_config(
         --config config.xml \
         --delete-after \
         --output report.json \
+        --format json \
         --timeout 300
 
     """
@@ -369,9 +374,17 @@ def assess_config(
     typer.echo("Fetching report...", err=True)
     report = scm_client.fetch_bpa_report(report_url=report_url)
 
+    # Save raw report
     output_path = Path(assess_params.output)
     output_path.write_text(json.dumps(report, indent=2))
-    typer.echo(f"BPA report saved to {output_path}")
+    typer.echo(f"BPA report saved to {output_path}", err=True)
+
+    # Output formatted results to stdout
+    checks = flatten_bpa_checks(report)
+    if checks:
+        typer.echo(format_bpa_output(checks, fmt=format))
+    else:
+        typer.echo("Warning: no checks found in report", err=True)
 
 
 # ===============================================================================================================================================================================================
