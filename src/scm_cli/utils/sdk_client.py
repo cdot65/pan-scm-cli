@@ -9,11 +9,11 @@ import contextlib
 import gzip
 import json
 import logging
-import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any, NoReturn
 
+import requests
 from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 from pydantic import ValidationError
 from scm.client import Scm
