@@ -16,6 +16,49 @@ from ..utils.sdk_client import scm_client
 from ..utils.validators import BpaAssessRequest, BpaStatusResponse, PostureExport
 
 # ===============================================================================================================================================================================================
+# PARSER FUNCTIONS
+# ===============================================================================================================================================================================================
+
+
+def flatten_bpa_checks(
+    report: dict,
+    scope: str = "all",
+) -> list[dict]:
+    """Flatten nested BPA report into a list of checks with category metadata.
+
+    Args:
+        report: Raw BPA report dict.
+        scope: Category filter — 'all' or a specific category name.
+
+    Returns:
+        list[dict]: Flattened checks with category and subcategory attached.
+
+    """
+    checks = []
+    best_practices = report.get("best_practices", {})
+
+    for category, subcategories in best_practices.items():
+        if scope != "all" and category != scope:
+            continue
+        for subcategory, items in subcategories.items():
+            for item in items:
+                for warning in item.get("warnings", []):
+                    check = {
+                        "category": category,
+                        "subcategory": subcategory,
+                        "check_id": warning.get("check_id"),
+                        "check_name": warning.get("check_name"),
+                        "check_type": warning.get("check_type"),
+                        "check_message": warning.get("check_message"),
+                        "check_passed": warning.get("check_passed"),
+                        "remediation": warning.get("remediation"),
+                    }
+                    checks.append(check)
+
+    return checks
+
+
+# ===============================================================================================================================================================================================
 # TYPER APP CONFIGURATION
 # ===============================================================================================================================================================================================
 

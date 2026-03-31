@@ -497,6 +497,147 @@ class TestPostureScoreCommand:
         assert result.exit_code == 1
 
 
+class TestBpaReportParser:
+    """Test the BPA report parsing and flattening logic."""
+
+    SAMPLE_REPORT = {
+        "information": {
+            "bpa_version": "26.3.6",
+            "platform": "ngfw",
+        },
+        "best_practices": {
+            "device": {
+                "device_setup_session": [
+                    {
+                        "configuration": {},
+                        "warnings": [
+                            {
+                                "check_id": 121,
+                                "check_name": "Accelerated Aging should be enabled",
+                                "check_type": "Informational",
+                                "check_message": None,
+                                "check_passed": True,
+                                "uuid": None,
+                                "remediation": None,
+                                "user_excluded": False,
+                                "check_excluded": False,
+                            },
+                            {
+                                "check_id": 214,
+                                "check_name": "TCP out-of-order queue should be disabled",
+                                "check_type": "Critical",
+                                "check_message": None,
+                                "check_passed": True,
+                                "uuid": None,
+                                "remediation": None,
+                                "user_excluded": False,
+                                "check_excluded": False,
+                            },
+                        ],
+                        "notes": [],
+                    }
+                ],
+                "device_setup_secure_communication": [
+                    {
+                        "configuration": {},
+                        "warnings": [
+                            {
+                                "check_id": 223,
+                                "check_name": "Client communication with secure custom certificates",
+                                "check_type": "Warning",
+                                "check_message": "Configure Local or SCEP Certificate Type",
+                                "check_passed": False,
+                                "uuid": None,
+                                "remediation": "Enable secure communication",
+                                "user_excluded": False,
+                                "check_excluded": False,
+                            },
+                        ],
+                        "notes": [],
+                    }
+                ],
+            },
+            "policies": {
+                "security_rulebase": [
+                    {
+                        "configuration": {},
+                        "warnings": [
+                            {
+                                "check_id": 10,
+                                "check_name": "Security rules should use App-ID",
+                                "check_type": "Critical",
+                                "check_message": "Use application-based rules",
+                                "check_passed": False,
+                                "uuid": None,
+                                "remediation": "Convert to App-ID rules",
+                                "user_excluded": False,
+                                "check_excluded": False,
+                            },
+                        ],
+                        "notes": [],
+                    }
+                ],
+            },
+        },
+        "adoption": {},
+        "adoption_summary": {},
+    }
+
+    def test_flatten_all_checks(self):
+        """Test flattening all checks from nested structure."""
+        from scm_cli.commands.posture import flatten_bpa_checks
+
+        checks = flatten_bpa_checks(self.SAMPLE_REPORT)
+        assert len(checks) == 4
+
+    def test_flatten_preserves_category(self):
+        """Test that category and subcategory are attached."""
+        from scm_cli.commands.posture import flatten_bpa_checks
+
+        checks = flatten_bpa_checks(self.SAMPLE_REPORT)
+        device_checks = [c for c in checks if c["category"] == "device"]
+        policy_checks = [c for c in checks if c["category"] == "policies"]
+        assert len(device_checks) == 3
+        assert len(policy_checks) == 1
+
+    def test_flatten_preserves_fields(self):
+        """Test that all check fields are preserved."""
+        from scm_cli.commands.posture import flatten_bpa_checks
+
+        checks = flatten_bpa_checks(self.SAMPLE_REPORT)
+        check_223 = next(c for c in checks if c["check_id"] == 223)
+        assert check_223["check_name"] == "Client communication with secure custom certificates"
+        assert check_223["check_type"] == "Warning"
+        assert check_223["check_passed"] is False
+        assert check_223["category"] == "device"
+        assert check_223["subcategory"] == "device_setup_secure_communication"
+        assert check_223["check_message"] == "Configure Local or SCEP Certificate Type"
+        assert check_223["remediation"] == "Enable secure communication"
+
+    def test_flatten_filter_by_scope(self):
+        """Test filtering checks by scope (category)."""
+        from scm_cli.commands.posture import flatten_bpa_checks
+
+        checks = flatten_bpa_checks(self.SAMPLE_REPORT, scope="policies")
+        assert len(checks) == 1
+        assert checks[0]["check_id"] == 10
+
+    def test_flatten_scope_all(self):
+        """Test scope=all returns everything."""
+        from scm_cli.commands.posture import flatten_bpa_checks
+
+        checks = flatten_bpa_checks(self.SAMPLE_REPORT, scope="all")
+        assert len(checks) == 4
+
+    def test_flatten_empty_best_practices(self):
+        """Test with empty best_practices."""
+        from scm_cli.commands.posture import flatten_bpa_checks
+
+        report = {"best_practices": {}, "information": {}}
+        checks = flatten_bpa_checks(report)
+        assert checks == []
+
+
 class TestPostureRegistration:
     """Test posture command is registered in main app."""
 
