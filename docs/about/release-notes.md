@@ -2,6 +2,26 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.2.0
+
+**Released:** March 31, 2026
+
+### Fixed
+
+- **BPA Config Upload**: Fixed broken upload to presigned GCS URL — config data is now gzip-compressed with correct headers (`Content-Type: plain/text`, `Content-Encoding: gzip`).
+- **BPA Status Validator**: Added `UPLOAD_COMPLETE` to accepted BPA processing statuses.
+
+### Changed
+
+- **BPA Report Parser**: Rewrote report parser to handle the real nested BPA schema (`best_practices` → category → subcategory → items → warnings) instead of the assumed flat `checks` array.
+- **Score Command**: Updated `--scope` filter to match real BPA categories (`all`, `device`, `service_health`, `network`, `policies`, `objects`). Updated `--format` from `plain`/`json` to `json`/`markdown`/`csv`.
+- **Assess Command**: Now outputs formatted results to stdout after saving the raw report. Added `--format` option supporting `json` (default), `markdown`, and `csv`. Progress messages go to stderr for clean piping.
+
+### Added
+
+- **Output Formats**: JSON (default, agent-friendly), Markdown (human-readable tables), and CSV (spreadsheet/pipeline) formats available on both `assess` and `score` commands.
+- **Posture Documentation**: Added CLI reference page for posture commands (`export`, `assess`, `score`).
+
 ## Version 1.0.16
 
 **Released:** March 20, 2026
