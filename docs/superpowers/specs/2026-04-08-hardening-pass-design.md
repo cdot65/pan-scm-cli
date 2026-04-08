@@ -43,20 +43,20 @@ Skip all permission checks/enforcement on Windows (`os.name == "nt"`) since POSI
 
 **File: `src/scm_cli/utils/sdk_client.py` lines 130-164**
 
-Replace all `print(..., file=sys.stderr)` calls with `typer.echo(..., err=True)`. Remove the now-unnecessary `import sys` statements in those blocks. Error messages and structure stay the same.
+Replace all `print(..., file=sys.stderr)` calls with `typer.echo(..., err=True)`. Remove the local `import sys` statements inside the two except blocks (lines 131 and 158) — do not remove any top-level `import sys` if one exists. Error messages and structure stay the same.
 
 ### 2b. `utils/context.py` — Specific exception types
 
 **File: `src/scm_cli/utils/context.py` line 57**
 
-In `get_current_context()`: replace `except Exception as e` with `except (OSError, PermissionError) as e`. Use `print(..., file=sys.stderr)` (utility module, not a command — `typer.echo` not appropriate here).
+In `get_current_context()`: replace `except Exception as e` with `except OSError as e` (`PermissionError` is a subclass of `OSError`, so this covers both). Use `print(..., file=sys.stderr)` (utility module, not a command — `typer.echo` not appropriate here).
 
 ### 2c. `commands/context.py` — Specific exception types
 
 **File: `src/scm_cli/commands/context.py`**
 
-- Line 54: `except Exception:` in `list_command` → `except (ValueError, OSError):`
-- Line 284: `except Exception:` in `current_command` → `except (ValueError, OSError):`
+- Line 54: `except Exception:` in `list_command` → `except (ValueError, OSError):` (since `PermissionError` is a subclass of `OSError`, no need to list it separately)`
+- Line 284: `except Exception:` in `current_command` → `except (ValueError, OSError):` (since `PermissionError` is a subclass of `OSError`, no need to list it separately)`
 
 ---
 
