@@ -2,6 +2,25 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.3.0
+
+**Released:** April 2026
+
+### Added
+
+- **SDK Upgrade**: Upgraded `pan-scm-sdk` from 0.12.x to 0.13.0, bringing Operations API, Incidents API, and region support.
+- **Local Config Commands**: New `scm local list` and `scm local download` commands for listing device configuration versions and downloading configs as XML.
+- **Device Operations Commands**: New `scm operations` command group with 7 operation types (route-table, fib-table, dns-proxy, interfaces, device-rules, bgp-export, logging-status) plus job status tracking. Commands default to sync mode (poll to completion) with `--async` flag for fire-and-forget.
+- **Incidents Commands**: New `scm incidents list` and `scm incidents show` commands for searching and viewing security incidents from the Unified Incident Framework. Supports filtering by status, severity, and product. `--json` flag for automation.
+- **Region Support**: Added `--region` option to `scm context create` for per-context region configuration. Added global `--region` flag to override region per-invocation. Region precedence: global flag > context > "americas" default.
+- **Timeout Handling**: Added `GatewayTimeoutError` handling with recovery instructions in error messages.
+
+### Changed
+
+- **SDK Dependency**: Updated from `^0.12.2` to `^0.13.0`.
+- **Context Schema**: Context YAML files now support an optional `region` field. Existing contexts without this field default to "americas".
+- **Type Safety**: Added `type: ignore[arg-type]` annotations for SDK model constructors affected by stricter type stubs in 0.13.0.
+
 ## Version 1.2.0
 
 **Released:** March 31, 2026
