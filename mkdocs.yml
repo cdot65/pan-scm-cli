@@ -163,6 +163,8 @@ nav:
           - SDK Reference: cli/mobile-agent/sdk-mobile-agent.md
       - Local Config:
           - Overview: cli/local/index.md
+      - Operations:
+          - Overview: cli/operations/index.md
       - Jobs: cli/jobs.md
       - Commit: cli/commit.md
       - Insights: cli/insights.md
