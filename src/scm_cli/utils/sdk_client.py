@@ -16074,6 +16074,116 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("downloading", "N/A", f"local config v{version} for {device}", e)
 
+    # =============================================================================================================================================================================================
+    # DEVICE OPERATIONS METHODS
+    # =============================================================================================================================================================================================
+
+    _OPERATION_MOCK_RESULTS = {
+        "route-table": [
+            {"destination": "0.0.0.0/0", "next_hop": "10.0.0.1", "interface": "ethernet1/1", "metric": 10},
+            {"destination": "10.1.0.0/16", "next_hop": "10.0.0.2", "interface": "ethernet1/2", "metric": 20},
+        ],
+        "fib-table": [
+            {"destination": "0.0.0.0/0", "interface": "ethernet1/1", "next_hop": "10.0.0.1", "flags": "u"},
+        ],
+        "dns-proxy": [
+            {"domain": "example.com", "primary": "8.8.8.8", "secondary": "8.8.4.4", "status": "active"},
+        ],
+        "interfaces": [
+            {"name": "ethernet1/1", "status": "up", "ip": "10.0.0.1/24", "speed": "1Gbps"},
+            {"name": "ethernet1/2", "status": "up", "ip": "10.1.0.1/24", "speed": "1Gbps"},
+        ],
+        "device-rules": [
+            {"name": "allow-web", "action": "allow", "from": "trust", "to": "untrust"},
+        ],
+        "bgp-export": [
+            {"prefix": "10.0.0.0/8", "next_hop": "10.0.0.1", "as_path": "65001 65002"},
+        ],
+        "logging-status": [
+            {"service": "cortex-data-lake", "status": "connected", "last_log": "2026-04-16 10:30:00"},
+        ],
+    }
+
+    def dispatch_device_operation(
+        self,
+        device: str,
+        operation: str,
+        sync: bool = True,
+        timeout: int = 300,
+    ) -> dict[str, Any]:
+        """Dispatch a device operation job.
+
+        Args:
+            device: Device name to run operation on.
+            operation: Operation type (route-table, fib-table, etc.).
+            sync: If True, poll until completion. If False, return job_id immediately.
+            timeout: Timeout in seconds for sync polling.
+
+        Returns:
+            dict: Results if sync, or job_id if async.
+
+        """
+        self.logger.info(f"Dispatching {operation} for device {device} (sync={sync})")
+
+        if not self.client:
+            if sync:
+                return {
+                    "status": "completed",
+                    "job_id": f"mock-job-{operation}",
+                    "device": device,
+                    "operation": operation,
+                    "results": self._OPERATION_MOCK_RESULTS.get(operation, []),
+                }
+            return {
+                "job_id": f"mock-job-{operation}",
+                "device": device,
+                "operation": operation,
+                "status": "pending",
+            }
+
+        try:
+            job = self.client.device_operations.dispatch(
+                device=device,
+                operation=operation,
+            )
+            if sync:
+                result = self.client.device_operations.wait(
+                    job_id=job.job_id,
+                    timeout=timeout,
+                )
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            return {"job_id": job.job_id, "device": device, "operation": operation, "status": "pending"}
+        except Exception as e:
+            self._handle_api_exception("dispatching", "N/A", f"{operation} for {device}", e)
+
+    def get_device_operation_status(self, job_id: str) -> dict[str, Any]:
+        """Get status of a device operation job.
+
+        Args:
+            job_id: The job ID to check.
+
+        Returns:
+            dict: Job status information.
+
+        """
+        self.logger.info(f"Checking status of job {job_id}")
+
+        if not self.client:
+            return {
+                "job_id": job_id,
+                "state": "completed",
+                "device": "fw-01",
+                "operation": "route-table",
+                "started": "2026-04-16 10:30:00",
+                "completed": "2026-04-16 10:30:42",
+            }
+
+        try:
+            result = self.client.device_operations.status(job_id=job_id)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("checking status", "N/A", f"job {job_id}", e)
+
 
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
