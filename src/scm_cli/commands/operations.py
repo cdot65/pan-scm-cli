@@ -22,7 +22,7 @@ console = Console()
 # COMMAND OPTIONS
 # =============================================================================================================================================================================================
 
-DEVICE_OPTION = typer.Option(..., "--device", "-d", help="Device serial number")
+DEVICE_OPTION = typer.Option(..., "--device", "-d", help="Device name or serial number")
 ASYNC_OPTION = typer.Option(False, "--async", help="Return job ID without waiting for completion")
 TIMEOUT_OPTION = typer.Option(300, "--timeout", "-t", help="Sync polling timeout in seconds")
 

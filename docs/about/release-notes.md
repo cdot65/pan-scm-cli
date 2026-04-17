@@ -2,6 +2,15 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.3.2
+
+**Released:** April 2026
+
+### Fixed
+
+- **Device Name Resolution**: `scm local` and `scm operations` commands now accept device names (e.g., `austin-fw1`) in addition to serial numbers. The CLI automatically resolves device names to serial numbers via the SCM device API before dispatching operations. Serial numbers (14-15 digits) are passed through directly.
+- **SDK Model Alignment**: Updated mock data and live API calls to match actual SDK 0.13.0 Pydantic model field names for local config, device operations, and incidents.
+
 ## Version 1.3.1
 
 **Released:** April 2026

@@ -16030,6 +16030,45 @@ class SCMClient:
         return response.json()
 
     # ======================================================================================================================================================================================
+    # DEVICE SERIAL RESOLUTION
+    # ======================================================================================================================================================================================
+
+    _SERIAL_PATTERN = __import__("re").compile(r"^\d{14,15}$")
+
+    def resolve_device_serial(self, device: str) -> str:
+        """Resolve a device name or serial number to a serial number.
+
+        Args:
+            device: Device name or serial number.
+
+        Returns:
+            str: The 14-15 digit device serial number.
+
+        Raises:
+            ValueError: If the device cannot be found.
+
+        """
+        if self._SERIAL_PATTERN.match(device):
+            return device
+
+        self.logger.info(f"Resolving device name '{device}' to serial number")
+
+        if not self.client:
+            return "007951000123456"
+
+        try:
+            result = self.client.device.fetch(name=device)
+            if result is None:
+                raise ValueError(f"Device '{device}' not found in SCM")
+            serial = result.id
+            self.logger.info(f"Resolved '{device}' to serial {serial}")
+            return serial
+        except ValueError:
+            raise
+        except Exception as e:
+            self._handle_api_exception("resolving", "N/A", f"device {device}", e)
+
+    # ======================================================================================================================================================================================
     # LOCAL CONFIG METHODS
     # ======================================================================================================================================================================================
 
@@ -16037,7 +16076,7 @@ class SCMClient:
         """List configuration versions for a device.
 
         Args:
-            device: Device serial number (14-15 digits).
+            device: Device name or serial number (resolved automatically).
 
         Returns:
             list[dict[str, Any]]: List of config version objects.
@@ -16047,13 +16086,14 @@ class SCMClient:
 
         if not self.client:
             return [
-                {"id": "cfg-001", "serial": device, "local_version": "42", "timestamp": "2026-04-15T14:30:00Z", "xfmed_version": "42", "md5": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"},
-                {"id": "cfg-002", "serial": device, "local_version": "41", "timestamp": "2026-04-14T09:12:00Z", "xfmed_version": "41", "md5": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"},
-                {"id": "cfg-003", "serial": device, "local_version": "40", "timestamp": "2026-04-13T11:45:00Z", "xfmed_version": "40", "md5": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"},
+                {"id": "cfg-001", "serial": "007951000123456", "local_version": "42", "timestamp": "2026-04-15T14:30:00Z", "xfmed_version": "42", "md5": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"},
+                {"id": "cfg-002", "serial": "007951000123456", "local_version": "41", "timestamp": "2026-04-14T09:12:00Z", "xfmed_version": "41", "md5": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"},
+                {"id": "cfg-003", "serial": "007951000123456", "local_version": "40", "timestamp": "2026-04-13T11:45:00Z", "xfmed_version": "40", "md5": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"},
             ]
 
         try:
-            results = self.client.local_config.list_versions(device=device)
+            serial = self.resolve_device_serial(device)
+            results = self.client.local_config.list_versions(device=serial)
             return [json.loads(r.model_dump_json(exclude_unset=True)) for r in results]
         except Exception as e:
             self._handle_api_exception("listing", "N/A", f"local config versions for {device}", e)
@@ -16062,8 +16102,8 @@ class SCMClient:
         """Download a configuration version as raw XML.
 
         Args:
-            device: Device serial number (14-15 digits).
-            version: Config version number to download.
+            device: Device name or serial number (resolved automatically).
+            version: Config version ID to download.
 
         Returns:
             bytes: Raw XML configuration data.
@@ -16075,7 +16115,8 @@ class SCMClient:
             return b'<?xml version="1.0"?>\n<config version="42">\n  <devices>\n    <entry name="fw-01">\n      <vsys/>\n    </entry>\n  </devices>\n</config>'
 
         try:
-            return self.client.local_config.download(device=device, version=version)
+            serial = self.resolve_device_serial(device)
+            return self.client.local_config.download(device=serial, version=version)
         except Exception as e:
             self._handle_api_exception("downloading", "N/A", f"local config v{version} for {device}", e)
 
@@ -16119,7 +16160,7 @@ class SCMClient:
         """Dispatch a device operation job.
 
         Args:
-            device: Device serial number (14-15 digits).
+            device: Device name or serial number (resolved automatically).
             operation: Operation type (route-table, fib-table, etc.).
             sync: If True, poll until completion. If False, return job_id immediately.
             timeout: Timeout in seconds for sync polling.
@@ -16147,6 +16188,7 @@ class SCMClient:
             }
 
         try:
+            serial = self.resolve_device_serial(device)
             op_method_map = {
                 "route-table": "route_table",
                 "fib-table": "fib_table",
@@ -16158,7 +16200,7 @@ class SCMClient:
             }
             method_name = op_method_map.get(operation, operation.replace("-", "_"))
             method = getattr(self.client.device_operations, method_name)
-            result = method(devices=[device], sync=sync, timeout=timeout)
+            result = method(devices=[serial], sync=sync, timeout=timeout)
             result_dict = json.loads(result.model_dump_json(exclude_unset=True))
             if sync:
                 result_dict["status"] = "completed"
