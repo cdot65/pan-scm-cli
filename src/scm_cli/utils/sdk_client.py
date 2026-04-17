@@ -17,7 +17,7 @@ import requests
 from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 from pydantic import ValidationError
 from scm.client import Scm
-from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
+from scm.exceptions import APIError, AuthenticationError, ClientError, GatewayTimeoutError, NotFoundError
 
 from .config import get_credentials, settings
 from .context import get_current_context
@@ -271,6 +271,12 @@ class SCMClient:
             self.logger.error(f"SDK service not available for {resource_name}: {str(exception)}. This feature may not be implemented in the current pan-scm-sdk version.")
         elif isinstance(exception, ClientError):
             self.logger.error(f"Validation error during {operation} of {resource_name}: {str(exception)}")
+        elif isinstance(exception, GatewayTimeoutError):
+            self.logger.error(
+                f"Request timed out during {operation} of {resource_name}: {str(exception)}. "
+                "The operation may still be processing on the server. "
+                "Retry after a brief wait or check the SCM portal for current status."
+            )
         elif isinstance(exception, APIError):
             self.logger.error(f"API error during {operation} of {resource_name}: {str(exception)}")
         else:
