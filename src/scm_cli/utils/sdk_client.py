@@ -16036,10 +16036,10 @@ class SCMClient:
     _SERIAL_PATTERN = __import__("re").compile(r"^\d{14,15}$")
 
     def resolve_device_serial(self, device: str) -> str:
-        """Resolve a device name or serial number to a serial number.
+        """Resolve a device name, hostname, or serial number to a serial number.
 
         Args:
-            device: Device name or serial number.
+            device: Device hostname, display name, or serial number.
 
         Returns:
             str: The 14-15 digit device serial number.
@@ -16057,12 +16057,14 @@ class SCMClient:
             return "007951000123456"
 
         try:
-            result = self.client.device.fetch(name=device)
-            if result is None:
-                raise ValueError(f"Device '{device}' not found in SCM")
-            serial = result.id
-            self.logger.info(f"Resolved '{device}' to serial {serial}")
-            return serial
+            all_devices = self.client.device.list()
+            search = device.lower()
+            for d in all_devices:
+                if any(search == (getattr(d, field, None) or "").lower() for field in ("hostname", "display_name", "name", "serial_number")):
+                    self.logger.info(f"Resolved '{device}' to serial {d.id}")
+                    return d.id
+            available = [f"  {d.hostname or d.display_name or d.name} ({d.id})" for d in all_devices]
+            raise ValueError(f"Device '{device}' not found. Available devices:\n" + "\n".join(available))
         except ValueError:
             raise
         except Exception as e:

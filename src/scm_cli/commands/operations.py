@@ -73,6 +73,17 @@ def _run_operation(device: str, operation: str, async_mode: bool, timeout: int) 
 
         console.print(table)
 
+    except ValueError as e:
+        if "Invalid error response format" in str(e):
+            typer.echo(
+                f"Error: The Operations API returned 404 for {operation}. "
+                "This API may not be available for your SCM tenant or device type. "
+                "Contact Palo Alto Networks support to verify Operations API access.",
+                err=True,
+            )
+        else:
+            typer.echo(f"Error running {operation}: {e!s}", err=True)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         typer.echo(f"Error running {operation}: {e!s}", err=True)
         raise typer.Exit(code=1) from e
