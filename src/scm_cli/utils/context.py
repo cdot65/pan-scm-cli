@@ -94,6 +94,7 @@ def create_context(
     tsg_id: str = "",
     log_level: str = "INFO",
     access_token: str | None = None,
+    region: str = "americas",
 ) -> None:
     """Create or update a context configuration.
 
@@ -105,6 +106,7 @@ def create_context(
         tsg_id: Tenant Service Group ID.
         log_level: Logging level (default: INFO).
         access_token: Bearer token for direct auth (alternative to OAuth2).
+        region: SCM API region (default: americas).
 
     """
     ensure_context_dir()
@@ -113,6 +115,7 @@ def create_context(
 
     config: dict[str, Any] = {
         "log_level": log_level,
+        "region": region,
     }
 
     if access_token:
