@@ -17,7 +17,7 @@ import requests
 from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 from pydantic import ValidationError
 from scm.client import Scm
-from scm.exceptions import APIError, AuthenticationError, ClientError, NotFoundError
+from scm.exceptions import APIError, AuthenticationError, ClientError, GatewayTimeoutError, NotFoundError
 
 from .config import get_credentials, settings
 from .context import get_current_context
@@ -97,9 +97,20 @@ class SCMClient:
                 self.client_secret = ""  # noqa: S105
                 self.tsg_id = ""
                 self._bearer_token_mode = True
+
+                # Resolve region: global flag > context > default
+                try:
+                    from scm_cli.main import get_region_override
+
+                    region_override = get_region_override()
+                except ImportError:
+                    region_override = None
+                resolved_region = region_override or settings.get("region", "americas")
+
                 self.client = Scm(
                     access_token=access_token,
                     log_level=settings.get("log_level", "INFO"),
+                    region=resolved_region,
                 )
                 self.logger.info("Successfully initialized SDK client with bearer token")
             else:
@@ -109,11 +120,21 @@ class SCMClient:
                 self.client_secret = credentials["client_secret"]
                 self.tsg_id = credentials["tsg_id"]
 
+                # Resolve region: global flag > context > default
+                try:
+                    from scm_cli.main import get_region_override
+
+                    region_override = get_region_override()
+                except ImportError:
+                    region_override = None
+                resolved_region = region_override or credentials.get("region", "americas")
+
                 self.client = Scm(
                     client_id=self.client_id,
                     client_secret=self.client_secret,
                     tsg_id=self.tsg_id,
                     log_level=settings.get("log_level", "INFO"),
+                    region=resolved_region,
                 )
                 self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
         except (ValueError, AuthenticationError) as e:
@@ -250,6 +271,12 @@ class SCMClient:
             self.logger.error(f"SDK service not available for {resource_name}: {str(exception)}. This feature may not be implemented in the current pan-scm-sdk version.")
         elif isinstance(exception, ClientError):
             self.logger.error(f"Validation error during {operation} of {resource_name}: {str(exception)}")
+        elif isinstance(exception, GatewayTimeoutError):
+            self.logger.error(
+                f"Request timed out during {operation} of {resource_name}: {str(exception)}. "
+                "The operation may still be processing on the server. "
+                "Retry after a brief wait or check the SCM portal for current status."
+            )
         elif isinstance(exception, APIError):
             self.logger.error(f"API error during {operation} of {resource_name}: {str(exception)}")
         else:
@@ -7500,7 +7527,7 @@ class SCMClient:
                 profile_data["id"] = existing_profile.id
                 from scm.models.security import AntiSpywareProfileUpdateModel
 
-                update_model = AntiSpywareProfileUpdateModel(**profile_data)
+                update_model = AntiSpywareProfileUpdateModel(**profile_data)  # type: ignore[arg-type]
                 result = self.client.anti_spyware_profile.update(update_model)
             else:
                 # Create a new profile
@@ -8031,7 +8058,7 @@ class SCMClient:
                 profile_data["id"] = existing_profile.id
                 from scm.models.security import WildfireAvProfileUpdateModel
 
-                update_model = WildfireAvProfileUpdateModel(**profile_data)
+                update_model = WildfireAvProfileUpdateModel(**profile_data)  # type: ignore[arg-type]
                 result = self.client.wildfire_antivirus_profile.update(update_model)
             else:
                 # Create a new profile
@@ -8601,7 +8628,7 @@ class SCMClient:
                 profile_data["id"] = existing_profile.id
                 from scm.models.security import VulnerabilityProfileUpdateModel
 
-                update_model = VulnerabilityProfileUpdateModel(**profile_data)
+                update_model = VulnerabilityProfileUpdateModel(**profile_data)  # type: ignore[arg-type]
                 result = self.client.vulnerability_protection_profile.update(update_model)
             else:
                 # Create a new profile
@@ -8871,7 +8898,7 @@ class SCMClient:
                 data["id"] = existing.id
                 from scm.models.security.url_categories import URLCategoriesUpdateModel
 
-                update_model = URLCategoriesUpdateModel(**data)
+                update_model = URLCategoriesUpdateModel(**data)  # type: ignore[arg-type]
                 result = self.client.url_category.update(update_model)
                 result_dict = json.loads(result.model_dump_json(exclude_unset=True))
                 result_dict["__action__"] = "updated"
@@ -10456,7 +10483,7 @@ class SCMClient:
                     }
                     if secondary:
                         update_data["secondary"] = secondary
-                    update_model = InternalDnsServersUpdateModel(**update_data)
+                    update_model = InternalDnsServersUpdateModel(**update_data)  # type: ignore[arg-type]
                     updated = self.client.internal_dns_server.update(update_model)
                     self.logger.info(f"Successfully updated internal DNS server '{name}'")
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
@@ -15996,6 +16023,274 @@ class SCMClient:
         response = session.get(report_url)
         response.raise_for_status()
         return response.json()
+
+    # ======================================================================================================================================================================================
+    # LOCAL CONFIG METHODS
+    # ======================================================================================================================================================================================
+
+    def list_local_config_versions(self, device: str) -> list[dict[str, Any]]:
+        """List configuration versions for a device.
+
+        Args:
+            device: Device name to list versions for.
+
+        Returns:
+            list[dict[str, Any]]: List of config version objects.
+
+        """
+        self.logger.info(f"Listing local config versions for device: {device}")
+
+        if not self.client:
+            return [
+                {"version": 42, "date": "2026-04-15 14:30", "author": "admin", "description": "Policy update"},
+                {"version": 41, "date": "2026-04-14 09:12", "author": "auto-commit", "description": "Scheduled push"},
+                {"version": 40, "date": "2026-04-13 11:45", "author": "admin", "description": "Initial config"},
+            ]
+
+        try:
+            results = self.client.local_config.list(device=device)
+            return [json.loads(r.model_dump_json(exclude_unset=True)) for r in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "N/A", f"local config versions for {device}", e)
+
+    def download_local_config(self, device: str, version: int) -> bytes:
+        """Download a configuration version as raw XML.
+
+        Args:
+            device: Device name.
+            version: Config version number to download.
+
+        Returns:
+            bytes: Raw XML configuration data.
+
+        """
+        self.logger.info(f"Downloading local config version {version} for device: {device}")
+
+        if not self.client:
+            return b'<?xml version="1.0"?>\n<config version="42">\n  <devices>\n    <entry name="fw-01">\n      <vsys/>\n    </entry>\n  </devices>\n</config>'
+
+        try:
+            return self.client.local_config.download(device=device, version=version)
+        except Exception as e:
+            self._handle_api_exception("downloading", "N/A", f"local config v{version} for {device}", e)
+
+    # ======================================================================================================================================================================================
+    # DEVICE OPERATIONS METHODS
+    # ======================================================================================================================================================================================
+
+    _OPERATION_MOCK_RESULTS = {
+        "route-table": [
+            {"destination": "0.0.0.0/0", "next_hop": "10.0.0.1", "interface": "ethernet1/1", "metric": 10},
+            {"destination": "10.1.0.0/16", "next_hop": "10.0.0.2", "interface": "ethernet1/2", "metric": 20},
+        ],
+        "fib-table": [
+            {"destination": "0.0.0.0/0", "interface": "ethernet1/1", "next_hop": "10.0.0.1", "flags": "u"},
+        ],
+        "dns-proxy": [
+            {"domain": "example.com", "primary": "8.8.8.8", "secondary": "8.8.4.4", "status": "active"},
+        ],
+        "interfaces": [
+            {"name": "ethernet1/1", "status": "up", "ip": "10.0.0.1/24", "speed": "1Gbps"},
+            {"name": "ethernet1/2", "status": "up", "ip": "10.1.0.1/24", "speed": "1Gbps"},
+        ],
+        "device-rules": [
+            {"name": "allow-web", "action": "allow", "from": "trust", "to": "untrust"},
+        ],
+        "bgp-export": [
+            {"prefix": "10.0.0.0/8", "next_hop": "10.0.0.1", "as_path": "65001 65002"},
+        ],
+        "logging-status": [
+            {"service": "cortex-data-lake", "status": "connected", "last_log": "2026-04-16 10:30:00"},
+        ],
+    }
+
+    def dispatch_device_operation(
+        self,
+        device: str,
+        operation: str,
+        sync: bool = True,
+        timeout: int = 300,
+    ) -> dict[str, Any]:
+        """Dispatch a device operation job.
+
+        Args:
+            device: Device name to run operation on.
+            operation: Operation type (route-table, fib-table, etc.).
+            sync: If True, poll until completion. If False, return job_id immediately.
+            timeout: Timeout in seconds for sync polling.
+
+        Returns:
+            dict: Results if sync, or job_id if async.
+
+        """
+        self.logger.info(f"Dispatching {operation} for device {device} (sync={sync})")
+
+        if not self.client:
+            if sync:
+                return {
+                    "status": "completed",
+                    "job_id": f"mock-job-{operation}",
+                    "device": device,
+                    "operation": operation,
+                    "results": self._OPERATION_MOCK_RESULTS.get(operation, []),
+                }
+            return {
+                "job_id": f"mock-job-{operation}",
+                "device": device,
+                "operation": operation,
+                "status": "pending",
+            }
+
+        try:
+            job = self.client.device_operations.dispatch(
+                device=device,
+                operation=operation,
+            )
+            if sync:
+                result = self.client.device_operations.wait(
+                    job_id=job.job_id,
+                    timeout=timeout,
+                )
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            return {"job_id": job.job_id, "device": device, "operation": operation, "status": "pending"}
+        except Exception as e:
+            self._handle_api_exception("dispatching", "N/A", f"{operation} for {device}", e)
+
+    def get_device_operation_status(self, job_id: str) -> dict[str, Any]:
+        """Get status of a device operation job.
+
+        Args:
+            job_id: The job ID to check.
+
+        Returns:
+            dict: Job status information.
+
+        """
+        self.logger.info(f"Checking status of job {job_id}")
+
+        if not self.client:
+            return {
+                "job_id": job_id,
+                "state": "completed",
+                "device": "fw-01",
+                "operation": "route-table",
+                "started": "2026-04-16 10:30:00",
+                "completed": "2026-04-16 10:30:42",
+            }
+
+        try:
+            result = self.client.device_operations.status(job_id=job_id)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("checking status", "N/A", f"job {job_id}", e)
+
+    # ======================================================================================================================================================================================
+    # INCIDENTS METHODS
+    # ======================================================================================================================================================================================
+
+    _MOCK_INCIDENTS = [
+        {
+            "id": "INC-2026-04-001",
+            "status": "open",
+            "severity": "high",
+            "product": "Prisma Access",
+            "summary": "Suspicious lateral movement detected from 10.1.2.50",
+            "created": "2026-04-15 08:23:00",
+            "updated": "2026-04-16 02:15:00",
+            "alerts": [
+                {"severity": "high", "description": "Unusual SMB traffic from 10.1.2.50 to 10.1.2.100", "timestamp": "2026-04-15 08:23"},
+                {"severity": "high", "description": "Credential dumping tool detected on 10.1.2.50", "timestamp": "2026-04-15 08:25"},
+                {"severity": "medium", "description": "DNS tunneling attempt from 10.1.2.50", "timestamp": "2026-04-15 08:30"},
+            ],
+            "remediation": [
+                "Isolate host 10.1.2.50 from network",
+                "Reset credentials for affected accounts",
+                "Scan 10.1.2.100 for indicators of compromise",
+            ],
+        },
+        {
+            "id": "INC-2026-04-002",
+            "status": "open",
+            "severity": "critical",
+            "product": "NGFW",
+            "summary": "C2 callback detected from internal host",
+            "created": "2026-04-14 16:45:00",
+            "updated": "2026-04-15 09:00:00",
+            "alerts": [
+                {"severity": "critical", "description": "Known C2 domain contacted by 10.2.1.30", "timestamp": "2026-04-14 16:45"},
+                {"severity": "high", "description": "Encrypted payload exfiltration attempt", "timestamp": "2026-04-14 16:50"},
+            ],
+            "remediation": [
+                "Block C2 domain at firewall",
+                "Isolate 10.2.1.30",
+                "Forensic analysis of affected host",
+            ],
+        },
+        {
+            "id": "INC-2026-03-088",
+            "status": "closed",
+            "severity": "medium",
+            "product": "Prisma Access",
+            "summary": "Policy violation — data exfiltration attempt",
+            "created": "2026-03-28 14:00:00",
+            "updated": "2026-03-29 11:30:00",
+            "alerts": [
+                {"severity": "medium", "description": "Large file upload to unapproved cloud storage", "timestamp": "2026-03-28 14:00"},
+            ],
+            "remediation": [
+                "User counseling completed",
+                "DLP policy updated to block unapproved storage",
+            ],
+        },
+    ]
+
+    def list_incidents(
+        self,
+        status: str | None = None,
+        severity: str | None = None,
+        product: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search incidents with optional filters."""
+        self.logger.info(f"Listing incidents (status={status}, severity={severity}, product={product})")
+
+        if not self.client:
+            results = list(self._MOCK_INCIDENTS)
+            if status:
+                results = [i for i in results if i["status"] == status]
+            if severity:
+                results = [i for i in results if i["severity"] == severity]
+            if product:
+                results = [i for i in results if i["product"] == product]
+            return results
+
+        try:
+            kwargs: dict[str, Any] = {}
+            if status:
+                kwargs["status"] = status
+            if severity:
+                kwargs["severity"] = severity
+            if product:
+                kwargs["product"] = product
+            results = self.client.incidents.search(**kwargs)
+            return [json.loads(r.model_dump_json(exclude_unset=True)) for r in results]
+        except Exception as e:
+            self._handle_api_exception("searching", "N/A", "incidents", e)
+
+    def get_incident(self, incident_id: str) -> dict[str, Any]:
+        """Get detailed incident information including alerts and remediation."""
+        self.logger.info(f"Getting incident detail: {incident_id}")
+
+        if not self.client:
+            for inc in self._MOCK_INCIDENTS:
+                if inc["id"] == incident_id:
+                    return inc
+            return self._MOCK_INCIDENTS[0]
+
+        try:
+            result = self.client.incidents.get(incident_id=incident_id)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", "N/A", f"incident {incident_id}", e)
 
 
 class LazyClient:

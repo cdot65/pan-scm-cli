@@ -7,7 +7,7 @@ various SCM configuration actions (set, delete, load) and object types.
 import typer
 
 # Import object type modules
-from .commands import commit, context, deployment, identity, insights, jobs, mobile_agent, network, objects, posture, security, setup
+from .commands import commit, context, deployment, identity, incidents, insights, jobs, local, mobile_agent, network, objects, operations, posture, security, setup
 
 # =============================================================================================================================================================================================
 # MAIN CLI APPLICATION
@@ -280,8 +280,11 @@ show_app.add_typer(
 # Register top-level commands (alphabetical)
 app.add_typer(commit.app, name="commit")
 app.add_typer(context.app, name="context")
+app.add_typer(incidents.app, name="incidents")
 app.add_typer(insights.app, name="insights")
 app.add_typer(jobs.app, name="jobs")
+app.add_typer(local.app, name="local")
+app.add_typer(operations.app, name="operations")
 app.add_typer(posture.posture_app, name="posture")
 
 
@@ -289,9 +292,22 @@ app.add_typer(posture.posture_app, name="posture")
 # Use 'scm context test' to test the current context
 # Use 'scm context test <name>' to test a specific context without switching
 
+_region_override: str | None = None
+
+
+def get_region_override() -> str | None:
+    """Get the global --region override value, if set."""
+    return _region_override
+
 
 @app.callback()
-def callback():
+def callback(
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        help="Override SCM API region for this invocation",
+    ),
+):
     """Manage Palo Alto Networks Strata Cloud Manager (SCM) configurations.
 
     The CLI follows the pattern: <action> <object-type> <object> [options]
@@ -306,7 +322,8 @@ def callback():
       - scm context test
 
     """
-    pass
+    global _region_override  # noqa: PLW0603
+    _region_override = region
 
 
 # =============================================================================================================================================================================================
