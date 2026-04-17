@@ -16030,6 +16030,45 @@ class SCMClient:
         return response.json()
 
     # ======================================================================================================================================================================================
+    # DEVICE SERIAL RESOLUTION
+    # ======================================================================================================================================================================================
+
+    _SERIAL_PATTERN = __import__("re").compile(r"^\d{14,15}$")
+
+    def resolve_device_serial(self, device: str) -> str:
+        """Resolve a device name or serial number to a serial number.
+
+        Args:
+            device: Device name or serial number.
+
+        Returns:
+            str: The 14-15 digit device serial number.
+
+        Raises:
+            ValueError: If the device cannot be found.
+
+        """
+        if self._SERIAL_PATTERN.match(device):
+            return device
+
+        self.logger.info(f"Resolving device name '{device}' to serial number")
+
+        if not self.client:
+            return "007951000123456"
+
+        try:
+            result = self.client.device.fetch(name=device)
+            if result is None:
+                raise ValueError(f"Device '{device}' not found in SCM")
+            serial = result.id
+            self.logger.info(f"Resolved '{device}' to serial {serial}")
+            return serial
+        except ValueError:
+            raise
+        except Exception as e:
+            self._handle_api_exception("resolving", "N/A", f"device {device}", e)
+
+    # ======================================================================================================================================================================================
     # LOCAL CONFIG METHODS
     # ======================================================================================================================================================================================
 
@@ -16037,7 +16076,7 @@ class SCMClient:
         """List configuration versions for a device.
 
         Args:
-            device: Device name to list versions for.
+            device: Device name or serial number (resolved automatically).
 
         Returns:
             list[dict[str, Any]]: List of config version objects.
@@ -16047,13 +16086,14 @@ class SCMClient:
 
         if not self.client:
             return [
-                {"version": 42, "date": "2026-04-15 14:30", "author": "admin", "description": "Policy update"},
-                {"version": 41, "date": "2026-04-14 09:12", "author": "auto-commit", "description": "Scheduled push"},
-                {"version": 40, "date": "2026-04-13 11:45", "author": "admin", "description": "Initial config"},
+                {"id": "cfg-001", "serial": "007951000123456", "local_version": "42", "timestamp": "2026-04-15T14:30:00Z", "xfmed_version": "42", "md5": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"},
+                {"id": "cfg-002", "serial": "007951000123456", "local_version": "41", "timestamp": "2026-04-14T09:12:00Z", "xfmed_version": "41", "md5": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"},
+                {"id": "cfg-003", "serial": "007951000123456", "local_version": "40", "timestamp": "2026-04-13T11:45:00Z", "xfmed_version": "40", "md5": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"},
             ]
 
         try:
-            results = self.client.local_config.list_versions(device=device)
+            serial = self.resolve_device_serial(device)
+            results = self.client.local_config.list_versions(device=serial)
             return [json.loads(r.model_dump_json(exclude_unset=True)) for r in results]
         except Exception as e:
             self._handle_api_exception("listing", "N/A", f"local config versions for {device}", e)
@@ -16062,8 +16102,8 @@ class SCMClient:
         """Download a configuration version as raw XML.
 
         Args:
-            device: Device name.
-            version: Config version number to download.
+            device: Device name or serial number (resolved automatically).
+            version: Config version ID to download.
 
         Returns:
             bytes: Raw XML configuration data.
@@ -16075,7 +16115,8 @@ class SCMClient:
             return b'<?xml version="1.0"?>\n<config version="42">\n  <devices>\n    <entry name="fw-01">\n      <vsys/>\n    </entry>\n  </devices>\n</config>'
 
         try:
-            return self.client.local_config.download(device=device, version=version)
+            serial = self.resolve_device_serial(device)
+            return self.client.local_config.download(device=serial, version=version)
         except Exception as e:
             self._handle_api_exception("downloading", "N/A", f"local config v{version} for {device}", e)
 
@@ -16119,7 +16160,7 @@ class SCMClient:
         """Dispatch a device operation job.
 
         Args:
-            device: Device name to run operation on.
+            device: Device name or serial number (resolved automatically).
             operation: Operation type (route-table, fib-table, etc.).
             sync: If True, poll until completion. If False, return job_id immediately.
             timeout: Timeout in seconds for sync polling.
@@ -16147,6 +16188,7 @@ class SCMClient:
             }
 
         try:
+            serial = self.resolve_device_serial(device)
             op_method_map = {
                 "route-table": "route_table",
                 "fib-table": "fib_table",
@@ -16158,7 +16200,7 @@ class SCMClient:
             }
             method_name = op_method_map.get(operation, operation.replace("-", "_"))
             method = getattr(self.client.device_operations, method_name)
-            result = method(devices=[device], sync=sync, timeout=timeout)
+            result = method(devices=[serial], sync=sync, timeout=timeout)
             result_dict = json.loads(result.model_dump_json(exclude_unset=True))
             if sync:
                 result_dict["status"] = "completed"
@@ -16188,7 +16230,7 @@ class SCMClient:
             return {
                 "job_id": job_id,
                 "state": "completed",
-                "device": "fw-01",
+                "device": "007951000123456",
                 "operation": "route-table",
                 "started": "2026-04-16 10:30:00",
                 "completed": "2026-04-16 10:30:42",
@@ -16206,57 +16248,52 @@ class SCMClient:
 
     _MOCK_INCIDENTS = [
         {
-            "id": "INC-2026-04-001",
+            "incident_id": "INC-2026-04-001",
             "status": "open",
             "severity": "high",
             "product": "Prisma Access",
-            "summary": "Suspicious lateral movement detected from 10.1.2.50",
-            "created": "2026-04-15 08:23:00",
-            "updated": "2026-04-16 02:15:00",
+            "title": "Suspicious lateral movement detected from 10.1.2.50",
+            "raised_time": 1744700580,
+            "updated_time": 1744764900,
+            "category": "lateral-movement",
             "alerts": [
-                {"severity": "high", "description": "Unusual SMB traffic from 10.1.2.50 to 10.1.2.100", "timestamp": "2026-04-15 08:23"},
-                {"severity": "high", "description": "Credential dumping tool detected on 10.1.2.50", "timestamp": "2026-04-15 08:25"},
-                {"severity": "medium", "description": "DNS tunneling attempt from 10.1.2.50", "timestamp": "2026-04-15 08:30"},
+                {"alert_id": "ALT-001", "severity": "high", "title": "Unusual SMB traffic from 10.1.2.50 to 10.1.2.100", "state": "open", "updated_time": 1744700580, "domain": "10.1.2.0/24"},
+                {"alert_id": "ALT-002", "severity": "high", "title": "Credential dumping tool detected on 10.1.2.50", "state": "open", "updated_time": 1744700700, "domain": "10.1.2.0/24"},
+                {"alert_id": "ALT-003", "severity": "medium", "title": "DNS tunneling attempt from 10.1.2.50", "state": "open", "updated_time": 1744701000, "domain": "10.1.2.0/24"},
             ],
-            "remediation": [
-                "Isolate host 10.1.2.50 from network",
-                "Reset credentials for affected accounts",
-                "Scan 10.1.2.100 for indicators of compromise",
-            ],
+            "description": "Lateral movement detected from host 10.1.2.50 involving SMB, credential dumping, and DNS tunneling.",
+            "remediations": "Isolate host 10.1.2.50 from network. Reset credentials for affected accounts. Scan 10.1.2.100 for indicators of compromise.",
         },
         {
-            "id": "INC-2026-04-002",
+            "incident_id": "INC-2026-04-002",
             "status": "open",
             "severity": "critical",
             "product": "NGFW",
-            "summary": "C2 callback detected from internal host",
-            "created": "2026-04-14 16:45:00",
-            "updated": "2026-04-15 09:00:00",
+            "title": "C2 callback detected from internal host",
+            "raised_time": 1744644300,
+            "updated_time": 1744702800,
+            "category": "command-and-control",
             "alerts": [
-                {"severity": "critical", "description": "Known C2 domain contacted by 10.2.1.30", "timestamp": "2026-04-14 16:45"},
-                {"severity": "high", "description": "Encrypted payload exfiltration attempt", "timestamp": "2026-04-14 16:50"},
+                {"alert_id": "ALT-004", "severity": "critical", "title": "Known C2 domain contacted by 10.2.1.30", "state": "open", "updated_time": 1744644300, "domain": "malware.example"},
+                {"alert_id": "ALT-005", "severity": "high", "title": "Encrypted payload exfiltration attempt", "state": "open", "updated_time": 1744644600, "domain": "10.2.1.0"},
             ],
-            "remediation": [
-                "Block C2 domain at firewall",
-                "Isolate 10.2.1.30",
-                "Forensic analysis of affected host",
-            ],
+            "description": "C2 callback and data exfiltration attempt from host 10.2.1.30.",
+            "remediations": "Block C2 domain at firewall. Isolate 10.2.1.30. Perform forensic analysis of affected host.",
         },
         {
-            "id": "INC-2026-03-088",
+            "incident_id": "INC-2026-03-088",
             "status": "closed",
             "severity": "medium",
             "product": "Prisma Access",
-            "summary": "Policy violation — data exfiltration attempt",
-            "created": "2026-03-28 14:00:00",
-            "updated": "2026-03-29 11:30:00",
+            "title": "Policy violation — data exfiltration attempt",
+            "raised_time": 1743170400,
+            "updated_time": 1743247800,
+            "category": "data-exfiltration",
             "alerts": [
-                {"severity": "medium", "description": "Large file upload to unapproved cloud storage", "timestamp": "2026-03-28 14:00"},
+                {"alert_id": "ALT-006", "severity": "medium", "title": "Large file upload to unapproved storage", "state": "closed", "updated_time": 1743170400, "domain": "cloud.example"},
             ],
-            "remediation": [
-                "User counseling completed",
-                "DLP policy updated to block unapproved storage",
-            ],
+            "description": "User uploaded large files to unapproved cloud storage service.",
+            "remediations": "User counseling completed. DLP policy updated to block unapproved storage.",
         },
     ]
 
@@ -16288,7 +16325,7 @@ class SCMClient:
             if product:
                 kwargs["product"] = [product]
             response = self.client.incidents.search(**kwargs)
-            return json.loads(response.model_dump_json(exclude_unset=True)).get("incidents", [])
+            return json.loads(response.model_dump_json(exclude_unset=True)).get("data", [])
         except Exception as e:
             self._handle_api_exception("searching", "N/A", "incidents", e)
 
@@ -16298,7 +16335,7 @@ class SCMClient:
 
         if not self.client:
             for inc in self._MOCK_INCIDENTS:
-                if inc["id"] == incident_id:
+                if inc["incident_id"] == incident_id:
                     return inc
             return self._MOCK_INCIDENTS[0]
 

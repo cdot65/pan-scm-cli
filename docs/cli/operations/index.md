@@ -8,51 +8,51 @@ All operation commands support:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--device`, `-d` | Required | Device name |
+| `--device`, `-d` | Required | Device serial number (14-15 digits) |
 | `--async` | `False` | Return job ID without waiting |
 | `--timeout`, `-t` | `300` | Sync polling timeout in seconds |
 
 ### Route Table
 
 ```bash
-scm operations route-table --device fw-01
-scm operations route-table --device fw-01 --async
+scm operations route-table --device 007951000123456
+scm operations route-table --device 007951000123456 --async
 ```
 
 ### FIB Table
 
 ```bash
-scm operations fib-table --device fw-01
+scm operations fib-table --device 007951000123456
 ```
 
 ### DNS Proxy
 
 ```bash
-scm operations dns-proxy --device fw-01
+scm operations dns-proxy --device 007951000123456
 ```
 
 ### Network Interfaces
 
 ```bash
-scm operations interfaces --device fw-01
+scm operations interfaces --device 007951000123456
 ```
 
 ### Device Rules
 
 ```bash
-scm operations device-rules --device fw-01
+scm operations device-rules --device 007951000123456
 ```
 
 ### BGP Export
 
 ```bash
-scm operations bgp-export --device fw-01
+scm operations bgp-export --device 007951000123456
 ```
 
 ### Logging Status
 
 ```bash
-scm operations logging-status --device fw-01
+scm operations logging-status --device 007951000123456
 ```
 
 ### Job Status
