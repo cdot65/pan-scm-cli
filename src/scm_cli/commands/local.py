@@ -78,7 +78,7 @@ def list_versions(
 @app.command("download")
 def download_config(
     device: str = DEVICE_OPTION,
-    version: int = typer.Option(..., "--version", "-v", help="Config version number"),
+    version: str = typer.Option(..., "--version", "-v", help="Config version number"),
     output: str | None = typer.Option(None, "--output", "-o", help="Output file path (default: stdout)"),
 ):
     """Download a device configuration version as XML.
