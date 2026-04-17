@@ -16184,6 +16184,114 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("checking status", "N/A", f"job {job_id}", e)
 
+    # =============================================================================================================================================================================================
+    # INCIDENTS METHODS
+    # =============================================================================================================================================================================================
+
+    _MOCK_INCIDENTS = [
+        {
+            "id": "INC-2026-04-001",
+            "status": "open",
+            "severity": "high",
+            "product": "Prisma Access",
+            "summary": "Suspicious lateral movement detected from 10.1.2.50",
+            "created": "2026-04-15 08:23:00",
+            "updated": "2026-04-16 02:15:00",
+            "alerts": [
+                {"severity": "high", "description": "Unusual SMB traffic from 10.1.2.50 to 10.1.2.100", "timestamp": "2026-04-15 08:23"},
+                {"severity": "high", "description": "Credential dumping tool detected on 10.1.2.50", "timestamp": "2026-04-15 08:25"},
+                {"severity": "medium", "description": "DNS tunneling attempt from 10.1.2.50", "timestamp": "2026-04-15 08:30"},
+            ],
+            "remediation": [
+                "Isolate host 10.1.2.50 from network",
+                "Reset credentials for affected accounts",
+                "Scan 10.1.2.100 for indicators of compromise",
+            ],
+        },
+        {
+            "id": "INC-2026-04-002",
+            "status": "open",
+            "severity": "critical",
+            "product": "NGFW",
+            "summary": "C2 callback detected from internal host",
+            "created": "2026-04-14 16:45:00",
+            "updated": "2026-04-15 09:00:00",
+            "alerts": [
+                {"severity": "critical", "description": "Known C2 domain contacted by 10.2.1.30", "timestamp": "2026-04-14 16:45"},
+                {"severity": "high", "description": "Encrypted payload exfiltration attempt", "timestamp": "2026-04-14 16:50"},
+            ],
+            "remediation": [
+                "Block C2 domain at firewall",
+                "Isolate 10.2.1.30",
+                "Forensic analysis of affected host",
+            ],
+        },
+        {
+            "id": "INC-2026-03-088",
+            "status": "closed",
+            "severity": "medium",
+            "product": "Prisma Access",
+            "summary": "Policy violation — data exfiltration attempt",
+            "created": "2026-03-28 14:00:00",
+            "updated": "2026-03-29 11:30:00",
+            "alerts": [
+                {"severity": "medium", "description": "Large file upload to unapproved cloud storage", "timestamp": "2026-03-28 14:00"},
+            ],
+            "remediation": [
+                "User counseling completed",
+                "DLP policy updated to block unapproved storage",
+            ],
+        },
+    ]
+
+    def list_incidents(
+        self,
+        status: str | None = None,
+        severity: str | None = None,
+        product: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Search incidents with optional filters."""
+        self.logger.info(f"Listing incidents (status={status}, severity={severity}, product={product})")
+
+        if not self.client:
+            results = list(self._MOCK_INCIDENTS)
+            if status:
+                results = [i for i in results if i["status"] == status]
+            if severity:
+                results = [i for i in results if i["severity"] == severity]
+            if product:
+                results = [i for i in results if i["product"] == product]
+            return results
+
+        try:
+            kwargs: dict[str, Any] = {}
+            if status:
+                kwargs["status"] = status
+            if severity:
+                kwargs["severity"] = severity
+            if product:
+                kwargs["product"] = product
+            results = self.client.incidents.search(**kwargs)
+            return [json.loads(r.model_dump_json(exclude_unset=True)) for r in results]
+        except Exception as e:
+            self._handle_api_exception("searching", "N/A", "incidents", e)
+
+    def get_incident(self, incident_id: str) -> dict[str, Any]:
+        """Get detailed incident information including alerts and remediation."""
+        self.logger.info(f"Getting incident detail: {incident_id}")
+
+        if not self.client:
+            for inc in self._MOCK_INCIDENTS:
+                if inc["id"] == incident_id:
+                    return inc
+            return self._MOCK_INCIDENTS[0]
+
+        try:
+            result = self.client.incidents.get(incident_id=incident_id)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("fetching", "N/A", f"incident {incident_id}", e)
+
 
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
