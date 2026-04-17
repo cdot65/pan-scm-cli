@@ -67,6 +67,17 @@ def list_versions(
 
         console.print(table)
 
+    except ValueError as e:
+        if "Invalid error response format" in str(e):
+            typer.echo(
+                "Error: The Local Config API returned 404. "
+                "This API may not be available for your SCM tenant or device type. "
+                "Contact Palo Alto Networks support to verify Local Config API access.",
+                err=True,
+            )
+        else:
+            typer.echo(f"Error listing config versions: {e!s}", err=True)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         typer.echo(f"Error listing config versions: {e!s}", err=True)
         raise typer.Exit(code=1) from e

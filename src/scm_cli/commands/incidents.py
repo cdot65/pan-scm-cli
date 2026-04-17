@@ -5,6 +5,7 @@ from the SCM Unified Incident Framework.
 """
 
 import json
+from datetime import datetime, timezone
 
 import typer
 from rich.console import Console
@@ -27,6 +28,17 @@ STATUS_OPTION = typer.Option(None, "--status", "-s", help="Filter by status (ope
 SEVERITY_OPTION = typer.Option(None, "--severity", help="Filter by severity (critical, high, medium, low, informational)")
 PRODUCT_OPTION = typer.Option(None, "--product", "-p", help="Filter by product name")
 JSON_OPTION = typer.Option(False, "--json", "-j", help="Output as JSON")
+
+
+def _format_epoch(epoch: int | str | None) -> str:
+    """Convert epoch timestamp (seconds or ms) to human-readable date."""
+    if epoch is None:
+        return ""
+    if isinstance(epoch, str):
+        return epoch
+    if epoch > 1_000_000_000_000:
+        return datetime.fromtimestamp(epoch / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
+    return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
 # =============================================================================================================================================================================================
@@ -64,13 +76,13 @@ def list_incidents(
             typer.echo("No incidents found")
             return
 
-        table = Table(title="Security Incidents")
-        table.add_column("ID", style="cyan", no_wrap=True)
-        table.add_column("Status", style="white")
-        table.add_column("Severity", style="white")
-        table.add_column("Product", style="white")
-        table.add_column("Title", style="dim", max_width=40)
-        table.add_column("Raised", style="white")
+        table = Table(title="Security Incidents", show_lines=True)
+        table.add_column("ID", style="cyan", no_wrap=True, max_width=12)
+        table.add_column("Status", style="white", no_wrap=True)
+        table.add_column("Severity", style="white", no_wrap=True)
+        table.add_column("Product", style="white", no_wrap=True)
+        table.add_column("Title", style="dim", max_width=50)
+        table.add_column("Raised", style="white", no_wrap=True)
 
         severity_styles = {"critical": "red bold", "high": "red", "medium": "yellow", "low": "green", "informational": "dim"}
 
@@ -79,13 +91,15 @@ def list_incidents(
             sev_style = severity_styles.get(sev, "white")
             status_val = inc.get("status", "")
             status_style = "green" if status_val == "closed" else ("yellow" if status_val == "in_progress" else "white")
+            inc_id = str(inc.get("incident_id", ""))
+            short_id = inc_id[:8] + "..." if len(inc_id) > 12 else inc_id
             table.add_row(
-                str(inc.get("incident_id", "")),
+                short_id,
                 f"[{status_style}]{status_val}[/{status_style}]",
                 f"[{sev_style}]{sev}[/{sev_style}]",
                 str(inc.get("product", "")),
                 str(inc.get("title", "")),
-                str(inc.get("raised_time", "")),
+                _format_epoch(inc.get("raised_time")),
             )
 
         console.print(table)
@@ -122,8 +136,8 @@ def show_incident(
         typer.echo(f"Status:   {incident.get('status', '')}")
         typer.echo(f"Severity: {incident.get('severity', '')}")
         typer.echo(f"Product:  {incident.get('product', '')}")
-        typer.echo(f"Raised:   {incident.get('raised_time', '')}")
-        typer.echo(f"Updated:  {incident.get('updated_time', '')}")
+        typer.echo(f"Raised:   {_format_epoch(incident.get('raised_time'))}")
+        typer.echo(f"Updated:  {_format_epoch(incident.get('updated_time'))}")
         typer.echo(f"Title:    {incident.get('title', '')}")
 
         alerts = incident.get("alerts", [])
