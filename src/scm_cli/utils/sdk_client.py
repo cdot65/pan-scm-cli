@@ -16342,8 +16342,22 @@ class SCMClient:
             return self._MOCK_INCIDENTS[0]
 
         try:
-            result = self.client.incidents.get_details(incident_id=incident_id)
-            return json.loads(result.model_dump_json(exclude_unset=True))
+            # Bypass SDK's get_details() which has a parsing bug (passes whole
+            # response to model instead of extracting data[0] from the wrapper).
+            session = self.client.oauth_client.session
+            base = self.client.api_base_url
+            resp = session.get(
+                f"{base}/incidents/v1/details/{incident_id}",
+                headers={"X-PANW-Region": getattr(self.client, "_region", "americas")},
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            items = body.get("data", [])
+            if not items:
+                raise ValueError(f"Incident {incident_id} not found")
+            return items[0]
+        except ValueError:
+            raise
         except Exception as e:
             self._handle_api_exception("fetching", "N/A", f"incident {incident_id}", e)
 

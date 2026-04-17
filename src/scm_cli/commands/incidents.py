@@ -77,7 +77,7 @@ def list_incidents(
             return
 
         table = Table(title="Security Incidents", show_lines=True)
-        table.add_column("ID", style="cyan", no_wrap=True, max_width=12)
+        table.add_column("ID", style="cyan", no_wrap=True)
         table.add_column("Status", style="white", no_wrap=True)
         table.add_column("Severity", style="white", no_wrap=True)
         table.add_column("Product", style="white", no_wrap=True)
@@ -91,10 +91,8 @@ def list_incidents(
             sev_style = severity_styles.get(sev, "white")
             status_val = inc.get("status", "")
             status_style = "green" if status_val == "closed" else ("yellow" if status_val == "in_progress" else "white")
-            inc_id = str(inc.get("incident_id", ""))
-            short_id = inc_id[:8] + "..." if len(inc_id) > 12 else inc_id
             table.add_row(
-                short_id,
+                str(inc.get("incident_id", "")),
                 f"[{status_style}]{status_val}[/{status_style}]",
                 f"[{sev_style}]{sev}[/{sev_style}]",
                 str(inc.get("product", "")),
@@ -149,9 +147,23 @@ def show_incident(
                 state = alert.get("state", "")
                 typer.echo(f"  {i}. [{sev}] {title}   ({state})")
 
-        remediations = incident.get("remediations", "")
-        if remediations:
-            typer.echo(f"\nRemediations:\n  {remediations}")
+        remediations_raw = incident.get("remediations", "")
+        if remediations_raw:
+            typer.echo("\nRemediation:")
+            try:
+                parsed = json.loads(remediations_raw) if isinstance(remediations_raw, str) else remediations_raw
+                steps = parsed.get("remediations", []) if isinstance(parsed, dict) else []
+                for rem in steps:
+                    dc = rem.get("dynamic_content", {})
+                    for j, step in enumerate(dc.get("steps", []), 1):
+                        typer.echo(f"  {j}. {step.get('title', '').strip()}")
+                        desc = step.get("description", "").strip()
+                        if desc:
+                            typer.echo(f"     {desc}")
+                if not steps:
+                    typer.echo(f"  {remediations_raw}")
+            except (json.JSONDecodeError, AttributeError):
+                typer.echo(f"  {remediations_raw}")
 
         typer.echo()
 
