@@ -33,11 +33,13 @@ class TestLocalConfigSDKClient:
         client.client = None
         client.logger = __import__("logging").getLogger("test")
 
-        result = client.list_local_config_versions(device="fw-01")
+        result = client.list_local_config_versions(device="007951000123456")
         assert isinstance(result, list)
         assert len(result) > 0
-        assert "version" in result[0]
-        assert "date" in result[0]
+        assert "local_version" in result[0]
+        assert "timestamp" in result[0]
+        assert "serial" in result[0]
+        assert "md5" in result[0]
 
     def test_download_local_config_mock(self):
         """download_local_config returns mock XML bytes when no client."""
@@ -45,7 +47,7 @@ class TestLocalConfigSDKClient:
         client.client = None
         client.logger = __import__("logging").getLogger("test")
 
-        result = client.download_local_config(device="fw-01", version=42)
+        result = client.download_local_config(device="007951000123456", version=42)
         assert isinstance(result, bytes)
         assert b"<config" in result
 
@@ -55,14 +57,14 @@ class TestLocalList:
 
     def test_list_versions_mock(self, runner, mock_local_env):
         """scm local list shows config versions in table."""
-        result = runner.invoke(app, ["local", "list", "--device", "fw-01"])
+        result = runner.invoke(app, ["local", "list", "--device", "007951000123456"])
 
         if result.exit_code != 0:
             print(f"Output: {result.output}")
             print(f"Exception: {result.exception}")
         assert result.exit_code == 0
         assert "42" in result.output
-        assert "admin" in result.output
+        assert "007951000123456" in result.output
 
     def test_list_versions_empty(self, runner, mock_local_env, monkeypatch):
         """scm local list shows message when no versions found."""
@@ -70,7 +72,7 @@ class TestLocalList:
             "src.scm_cli.utils.sdk_client.SCMClient.list_local_config_versions",
             lambda self, device: [],
         )
-        result = runner.invoke(app, ["local", "list", "--device", "fw-01"])
+        result = runner.invoke(app, ["local", "list", "--device", "007951000123456"])
         assert result.exit_code == 0
         assert "No config versions found" in result.output
 
@@ -80,7 +82,7 @@ class TestLocalDownload:
 
     def test_download_to_stdout(self, runner, mock_local_env):
         """scm local download outputs XML to stdout."""
-        result = runner.invoke(app, ["local", "download", "--device", "fw-01", "--version", "42"])
+        result = runner.invoke(app, ["local", "download", "--device", "007951000123456", "--version", "42"])
 
         if result.exit_code != 0:
             print(f"Output: {result.output}")
@@ -93,7 +95,7 @@ class TestLocalDownload:
         output_file = tmp_path / "config.xml"
         result = runner.invoke(app, [
             "local", "download",
-            "--device", "fw-01",
+            "--device", "007951000123456",
             "--version", "42",
             "--output", str(output_file),
         ])

@@ -34,7 +34,7 @@ class TestIncidentsSDKClient:
         result = client.list_incidents()
         assert isinstance(result, list)
         assert len(result) >= 2
-        assert "id" in result[0]
+        assert "incident_id" in result[0]
         assert "status" in result[0]
         assert "severity" in result[0]
 
@@ -51,9 +51,9 @@ class TestIncidentsSDKClient:
         client.logger = __import__("logging").getLogger("test")
         result = client.get_incident(incident_id="INC-2026-04-001")
         assert isinstance(result, dict)
-        assert "id" in result
+        assert "incident_id" in result
         assert "alerts" in result
-        assert "remediation" in result
+        assert "remediations" in result
         assert len(result["alerts"]) > 0
 
 
@@ -100,12 +100,12 @@ class TestIncidentsShow:
         assert "INC-2026-04-001" in result.output
         assert "Suspicious lateral movement" in result.output
         assert "Alerts" in result.output
-        assert "Remediation" in result.output
+        assert "Remediation" in result.output or "remediations" in result.output.lower()
 
     def test_show_incident_json(self, runner, mock_incidents_env):
         result = runner.invoke(app, ["incidents", "show", "INC-2026-04-001", "--json"])
         assert result.exit_code == 0
         data = json.loads(result.output)
-        assert data["id"] == "INC-2026-04-001"
+        assert data["incident_id"] == "INC-2026-04-001"
         assert "alerts" in data
-        assert "remediation" in data
+        assert "remediations" in data
