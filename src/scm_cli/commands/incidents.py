@@ -5,6 +5,7 @@ from the SCM Unified Incident Framework.
 """
 
 import json
+import re
 from datetime import datetime, timezone
 
 import typer
@@ -156,8 +157,9 @@ def show_incident(
                 for rem in steps:
                     dc = rem.get("dynamic_content", {})
                     for j, step in enumerate(dc.get("steps", []), 1):
-                        typer.echo(f"  {j}. {step.get('title', '').strip()}")
-                        desc = step.get("description", "").strip()
+                        title = re.sub(r"<[^>]+>", "", step.get("title", "")).strip()
+                        typer.echo(f"  {j}. {title}")
+                        desc = re.sub(r"<[^>]+>", "", step.get("description", "")).strip()
                         if desc:
                             typer.echo(f"     {desc}")
                 if not steps:
