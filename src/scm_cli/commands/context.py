@@ -150,6 +150,12 @@ def create_command(
         "--set-current/--no-set-current",
         help="Set as current context after creation",
     ),
+    region: str = typer.Option(
+        "americas",
+        "--region",
+        "-r",
+        help="SCM API region (default: americas)",
+    ),
 ):
     """Create a new authentication context.
 
@@ -186,6 +192,7 @@ def create_command(
             tsg_id=tsg_id or "",
             log_level=log_level,
             access_token=access_token,
+            region=region,
         )
 
         console.print(f"[green]✓ Context '{context_name}' created successfully[/green]")
