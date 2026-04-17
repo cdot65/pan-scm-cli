@@ -51,6 +51,9 @@ Commands are organized by resource type:
 - `commands/network.py`: Security zone management
 - `commands/security.py`: Security rule management
 - `commands/deployment.py`: Bandwidth allocation management
+- `commands/local.py`: Device configuration version listing and XML download
+- `commands/operations.py`: Device operations (route-table, fib-table, dns-proxy, interfaces, device-rules, bgp-export, logging-status) with sync/async job support
+- `commands/incidents.py`: Security incident search and detail with filtering and JSON output
 
 ### Key Components
 
@@ -179,7 +182,7 @@ Always refer to the appropriate style guide when writing or modifying code to en
 
 ## Important Notes
 
-- The SDK version requires `pan-scm-sdk>=0.12.2` - verify compatibility when updating
+- The SDK version requires `pan-scm-sdk>=0.13.0` - verify compatibility when updating
 - Mock mode allows full testing without API credentials
 - Bulk operations use YAML files - see `examples/` for formats
 - All commands support `--mock` flag for testing
