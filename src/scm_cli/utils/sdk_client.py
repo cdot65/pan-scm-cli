@@ -16024,6 +16024,56 @@ class SCMClient:
         response.raise_for_status()
         return response.json()
 
+    # ======================================================================================================================================================================================
+    # LOCAL CONFIG METHODS
+    # ======================================================================================================================================================================================
+
+    def list_local_config_versions(self, device: str) -> list[dict[str, Any]]:
+        """List configuration versions for a device.
+
+        Args:
+            device: Device name to list versions for.
+
+        Returns:
+            list[dict[str, Any]]: List of config version objects.
+
+        """
+        self.logger.info(f"Listing local config versions for device: {device}")
+
+        if not self.client:
+            return [
+                {"version": 42, "date": "2026-04-15 14:30", "author": "admin", "description": "Policy update"},
+                {"version": 41, "date": "2026-04-14 09:12", "author": "auto-commit", "description": "Scheduled push"},
+                {"version": 40, "date": "2026-04-13 11:45", "author": "admin", "description": "Initial config"},
+            ]
+
+        try:
+            results = self.client.local_config.list(device=device)
+            return [json.loads(r.model_dump_json(exclude_unset=True)) for r in results]
+        except Exception as e:
+            self._handle_api_exception("listing", "N/A", f"local config versions for {device}", e)
+
+    def download_local_config(self, device: str, version: int) -> bytes:
+        """Download a configuration version as raw XML.
+
+        Args:
+            device: Device name.
+            version: Config version number to download.
+
+        Returns:
+            bytes: Raw XML configuration data.
+
+        """
+        self.logger.info(f"Downloading local config version {version} for device: {device}")
+
+        if not self.client:
+            return b'<?xml version="1.0"?>\n<config version="42">\n  <devices>\n    <entry name="fw-01">\n      <vsys/>\n    </entry>\n  </devices>\n</config>'
+
+        try:
+            return self.client.local_config.download(device=device, version=version)
+        except Exception as e:
+            self._handle_api_exception("downloading", "N/A", f"local config v{version} for {device}", e)
+
 
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
