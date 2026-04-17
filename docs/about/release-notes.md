@@ -2,6 +2,17 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.3.1
+
+**Released:** April 2026
+
+### Fixed
+
+- **Region Compatibility**: `Scm()` constructor now only receives `region` parameter if the installed SDK supports it, preventing crashes with SDK versions <0.13.0.
+- **Local Config API**: Fixed `local_config.list()` → `list_versions()` and version parameter type from `int` to `str` to match actual SDK 0.13.0 API.
+- **Device Operations API**: Fixed to use per-method dispatch (`route_table()`, `fib_table()`, etc.) with `devices=[device]` list parameter and built-in `sync`/`timeout` instead of generic `dispatch()`. Fixed `status()` → `get_job_status()`.
+- **Incidents API**: Fixed `search()` filter parameters to use lists instead of strings. Fixed `get()` → `get_details()`. Fixed response model extraction.
+
 ## Version 1.3.0
 
 **Released:** April 2026
