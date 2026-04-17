@@ -289,9 +289,22 @@ app.add_typer(posture.posture_app, name="posture")
 # Use 'scm context test' to test the current context
 # Use 'scm context test <name>' to test a specific context without switching
 
+_region_override: str | None = None
+
+
+def get_region_override() -> str | None:
+    """Get the global --region override value, if set."""
+    return _region_override
+
 
 @app.callback()
-def callback():
+def callback(
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        help="Override SCM API region for this invocation",
+    ),
+):
     """Manage Palo Alto Networks Strata Cloud Manager (SCM) configurations.
 
     The CLI follows the pattern: <action> <object-type> <object> [options]
@@ -306,7 +319,8 @@ def callback():
       - scm context test
 
     """
-    pass
+    global _region_override  # noqa: PLW0603
+    _region_override = region
 
 
 # =============================================================================================================================================================================================

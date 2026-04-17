@@ -97,9 +97,20 @@ class SCMClient:
                 self.client_secret = ""  # noqa: S105
                 self.tsg_id = ""
                 self._bearer_token_mode = True
+
+                # Resolve region: global flag > context > default
+                try:
+                    from scm_cli.main import get_region_override
+
+                    region_override = get_region_override()
+                except ImportError:
+                    region_override = None
+                resolved_region = region_override or settings.get("region", "americas")
+
                 self.client = Scm(
                     access_token=access_token,
                     log_level=settings.get("log_level", "INFO"),
+                    region=resolved_region,
                 )
                 self.logger.info("Successfully initialized SDK client with bearer token")
             else:
@@ -109,11 +120,21 @@ class SCMClient:
                 self.client_secret = credentials["client_secret"]
                 self.tsg_id = credentials["tsg_id"]
 
+                # Resolve region: global flag > context > default
+                try:
+                    from scm_cli.main import get_region_override
+
+                    region_override = get_region_override()
+                except ImportError:
+                    region_override = None
+                resolved_region = region_override or credentials.get("region", "americas")
+
                 self.client = Scm(
                     client_id=self.client_id,
                     client_secret=self.client_secret,
                     tsg_id=self.tsg_id,
                     log_level=settings.get("log_level", "INFO"),
+                    region=resolved_region,
                 )
                 self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
         except (ValueError, AuthenticationError) as e:

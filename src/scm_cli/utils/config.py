@@ -101,6 +101,9 @@ def get_auth_config() -> dict[str, str]:
     if missing:
         raise ValueError(f"Missing required authentication parameters: {', '.join(missing)}")
 
+    # Add region (not required — defaults to americas)
+    auth["region"] = settings.get("region", "americas")
+
     return auth
 
 
