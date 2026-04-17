@@ -66,7 +66,7 @@ class TestIncidentsList:
             print(f"Output: {result.output}")
             print(f"Exception: {result.exception}")
         assert result.exit_code == 0
-        assert "INC-2026..." in result.output
+        assert "INC-2026-04-001" in result.output
         assert "high" in result.output
 
     def test_list_incidents_filter_status(self, runner, mock_incidents_env):
