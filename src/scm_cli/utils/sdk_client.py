@@ -7,6 +7,7 @@ dynaconf settings.
 
 import contextlib
 import gzip
+import inspect
 import json
 import logging
 import xml.etree.ElementTree as ET
@@ -107,11 +108,13 @@ class SCMClient:
                     region_override = None
                 resolved_region = region_override or settings.get("region", "americas")
 
-                self.client = Scm(
-                    access_token=access_token,
-                    log_level=settings.get("log_level", "INFO"),
-                    region=resolved_region,
-                )
+                scm_kwargs: dict[str, Any] = {
+                    "access_token": access_token,
+                    "log_level": settings.get("log_level", "INFO"),
+                }
+                if "region" in inspect.signature(Scm.__init__).parameters:
+                    scm_kwargs["region"] = resolved_region
+                self.client = Scm(**scm_kwargs)
                 self.logger.info("Successfully initialized SDK client with bearer token")
             else:
                 # OAuth2 authentication mode
@@ -129,13 +132,15 @@ class SCMClient:
                     region_override = None
                 resolved_region = region_override or credentials.get("region", "americas")
 
-                self.client = Scm(
-                    client_id=self.client_id,
-                    client_secret=self.client_secret,
-                    tsg_id=self.tsg_id,
-                    log_level=settings.get("log_level", "INFO"),
-                    region=resolved_region,
-                )
+                scm_kwargs: dict[str, Any] = {
+                    "client_id": self.client_id,
+                    "client_secret": self.client_secret,
+                    "tsg_id": self.tsg_id,
+                    "log_level": settings.get("log_level", "INFO"),
+                }
+                if "region" in inspect.signature(Scm.__init__).parameters:
+                    scm_kwargs["region"] = resolved_region
+                self.client = Scm(**scm_kwargs)
                 self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
         except (ValueError, AuthenticationError) as e:
             self.logger.warning(f"Failed to initialize SDK client: {str(e)}")
@@ -16048,12 +16053,12 @@ class SCMClient:
             ]
 
         try:
-            results = self.client.local_config.list(device=device)
+            results = self.client.local_config.list_versions(device=device)
             return [json.loads(r.model_dump_json(exclude_unset=True)) for r in results]
         except Exception as e:
             self._handle_api_exception("listing", "N/A", f"local config versions for {device}", e)
 
-    def download_local_config(self, device: str, version: int) -> bytes:
+    def download_local_config(self, device: str, version: str) -> bytes:
         """Download a configuration version as raw XML.
 
         Args:
@@ -16142,17 +16147,28 @@ class SCMClient:
             }
 
         try:
-            job = self.client.device_operations.dispatch(
-                device=device,
-                operation=operation,
-            )
+            op_method_map = {
+                "route-table": "route_table",
+                "fib-table": "fib_table",
+                "dns-proxy": "dns_proxy",
+                "interfaces": "device_interfaces",
+                "device-rules": "device_rules",
+                "bgp-export": "bgp_policy_export",
+                "logging-status": "logging_service_status",
+            }
+            method_name = op_method_map.get(operation, operation.replace("-", "_"))
+            method = getattr(self.client.device_operations, method_name)
+            result = method(devices=[device], sync=sync, timeout=timeout)
+            result_dict = json.loads(result.model_dump_json(exclude_unset=True))
             if sync:
-                result = self.client.device_operations.wait(
-                    job_id=job.job_id,
-                    timeout=timeout,
-                )
-                return json.loads(result.model_dump_json(exclude_unset=True))
-            return {"job_id": job.job_id, "device": device, "operation": operation, "status": "pending"}
+                result_dict["status"] = "completed"
+                result_dict["device"] = device
+                result_dict["operation"] = operation
+            else:
+                result_dict["device"] = device
+                result_dict["operation"] = operation
+                result_dict["status"] = "pending"
+            return result_dict
         except Exception as e:
             self._handle_api_exception("dispatching", "N/A", f"{operation} for {device}", e)
 
@@ -16179,7 +16195,7 @@ class SCMClient:
             }
 
         try:
-            result = self.client.device_operations.status(job_id=job_id)
+            result = self.client.device_operations.get_job_status(job_id=job_id)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("checking status", "N/A", f"job {job_id}", e)
@@ -16266,13 +16282,13 @@ class SCMClient:
         try:
             kwargs: dict[str, Any] = {}
             if status:
-                kwargs["status"] = status
+                kwargs["status"] = [status]
             if severity:
-                kwargs["severity"] = severity
+                kwargs["severity"] = [severity]
             if product:
-                kwargs["product"] = product
-            results = self.client.incidents.search(**kwargs)
-            return [json.loads(r.model_dump_json(exclude_unset=True)) for r in results]
+                kwargs["product"] = [product]
+            response = self.client.incidents.search(**kwargs)
+            return json.loads(response.model_dump_json(exclude_unset=True)).get("incidents", [])
         except Exception as e:
             self._handle_api_exception("searching", "N/A", "incidents", e)
 
@@ -16287,7 +16303,7 @@ class SCMClient:
             return self._MOCK_INCIDENTS[0]
 
         try:
-            result = self.client.incidents.get(incident_id=incident_id)
+            result = self.client.incidents.get_details(incident_id=incident_id)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("fetching", "N/A", f"incident {incident_id}", e)
