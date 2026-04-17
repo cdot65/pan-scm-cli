@@ -65,7 +65,7 @@ def _run_operation(device: str, operation: str, async_mode: bool, timeout: int) 
 
         columns = _OPERATION_COLUMNS.get(operation, [])
         table = Table(title=f"{operation} — {device}")
-        for key, header, style in columns:
+        for _key, header, style in columns:
             table.add_column(header, style=style)
 
         for row in results:
@@ -81,6 +81,7 @@ def _run_operation(device: str, operation: str, async_mode: bool, timeout: int) 
 # =============================================================================================================================================================================================
 # OPERATION COMMANDS
 # =============================================================================================================================================================================================
+
 
 @app.command("route-table")
 def route_table(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION, timeout: int = TIMEOUT_OPTION):
