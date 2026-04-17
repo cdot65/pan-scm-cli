@@ -3,6 +3,7 @@
 Provides client initialization for SCM API interaction.
 """
 
+import inspect
 import logging
 from typing import Any
 
@@ -88,8 +89,10 @@ def get_scm_client(mock: bool = False) -> Any:
         logger.info("No context set, using environment variables or default settings")
 
     auth_params = get_auth_config()
+    # Only pass region if SDK supports it (0.13.0+)
+    if "region" not in inspect.signature(Scm.__init__).parameters:
+        auth_params.pop("region", None)
     try:
-        # Use the Scm client from the pan-scm-sdk
         client = Scm(**auth_params)  # type: ignore[arg-type]
         logger.info(f"Successfully initialized SDK client for TSG ID: {auth_params['tsg_id']}")
         return client
