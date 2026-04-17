@@ -165,6 +165,8 @@ nav:
           - Overview: cli/local/index.md
       - Operations:
           - Overview: cli/operations/index.md
+      - Incidents:
+          - Overview: cli/incidents/index.md
       - Jobs: cli/jobs.md
       - Commit: cli/commit.md
       - Insights: cli/insights.md
