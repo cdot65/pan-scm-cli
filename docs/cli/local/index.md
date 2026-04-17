@@ -7,25 +7,25 @@ Manage local device configuration versions and downloads.
 ### List Config Versions
 
 ```bash
-scm local list --device fw-01
+scm local list --device 007951000123456
 ```
 
-Lists available configuration versions for a device, showing version number, date, author, and description.
+Lists available configuration versions for a device, showing version number, timestamp, serial number, and MD5 hash.
 
 **Options:**
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--device`, `-d` | Yes | Device name |
+| `--device`, `-d` | Yes | Device serial number (14-15 digits) |
 
 ### Download Config
 
 ```bash
 # Output to stdout
-scm local download --device fw-01 --version 42
+scm local download --device 007951000123456 --version 42
 
 # Save to file
-scm local download --device fw-01 --version 42 --output config.xml
+scm local download --device 007951000123456 --version 42 --output config.xml
 ```
 
 Downloads a specific configuration version as XML. Outputs to stdout by default; use `--output` to write to a file.
@@ -34,6 +34,6 @@ Downloads a specific configuration version as XML. Outputs to stdout by default;
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--device`, `-d` | Yes | Device name |
+| `--device`, `-d` | Yes | Device serial number (14-15 digits) |
 | `--version`, `-v` | Yes | Config version number |
 | `--output`, `-o` | No | Output file path (default: stdout) |

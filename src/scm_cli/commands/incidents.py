@@ -69,8 +69,8 @@ def list_incidents(
         table.add_column("Status", style="white")
         table.add_column("Severity", style="white")
         table.add_column("Product", style="white")
-        table.add_column("Summary", style="dim", max_width=40)
-        table.add_column("Created", style="white")
+        table.add_column("Title", style="dim", max_width=40)
+        table.add_column("Raised", style="white")
 
         severity_styles = {"critical": "red bold", "high": "red", "medium": "yellow", "low": "green", "informational": "dim"}
 
@@ -80,12 +80,12 @@ def list_incidents(
             status_val = inc.get("status", "")
             status_style = "green" if status_val == "closed" else ("yellow" if status_val == "in_progress" else "white")
             table.add_row(
-                str(inc.get("id", "")),
+                str(inc.get("incident_id", "")),
                 f"[{status_style}]{status_val}[/{status_style}]",
                 f"[{sev_style}]{sev}[/{sev_style}]",
                 str(inc.get("product", "")),
-                str(inc.get("summary", "")),
-                str(inc.get("created", "")),
+                str(inc.get("title", "")),
+                str(inc.get("raised_time", "")),
             )
 
         console.print(table)
@@ -118,28 +118,26 @@ def show_incident(
             typer.echo(json.dumps(incident, indent=2))
             return
 
-        typer.echo(f"\nIncident: {incident.get('id', incident_id)}")
+        typer.echo(f"\nIncident: {incident.get('incident_id', incident_id)}")
         typer.echo(f"Status:   {incident.get('status', '')}")
         typer.echo(f"Severity: {incident.get('severity', '')}")
         typer.echo(f"Product:  {incident.get('product', '')}")
-        typer.echo(f"Created:  {incident.get('created', '')}")
-        typer.echo(f"Updated:  {incident.get('updated', '')}")
-        typer.echo(f"Summary:  {incident.get('summary', '')}")
+        typer.echo(f"Raised:   {incident.get('raised_time', '')}")
+        typer.echo(f"Updated:  {incident.get('updated_time', '')}")
+        typer.echo(f"Title:    {incident.get('title', '')}")
 
         alerts = incident.get("alerts", [])
         if alerts:
             typer.echo(f"\nAlerts ({len(alerts)}):")
             for i, alert in enumerate(alerts, 1):
                 sev = alert.get("severity", "")
-                desc = alert.get("description", "")
-                ts = alert.get("timestamp", "")
-                typer.echo(f"  {i}. [{sev}] {desc}   {ts}")
+                title = alert.get("title", "")
+                state = alert.get("state", "")
+                typer.echo(f"  {i}. [{sev}] {title}   ({state})")
 
-        remediation = incident.get("remediation", [])
-        if remediation:
-            typer.echo("\nRemediation:")
-            for i, step in enumerate(remediation, 1):
-                typer.echo(f"  {i}. {step}")
+        remediations = incident.get("remediations", "")
+        if remediations:
+            typer.echo(f"\nRemediations:\n  {remediations}")
 
         typer.echo()
 

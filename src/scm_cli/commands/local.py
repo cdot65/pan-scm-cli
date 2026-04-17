@@ -24,7 +24,7 @@ console = Console()
 # COMMAND OPTIONS
 # =============================================================================================================================================================================================
 
-DEVICE_OPTION = typer.Option(..., "--device", "-d", help="Device name")
+DEVICE_OPTION = typer.Option(..., "--device", "-d", help="Device serial number")
 
 # =============================================================================================================================================================================================
 # LOCAL CONFIG COMMANDS
@@ -41,7 +41,7 @@ def list_versions(
 
     Examples
     --------
-    scm local list --device fw-01
+    scm local list --device 007951000123456
 
     """
     try:
@@ -53,16 +53,16 @@ def list_versions(
 
         table = Table(title=f"Config Versions — {device}")
         table.add_column("Version", style="cyan")
-        table.add_column("Date", style="white")
-        table.add_column("Author", style="green")
-        table.add_column("Description", style="dim")
+        table.add_column("Timestamp", style="white")
+        table.add_column("Serial", style="green")
+        table.add_column("MD5", style="dim")
 
         for v in versions:
             table.add_row(
-                str(v.get("version", "")),
-                str(v.get("date", "")),
-                str(v.get("author", "")),
-                str(v.get("description", "")),
+                str(v.get("local_version", "")),
+                str(v.get("timestamp", "")),
+                str(v.get("serial", "")),
+                str(v.get("md5", "")),
             )
 
         console.print(table)
@@ -85,8 +85,8 @@ def download_config(
 
     Examples
     --------
-    scm local download --device fw-01 --version 42
-    scm local download --device fw-01 --version 42 --output config.xml
+    scm local download --device 007951000123456 --version 42
+    scm local download --device 007951000123456 --version 42 --output config.xml
 
     """
     try:

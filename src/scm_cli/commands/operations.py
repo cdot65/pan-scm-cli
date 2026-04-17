@@ -22,7 +22,7 @@ console = Console()
 # COMMAND OPTIONS
 # =============================================================================================================================================================================================
 
-DEVICE_OPTION = typer.Option(..., "--device", "-d", help="Device name")
+DEVICE_OPTION = typer.Option(..., "--device", "-d", help="Device serial number")
 ASYNC_OPTION = typer.Option(False, "--async", help="Return job ID without waiting for completion")
 TIMEOUT_OPTION = typer.Option(300, "--timeout", "-t", help="Sync polling timeout in seconds")
 
@@ -89,8 +89,8 @@ def route_table(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION, ti
 
     Examples
     --------
-    scm operations route-table --device fw-01
-    scm operations route-table --device fw-01 --async
+    scm operations route-table --device 007951000123456
+    scm operations route-table --device 007951000123456 --async
 
     """
     _run_operation(device, "route-table", async_mode, timeout)
@@ -102,7 +102,7 @@ def fib_table(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION, time
 
     Examples
     --------
-    scm operations fib-table --device fw-01
+    scm operations fib-table --device 007951000123456
 
     """
     _run_operation(device, "fib-table", async_mode, timeout)
@@ -114,7 +114,7 @@ def dns_proxy(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION, time
 
     Examples
     --------
-    scm operations dns-proxy --device fw-01
+    scm operations dns-proxy --device 007951000123456
 
     """
     _run_operation(device, "dns-proxy", async_mode, timeout)
@@ -126,7 +126,7 @@ def interfaces(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION, tim
 
     Examples
     --------
-    scm operations interfaces --device fw-01
+    scm operations interfaces --device 007951000123456
 
     """
     _run_operation(device, "interfaces", async_mode, timeout)
@@ -138,7 +138,7 @@ def device_rules(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION, t
 
     Examples
     --------
-    scm operations device-rules --device fw-01
+    scm operations device-rules --device 007951000123456
 
     """
     _run_operation(device, "device-rules", async_mode, timeout)
@@ -150,7 +150,7 @@ def bgp_export(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION, tim
 
     Examples
     --------
-    scm operations bgp-export --device fw-01
+    scm operations bgp-export --device 007951000123456
 
     """
     _run_operation(device, "bgp-export", async_mode, timeout)
@@ -162,7 +162,7 @@ def logging_status(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION,
 
     Examples
     --------
-    scm operations logging-status --device fw-01
+    scm operations logging-status --device 007951000123456
 
     """
     _run_operation(device, "logging-status", async_mode, timeout)
