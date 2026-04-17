@@ -7,7 +7,7 @@ various SCM configuration actions (set, delete, load) and object types.
 import typer
 
 # Import object type modules
-from .commands import commit, context, deployment, identity, insights, jobs, local, mobile_agent, network, objects, operations, posture, security, setup
+from .commands import commit, context, deployment, identity, incidents, insights, jobs, local, mobile_agent, network, objects, operations, posture, security, setup
 
 # =============================================================================================================================================================================================
 # MAIN CLI APPLICATION
@@ -280,6 +280,7 @@ show_app.add_typer(
 # Register top-level commands (alphabetical)
 app.add_typer(commit.app, name="commit")
 app.add_typer(context.app, name="context")
+app.add_typer(incidents.app, name="incidents")
 app.add_typer(insights.app, name="insights")
 app.add_typer(jobs.app, name="jobs")
 app.add_typer(local.app, name="local")
