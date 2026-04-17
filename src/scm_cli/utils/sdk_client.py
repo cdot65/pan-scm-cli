@@ -7527,7 +7527,7 @@ class SCMClient:
                 profile_data["id"] = existing_profile.id
                 from scm.models.security import AntiSpywareProfileUpdateModel
 
-                update_model = AntiSpywareProfileUpdateModel(**profile_data)
+                update_model = AntiSpywareProfileUpdateModel(**profile_data)  # type: ignore[arg-type]
                 result = self.client.anti_spyware_profile.update(update_model)
             else:
                 # Create a new profile
@@ -8058,7 +8058,7 @@ class SCMClient:
                 profile_data["id"] = existing_profile.id
                 from scm.models.security import WildfireAvProfileUpdateModel
 
-                update_model = WildfireAvProfileUpdateModel(**profile_data)
+                update_model = WildfireAvProfileUpdateModel(**profile_data)  # type: ignore[arg-type]
                 result = self.client.wildfire_antivirus_profile.update(update_model)
             else:
                 # Create a new profile
@@ -8628,7 +8628,7 @@ class SCMClient:
                 profile_data["id"] = existing_profile.id
                 from scm.models.security import VulnerabilityProfileUpdateModel
 
-                update_model = VulnerabilityProfileUpdateModel(**profile_data)
+                update_model = VulnerabilityProfileUpdateModel(**profile_data)  # type: ignore[arg-type]
                 result = self.client.vulnerability_protection_profile.update(update_model)
             else:
                 # Create a new profile
@@ -8898,7 +8898,7 @@ class SCMClient:
                 data["id"] = existing.id
                 from scm.models.security.url_categories import URLCategoriesUpdateModel
 
-                update_model = URLCategoriesUpdateModel(**data)
+                update_model = URLCategoriesUpdateModel(**data)  # type: ignore[arg-type]
                 result = self.client.url_category.update(update_model)
                 result_dict = json.loads(result.model_dump_json(exclude_unset=True))
                 result_dict["__action__"] = "updated"
@@ -10483,7 +10483,7 @@ class SCMClient:
                     }
                     if secondary:
                         update_data["secondary"] = secondary
-                    update_model = InternalDnsServersUpdateModel(**update_data)
+                    update_model = InternalDnsServersUpdateModel(**update_data)  # type: ignore[arg-type]
                     updated = self.client.internal_dns_server.update(update_model)
                     self.logger.info(f"Successfully updated internal DNS server '{name}'")
                     result = json.loads(updated.model_dump_json(exclude_unset=True))

@@ -90,7 +90,7 @@ def get_scm_client(mock: bool = False) -> Any:
     auth_params = get_auth_config()
     try:
         # Use the Scm client from the pan-scm-sdk
-        client = Scm(**auth_params)
+        client = Scm(**auth_params)  # type: ignore[arg-type]
         logger.info(f"Successfully initialized SDK client for TSG ID: {auth_params['tsg_id']}")
         return client
     except AuthenticationError as e:
