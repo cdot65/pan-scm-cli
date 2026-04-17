@@ -2,6 +2,23 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 1.3.3
+
+**Released:** April 2026
+
+### Fixed
+
+- **Device Name Resolution**: Now searches across `hostname`, `display_name`, `name`, and `serial_number` fields when resolving `--device`. Shows available devices with serials when no match found.
+- **Incidents Table**: Epoch timestamps converted to human-readable dates. Long incident IDs truncated in table view.
+- **API 404 Handling**: Clear error message when Operations or Local Config API is unavailable for a tenant, instead of cryptic "Invalid error response format".
+
+### Verified Against Real SCM API
+
+- `scm incidents list` — working with real incidents, filters, date formatting
+- `scm incidents show <id>` — working with alerts and remediation data
+- Device name resolution: `austin-01` → `007954000653665`
+- Operations/Local Config API: 404 on this tenant (API may require specific licensing)
+
 ## Version 1.3.2
 
 **Released:** April 2026
