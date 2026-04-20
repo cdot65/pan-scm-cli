@@ -4,6 +4,9 @@ Service connections define how branch offices and remote locations connect to Pr
 
 ## Overview
 
+!!! important
+    When creating a service connection, all referenced IKE gateways and IPsec tunnels **must exist in the `Service Connections` folder** (not in user-created custom folders). References to resources in other folders will result in `INVALID_REFERENCE` errors.
+
 The `service-connection` commands allow you to:
 
 - Create service connections with IPsec tunnels and subnet configurations
@@ -282,11 +285,12 @@ Successfully backed up 3 service connections to sc-backup.yaml
 ## Best Practices
 
 1. **Use Descriptive Names**: Name service connections to clearly identify the location or purpose (e.g., "branch-office-nyc", "retail-store-001").
-2. **Configure Backup Connections**: Set up backup service connections for critical sites to ensure continuous connectivity during primary tunnel failures.
-3. **Enable BGP for Complex Networks**: Use BGP dynamic routing when connecting sites with multiple subnets or complex routing requirements.
-4. **Secure BGP Secrets**: Store BGP authentication secrets securely and rotate them regularly to maintain routing security.
-5. **Apply QoS Profiles**: Assign appropriate QoS profiles to prioritize business-critical traffic over less important flows.
-6. **Plan Subnets Carefully**: Document subnet allocations across all service connections to avoid overlaps and ensure proper routing.
+2. **Folder Scope for Dependencies**: Always create IKE gateways and IPsec tunnels used for service connections in the `Service Connections` folder to avoid invalid reference errors.
+3. **Configure Backup Connections**: Set up backup service connections for critical sites to ensure continuous connectivity during primary tunnel failures.
+4. **Enable BGP for Complex Networks**: Use BGP dynamic routing when connecting sites with multiple subnets or complex routing requirements.
+5. **Secure BGP Secrets**: Store BGP authentication secrets securely and rotate them regularly to maintain routing security.
+6. **Apply QoS Profiles**: Assign appropriate QoS profiles to prioritize business-critical traffic over less important flows.
+7. **Plan Subnets Carefully**: Document subnet allocations across all service connections to avoid overlaps and ensure proper routing.
 
 ## Related Topics
 
