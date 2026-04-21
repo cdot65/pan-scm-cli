@@ -218,8 +218,26 @@ Successfully backed up 5 labels to my-labels.yaml
 3. **Back Up Regularly**: Export labels before making bulk changes to preserve your organization scheme.
 4. **Use Dry Run for Bulk Imports**: Preview bulk imports with `--dry-run` before applying changes.
 
+## Using labels on resources
+
+Labels can be applied to folders, snippets, and devices. Create the labels first with `scm set setup label`, then attach them via each resource's `--labels` flag:
+
+```bash
+# Folder
+scm set setup folder --name Austin --parent Texas --labels production
+
+# Snippet
+scm set setup snippet --name Web-Security --labels production
+
+# Device (must already exist)
+scm set setup device --name PA-VM-01 --labels production --labels west
+```
+
+See [folders](folder.md), [snippets](snippet.md), and [devices](device.md) for full details on each command.
+
 ## Related Topics
 
+- [Device](device.md)
 - [Folder](folder.md)
 - [Snippet](snippet.md)
 - [Variable](variable.md)

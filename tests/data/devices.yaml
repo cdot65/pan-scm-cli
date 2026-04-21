@@ -1,0 +1,17 @@
+devices:
+  - name: PA-VM-01
+    display_name: Edge-FW-01
+    folder: Austin
+    description: Edge firewall 1
+    labels:
+      - production
+      - west
+    snippets:
+      - DNS-Best-Practice
+  - name: PA-VM-02
+    labels:
+      - staging
+    # Read-only fields below should be ignored by the Device validator:
+    serial_number: "9876543210"
+    model: PA-VM
+    is_connected: false

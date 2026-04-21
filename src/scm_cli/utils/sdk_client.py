@@ -11866,7 +11866,7 @@ class SCMClient:
             container = folder or snippet or device or "N/A"
             self._handle_api_exception("deletion", container, name, e)
 
-    # Device (read-only) ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Device ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     def get_device(
         self,
@@ -11887,11 +11887,15 @@ class SCMClient:
             return {
                 "id": f"device-{name}",
                 "name": name,
+                "display_name": f"{name} (display)",
                 "hostname": name,
                 "serial_number": "0123456789",
                 "model": "PA-VM",
                 "family": "vm",
                 "folder": "Texas",
+                "description": f"Mock device {name}",
+                "labels": ["production"],
+                "snippets": ["DNS-Best-Practice"],
                 "software_version": "11.1.0",
                 "is_connected": True,
                 "uptime": "30 days",
@@ -11923,22 +11927,29 @@ class SCMClient:
                 {
                     "id": "device-fw1",
                     "name": "PA-VM-01",
+                    "display_name": "Edge-FW-01",
                     "hostname": "pa-vm-01",
                     "serial_number": "0123456789",
                     "model": "PA-VM",
                     "family": "vm",
                     "folder": folder or "Texas",
+                    "description": "Edge firewall 1",
+                    "labels": ["production", "west"],
+                    "snippets": ["DNS-Best-Practice"],
                     "software_version": "11.1.0",
                     "is_connected": True,
                 },
                 {
                     "id": "device-fw2",
                     "name": "PA-VM-02",
+                    "display_name": "Edge-FW-02",
                     "hostname": "pa-vm-02",
                     "serial_number": "9876543210",
                     "model": "PA-VM",
                     "family": "vm",
                     "folder": folder or "Texas",
+                    "description": "Edge firewall 2",
+                    "labels": ["staging"],
                     "software_version": "11.1.0",
                     "is_connected": False,
                 },
@@ -11952,6 +11963,101 @@ class SCMClient:
             return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
         except Exception as e:
             self._handle_api_exception("listing", folder or "N/A", "devices", e)
+
+    def update_device(
+        self,
+        name: str,
+        display_name: str | None = None,
+        folder: str | None = None,
+        description: str | None = None,
+        labels: list[str] | None = None,
+        snippets: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Update a device (smart update — devices cannot be created).
+
+        Args:
+            name: Name or serial number of the device (lookup key).
+            display_name: New display name (None = preserve).
+            folder: New folder (None = preserve).
+            description: New description (None = preserve).
+            labels: New label set — replaces existing (None = preserve, [] = clear).
+            snippets: New snippet set — replaces existing (None = preserve, [] = clear).
+
+        Returns:
+            dict[str, Any]: Device payload with '__action__' = 'updated' | 'no_change'.
+
+        Raises:
+            ValueError: If the device is not found (devices cannot be created).
+
+        """
+        self.logger.info(f"Update device: {name}")
+
+        if not self.client:
+            return {
+                "id": f"device-{name}",
+                "name": name,
+                "display_name": display_name if display_name is not None else name,
+                "folder": folder if folder is not None else "Texas",
+                "description": description if description is not None else "",
+                "labels": labels if labels is not None else [],
+                "snippets": snippets if snippets is not None else [],
+                "__action__": "updated",
+            }
+
+        try:
+            try:
+                existing = self.client.device.fetch(name=name)
+            except NotFoundError as e:
+                raise ValueError(f"Device '{name}' not found. Devices cannot be created via the CLI — they must be registered by the firewall itself.") from e
+
+            needs_update = False
+            update_fields: list[str] = []
+
+            if display_name is not None and getattr(existing, "display_name", None) != display_name:
+                existing.display_name = display_name
+                update_fields.append("display_name")
+                needs_update = True
+
+            if folder is not None and getattr(existing, "folder", None) != folder:
+                existing.folder = folder
+                update_fields.append("folder")
+                needs_update = True
+
+            if description is not None and getattr(existing, "description", None) != description:
+                existing.description = description
+                update_fields.append("description")
+                needs_update = True
+
+            if labels is not None:
+                current_labels = set(getattr(existing, "labels", []) or [])
+                if current_labels != set(labels):
+                    existing.labels = labels
+                    update_fields.append("labels")
+                    needs_update = True
+
+            if snippets is not None:
+                current_snippets = set(getattr(existing, "snippets", []) or [])
+                if current_snippets != set(snippets):
+                    existing.snippets = snippets
+                    update_fields.append("snippets")
+                    needs_update = True
+
+            if needs_update:
+                self.logger.info(f"Updating device fields: {', '.join(update_fields)}")
+                updated = self.client.device.update(existing)
+                result = json.loads(updated.model_dump_json(exclude_unset=True))
+                result["__action__"] = "updated"
+                return result
+
+            self.logger.info(f"No changes detected for device '{name}', skipping update")
+            result = json.loads(existing.model_dump_json(exclude_unset=True))
+            result["__action__"] = "no_change"
+            return result
+
+        except ValueError:
+            raise
+        except Exception as e:
+            self._handle_api_exception("update", "N/A", name, e)
 
     # ======================================================================================================================================================================================
     # INSIGHTS AND MONITORING METHODS
