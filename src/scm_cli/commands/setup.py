@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import Folder, Label, Snippet, Variable
+from ..utils.validators import Device, Folder, Label, Snippet, Variable
 
 # =============================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -982,8 +982,19 @@ def backup_variable(
 
 
 # =============================================================================================================================================================================================
-# DEVICE COMMANDS (READ-ONLY)
+# DEVICE COMMANDS
 # =============================================================================================================================================================================================
+
+DISPLAY_NAME_OPTION = typer.Option(
+    None,
+    "--display-name",
+    help="Display name for the device",
+)
+DEVICE_FOLDER_OPTION = typer.Option(
+    None,
+    "--folder",
+    help="Folder to move the device into",
+)
 
 
 @show_app.command("device")
@@ -1050,4 +1061,52 @@ def show_device(
 
     except Exception as e:
         typer.echo(f"Error showing devices: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("device")
+def set_device(
+    name: str = NAME_OPTION,
+    display_name: str | None = DISPLAY_NAME_OPTION,
+    folder: str | None = DEVICE_FOLDER_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    labels: list[str] | None = LABELS_OPTION,
+    snippets: list[str] | None = SNIPPETS_OPTION,
+):
+    """Update a device's writable fields (device must already exist).
+
+    Devices cannot be created or deleted via the CLI — they are registered by
+    the firewall itself. Use this command to update display_name, folder,
+    description, labels, and/or snippets on an existing device.
+
+    Examples
+    --------
+        scm set setup device --name PA-VM-01 --labels production --labels west
+        scm set setup device --name 0123456789 --folder Austin
+        scm set setup device --name PA-VM-01 --description "Edge firewall"
+
+    """
+    try:
+        device_model = Device(
+            name=name,
+            display_name=display_name,
+            folder=folder,
+            description=description,
+            labels=labels,
+            snippets=snippets,
+        )
+        result = scm_client.update_device(**device_model.to_sdk_model())
+
+        action = result.get("__action__", "updated")
+        if action == "no_change":
+            typer.echo(f"No changes detected for device: {name}")
+        else:
+            typer.echo(f"Updated device: {name}")
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error updating device: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

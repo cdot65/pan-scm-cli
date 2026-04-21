@@ -13,6 +13,7 @@ from scm_cli.commands.setup import (
     delete_variable,
     load_app,
     set_app,
+    set_device,
     set_folder,
     set_label,
     set_snippet,
@@ -24,7 +25,7 @@ from scm_cli.commands.setup import (
     show_snippet,
     show_variable,
 )
-from scm_cli.utils.validators import Folder, Label, Snippet, Variable
+from scm_cli.utils.validators import Device, Folder, Label, Snippet, Variable
 
 
 class TestSetupCommandsExist:
@@ -322,54 +323,6 @@ class TestVariableCommands:
         assert result.exit_code != 0
 
 
-class TestDeviceCommands:
-    """Test device commands (read-only)."""
-
-    def test_show_device_list(self, runner, monkeypatch):
-        from scm_cli.utils.sdk_client import scm_client
-
-        def mock_list(*args, **kwargs):
-            return [
-                {"id": "d1", "name": "PA-VM-01", "model": "PA-VM", "is_connected": True},
-                {"id": "d2", "name": "PA-VM-02", "model": "PA-VM", "is_connected": False},
-            ]
-
-        monkeypatch.setattr(scm_client, "list_devices", mock_list)
-
-        test_app = typer.Typer()
-        test_app.command()(show_device)
-
-        result = runner.invoke(test_app, [])
-
-        assert result.exit_code == 0
-        assert "PA-VM-01" in result.stdout
-        assert "PA-VM-02" in result.stdout
-
-    def test_show_device_by_name(self, runner, monkeypatch):
-        from scm_cli.utils.sdk_client import scm_client
-
-        def mock_get(*args, **kwargs):
-            return {
-                "id": "d1",
-                "name": "PA-VM-01",
-                "serial_number": "0123456789",
-                "model": "PA-VM",
-                "software_version": "11.1.0",
-                "is_connected": True,
-            }
-
-        monkeypatch.setattr(scm_client, "get_device", mock_get)
-
-        test_app = typer.Typer()
-        test_app.command()(show_device)
-
-        result = runner.invoke(test_app, ["--name", "PA-VM-01"])
-
-        assert result.exit_code == 0
-        assert "PA-VM-01" in result.stdout
-        assert "PA-VM" in result.stdout
-
-
 class TestSetupValidators:
     """Test setup validator models."""
 
@@ -491,3 +444,145 @@ class TestSetupValidators:
         sdk = var.to_sdk_model()
         assert sdk["device"] == "fw-01"
         assert "folder" not in sdk
+
+
+class TestDeviceCommands:
+    """Test device commands."""
+
+    def test_show_device_list(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return [
+                {"id": "d1", "name": "PA-VM-01", "model": "PA-VM", "is_connected": True},
+                {"id": "d2", "name": "PA-VM-02", "model": "PA-VM", "is_connected": False},
+            ]
+
+        monkeypatch.setattr(scm_client, "list_devices", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_device)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0
+        assert "PA-VM-01" in result.stdout
+        assert "PA-VM-02" in result.stdout
+
+    def test_show_device_by_name(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(*args, **kwargs):
+            return {
+                "id": "d1",
+                "name": "PA-VM-01",
+                "serial_number": "0123456789",
+                "model": "PA-VM",
+                "software_version": "11.1.0",
+                "is_connected": True,
+            }
+
+        monkeypatch.setattr(scm_client, "get_device", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_device)
+
+        result = runner.invoke(test_app, ["--name", "PA-VM-01"])
+
+        assert result.exit_code == 0
+        assert "PA-VM-01" in result.stdout
+        assert "PA-VM" in result.stdout
+
+    def test_set_device_updates_labels(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_update(**kwargs):
+            captured.update(kwargs)
+            return {
+                "id": "device-PA-VM-01",
+                "name": kwargs.get("name"),
+                "labels": kwargs.get("labels", []),
+                "__action__": "updated",
+            }
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        test_app = typer.Typer()
+        test_app.command()(set_device)
+
+        result = runner.invoke(
+            test_app,
+            ["--name", "PA-VM-01", "--labels", "production", "--labels", "west"],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        assert "Updated device" in result.stdout
+        assert captured["name"] == "PA-VM-01"
+        assert captured["labels"] == ["production", "west"]
+
+    def test_set_device_all_fields(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_update(**kwargs):
+            captured.update(kwargs)
+            return {"name": kwargs["name"], "__action__": "updated"}
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        test_app = typer.Typer()
+        test_app.command()(set_device)
+
+        result = runner.invoke(
+            test_app,
+            [
+                "--name", "PA-VM-01",
+                "--display-name", "Edge-FW",
+                "--folder", "Austin",
+                "--description", "Edge firewall",
+                "--labels", "production",
+                "--snippets", "DNS-Best-Practice",
+            ],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        assert captured["display_name"] == "Edge-FW"
+        assert captured["folder"] == "Austin"
+        assert captured["description"] == "Edge firewall"
+        assert captured["labels"] == ["production"]
+        assert captured["snippets"] == ["DNS-Best-Practice"]
+
+    def test_set_device_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_update(**kwargs):
+            return {"name": kwargs["name"], "__action__": "no_change"}
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        test_app = typer.Typer()
+        test_app.command()(set_device)
+
+        result = runner.invoke(test_app, ["--name", "PA-VM-01", "--labels", "production"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "No changes detected" in result.stdout
+
+    def test_set_device_not_found_exits_nonzero(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_update(**kwargs):
+            raise ValueError("Device 'missing' not found. Devices cannot be created via the CLI.")
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        test_app = typer.Typer()
+        test_app.command()(set_device)
+
+        result = runner.invoke(test_app, ["--name", "missing", "--labels", "x"])
+
+        assert result.exit_code != 0
+        assert "not found" in result.output
