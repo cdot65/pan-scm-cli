@@ -411,6 +411,55 @@ class TestSetupValidators:
         sdk = snippet.to_sdk_model()
         assert sdk["enable_prefix"] is True
 
+    def test_device_minimal(self):
+        from scm_cli.utils.validators import Device
+        device = Device(name="PA-VM-01")
+        sdk = device.to_sdk_model()
+        assert sdk == {"name": "PA-VM-01"}
+
+    def test_device_all_fields(self):
+        from scm_cli.utils.validators import Device
+        device = Device(
+            name="PA-VM-01",
+            display_name="Edge-FW",
+            folder="Austin",
+            description="Edge firewall",
+            labels=["production", "west"],
+            snippets=["DNS-Best-Practice"],
+        )
+        sdk = device.to_sdk_model()
+        assert sdk["name"] == "PA-VM-01"
+        assert sdk["display_name"] == "Edge-FW"
+        assert sdk["folder"] == "Austin"
+        assert sdk["description"] == "Edge firewall"
+        assert sdk["labels"] == ["production", "west"]
+        assert sdk["snippets"] == ["DNS-Best-Practice"]
+
+    def test_device_ignores_read_only_extras(self):
+        from scm_cli.utils.validators import Device
+        device = Device(
+            name="PA-VM-01",
+            labels=["prod"],
+            serial_number="0123456789",
+            model="PA-VM",
+            hostname="pa-vm-01",
+            is_connected=True,
+            id="device-uuid",
+        )
+        sdk = device.to_sdk_model()
+        assert sdk == {"name": "PA-VM-01", "labels": ["prod"]}
+
+    def test_device_empty_labels_list_passes_through(self):
+        from scm_cli.utils.validators import Device
+        device = Device(name="PA-VM-01", labels=[])
+        sdk = device.to_sdk_model()
+        assert sdk == {"name": "PA-VM-01", "labels": []}
+
+    def test_device_requires_name(self):
+        from scm_cli.utils.validators import Device
+        with pytest.raises(ValidationError):
+            Device()
+
     def test_variable_validator(self):
         var = Variable(name="$egress-max", type="egress-max", value="1000", folder="Texas")
         sdk = var.to_sdk_model()
