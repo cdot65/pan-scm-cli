@@ -1120,3 +1120,47 @@ def set_device(
     except Exception as e:
         typer.echo(f"Error updating device: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
+
+
+@load_app.command("device")
+def load_device(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+):
+    """Load device updates from a YAML file.
+
+    Devices must already exist — loading will error on any unknown device
+    rather than creating one. Read-only fields in the YAML (serial_number,
+    model, hostname, is_connected, etc.) are silently ignored.
+
+    Example: scm load setup device --file devices.yaml
+    """
+    try:
+        config = load_from_yaml(str(file), "devices")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["devices"]))
+            return None
+
+        results = []
+        for device_data in config["devices"]:
+            device_model = Device(**device_data)
+            result = scm_client.update_device(**device_model.to_sdk_model())
+            results.append(result)
+
+            action = result.get("__action__", "updated")
+            if action == "no_change":
+                typer.echo(f"No changes for device: {device_model.name}")
+            else:
+                typer.echo(f"Updated device: {device_model.name}")
+
+        typer.echo(f"\nProcessed {len(results)} devices from {file}")
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading devices: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e

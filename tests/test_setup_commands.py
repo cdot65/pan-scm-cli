@@ -641,3 +641,57 @@ class TestDeviceCommands:
         assert result.exit_code == 0, result.stdout
         assert "PA-VM-01" in result.stdout
         assert "Labels: production" in result.stdout
+
+    def test_load_device_processes_all_entries(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.setup import load_app
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured_calls = []
+
+        def mock_update(**kwargs):
+            captured_calls.append(kwargs)
+            return {"name": kwargs["name"], "__action__": "updated"}
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        import shutil
+        from pathlib import Path
+        fixture = Path(__file__).parent / "data" / "devices.yaml"
+        target = tmp_path / "devices.yaml"
+        shutil.copy(fixture, target)
+
+        result = runner.invoke(load_app, ["device", "--file", str(target)])
+
+        assert result.exit_code == 0, result.output
+        assert len(captured_calls) == 2
+        assert captured_calls[0]["name"] == "PA-VM-01"
+        assert captured_calls[0]["labels"] == ["production", "west"]
+        assert captured_calls[1]["name"] == "PA-VM-02"
+        # Read-only fields must not reach the SDK call
+        assert "serial_number" not in captured_calls[1]
+        assert "is_connected" not in captured_calls[1]
+        assert "Processed 2 devices" in result.output
+
+    def test_load_device_dry_run_skips_sdk(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.setup import load_app
+        from scm_cli.utils.sdk_client import scm_client
+
+        called = {"n": 0}
+
+        def mock_update(**kwargs):
+            called["n"] += 1
+            return {"name": kwargs["name"], "__action__": "updated"}
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        import shutil
+        from pathlib import Path
+        fixture = Path(__file__).parent / "data" / "devices.yaml"
+        target = tmp_path / "devices.yaml"
+        shutil.copy(fixture, target)
+
+        result = runner.invoke(load_app, ["device", "--file", str(target), "--dry-run"])
+
+        assert result.exit_code == 0, result.output
+        assert called["n"] == 0
+        assert "Dry run" in result.output
