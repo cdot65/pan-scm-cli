@@ -12008,10 +12008,7 @@ class SCMClient:
             try:
                 existing = self.client.device.fetch(name=name)
             except NotFoundError as e:
-                raise ValueError(
-                    f"Device '{name}' not found. Devices cannot be created via the CLI — "
-                    "they must be registered by the firewall itself."
-                ) from e
+                raise ValueError(f"Device '{name}' not found. Devices cannot be created via the CLI — they must be registered by the firewall itself.") from e
 
             needs_update = False
             update_fields: list[str] = []
