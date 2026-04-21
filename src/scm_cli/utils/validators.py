@@ -4264,6 +4264,38 @@ class Label(BaseModel):
         return model_data
 
 
+class Device(BaseModel):
+    """Model for device configurations (update-only — devices cannot be created or deleted)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(..., description="Name or serial number of the device (lookup key)")
+    display_name: str | None = Field(None, description="Display name for the device")
+    folder: str | None = Field(None, description="Folder to move the device into")
+    description: str | None = Field(None, description="Description of the device")
+    labels: list[str] | None = Field(None, description="Labels to apply to the device")
+    snippets: list[str] | None = Field(None, description="Snippet IDs to associate with the device")
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Only includes fields whose value is not None. `None` means "preserve the
+        existing value on the device"; an explicit empty list clears the field.
+        """
+        data: dict[str, Any] = {"name": self.name}
+        if self.display_name is not None:
+            data["display_name"] = self.display_name
+        if self.folder is not None:
+            data["folder"] = self.folder
+        if self.description is not None:
+            data["description"] = self.description
+        if self.labels is not None:
+            data["labels"] = self.labels
+        if self.snippets is not None:
+            data["snippets"] = self.snippets
+        return data
+
+
 class Snippet(BaseModel):
     """Model for snippet configurations."""
 

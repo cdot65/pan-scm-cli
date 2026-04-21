@@ -1,5 +1,7 @@
 """Tests for the SDK client module."""
 
+import pytest
+
 from scm_cli.utils.sdk_client import LazyClient, SCMClient, scm_client
 
 
@@ -119,3 +121,86 @@ class TestSCMClient:
         client = SCMClient()
         result = client.delete_security_rule(folder="test-folder", name="test-rule")
         assert result is True
+
+
+class TestUpdateDevice:
+    """Tests for scm_client.update_device."""
+
+    def test_update_device_mock_mode_returns_updated(self):
+        from scm_cli.utils.sdk_client import SCMClient
+
+        client = SCMClient()
+        client.client = None  # force mock mode
+
+        result = client.update_device(
+            name="PA-VM-01",
+            display_name="Edge-FW",
+            labels=["prod"],
+        )
+
+        assert result["name"] == "PA-VM-01"
+        assert result["display_name"] == "Edge-FW"
+        assert result["labels"] == ["prod"]
+        assert result["__action__"] == "updated"
+
+    def test_update_device_not_found_raises_value_error(self, monkeypatch):
+        from scm.exceptions import NotFoundError
+
+        from scm_cli.utils.sdk_client import SCMClient
+
+        client = SCMClient()
+
+        class FakeDevice:
+            @staticmethod
+            def fetch(name):
+                raise NotFoundError("not found")
+
+            @staticmethod
+            def update(*args, **kwargs):
+                raise AssertionError("update must not be called on missing device")
+
+        class FakeClient:
+            device = FakeDevice()
+
+        client.client = FakeClient()
+
+        with pytest.raises(ValueError, match="cannot be created"):
+            client.update_device(name="missing", labels=["prod"])
+
+    def test_update_device_no_change_when_values_match(self, monkeypatch):
+        from scm_cli.utils.sdk_client import SCMClient
+
+        client = SCMClient()
+
+        class FakeExisting:
+            display_name = "Edge-FW"
+            folder = "Austin"
+            description = "edge"
+            labels = ["prod"]
+            snippets = []
+
+            def model_dump_json(self, **_kw):
+                return '{"name": "PA-VM-01", "display_name": "Edge-FW", "labels": ["prod"]}'
+
+        class FakeDevice:
+            @staticmethod
+            def fetch(name):
+                return FakeExisting()
+
+            @staticmethod
+            def update(*args, **kwargs):
+                raise AssertionError("update must not be called when no change")
+
+        class FakeClient:
+            device = FakeDevice()
+
+        client.client = FakeClient()
+
+        result = client.update_device(
+            name="PA-VM-01",
+            display_name="Edge-FW",
+            folder="Austin",
+            description="edge",
+            labels=["prod"],
+        )
+        assert result["__action__"] == "no_change"

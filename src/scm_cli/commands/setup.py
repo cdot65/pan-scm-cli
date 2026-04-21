@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
 from ..utils.sdk_client import scm_client
-from ..utils.validators import Folder, Label, Snippet, Variable
+from ..utils.validators import Device, Folder, Label, Snippet, Variable
 
 # =============================================================================================================================================================================================
 # TYPER APP CONFIGURATION
@@ -982,8 +982,19 @@ def backup_variable(
 
 
 # =============================================================================================================================================================================================
-# DEVICE COMMANDS (READ-ONLY)
+# DEVICE COMMANDS
 # =============================================================================================================================================================================================
+
+DISPLAY_NAME_OPTION = typer.Option(
+    None,
+    "--display-name",
+    help="Display name for the device",
+)
+DEVICE_FOLDER_OPTION = typer.Option(
+    None,
+    "--folder",
+    help="Folder to move the device into",
+)
 
 
 @show_app.command("device")
@@ -991,7 +1002,7 @@ def show_device(
     name: str | None = typer.Option(None, "--name", help="Name or serial number of the device to show"),
     folder: str | None = typer.Option(None, "--folder", help="Filter devices by folder"),
 ):
-    """Display devices (read-only).
+    """Display devices.
 
     Examples
     --------
@@ -1014,6 +1025,14 @@ def show_device(
                 typer.echo(f"Family: {device['family']}")
             if device.get("hostname"):
                 typer.echo(f"Hostname: {device['hostname']}")
+            if device.get("display_name"):
+                typer.echo(f"Display Name: {device['display_name']}")
+            if device.get("description"):
+                typer.echo(f"Description: {device['description']}")
+            if device.get("labels"):
+                typer.echo(f"Labels: {', '.join(device['labels'])}")
+            if device.get("snippets"):
+                typer.echo(f"Snippets: {', '.join(device['snippets'])}")
             if device.get("ip_address"):
                 typer.echo(f"IP Address: {device['ip_address']}")
             if device.get("folder"):
@@ -1044,10 +1063,148 @@ def show_device(
                     typer.echo(f"  Model: {d['model']}")
                 if d.get("folder"):
                     typer.echo(f"  Folder: {d['folder']}")
+                if d.get("labels"):
+                    typer.echo(f"  Labels: {', '.join(d['labels'])}")
                 if d.get("is_connected") is not None:
                     typer.echo(f"  Connected: {d['is_connected']}")
                 typer.echo("-" * 80)
 
     except Exception as e:
         typer.echo(f"Error showing devices: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("device")
+def set_device(
+    name: str = NAME_OPTION,
+    display_name: str | None = DISPLAY_NAME_OPTION,
+    folder: str | None = DEVICE_FOLDER_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    labels: list[str] | None = LABELS_OPTION,
+    snippets: list[str] | None = SNIPPETS_OPTION,
+):
+    """Update a device's writable fields (device must already exist).
+
+    Devices cannot be created or deleted via the CLI — they are registered by
+    the firewall itself. Use this command to update display_name, folder,
+    description, labels, and/or snippets on an existing device.
+
+    Examples
+    --------
+        scm set setup device --name PA-VM-01 --labels production --labels west
+        scm set setup device --name 0123456789 --folder Austin
+        scm set setup device --name PA-VM-01 --description "Edge firewall"
+
+    """
+    try:
+        device_model = Device(
+            name=name,
+            display_name=display_name,
+            folder=folder,
+            description=description,
+            labels=labels,
+            snippets=snippets,
+        )
+        result = scm_client.update_device(**device_model.to_sdk_model())
+
+        action = result.get("__action__", "updated")
+        if action == "no_change":
+            typer.echo(f"No changes detected for device: {name}")
+        else:
+            typer.echo(f"Updated device: {name}")
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error updating device: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("device")
+def load_device(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+):
+    """Load device updates from a YAML file.
+
+    Devices must already exist — loading will error on any unknown device
+    rather than creating one. Read-only fields in the YAML (serial_number,
+    model, hostname, is_connected, etc.) are silently ignored.
+
+    Example: scm load setup device --file devices.yaml
+    """
+    try:
+        config = load_from_yaml(str(file), "devices")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["devices"]))
+            return None
+
+        results = []
+        for device_data in config["devices"]:
+            device_model = Device(**device_data)
+            result = scm_client.update_device(**device_model.to_sdk_model())
+            results.append(result)
+
+            action = result.get("__action__", "updated")
+            if action == "no_change":
+                typer.echo(f"No changes for device: {device_model.name}")
+            else:
+                typer.echo(f"Updated device: {device_model.name}")
+
+        typer.echo(f"\nProcessed {len(results)} devices from {file}")
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading devices: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@backup_app.command("device")
+def backup_device(
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all devices to a YAML file.
+
+    Includes read-only fields (serial_number, model, hostname, etc.) for
+    reference. Those fields are ignored on `scm load setup device`.
+
+    Examples
+    --------
+        scm backup setup device
+        scm backup setup device --file my-devices.yaml
+
+    """
+    if not file:
+        file = get_default_backup_filename("devices")
+
+    try:
+        devices = scm_client.list_devices()
+
+        if not devices:
+            typer.echo("No devices found")
+            return None
+
+        backup_data = []
+        for d in devices:
+            d_dict = d.copy()
+            d_dict.pop("id", None)
+            backup_data.append(d_dict)
+
+        yaml_data = {"devices": backup_data}
+
+        with open(file, "w") as fh:
+            yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} devices to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up devices: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

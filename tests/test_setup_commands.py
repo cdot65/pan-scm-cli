@@ -13,6 +13,7 @@ from scm_cli.commands.setup import (
     delete_variable,
     load_app,
     set_app,
+    set_device,
     set_folder,
     set_label,
     set_snippet,
@@ -24,7 +25,7 @@ from scm_cli.commands.setup import (
     show_snippet,
     show_variable,
 )
-from scm_cli.utils.validators import Folder, Label, Snippet, Variable
+from scm_cli.utils.validators import Device, Folder, Label, Snippet, Variable
 
 
 class TestSetupCommandsExist:
@@ -322,8 +323,126 @@ class TestVariableCommands:
         assert result.exit_code != 0
 
 
+class TestSetupValidators:
+    """Test setup validator models."""
+
+    def test_folder_validator(self):
+        folder = Folder(name="Texas", parent="All", description="Texas offices")
+        sdk = folder.to_sdk_model()
+        assert sdk["name"] == "Texas"
+        assert sdk["parent"] == "All"
+        assert sdk["description"] == "Texas offices"
+
+    def test_folder_minimal(self):
+        folder = Folder(name="Branch", parent="All")
+        sdk = folder.to_sdk_model()
+        assert sdk["name"] == "Branch"
+        assert sdk["parent"] == "All"
+        assert "description" not in sdk
+
+    def test_label_validator(self):
+        label = Label(name="production", description="Production environment")
+        sdk = label.to_sdk_model()
+        assert sdk["name"] == "production"
+        assert sdk["description"] == "Production environment"
+
+    def test_label_minimal(self):
+        label = Label(name="staging")
+        sdk = label.to_sdk_model()
+        assert sdk["name"] == "staging"
+        assert "description" not in sdk
+
+    def test_snippet_validator(self):
+        snippet = Snippet(name="DNS-Best-Practice", description="DNS config", labels=["prod"])
+        sdk = snippet.to_sdk_model()
+        assert sdk["name"] == "DNS-Best-Practice"
+        assert sdk["description"] == "DNS config"
+        assert sdk["labels"] == ["prod"]
+
+    def test_snippet_with_enable_prefix(self):
+        snippet = Snippet(name="test", enable_prefix=True)
+        sdk = snippet.to_sdk_model()
+        assert sdk["enable_prefix"] is True
+
+    def test_device_minimal(self):
+        device = Device(name="PA-VM-01")
+        sdk = device.to_sdk_model()
+        assert sdk == {"name": "PA-VM-01"}
+
+    def test_device_all_fields(self):
+        device = Device(
+            name="PA-VM-01",
+            display_name="Edge-FW",
+            folder="Austin",
+            description="Edge firewall",
+            labels=["production", "west"],
+            snippets=["DNS-Best-Practice"],
+        )
+        sdk = device.to_sdk_model()
+        assert sdk["name"] == "PA-VM-01"
+        assert sdk["display_name"] == "Edge-FW"
+        assert sdk["folder"] == "Austin"
+        assert sdk["description"] == "Edge firewall"
+        assert sdk["labels"] == ["production", "west"]
+        assert sdk["snippets"] == ["DNS-Best-Practice"]
+
+    def test_device_ignores_read_only_extras(self):
+        device = Device(
+            name="PA-VM-01",
+            labels=["prod"],
+            serial_number="0123456789",
+            model="PA-VM",
+            hostname="pa-vm-01",
+            is_connected=True,
+            id="device-uuid",
+        )
+        sdk = device.to_sdk_model()
+        assert sdk == {"name": "PA-VM-01", "labels": ["prod"]}
+
+    def test_device_empty_labels_list_passes_through(self):
+        device = Device(name="PA-VM-01", labels=[])
+        sdk = device.to_sdk_model()
+        assert sdk == {"name": "PA-VM-01", "labels": []}
+
+    def test_device_requires_name(self):
+        with pytest.raises(ValidationError):
+            Device()
+
+    def test_variable_validator(self):
+        var = Variable(name="$egress-max", type="egress-max", value="1000", folder="Texas")
+        sdk = var.to_sdk_model()
+        assert sdk["name"] == "$egress-max"
+        assert sdk["type"] == "egress-max"
+        assert sdk["value"] == "1000"
+        assert sdk["folder"] == "Texas"
+
+    def test_variable_invalid_type(self):
+        with pytest.raises(ValidationError):
+            Variable(name="$test", type="invalid-type", value="123", folder="Texas")
+
+    def test_variable_requires_container(self):
+        with pytest.raises(ValidationError):
+            Variable(name="$test", type="fqdn", value="example.com")
+
+    def test_variable_multiple_containers(self):
+        with pytest.raises(ValidationError):
+            Variable(name="$test", type="fqdn", value="example.com", folder="Texas", snippet="DNS")
+
+    def test_variable_snippet_container(self):
+        var = Variable(name="$dns", type="fqdn", value="dns.example.com", snippet="DNS-Config")
+        sdk = var.to_sdk_model()
+        assert sdk["snippet"] == "DNS-Config"
+        assert "folder" not in sdk
+
+    def test_variable_device_container(self):
+        var = Variable(name="$ip", type="ip-netmask", value="10.0.0.1/32", device="fw-01")
+        sdk = var.to_sdk_model()
+        assert sdk["device"] == "fw-01"
+        assert "folder" not in sdk
+
+
 class TestDeviceCommands:
-    """Test device commands (read-only)."""
+    """Test device commands."""
 
     def test_show_device_list(self, runner, monkeypatch):
         from scm_cli.utils.sdk_client import scm_client
@@ -369,76 +488,255 @@ class TestDeviceCommands:
         assert "PA-VM-01" in result.stdout
         assert "PA-VM" in result.stdout
 
+    def test_set_device_updates_labels(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
 
-class TestSetupValidators:
-    """Test setup validator models."""
+        captured = {}
 
-    def test_folder_validator(self):
-        folder = Folder(name="Texas", parent="All", description="Texas offices")
-        sdk = folder.to_sdk_model()
-        assert sdk["name"] == "Texas"
-        assert sdk["parent"] == "All"
-        assert sdk["description"] == "Texas offices"
+        def mock_update(**kwargs):
+            captured.update(kwargs)
+            return {
+                "id": "device-PA-VM-01",
+                "name": kwargs.get("name"),
+                "labels": kwargs.get("labels", []),
+                "__action__": "updated",
+            }
 
-    def test_folder_minimal(self):
-        folder = Folder(name="Branch", parent="All")
-        sdk = folder.to_sdk_model()
-        assert sdk["name"] == "Branch"
-        assert sdk["parent"] == "All"
-        assert "description" not in sdk
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
 
-    def test_label_validator(self):
-        label = Label(name="production", description="Production environment")
-        sdk = label.to_sdk_model()
-        assert sdk["name"] == "production"
-        assert sdk["description"] == "Production environment"
+        test_app = typer.Typer()
+        test_app.command()(set_device)
 
-    def test_label_minimal(self):
-        label = Label(name="staging")
-        sdk = label.to_sdk_model()
-        assert sdk["name"] == "staging"
-        assert "description" not in sdk
+        result = runner.invoke(
+            test_app,
+            ["--name", "PA-VM-01", "--labels", "production", "--labels", "west"],
+        )
 
-    def test_snippet_validator(self):
-        snippet = Snippet(name="DNS-Best-Practice", description="DNS config", labels=["prod"])
-        sdk = snippet.to_sdk_model()
-        assert sdk["name"] == "DNS-Best-Practice"
-        assert sdk["description"] == "DNS config"
-        assert sdk["labels"] == ["prod"]
+        assert result.exit_code == 0, result.stdout
+        assert "Updated device" in result.stdout
+        assert captured["name"] == "PA-VM-01"
+        assert captured["labels"] == ["production", "west"]
 
-    def test_snippet_with_enable_prefix(self):
-        snippet = Snippet(name="test", enable_prefix=True)
-        sdk = snippet.to_sdk_model()
-        assert sdk["enable_prefix"] is True
+    def test_set_device_all_fields(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
 
-    def test_variable_validator(self):
-        var = Variable(name="$egress-max", type="egress-max", value="1000", folder="Texas")
-        sdk = var.to_sdk_model()
-        assert sdk["name"] == "$egress-max"
-        assert sdk["type"] == "egress-max"
-        assert sdk["value"] == "1000"
-        assert sdk["folder"] == "Texas"
+        captured = {}
 
-    def test_variable_invalid_type(self):
-        with pytest.raises(ValidationError):
-            Variable(name="$test", type="invalid-type", value="123", folder="Texas")
+        def mock_update(**kwargs):
+            captured.update(kwargs)
+            return {"name": kwargs["name"], "__action__": "updated"}
 
-    def test_variable_requires_container(self):
-        with pytest.raises(ValidationError):
-            Variable(name="$test", type="fqdn", value="example.com")
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
 
-    def test_variable_multiple_containers(self):
-        with pytest.raises(ValidationError):
-            Variable(name="$test", type="fqdn", value="example.com", folder="Texas", snippet="DNS")
+        test_app = typer.Typer()
+        test_app.command()(set_device)
 
-    def test_variable_snippet_container(self):
-        var = Variable(name="$dns", type="fqdn", value="dns.example.com", snippet="DNS-Config")
-        sdk = var.to_sdk_model()
-        assert sdk["snippet"] == "DNS-Config"
-        assert "folder" not in sdk
+        result = runner.invoke(
+            test_app,
+            [
+                "--name", "PA-VM-01",
+                "--display-name", "Edge-FW",
+                "--folder", "Austin",
+                "--description", "Edge firewall",
+                "--labels", "production",
+                "--snippets", "DNS-Best-Practice",
+            ],
+        )
 
-    def test_variable_device_container(self):
-        var = Variable(name="$ip", type="ip-netmask", value="10.0.0.1/32", device="fw-01")
-        sdk = var.to_sdk_model()
-        assert sdk["device"] == "fw-01"
-        assert "folder" not in sdk
+        assert result.exit_code == 0, result.stdout
+        assert captured["display_name"] == "Edge-FW"
+        assert captured["folder"] == "Austin"
+        assert captured["description"] == "Edge firewall"
+        assert captured["labels"] == ["production"]
+        assert captured["snippets"] == ["DNS-Best-Practice"]
+
+    def test_set_device_no_change(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_update(**kwargs):
+            return {"name": kwargs["name"], "__action__": "no_change"}
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        test_app = typer.Typer()
+        test_app.command()(set_device)
+
+        result = runner.invoke(test_app, ["--name", "PA-VM-01", "--labels", "production"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "No changes detected" in result.stdout
+
+    def test_set_device_not_found_exits_nonzero(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_update(**kwargs):
+            raise ValueError("Device 'missing' not found. Devices cannot be created via the CLI.")
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        test_app = typer.Typer()
+        test_app.command()(set_device)
+
+        result = runner.invoke(test_app, ["--name", "missing", "--labels", "x"])
+
+        assert result.exit_code != 0
+        assert "not found" in result.output
+
+    def test_show_device_detail_includes_writable_fields(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(name):
+            return {
+                "id": "device-PA-VM-01",
+                "name": name,
+                "display_name": "Edge-FW",
+                "hostname": "pa-vm-01",
+                "serial_number": "0123456789",
+                "model": "PA-VM",
+                "folder": "Austin",
+                "description": "Edge firewall",
+                "labels": ["production", "west"],
+                "snippets": ["DNS-Best-Practice"],
+                "is_connected": True,
+            }
+
+        monkeypatch.setattr(scm_client, "get_device", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_device)
+
+        result = runner.invoke(test_app, ["--name", "PA-VM-01"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Display Name: Edge-FW" in result.stdout
+        assert "Description: Edge firewall" in result.stdout
+        assert "Labels: production, west" in result.stdout
+        assert "Snippets: DNS-Best-Practice" in result.stdout
+
+    def test_show_device_list_shows_labels(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(folder=None):
+            return [
+                {
+                    "id": "d1",
+                    "name": "PA-VM-01",
+                    "labels": ["production"],
+                    "is_connected": True,
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_devices", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_device)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0, result.stdout
+        assert "PA-VM-01" in result.stdout
+        assert "Labels: production" in result.stdout
+
+    def test_load_device_processes_all_entries(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.setup import load_app
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured_calls = []
+
+        def mock_update(**kwargs):
+            captured_calls.append(kwargs)
+            return {"name": kwargs["name"], "__action__": "updated"}
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        import shutil
+        from pathlib import Path
+        fixture = Path(__file__).parent / "data" / "devices.yaml"
+        target = tmp_path / "devices.yaml"
+        shutil.copy(fixture, target)
+
+        result = runner.invoke(load_app, ["device", "--file", str(target)])
+
+        assert result.exit_code == 0, result.output
+        assert len(captured_calls) == 2
+        assert captured_calls[0]["name"] == "PA-VM-01"
+        assert captured_calls[0]["labels"] == ["production", "west"]
+        assert captured_calls[1]["name"] == "PA-VM-02"
+        # Read-only fields must not reach the SDK call
+        assert "serial_number" not in captured_calls[1]
+        assert "is_connected" not in captured_calls[1]
+        assert "Processed 2 devices" in result.output
+
+    def test_load_device_dry_run_skips_sdk(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.setup import load_app
+        from scm_cli.utils.sdk_client import scm_client
+
+        called = {"n": 0}
+
+        def mock_update(**kwargs):
+            called["n"] += 1
+            return {"name": kwargs["name"], "__action__": "updated"}
+
+        monkeypatch.setattr(scm_client, "update_device", mock_update)
+
+        import shutil
+        from pathlib import Path
+        fixture = Path(__file__).parent / "data" / "devices.yaml"
+        target = tmp_path / "devices.yaml"
+        shutil.copy(fixture, target)
+
+        result = runner.invoke(load_app, ["device", "--file", str(target), "--dry-run"])
+
+        assert result.exit_code == 0, result.output
+        assert called["n"] == 0
+        assert "Dry run" in result.output
+
+    def test_backup_device_writes_yaml(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.setup import backup_app
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(folder=None):
+            return [
+                {
+                    "id": "device-PA-VM-01",
+                    "name": "PA-VM-01",
+                    "display_name": "Edge-FW",
+                    "serial_number": "0123456789",
+                    "labels": ["production"],
+                },
+                {
+                    "id": "device-PA-VM-02",
+                    "name": "PA-VM-02",
+                    "labels": ["staging"],
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_devices", mock_list)
+
+        out_file = tmp_path / "device-backup.yaml"
+        result = runner.invoke(backup_app, ["device", "--file", str(out_file)])
+
+        assert result.exit_code == 0, result.output
+        assert out_file.exists()
+
+        import yaml
+        data = yaml.safe_load(out_file.read_text())
+        assert "devices" in data
+        assert len(data["devices"]) == 2
+        assert data["devices"][0]["name"] == "PA-VM-01"
+        # id must be stripped
+        assert "id" not in data["devices"][0]
+        assert "id" not in data["devices"][1]
+        # labels must round-trip
+        assert data["devices"][0]["labels"] == ["production"]
+
+    def test_backup_device_empty_returns_message(self, runner, monkeypatch):
+        from scm_cli.commands.setup import backup_app
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_devices", lambda folder=None: [])
+
+        result = runner.invoke(backup_app, ["device"])
+
+        assert result.exit_code == 0
+        assert "No devices found" in result.output
