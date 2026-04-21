@@ -1002,7 +1002,7 @@ def show_device(
     name: str | None = typer.Option(None, "--name", help="Name or serial number of the device to show"),
     folder: str | None = typer.Option(None, "--folder", help="Filter devices by folder"),
 ):
-    """Display devices (read-only).
+    """Display devices.
 
     Examples
     --------
