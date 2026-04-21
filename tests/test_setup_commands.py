@@ -695,3 +695,53 @@ class TestDeviceCommands:
         assert result.exit_code == 0, result.output
         assert called["n"] == 0
         assert "Dry run" in result.output
+
+    def test_backup_device_writes_yaml(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.setup import backup_app
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(folder=None):
+            return [
+                {
+                    "id": "device-PA-VM-01",
+                    "name": "PA-VM-01",
+                    "display_name": "Edge-FW",
+                    "serial_number": "0123456789",
+                    "labels": ["production"],
+                },
+                {
+                    "id": "device-PA-VM-02",
+                    "name": "PA-VM-02",
+                    "labels": ["staging"],
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_devices", mock_list)
+
+        out_file = tmp_path / "device-backup.yaml"
+        result = runner.invoke(backup_app, ["device", "--file", str(out_file)])
+
+        assert result.exit_code == 0, result.output
+        assert out_file.exists()
+
+        import yaml
+        data = yaml.safe_load(out_file.read_text())
+        assert "devices" in data
+        assert len(data["devices"]) == 2
+        assert data["devices"][0]["name"] == "PA-VM-01"
+        # id must be stripped
+        assert "id" not in data["devices"][0]
+        assert "id" not in data["devices"][1]
+        # labels must round-trip
+        assert data["devices"][0]["labels"] == ["production"]
+
+    def test_backup_device_empty_returns_message(self, runner, monkeypatch):
+        from scm_cli.commands.setup import backup_app
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_devices", lambda folder=None: [])
+
+        result = runner.invoke(backup_app, ["device"])
+
+        assert result.exit_code == 0
+        assert "No devices found" in result.output

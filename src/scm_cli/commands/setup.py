@@ -1164,3 +1164,47 @@ def load_device(
     except Exception as e:
         typer.echo(f"Error loading devices: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
+
+
+@backup_app.command("device")
+def backup_device(
+    file: str = BACKUP_FILE_OPTION,
+):
+    """Backup all devices to a YAML file.
+
+    Includes read-only fields (serial_number, model, hostname, etc.) for
+    reference. Those fields are ignored on `scm load setup device`.
+
+    Examples
+    --------
+        scm backup setup device
+        scm backup setup device --file my-devices.yaml
+
+    """
+    if not file:
+        file = get_default_backup_filename("devices")
+
+    try:
+        devices = scm_client.list_devices()
+
+        if not devices:
+            typer.echo("No devices found")
+            return None
+
+        backup_data = []
+        for d in devices:
+            d_dict = d.copy()
+            d_dict.pop("id", None)
+            backup_data.append(d_dict)
+
+        yaml_data = {"devices": backup_data}
+
+        with open(file, "w") as fh:
+            yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} devices to {file}")
+        return file
+
+    except Exception as e:
+        typer.echo(f"Error backing up devices: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
