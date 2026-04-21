@@ -300,12 +300,28 @@ def get_region_override() -> str | None:
     return _region_override
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        from scm_cli import __version__
+
+        typer.echo(__version__)
+        raise typer.Exit()
+
+
 @app.callback()
 def callback(
     region: str | None = typer.Option(
         None,
         "--region",
         help="Override SCM API region for this invocation",
+    ),
+    version: bool | None = typer.Option(
+        None,
+        "--version",
+        "-V",
+        help="Show the CLI version and exit",
+        callback=_version_callback,
+        is_eager=True,
     ),
 ):
     """Manage Palo Alto Networks Strata Cloud Manager (SCM) configurations.
