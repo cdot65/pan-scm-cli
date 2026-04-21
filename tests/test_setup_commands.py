@@ -365,13 +365,11 @@ class TestSetupValidators:
         assert sdk["enable_prefix"] is True
 
     def test_device_minimal(self):
-        from scm_cli.utils.validators import Device
         device = Device(name="PA-VM-01")
         sdk = device.to_sdk_model()
         assert sdk == {"name": "PA-VM-01"}
 
     def test_device_all_fields(self):
-        from scm_cli.utils.validators import Device
         device = Device(
             name="PA-VM-01",
             display_name="Edge-FW",
@@ -389,7 +387,6 @@ class TestSetupValidators:
         assert sdk["snippets"] == ["DNS-Best-Practice"]
 
     def test_device_ignores_read_only_extras(self):
-        from scm_cli.utils.validators import Device
         device = Device(
             name="PA-VM-01",
             labels=["prod"],
@@ -403,13 +400,11 @@ class TestSetupValidators:
         assert sdk == {"name": "PA-VM-01", "labels": ["prod"]}
 
     def test_device_empty_labels_list_passes_through(self):
-        from scm_cli.utils.validators import Device
         device = Device(name="PA-VM-01", labels=[])
         sdk = device.to_sdk_model()
         assert sdk == {"name": "PA-VM-01", "labels": []}
 
     def test_device_requires_name(self):
-        from scm_cli.utils.validators import Device
         with pytest.raises(ValidationError):
             Device()
 
