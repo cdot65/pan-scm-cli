@@ -1025,6 +1025,14 @@ def show_device(
                 typer.echo(f"Family: {device['family']}")
             if device.get("hostname"):
                 typer.echo(f"Hostname: {device['hostname']}")
+            if device.get("display_name"):
+                typer.echo(f"Display Name: {device['display_name']}")
+            if device.get("description"):
+                typer.echo(f"Description: {device['description']}")
+            if device.get("labels"):
+                typer.echo(f"Labels: {', '.join(device['labels'])}")
+            if device.get("snippets"):
+                typer.echo(f"Snippets: {', '.join(device['snippets'])}")
             if device.get("ip_address"):
                 typer.echo(f"IP Address: {device['ip_address']}")
             if device.get("folder"):
@@ -1055,6 +1063,8 @@ def show_device(
                     typer.echo(f"  Model: {d['model']}")
                 if d.get("folder"):
                     typer.echo(f"  Folder: {d['folder']}")
+                if d.get("labels"):
+                    typer.echo(f"  Labels: {', '.join(d['labels'])}")
                 if d.get("is_connected") is not None:
                     typer.echo(f"  Connected: {d['is_connected']}")
                 typer.echo("-" * 80)

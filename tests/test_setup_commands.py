@@ -586,3 +586,58 @@ class TestDeviceCommands:
 
         assert result.exit_code != 0
         assert "not found" in result.output
+
+    def test_show_device_detail_includes_writable_fields(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_get(name):
+            return {
+                "id": "device-PA-VM-01",
+                "name": name,
+                "display_name": "Edge-FW",
+                "hostname": "pa-vm-01",
+                "serial_number": "0123456789",
+                "model": "PA-VM",
+                "folder": "Austin",
+                "description": "Edge firewall",
+                "labels": ["production", "west"],
+                "snippets": ["DNS-Best-Practice"],
+                "is_connected": True,
+            }
+
+        monkeypatch.setattr(scm_client, "get_device", mock_get)
+
+        test_app = typer.Typer()
+        test_app.command()(show_device)
+
+        result = runner.invoke(test_app, ["--name", "PA-VM-01"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Display Name: Edge-FW" in result.stdout
+        assert "Description: Edge firewall" in result.stdout
+        assert "Labels: production, west" in result.stdout
+        assert "Snippets: DNS-Best-Practice" in result.stdout
+
+    def test_show_device_list_shows_labels(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(folder=None):
+            return [
+                {
+                    "id": "d1",
+                    "name": "PA-VM-01",
+                    "labels": ["production"],
+                    "is_connected": True,
+                },
+            ]
+
+        monkeypatch.setattr(scm_client, "list_devices", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_device)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code == 0, result.stdout
+        assert "PA-VM-01" in result.stdout
+        assert "Labels: production" in result.stdout
