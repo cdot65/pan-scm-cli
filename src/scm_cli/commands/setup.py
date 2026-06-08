@@ -153,6 +153,12 @@ def validate_container_params(folder: str | None = None, snippet: str | None = N
         return "device", device
 
 
+def get_child_folder_names(parent_name: str) -> list[str]:
+    """Return direct child folder names for a parent folder."""
+    folders = scm_client.list_folders()
+    return sorted(f.get("name", "N/A") for f in folders if f.get("parent") == parent_name)
+
+
 # =============================================================================================================================================================================================
 # FOLDER COMMANDS
 # =============================================================================================================================================================================================
@@ -240,6 +246,8 @@ def show_folder(
             typer.echo("-" * 80)
             for f in folders:
                 typer.echo(f"Name: {f.get('name', 'N/A')}")
+                if f.get("display_name"):
+                    typer.echo(f"  Display Name: {f['display_name']}")
                 typer.echo(f"  Parent: {f.get('parent', 'N/A')}")
                 if f.get("description"):
                     typer.echo(f"  Description: {f['description']}")
@@ -262,6 +270,17 @@ def delete_folder(
     try:
         if not force:
             typer.confirm(f"Delete folder '{name}'?", abort=True)
+
+        child_folders = get_child_folder_names(name)
+        if child_folders:
+            child_list = ", ".join(child_folders)
+            typer.echo(
+                f"Cannot delete folder '{name}' because it contains child folder(s): {child_list}. "
+                "Delete or move the child folder(s) first.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
         result = scm_client.delete_folder(name=name)
 
         if result:
@@ -269,6 +288,8 @@ def delete_folder(
         else:
             typer.echo(f"Folder not found: {name}", err=True)
             raise typer.Exit(code=1)
+    except typer.Exit:
+        raise
     except Exception as e:
         typer.echo(f"Error deleting folder: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
