@@ -15,7 +15,7 @@ from ..utils import validate_location_params
 from ..utils.config import load_from_yaml, settings
 from ..utils.context import get_current_context
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AgentProfile, AuthSetting, ForwardingProfile, ForwardingProfileDestination, TunnelProfile
+from ..utils.validators import AgentProfile, AuthSetting, ForwardingProfile, ForwardingProfileDestination, GlobalSetting, InfrastructureSetting, TunnelProfile
 
 # =============================================================================================================================================================================================
 # HELPER FUNCTIONS
@@ -1777,4 +1777,357 @@ def show_tunnel_profile(
 
     except Exception as e:
         typer.echo(f"Error showing tunnel profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# INFRASTRUCTURE SETTING COMMANDS
+# =============================================================================================================================================================================================
+
+# Infrastructure settings live only in the 'Mobile Users' folder, and the SCM
+# API addresses them by name everywhere (including list), so show/backup need --name.
+INFRA_FOLDER_OPTION = typer.Option(
+    "Mobile Users",
+    "--folder",
+    help="Folder path (must be 'Mobile Users')",
+)
+INFRA_NAME_OPTION = typer.Option(
+    ...,
+    "--name",
+    help="Name of the infrastructure setting",
+)
+
+
+@set_app.command("infrastructure-setting")
+def set_infrastructure_setting(
+    folder: str = INFRA_FOLDER_OPTION,
+    name: str = INFRA_NAME_OPTION,
+    dns_servers: str = typer.Option(..., "--dns-servers", help="DNS server entries as JSON list"),
+    ip_pools: str = typer.Option(..., "--ip-pools", help="IP pools as JSON list"),
+    portal_hostname: str = typer.Option(..., "--portal-hostname", help="Portal hostname configuration as JSON"),
+    enable_wins: str | None = typer.Option(None, "--enable-wins", help="WINS configuration as JSON"),
+    ipv6: bool | None = typer.Option(None, "--ipv6/--no-ipv6", help="Enable or disable IPv6"),
+    udp_queries: str | None = typer.Option(None, "--udp-queries", help="UDP query retry configuration as JSON"),
+    static_ip_pools: str | None = typer.Option(None, "--static-ip-pools", help="Static IP pools as JSON list"),
+):
+    r"""Create or update an infrastructure setting.
+
+    Examples
+    --------
+        scm set mobile-agent infrastructure-setting \
+        --name "gp-infra" \
+        --dns-servers '[{"name": "dns-1", "dns_suffix": ["example.com"]}]' \
+        --ip-pools '[{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}]' \
+        --portal-hostname '{"default_domain": {"hostname": "acme"}}'
+
+    """
+    try:
+        # Build setting data; the Pydantic model parses JSON strings into structures
+        setting_data: dict[str, Any] = {
+            "name": name,
+            "folder": folder,
+            "dns_servers": dns_servers,
+            "ip_pools": ip_pools,
+            "portal_hostname": portal_hostname,
+        }
+        if enable_wins is not None:
+            setting_data["enable_wins"] = enable_wins
+        if ipv6 is not None:
+            setting_data["ipv6"] = ipv6
+        if udp_queries is not None:
+            setting_data["udp_queries"] = udp_queries
+        if static_ip_pools is not None:
+            setting_data["static_ip_pools"] = static_ip_pools
+
+        # Validate using the Pydantic model
+        infrastructure_setting = InfrastructureSetting(**setting_data)
+        sdk_data = infrastructure_setting.to_sdk_model()
+
+        # Call the SDK client
+        result = scm_client.create_infrastructure_setting(**sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created infrastructure setting: {result.get('name', name)} in folder {folder}")
+        elif action == "updated":
+            typer.echo(f"Updated infrastructure setting: {result.get('name', name)} in folder {folder}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for infrastructure setting: {result.get('name', name)} in folder {folder}")
+
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating infrastructure setting: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("infrastructure-setting")
+def show_infrastructure_setting(
+    folder: str = INFRA_FOLDER_OPTION,
+    name: str = INFRA_NAME_OPTION,
+):
+    """Display an infrastructure setting.
+
+    The SCM API requires a name for this endpoint; there is no list-all mode.
+
+    Examples
+    --------
+        scm show mobile-agent infrastructure-setting --name "gp-infra"
+
+    """
+    try:
+        show_context_info()
+
+        setting = scm_client.get_infrastructure_setting(folder=folder, name=name)
+
+        typer.echo(f"\nInfrastructure Setting: {setting.get('name', 'N/A')}")
+        typer.echo("=" * 80)
+        typer.echo(f"Location: Folder '{folder}'")
+
+        if setting.get("portal_hostname"):
+            typer.echo(f"Portal Hostname: {yaml.dump(setting['portal_hostname'], default_flow_style=True).strip()}")
+        if setting.get("dns_servers"):
+            typer.echo(f"DNS Servers: {yaml.dump(setting['dns_servers'], default_flow_style=True).strip()}")
+        if setting.get("ip_pools"):
+            typer.echo(f"IP Pools: {yaml.dump(setting['ip_pools'], default_flow_style=True).strip()}")
+        if setting.get("enable_wins"):
+            typer.echo(f"WINS: {yaml.dump(setting['enable_wins'], default_flow_style=True).strip()}")
+        if setting.get("ipv6") is not None:
+            typer.echo(f"IPv6: {setting['ipv6']}")
+        if setting.get("udp_queries"):
+            typer.echo(f"UDP Queries: {yaml.dump(setting['udp_queries'], default_flow_style=True).strip()}")
+        if setting.get("static_ip_pools"):
+            typer.echo(f"Static IP Pools: {yaml.dump(setting['static_ip_pools'], default_flow_style=True).strip()}")
+        if setting.get("id"):
+            typer.echo(f"ID: {setting['id']}")
+
+        return setting
+
+    except Exception as e:
+        typer.echo(f"Error showing infrastructure setting: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("infrastructure-setting")
+def delete_infrastructure_setting(
+    folder: str = INFRA_FOLDER_OPTION,
+    name: str = INFRA_NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
+    """Delete an infrastructure setting.
+
+    Examples
+    --------
+        scm delete mobile-agent infrastructure-setting --name "gp-infra"
+
+    """
+    try:
+        if not force:
+            typer.confirm(f"Delete infrastructure setting '{name}' from folder '{folder}'?", abort=True)
+        result = scm_client.delete_infrastructure_setting(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted infrastructure setting: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting infrastructure setting: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@backup_app.command("infrastructure-setting")
+def backup_infrastructure_setting(
+    folder: str = INFRA_FOLDER_OPTION,
+    name: str = INFRA_NAME_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+):
+    """Backup an infrastructure setting to a YAML file.
+
+    The SCM API requires a name for this endpoint, so backups cover the
+    named setting rather than every setting in the folder.
+
+    Examples
+    --------
+        scm backup mobile-agent infrastructure-setting --name "gp-infra"
+
+    """
+    try:
+        settings_list = scm_client.list_infrastructure_settings(folder=folder, name=name)
+
+        if not settings_list:
+            typer.echo(f"No infrastructure settings named '{name}' found in folder '{folder}'")
+            return
+
+        # Convert to backup format, stripping system fields
+        backup_data = []
+        for setting in settings_list:
+            setting_dict = {k: v for k, v in setting.items() if v is not None}
+            setting_dict.pop("id", None)
+            backup_data.append(setting_dict)
+
+        yaml_data = {"infrastructure_settings": backup_data}
+
+        if file is None:
+            file = Path(get_default_backup_filename("infrastructure-setting", "folder", folder))
+
+        with file.open("w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} infrastructure settings to {file}")
+        return str(file)
+
+    except Exception as e:
+        typer.echo(f"Error backing up infrastructure settings: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("infrastructure-setting")
+def load_infrastructure_setting(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+):
+    """Load infrastructure settings from a YAML file.
+
+    Examples
+    --------
+        scm load mobile-agent infrastructure-setting --file config/infrastructure_settings.yml
+
+    """
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "infrastructure_settings")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["infrastructure_settings"]))
+            return None
+
+        results = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for setting_data in config["infrastructure_settings"]:
+            try:
+                # Apply folder override if specified (only valid value is 'Mobile Users')
+                if folder:
+                    setting_data["folder"] = folder
+
+                # Validate using the Pydantic model
+                infrastructure_setting = InfrastructureSetting(**setting_data)
+                sdk_data = infrastructure_setting.to_sdk_model()
+
+                result = scm_client.create_infrastructure_setting(**sdk_data)
+
+                action = result.pop("__action__", "created")
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created infrastructure setting: {result.get('name', 'N/A')}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated infrastructure setting: {result.get('name', 'N/A')}")
+                elif action == "no_change":
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for infrastructure setting: {result.get('name', 'N/A')}")
+
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error loading infrastructure setting '{setting_data.get('name', 'unknown')}': {str(e)}", err=True)
+
+        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading infrastructure settings: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# GLOBAL SETTING COMMANDS (SINGLETON — SHOW/SET ONLY)
+# =============================================================================================================================================================================================
+
+
+@show_app.command("global-setting")
+def show_global_setting():
+    """Display the GlobalProtect global settings.
+
+    Global settings are a tenant-wide singleton; there is nothing to filter by.
+
+    Examples
+    --------
+        scm show mobile-agent global-setting
+
+    """
+    try:
+        show_context_info()
+
+        setting = scm_client.get_global_settings()
+
+        typer.echo("\nGlobalProtect Global Settings")
+        typer.echo("=" * 80)
+
+        if setting.get("agent_version"):
+            typer.echo(f"Agent Version: {setting['agent_version']}")
+        if setting.get("manual_gateway"):
+            typer.echo(f"Manual Gateway: {yaml.dump(setting['manual_gateway'], default_flow_style=True).strip()}")
+        if not setting:
+            typer.echo("No global settings configured")
+
+        return setting
+
+    except Exception as e:
+        typer.echo(f"Error showing global settings: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("global-setting")
+def set_global_setting(
+    agent_version: str | None = typer.Option(None, "--agent-version", help="GlobalProtect agent version"),
+    manual_gateway: str | None = typer.Option(None, "--manual-gateway", help="Manual gateway configuration as JSON"),
+):
+    r"""Update the GlobalProtect global settings.
+
+    Global settings are a singleton: they always exist and are updated in
+    place. There are no delete, backup, or load operations.
+
+    Examples
+    --------
+        scm set mobile-agent global-setting --agent-version "6.2.0"
+
+        scm set mobile-agent global-setting \
+        --manual-gateway '{"region": [{"name": "americas", "locations": ["us-east-1"]}]}'
+
+    """
+    try:
+        # Build setting data; the Pydantic model parses JSON strings into structures
+        setting_data: dict[str, Any] = {}
+        if agent_version is not None:
+            setting_data["agent_version"] = agent_version
+        if manual_gateway is not None:
+            setting_data["manual_gateway"] = manual_gateway
+
+        # Validate using the Pydantic model (requires at least one field)
+        global_setting = GlobalSetting(**setting_data)
+        sdk_data = global_setting.to_sdk_model()
+
+        result = scm_client.update_global_settings(**sdk_data)
+        result.pop("__action__", None)
+
+        typer.echo("Updated GlobalProtect global settings")
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error updating global settings: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

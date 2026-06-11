@@ -11506,6 +11506,277 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deletion", folder or "", name or "", e)
 
+    # ---------------------------------------------------------------- agent2: Infrastructure Setting (begin) ----------------------------------------------------------------
+
+    def create_infrastructure_setting(
+        self,
+        name: str = None,
+        folder: str = "Mobile Users",
+        dns_servers: list[dict[str, Any]] | None = None,
+        ip_pools: list[dict[str, Any]] | None = None,
+        portal_hostname: dict[str, Any] | None = None,
+        enable_wins: dict[str, Any] | None = None,
+        ipv6: bool | None = None,
+        udp_queries: dict[str, Any] | None = None,
+        static_ip_pools: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update an infrastructure setting using smart upsert logic.
+
+        Infrastructure settings have no ID-based paths; the SDK addresses them
+        by name and the 'Mobile Users' folder query parameter. Create and update
+        may return an empty body, in which case the validated payload is echoed.
+
+        Args:
+            name: Name of the infrastructure setting
+            folder: Folder (must be 'Mobile Users')
+            dns_servers: DNS server entries
+            ip_pools: IP pools
+            portal_hostname: Portal hostname configuration
+            enable_wins: WINS configuration
+            ipv6: Whether IPv6 is enabled
+            udp_queries: UDP query retry configuration
+            static_ip_pools: Static IP pools
+
+        Returns:
+            dict[str, Any]: The created/updated infrastructure setting with __action__ field
+
+        """
+        self.logger.info(f"Creating or updating infrastructure setting: {name} in folder {folder}")
+
+        setting_data: dict[str, Any] = {"name": name}
+        if dns_servers is not None:
+            setting_data["dns_servers"] = dns_servers
+        if ip_pools is not None:
+            setting_data["ip_pools"] = ip_pools
+        if portal_hostname is not None:
+            setting_data["portal_hostname"] = portal_hostname
+        if enable_wins is not None:
+            setting_data["enable_wins"] = enable_wins
+        if ipv6 is not None:
+            setting_data["ipv6"] = ipv6
+        if udp_queries is not None:
+            setting_data["udp_queries"] = udp_queries
+        if static_ip_pools is not None:
+            setting_data["static_ip_pools"] = static_ip_pools
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = dict(setting_data)
+            result["id"] = f"is-{name}"
+            result["folder"] = folder
+            result["__action__"] = "created"
+            return result
+
+        try:
+            # Step 1: Try to fetch the existing infrastructure setting. The SDK raises
+            # InvalidObjectError (404) rather than NotFoundError when absent.
+            existing = None
+            try:
+                existing = self.client.infrastructure_settings.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing infrastructure setting '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Infrastructure setting '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                if getattr(fetch_error, "http_status_code", None) == 404:
+                    self.logger.info(f"Infrastructure setting '{name}' not found in folder '{folder}', will create new")
+                else:
+                    self.logger.warning(f"Error fetching infrastructure setting '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare the desired payload against the existing object
+                existing_data = json.loads(existing.model_dump_json(exclude_unset=True))
+                existing_data.pop("id", None)
+                if all(existing_data.get(key) == value for key, value in setting_data.items()):
+                    self.logger.info(f"No changes detected for infrastructure setting '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+
+                result = self.client.infrastructure_settings.update(setting_data, folder=folder)
+                self.logger.info(f"Successfully updated infrastructure setting '{name}' in folder '{folder}'")
+                # The API may respond with an empty body; echo the payload then
+                response = json.loads(result.model_dump_json(exclude_unset=True)) if result is not None else dict(setting_data)
+                response["__action__"] = "updated"
+                return response
+            else:
+                # Step 3: Create a new infrastructure setting
+                result = self.client.infrastructure_settings.create(setting_data, folder=folder)
+                self.logger.info(f"Successfully created infrastructure setting '{name}' in folder '{folder}'")
+                # The API responds with 201 Created and may have no body; echo the payload then
+                response = json.loads(result.model_dump_json(exclude_unset=True)) if result is not None else dict(setting_data)
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder, name or "", e)
+
+    def get_infrastructure_setting(
+        self,
+        name: str = None,
+        folder: str = "Mobile Users",
+    ) -> dict[str, Any]:
+        """Get an infrastructure setting by name.
+
+        Args:
+            name: Name of the infrastructure setting to get
+            folder: Folder (must be 'Mobile Users')
+
+        Returns:
+            dict[str, Any]: The infrastructure setting object
+
+        """
+        self.logger.info(f"Getting infrastructure setting: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"is-{name}",
+                "folder": folder,
+                "name": name,
+                "dns_servers": [{"name": "dns-1", "dns_suffix": ["example.com"]}],
+                "ip_pools": [{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}],
+                "portal_hostname": {"default_domain": {"hostname": "example"}},
+            }
+
+        try:
+            result = self.client.infrastructure_settings.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder, name or "", e)
+
+    def list_infrastructure_settings(
+        self,
+        name: str = None,
+        folder: str = "Mobile Users",
+    ) -> list[dict[str, Any]]:
+        """List infrastructure settings matching a name.
+
+        The SCM API requires the 'name' query parameter for this endpoint;
+        there is no enumerate-all listing.
+
+        Args:
+            name: Name of the infrastructure settings (required by the API)
+            folder: Folder (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of infrastructure setting objects
+
+        """
+        self.logger.info(f"Listing infrastructure settings named '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "is-mock1",
+                    "folder": folder,
+                    "name": name or "gp-infra",
+                    "dns_servers": [{"name": "dns-1", "dns_suffix": ["example.com"]}],
+                    "ip_pools": [{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}],
+                    "portal_hostname": {"default_domain": {"hostname": "example"}},
+                },
+            ]
+
+        try:
+            results = self.client.infrastructure_settings.list(name=name, folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "infrastructure settings", e)
+
+    def delete_infrastructure_setting(
+        self,
+        name: str = None,
+        folder: str = "Mobile Users",
+    ) -> bool:
+        """Delete an infrastructure setting.
+
+        Args:
+            name: Name of the infrastructure setting to delete
+            folder: Folder (must be 'Mobile Users')
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting infrastructure setting: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            self.client.infrastructure_settings.delete(name=name, folder=folder)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name or "", e)
+
+    # ---------------------------------------------------------------- agent2: Infrastructure Setting (end) ----------------------------------------------------------------
+
+    # ---------------------------------------------------------------- agent2: Global Settings (begin) ----------------------------------------------------------------
+
+    def get_global_settings(self) -> dict[str, Any]:
+        """Get the GlobalProtect global settings singleton.
+
+        Returns:
+            dict[str, Any]: The global settings object
+
+        """
+        self.logger.info("Getting GlobalProtect global settings")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "agent_version": "6.2.0",
+                "manual_gateway": {"region": [{"name": "americas", "locations": ["us-east-1"]}]},
+            }
+
+        try:
+            result = self.client.global_settings.get()
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", "global", "global settings", e)
+
+    def update_global_settings(
+        self,
+        agent_version: str | None = None,
+        manual_gateway: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Update the GlobalProtect global settings singleton.
+
+        Global settings always exist for the tenant, so this is a plain PUT;
+        there is no create path and the action is always reported as updated.
+
+        Args:
+            agent_version: GlobalProtect agent version
+            manual_gateway: Manual gateway configuration
+
+        Returns:
+            dict[str, Any]: The updated global settings with __action__ field
+
+        """
+        self.logger.info("Updating GlobalProtect global settings")
+
+        settings_data: dict[str, Any] = {}
+        if agent_version is not None:
+            settings_data["agent_version"] = agent_version
+        if manual_gateway is not None:
+            settings_data["manual_gateway"] = manual_gateway
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = dict(settings_data)
+            result["__action__"] = "updated"
+            return result
+
+        try:
+            result = self.client.global_settings.update(settings_data)
+            response = json.loads(result.model_dump_json(exclude_unset=True))
+            response["__action__"] = "updated"
+            return response
+        except Exception as e:
+            self._handle_api_exception("updating", "global", "global settings", e)
+
+    # ---------------------------------------------------------------- agent2: Global Settings (end) ----------------------------------------------------------------
+
     # ======================================================================================================================================================================================
     # SETUP CONFIGURATION METHODS
     # ======================================================================================================================================================================================
