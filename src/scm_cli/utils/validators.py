@@ -5088,6 +5088,174 @@ class GlobalSetting(BaseModel):
 
 
 # =============================================================================================================================================================================================
+# GLOBALPROTECT FORWARDING PROFILE SUB-RESOURCE MODELS
+# =============================================================================================================================================================================================
+
+
+class ForwardingProfileSourceApplication(BaseModel):
+    """Model for mobile agent forwarding profile source application configurations."""
+
+    name: str = Field(..., description="Name of the source application")
+    folder: str | None = Field(None, description="Folder path (only 'Mobile Users' is supported)")
+    description: str | None = Field(None, description="Description of the source application")
+    applications: list[str] = Field(..., description="List of applications")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfileSourceApplication":
+        """Validate that a folder is provided.
+
+        Returns:
+            The validated source application model
+
+        Raises:
+            ValueError: If no folder is provided
+
+        """
+        if not self.folder:
+            raise ValueError("folder must be provided (only 'Mobile Users' is supported)")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+            "applications": self.applications,
+        }
+
+        if self.description is not None:
+            model_data["description"] = self.description
+
+        return model_data
+
+
+class ForwardingProfileUserLocation(BaseModel):
+    """Model for mobile agent forwarding profile user location configurations."""
+
+    name: str = Field(..., description="Name of the user location")
+    folder: str | None = Field(None, description="Folder path (only 'Mobile Users' is supported)")
+    description: str | None = Field(None, description="Description of the user location")
+    internal_host_ip: str | None = Field(None, description="Internal host detection IP address")
+    internal_host_fqdn: str | None = Field(None, description="Internal host detection FQDN")
+    ip_addresses: list[str] | None = Field(None, description="List of user location IP addresses")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfileUserLocation":
+        """Validate folder and that exactly one location matching criteria is provided.
+
+        Returns:
+            The validated user location model
+
+        Raises:
+            ValueError: If no folder is provided or the choice fields are invalid
+
+        """
+        if not self.folder:
+            raise ValueError("folder must be provided (only 'Mobile Users' is supported)")
+
+        has_internal_host = bool(self.internal_host_ip or self.internal_host_fqdn)
+        has_ip_addresses = bool(self.ip_addresses)
+        if has_internal_host == has_ip_addresses:
+            raise ValueError("Exactly one of internal host detection (internal_host_ip/internal_host_fqdn) or ip_addresses must be provided")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        choice: dict[str, Any]
+        if self.ip_addresses:
+            choice = {"ip_addresses": [{"name": ip} for ip in self.ip_addresses]}
+        else:
+            internal_host_detection: dict[str, Any] = {}
+            if self.internal_host_ip is not None:
+                internal_host_detection["ip_address"] = self.internal_host_ip
+            if self.internal_host_fqdn is not None:
+                internal_host_detection["fqdn"] = self.internal_host_fqdn
+            choice = {"internal_host_detection": internal_host_detection}
+
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+            "choice": choice,
+        }
+
+        if self.description is not None:
+            model_data["description"] = self.description
+
+        return model_data
+
+
+class ForwardingProfileRegionalAndCustomProxy(BaseModel):
+    """Model for mobile agent forwarding profile regional and custom proxy configurations."""
+
+    name: str = Field(..., description="Name of the regional and custom proxy")
+    folder: str | None = Field(None, description="Folder path (only 'Mobile Users' is supported)")
+    description: str | None = Field(None, description="Description of the regional and custom proxy")
+    type: str | None = Field(None, description="Proxy type (gp-and-pac, ztna-agent)")
+    proxy_1: dict[str, Any] | None = Field(None, description="Primary proxy server (fqdn, port, location)")
+    proxy_2: dict[str, Any] | None = Field(None, description="Secondary proxy server (fqdn, port, location)")
+    connectivity_preference: list[dict[str, Any]] | None = Field(None, description="Connectivity preference entries (name, enabled)")
+    fallback_option: str | None = Field(None, description="Fallback option (fail-open, fail-safe)")
+    location_preference: str | None = Field(None, description="Location preference (best-available-pa-location, specific-pa-location)")
+    prisma_access_locations: list[dict[str, Any]] | None = Field(None, description="Prisma Access locations (name, locations)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfileRegionalAndCustomProxy":
+        """Validate that a folder is provided.
+
+        Returns:
+            The validated regional and custom proxy model
+
+        Raises:
+            ValueError: If no folder is provided
+
+        """
+        if not self.folder:
+            raise ValueError("folder must be provided (only 'Mobile Users' is supported)")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+        }
+
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.type is not None:
+            model_data["type"] = self.type
+        if self.proxy_1 is not None:
+            model_data["proxy_1"] = self.proxy_1
+        if self.proxy_2 is not None:
+            model_data["proxy_2"] = self.proxy_2
+        if self.connectivity_preference is not None:
+            model_data["connectivity_preference"] = self.connectivity_preference
+        if self.fallback_option is not None:
+            model_data["fallback_option"] = self.fallback_option
+        if self.location_preference is not None:
+            model_data["location_preference"] = self.location_preference
+        if self.prisma_access_locations is not None:
+            model_data["prisma_access_locations"] = self.prisma_access_locations
+
+        return model_data
+
+
+# =============================================================================================================================================================================================
 # INSIGHTS AND MONITORING MODELS
 # =============================================================================================================================================================================================
 

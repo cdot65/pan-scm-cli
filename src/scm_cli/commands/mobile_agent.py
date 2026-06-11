@@ -15,7 +15,18 @@ from ..utils import validate_location_params
 from ..utils.config import load_from_yaml, settings
 from ..utils.context import get_current_context
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AgentProfile, AuthSetting, ForwardingProfile, ForwardingProfileDestination, GlobalSetting, InfrastructureSetting, TunnelProfile
+from ..utils.validators import (
+    AgentProfile,
+    AuthSetting,
+    ForwardingProfile,
+    ForwardingProfileDestination,
+    ForwardingProfileRegionalAndCustomProxy,
+    ForwardingProfileSourceApplication,
+    ForwardingProfileUserLocation,
+    GlobalSetting,
+    InfrastructureSetting,
+    TunnelProfile,
+)
 
 # =============================================================================================================================================================================================
 # HELPER FUNCTIONS
@@ -2130,4 +2141,1012 @@ def set_global_setting(
         raise typer.Exit(code=1) from e
     except Exception as e:
         typer.echo(f"Error updating global settings: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# FORWARDING PROFILE SOURCE APPLICATION COMMANDS
+# =============================================================================================================================================================================================
+
+APPLICATION_OPTION = typer.Option(
+    None,
+    "--application",
+    help="Application name (repeatable)",
+)
+
+
+@backup_app.command("forwarding-profile-source-application")
+def backup_forwarding_profile_source_application(
+    folder: str = BACKUP_FOLDER_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+):
+    """Backup all forwarding profile source applications from a folder to a YAML file.
+
+    Examples
+    --------
+        # Backup from the Mobile Users folder
+        scm backup mobile-agent forwarding-profile-source-application --folder "Mobile Users"
+
+    """
+    try:
+        folder = folder or "Mobile Users"
+
+        source_applications = scm_client.list_forwarding_profile_source_applications(folder=folder)
+
+        if not source_applications:
+            typer.echo(f"No forwarding profile source applications found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for app in source_applications:
+            app_dict = {k: v for k, v in app.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            app_dict.pop("id", None)
+            backup_data.append(app_dict)
+
+        # Create the YAML structure
+        yaml_data = {"forwarding_profile_source_applications": backup_data}
+
+        # Generate filename
+        if file is None:
+            file = Path(get_default_backup_filename("forwarding-profile-source-application", "folder", folder))
+
+        # Write to YAML file
+        with file.open("w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profile source applications to {file}")
+        return str(file)
+
+    except Exception as e:
+        typer.echo(f"Error backing up forwarding profile source applications: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("forwarding-profile-source-application")
+def delete_forwarding_profile_source_application(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
+    """Delete a forwarding profile source application.
+
+    Examples
+    --------
+        scm delete mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps"
+
+    """
+    try:
+        if not force:
+            typer.confirm(f"Delete forwarding profile source application '{name}' from folder '{folder}'?", abort=True)
+        result = scm_client.delete_forwarding_profile_source_application(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted forwarding profile source application: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting forwarding profile source application: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("forwarding-profile-source-application")
+def load_forwarding_profile_source_application(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+):
+    """Load forwarding profile source applications from a YAML file.
+
+    Examples
+    --------
+        # Load from file with original locations
+        scm load mobile-agent forwarding-profile-source-application --file config/source_applications.yml
+
+        # Load with folder override
+        scm load mobile-agent forwarding-profile-source-application --file config/source_applications.yml --folder "Mobile Users"
+
+    """
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "forwarding_profile_source_applications")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["forwarding_profile_source_applications"]))
+            return None
+
+        # Apply each source application
+        results = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for app_data in config["forwarding_profile_source_applications"]:
+            try:
+                # Apply container override if specified
+                if folder:
+                    app_data["folder"] = folder
+
+                # Validate using the Pydantic model
+                source_application = ForwardingProfileSourceApplication(**app_data)
+                sdk_data = source_application.to_sdk_model()
+
+                # Create the source application via SDK client
+                result = scm_client.create_forwarding_profile_source_application(**sdk_data)
+
+                # Track action
+                action = result.pop("__action__", "created")
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created forwarding profile source application: {result.get('name', 'N/A')}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated forwarding profile source application: {result.get('name', 'N/A')}")
+                elif action == "no_change":
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for forwarding profile source application: {result.get('name', 'N/A')}")
+
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error loading forwarding profile source application '{app_data.get('name', 'unknown')}': {str(e)}", err=True)
+
+        # Summary
+        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading forwarding profile source applications: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("forwarding-profile-source-application")
+def set_forwarding_profile_source_application(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    application: list[str] | None = APPLICATION_OPTION,
+):
+    r"""Create or update a forwarding profile source application.
+
+    Examples
+    --------
+        scm set mobile-agent forwarding-profile-source-application \
+        --folder "Mobile Users" \
+        --name "office-apps" \
+        --application slack \
+        --application zoom
+
+    """
+    try:
+        # Build source application data
+        app_data: dict[str, Any] = {
+            "name": name,
+        }
+
+        if folder:
+            app_data["folder"] = folder
+        if description is not None:
+            app_data["description"] = description
+        if application:
+            app_data["applications"] = application
+
+        # Validate using the Pydantic model
+        source_application = ForwardingProfileSourceApplication(**app_data)
+        sdk_data = source_application.to_sdk_model()
+
+        # Call the SDK client
+        result = scm_client.create_forwarding_profile_source_application(**sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "updated":
+            typer.echo(f"Updated forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating forwarding profile source application: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("forwarding-profile-source-application")
+def show_forwarding_profile_source_application(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the source application to show"),
+):
+    """Display forwarding profile source applications.
+
+    Examples
+    --------
+        # List all source applications in a folder (default behavior)
+        scm show mobile-agent forwarding-profile-source-application --folder "Mobile Users"
+
+        # Show a specific source application by name
+        scm show mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps"
+
+    """
+    try:
+        show_context_info()
+
+        if name:
+            # Get a specific source application by name
+            app = scm_client.get_forwarding_profile_source_application(folder=folder, name=name)
+
+            typer.echo(f"\nForwarding Profile Source Application: {app.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location
+            if app.get("folder"):
+                typer.echo(f"Location: Folder '{app['folder']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            # Display source application details
+            if app.get("description"):
+                typer.echo(f"Description: {app['description']}")
+            if app.get("applications"):
+                typer.echo(f"Applications: {', '.join(app['applications'])}")
+            if app.get("id"):
+                typer.echo(f"ID: {app['id']}")
+
+            return app
+
+        else:
+            # Default: list all source applications
+            apps_list = scm_client.list_forwarding_profile_source_applications(folder=folder)
+
+            if not apps_list:
+                typer.echo(f"No forwarding profile source applications found in folder '{folder}'")
+                return
+
+            typer.echo(f"\nForwarding Profile Source Applications in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for app in apps_list:
+                typer.echo(f"Name: {app.get('name', 'N/A')}")
+                if app.get("applications"):
+                    typer.echo(f"  Applications: {', '.join(app['applications'])}")
+                if app.get("description"):
+                    typer.echo(f"  Description: {app['description']}")
+                typer.echo("-" * 60)
+
+            return apps_list
+
+    except Exception as e:
+        typer.echo(f"Error showing forwarding profile source application: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# FORWARDING PROFILE USER LOCATION COMMANDS
+# =============================================================================================================================================================================================
+
+INTERNAL_HOST_IP_OPTION = typer.Option(
+    None,
+    "--internal-host-ip",
+    help="Internal host detection IP address",
+)
+INTERNAL_HOST_FQDN_OPTION = typer.Option(
+    None,
+    "--internal-host-fqdn",
+    help="Internal host detection FQDN",
+)
+USER_LOCATION_IP_OPTION = typer.Option(
+    None,
+    "--ip-address",
+    help="User location IP address (repeatable; supports wildcards or CIDR suffix)",
+)
+
+
+def _format_user_location_choice(choice: dict[str, Any]) -> list[str]:
+    """Format a user location choice dictionary for display."""
+    lines = []
+    if choice.get("ip_addresses"):
+        ips = ", ".join(entry.get("name", "N/A") for entry in choice["ip_addresses"])
+        lines.append(f"IP Addresses: {ips}")
+    internal_host = choice.get("internal_host_detection")
+    if internal_host:
+        if internal_host.get("ip_address"):
+            lines.append(f"Internal Host IP: {internal_host['ip_address']}")
+        if internal_host.get("fqdn"):
+            lines.append(f"Internal Host FQDN: {internal_host['fqdn']}")
+    return lines
+
+
+@backup_app.command("forwarding-profile-user-location")
+def backup_forwarding_profile_user_location(
+    folder: str = BACKUP_FOLDER_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+):
+    """Backup all forwarding profile user locations from a folder to a YAML file.
+
+    Examples
+    --------
+        # Backup from the Mobile Users folder
+        scm backup mobile-agent forwarding-profile-user-location --folder "Mobile Users"
+
+    """
+    try:
+        folder = folder or "Mobile Users"
+
+        user_locations = scm_client.list_forwarding_profile_user_locations(folder=folder)
+
+        if not user_locations:
+            typer.echo(f"No forwarding profile user locations found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for location in user_locations:
+            location_dict = {k: v for k, v in location.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            location_dict.pop("id", None)
+            # Flatten choice into the CLI YAML schema
+            choice = location_dict.pop("choice", None) or {}
+            if choice.get("ip_addresses"):
+                location_dict["ip_addresses"] = [entry["name"] for entry in choice["ip_addresses"] if entry.get("name")]
+            internal_host = choice.get("internal_host_detection") or {}
+            if internal_host.get("ip_address"):
+                location_dict["internal_host_ip"] = internal_host["ip_address"]
+            if internal_host.get("fqdn"):
+                location_dict["internal_host_fqdn"] = internal_host["fqdn"]
+            backup_data.append(location_dict)
+
+        # Create the YAML structure
+        yaml_data = {"forwarding_profile_user_locations": backup_data}
+
+        # Generate filename
+        if file is None:
+            file = Path(get_default_backup_filename("forwarding-profile-user-location", "folder", folder))
+
+        # Write to YAML file
+        with file.open("w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profile user locations to {file}")
+        return str(file)
+
+    except Exception as e:
+        typer.echo(f"Error backing up forwarding profile user locations: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("forwarding-profile-user-location")
+def delete_forwarding_profile_user_location(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
+    """Delete a forwarding profile user location.
+
+    Examples
+    --------
+        scm delete mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network"
+
+    """
+    try:
+        if not force:
+            typer.confirm(f"Delete forwarding profile user location '{name}' from folder '{folder}'?", abort=True)
+        result = scm_client.delete_forwarding_profile_user_location(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted forwarding profile user location: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting forwarding profile user location: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("forwarding-profile-user-location")
+def load_forwarding_profile_user_location(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+):
+    """Load forwarding profile user locations from a YAML file.
+
+    Examples
+    --------
+        # Load from file with original locations
+        scm load mobile-agent forwarding-profile-user-location --file config/user_locations.yml
+
+        # Load with folder override
+        scm load mobile-agent forwarding-profile-user-location --file config/user_locations.yml --folder "Mobile Users"
+
+    """
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "forwarding_profile_user_locations")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["forwarding_profile_user_locations"]))
+            return None
+
+        # Apply each user location
+        results = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for location_data in config["forwarding_profile_user_locations"]:
+            try:
+                # Apply container override if specified
+                if folder:
+                    location_data["folder"] = folder
+
+                # Validate using the Pydantic model
+                user_location = ForwardingProfileUserLocation(**location_data)
+                sdk_data = user_location.to_sdk_model()
+
+                # Create the user location via SDK client
+                result = scm_client.create_forwarding_profile_user_location(**sdk_data)
+
+                # Track action
+                action = result.pop("__action__", "created")
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created forwarding profile user location: {result.get('name', 'N/A')}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated forwarding profile user location: {result.get('name', 'N/A')}")
+                elif action == "no_change":
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for forwarding profile user location: {result.get('name', 'N/A')}")
+
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error loading forwarding profile user location '{location_data.get('name', 'unknown')}': {str(e)}", err=True)
+
+        # Summary
+        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading forwarding profile user locations: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("forwarding-profile-user-location")
+def set_forwarding_profile_user_location(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    internal_host_ip: str | None = INTERNAL_HOST_IP_OPTION,
+    internal_host_fqdn: str | None = INTERNAL_HOST_FQDN_OPTION,
+    ip_address: list[str] | None = USER_LOCATION_IP_OPTION,
+):
+    r"""Create or update a forwarding profile user location.
+
+    Provide either IP address entries (--ip-address, repeatable) or internal host
+    detection settings (--internal-host-ip / --internal-host-fqdn), but not both.
+
+    Examples
+    --------
+        # IP address based location
+        scm set mobile-agent forwarding-profile-user-location \
+        --folder "Mobile Users" \
+        --name "branch-network" \
+        --ip-address "10.1.0.0/16"
+
+        # Internal host detection based location
+        scm set mobile-agent forwarding-profile-user-location \
+        --folder "Mobile Users" \
+        --name "corp-office" \
+        --internal-host-fqdn "intranet.example.com"
+
+    """
+    try:
+        # Build user location data
+        location_data: dict[str, Any] = {
+            "name": name,
+        }
+
+        if folder:
+            location_data["folder"] = folder
+        if description is not None:
+            location_data["description"] = description
+        if internal_host_ip is not None:
+            location_data["internal_host_ip"] = internal_host_ip
+        if internal_host_fqdn is not None:
+            location_data["internal_host_fqdn"] = internal_host_fqdn
+        if ip_address:
+            location_data["ip_addresses"] = ip_address
+
+        # Validate using the Pydantic model
+        user_location = ForwardingProfileUserLocation(**location_data)
+        sdk_data = user_location.to_sdk_model()
+
+        # Call the SDK client
+        result = scm_client.create_forwarding_profile_user_location(**sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "updated":
+            typer.echo(f"Updated forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating forwarding profile user location: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("forwarding-profile-user-location")
+def show_forwarding_profile_user_location(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the user location to show"),
+):
+    """Display forwarding profile user locations.
+
+    Examples
+    --------
+        # List all user locations in a folder (default behavior)
+        scm show mobile-agent forwarding-profile-user-location --folder "Mobile Users"
+
+        # Show a specific user location by name
+        scm show mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network"
+
+    """
+    try:
+        show_context_info()
+
+        if name:
+            # Get a specific user location by name
+            location = scm_client.get_forwarding_profile_user_location(folder=folder, name=name)
+
+            typer.echo(f"\nForwarding Profile User Location: {location.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location
+            if location.get("folder"):
+                typer.echo(f"Location: Folder '{location['folder']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            # Display user location details
+            if location.get("description"):
+                typer.echo(f"Description: {location['description']}")
+            for line in _format_user_location_choice(location.get("choice") or {}):
+                typer.echo(line)
+            if location.get("id"):
+                typer.echo(f"ID: {location['id']}")
+
+            return location
+
+        else:
+            # Default: list all user locations
+            locations_list = scm_client.list_forwarding_profile_user_locations(folder=folder)
+
+            if not locations_list:
+                typer.echo(f"No forwarding profile user locations found in folder '{folder}'")
+                return
+
+            typer.echo(f"\nForwarding Profile User Locations in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for location in locations_list:
+                typer.echo(f"Name: {location.get('name', 'N/A')}")
+                for line in _format_user_location_choice(location.get("choice") or {}):
+                    typer.echo(f"  {line}")
+                if location.get("description"):
+                    typer.echo(f"  Description: {location['description']}")
+                typer.echo("-" * 60)
+
+            return locations_list
+
+    except Exception as e:
+        typer.echo(f"Error showing forwarding profile user location: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# FORWARDING PROFILE REGIONAL AND CUSTOM PROXY COMMANDS
+# =============================================================================================================================================================================================
+
+PROXY_TYPE_OPTION = typer.Option(
+    None,
+    "--type",
+    help="Proxy type (gp-and-pac, ztna-agent)",
+)
+PROXY_1_FQDN_OPTION = typer.Option(
+    None,
+    "--proxy-1-fqdn",
+    help="Primary proxy server FQDN",
+)
+PROXY_1_PORT_OPTION = typer.Option(
+    None,
+    "--proxy-1-port",
+    help="Primary proxy server port (1-65535)",
+)
+PROXY_1_LOCATION_OPTION = typer.Option(
+    None,
+    "--proxy-1-location",
+    help="Primary proxy server location",
+)
+PROXY_2_FQDN_OPTION = typer.Option(
+    None,
+    "--proxy-2-fqdn",
+    help="Secondary proxy server FQDN",
+)
+PROXY_2_PORT_OPTION = typer.Option(
+    None,
+    "--proxy-2-port",
+    help="Secondary proxy server port (1-65535)",
+)
+PROXY_2_LOCATION_OPTION = typer.Option(
+    None,
+    "--proxy-2-location",
+    help="Secondary proxy server location",
+)
+FALLBACK_OPTION_OPTION = typer.Option(
+    None,
+    "--fallback-option",
+    help="Fallback option (fail-open, fail-safe)",
+)
+LOCATION_PREFERENCE_OPTION = typer.Option(
+    None,
+    "--location-preference",
+    help="Location preference (best-available-pa-location, specific-pa-location)",
+)
+
+
+@backup_app.command("forwarding-profile-regional-and-custom-proxy")
+def backup_forwarding_profile_regional_and_custom_proxy(
+    folder: str = BACKUP_FOLDER_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+):
+    """Backup all forwarding profile regional and custom proxies from a folder to a YAML file.
+
+    Examples
+    --------
+        # Backup from the Mobile Users folder
+        scm backup mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users"
+
+    """
+    try:
+        folder = folder or "Mobile Users"
+
+        proxies = scm_client.list_forwarding_profile_regional_and_custom_proxies(folder=folder)
+
+        if not proxies:
+            typer.echo(f"No forwarding profile regional and custom proxies found in folder '{folder}'")
+            return
+
+        # Convert SDK models to dictionaries, excluding unset values
+        backup_data = []
+        for proxy in proxies:
+            proxy_dict = {k: v for k, v in proxy.items() if v is not None}
+            # Remove system fields that shouldn't be in backup
+            proxy_dict.pop("id", None)
+            backup_data.append(proxy_dict)
+
+        # Create the YAML structure
+        yaml_data = {"forwarding_profile_regional_and_custom_proxies": backup_data}
+
+        # Generate filename
+        if file is None:
+            file = Path(get_default_backup_filename("forwarding-profile-regional-and-custom-proxy", "folder", folder))
+
+        # Write to YAML file
+        with file.open("w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profile regional and custom proxies to {file}")
+        return str(file)
+
+    except Exception as e:
+        typer.echo(f"Error backing up forwarding profile regional and custom proxies: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("forwarding-profile-regional-and-custom-proxy")
+def delete_forwarding_profile_regional_and_custom_proxy(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
+    """Delete a forwarding profile regional and custom proxy.
+
+    Examples
+    --------
+        scm delete mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy"
+
+    """
+    try:
+        if not force:
+            typer.confirm(f"Delete forwarding profile regional and custom proxy '{name}' from folder '{folder}'?", abort=True)
+        result = scm_client.delete_forwarding_profile_regional_and_custom_proxy(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted forwarding profile regional and custom proxy: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting forwarding profile regional and custom proxy: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("forwarding-profile-regional-and-custom-proxy")
+def load_forwarding_profile_regional_and_custom_proxy(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+):
+    """Load forwarding profile regional and custom proxies from a YAML file.
+
+    Nested fields (proxy_1, proxy_2, connectivity_preference, prisma_access_locations)
+    are fully supported in the YAML schema.
+
+    Examples
+    --------
+        # Load from file with original locations
+        scm load mobile-agent forwarding-profile-regional-and-custom-proxy --file config/regional_proxies.yml
+
+        # Load with folder override
+        scm load mobile-agent forwarding-profile-regional-and-custom-proxy --file config/regional_proxies.yml --folder "Mobile Users"
+
+    """
+    try:
+        # Load and parse the YAML file
+        config = load_from_yaml(str(file), "forwarding_profile_regional_and_custom_proxies")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["forwarding_profile_regional_and_custom_proxies"]))
+            return None
+
+        # Apply each regional and custom proxy
+        results = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for proxy_data in config["forwarding_profile_regional_and_custom_proxies"]:
+            try:
+                # Apply container override if specified
+                if folder:
+                    proxy_data["folder"] = folder
+
+                # Validate using the Pydantic model
+                regional_proxy = ForwardingProfileRegionalAndCustomProxy(**proxy_data)
+                sdk_data = regional_proxy.to_sdk_model()
+
+                # Create the regional and custom proxy via SDK client
+                result = scm_client.create_forwarding_profile_regional_and_custom_proxy(**sdk_data)
+
+                # Track action
+                action = result.pop("__action__", "created")
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
+                elif action == "no_change":
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
+
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error loading forwarding profile regional and custom proxy '{proxy_data.get('name', 'unknown')}': {str(e)}", err=True)
+
+        # Summary
+        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading forwarding profile regional and custom proxies: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("forwarding-profile-regional-and-custom-proxy")
+def set_forwarding_profile_regional_and_custom_proxy(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    type: str | None = PROXY_TYPE_OPTION,
+    proxy_1_fqdn: str | None = PROXY_1_FQDN_OPTION,
+    proxy_1_port: int | None = PROXY_1_PORT_OPTION,
+    proxy_1_location: str | None = PROXY_1_LOCATION_OPTION,
+    proxy_2_fqdn: str | None = PROXY_2_FQDN_OPTION,
+    proxy_2_port: int | None = PROXY_2_PORT_OPTION,
+    proxy_2_location: str | None = PROXY_2_LOCATION_OPTION,
+    fallback_option: str | None = FALLBACK_OPTION_OPTION,
+    location_preference: str | None = LOCATION_PREFERENCE_OPTION,
+):
+    r"""Create or update a forwarding profile regional and custom proxy.
+
+    Nested connectivity_preference and prisma_access_locations entries are
+    supported via the load command's YAML schema.
+
+    Examples
+    --------
+        scm set mobile-agent forwarding-profile-regional-and-custom-proxy \
+        --folder "Mobile Users" \
+        --name "emea-proxy" \
+        --type gp-and-pac \
+        --proxy-1-fqdn "proxy1.example.com" \
+        --proxy-1-port 8080 \
+        --fallback-option fail-open
+
+    """
+    try:
+        # Build regional and custom proxy data
+        proxy_data: dict[str, Any] = {
+            "name": name,
+        }
+
+        if folder:
+            proxy_data["folder"] = folder
+        if description is not None:
+            proxy_data["description"] = description
+        if type is not None:
+            proxy_data["type"] = type
+
+        proxy_1: dict[str, Any] = {}
+        if proxy_1_fqdn is not None:
+            proxy_1["fqdn"] = proxy_1_fqdn
+        if proxy_1_port is not None:
+            proxy_1["port"] = proxy_1_port
+        if proxy_1_location is not None:
+            proxy_1["location"] = proxy_1_location
+        if proxy_1:
+            proxy_data["proxy_1"] = proxy_1
+
+        proxy_2: dict[str, Any] = {}
+        if proxy_2_fqdn is not None:
+            proxy_2["fqdn"] = proxy_2_fqdn
+        if proxy_2_port is not None:
+            proxy_2["port"] = proxy_2_port
+        if proxy_2_location is not None:
+            proxy_2["location"] = proxy_2_location
+        if proxy_2:
+            proxy_data["proxy_2"] = proxy_2
+
+        if fallback_option is not None:
+            proxy_data["fallback_option"] = fallback_option
+        if location_preference is not None:
+            proxy_data["location_preference"] = location_preference
+
+        # Validate using the Pydantic model
+        regional_proxy = ForwardingProfileRegionalAndCustomProxy(**proxy_data)
+        sdk_data = regional_proxy.to_sdk_model()
+
+        # Call the SDK client
+        result = scm_client.create_forwarding_profile_regional_and_custom_proxy(**sdk_data)
+
+        # Get the action performed
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "updated":
+            typer.echo(f"Updated forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating forwarding profile regional and custom proxy: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("forwarding-profile-regional-and-custom-proxy")
+def show_forwarding_profile_regional_and_custom_proxy(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the regional and custom proxy to show"),
+):
+    """Display forwarding profile regional and custom proxies.
+
+    Examples
+    --------
+        # List all regional and custom proxies in a folder (default behavior)
+        scm show mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users"
+
+        # Show a specific regional and custom proxy by name
+        scm show mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy"
+
+    """
+    try:
+        show_context_info()
+
+        if name:
+            # Get a specific regional and custom proxy by name
+            proxy = scm_client.get_forwarding_profile_regional_and_custom_proxy(folder=folder, name=name)
+
+            typer.echo(f"\nForwarding Profile Regional and Custom Proxy: {proxy.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            # Display container location
+            if proxy.get("folder"):
+                typer.echo(f"Location: Folder '{proxy['folder']}'")
+            else:
+                typer.echo("Location: N/A")
+
+            # Display regional and custom proxy details
+            if proxy.get("description"):
+                typer.echo(f"Description: {proxy['description']}")
+            if proxy.get("type"):
+                typer.echo(f"Type: {proxy['type']}")
+            for proxy_key, proxy_label in (("proxy_1", "Proxy 1"), ("proxy_2", "Proxy 2")):
+                server = proxy.get(proxy_key)
+                if server:
+                    parts = [server.get("fqdn", "N/A")]
+                    if server.get("port"):
+                        parts.append(f"port {server['port']}")
+                    if server.get("location"):
+                        parts.append(f"location {server['location']}")
+                    typer.echo(f"{proxy_label}: {', '.join(parts)}")
+            if proxy.get("connectivity_preference"):
+                prefs = ", ".join(f"{pref.get('name', 'N/A')}={'enabled' if pref.get('enabled') else 'disabled'}" for pref in proxy["connectivity_preference"])
+                typer.echo(f"Connectivity Preference: {prefs}")
+            if proxy.get("fallback_option"):
+                typer.echo(f"Fallback Option: {proxy['fallback_option']}")
+            if proxy.get("location_preference"):
+                typer.echo(f"Location Preference: {proxy['location_preference']}")
+            if proxy.get("prisma_access_locations"):
+                for region in proxy["prisma_access_locations"]:
+                    locations = ", ".join(region.get("locations") or [])
+                    typer.echo(f"Prisma Access Region: {region.get('name', 'N/A')}{f' ({locations})' if locations else ''}")
+            if proxy.get("id"):
+                typer.echo(f"ID: {proxy['id']}")
+
+            return proxy
+
+        else:
+            # Default: list all regional and custom proxies
+            proxies_list = scm_client.list_forwarding_profile_regional_and_custom_proxies(folder=folder)
+
+            if not proxies_list:
+                typer.echo(f"No forwarding profile regional and custom proxies found in folder '{folder}'")
+                return
+
+            typer.echo(f"\nForwarding Profile Regional and Custom Proxies in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for proxy in proxies_list:
+                typer.echo(f"Name: {proxy.get('name', 'N/A')}")
+                if proxy.get("type"):
+                    typer.echo(f"  Type: {proxy['type']}")
+                if proxy.get("description"):
+                    typer.echo(f"  Description: {proxy['description']}")
+                typer.echo("-" * 60)
+
+            return proxies_list
+
+    except Exception as e:
+        typer.echo(f"Error showing forwarding profile regional and custom proxy: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
