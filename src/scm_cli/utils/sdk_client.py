@@ -11081,6 +11081,431 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deletion", container or "", name or "", e)
 
+    # ------------------------------------------------------------------------------ GlobalProtect Agent Profile (agent3) ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_not_found_error(exception: Exception) -> bool:
+        """Check whether an SDK exception represents a 404 / not-found condition.
+
+        The mobile-agent profile services raise InvalidObjectError with
+        http_status_code 404 (rather than NotFoundError) when a fetch matches
+        nothing.
+        """
+        if isinstance(exception, NotFoundError):
+            return True
+        return getattr(exception, "http_status_code", None) == 404
+
+    def create_agent_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        os: list[str] | None = None,
+        save_user_credentials: str | None = None,
+        source_user: list[str] | None = None,
+        third_party_vpn_clients: list[str] | None = None,
+        agent_ui: dict[str, Any] | None = None,
+        authentication_override: dict[str, Any] | None = None,
+        certificate: dict[str, Any] | None = None,
+        client_certificate: dict[str, Any] | None = None,
+        custom_checks: dict[str, Any] | None = None,
+        gateways: dict[str, Any] | None = None,
+        gp_app_config: dict[str, Any] | None = None,
+        hip_collection: dict[str, Any] | None = None,
+        internal_host_detection: dict[str, Any] | None = None,
+        internal_host_detection_v6: dict[str, Any] | None = None,
+        machine_account_exists_with_serialno: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a GlobalProtect agent profile using smart upsert logic.
+
+        Agent profiles live only in the 'Mobile Users' folder and are addressed by
+        name (the API exposes no ID-based endpoints). Updates send the merged field
+        set; each provided field replaces the existing value wholesale.
+
+        Args:
+            folder: Folder containing the agent profile (must be 'Mobile Users')
+            name: Name of the agent profile
+            os: Operating systems this profile applies to
+            save_user_credentials: Save user credentials behavior ('0'-'3')
+            source_user: Source users this profile applies to
+            third_party_vpn_clients: Supported third party VPN clients
+            agent_ui: Agent UI configuration settings
+            authentication_override: Authentication override settings
+            certificate: Certificate settings
+            client_certificate: Client certificate settings
+            custom_checks: Custom checks settings
+            gateways: Gateways configuration
+            gp_app_config: GlobalProtect app configuration (connect-method / tunnel-mtu)
+            hip_collection: HIP collection settings
+            internal_host_detection: Internal host detection (IPv4) settings
+            internal_host_detection_v6: Internal host detection (IPv6) settings
+            machine_account_exists_with_serialno: Machine account / serial number setting
+
+        Returns:
+            dict[str, Any]: The created/updated agent profile object with __action__ field
+
+        """
+        provided_fields: dict[str, Any] = {
+            key: value
+            for key, value in {
+                "os": os,
+                "save_user_credentials": save_user_credentials,
+                "source_user": source_user,
+                "third_party_vpn_clients": third_party_vpn_clients,
+                "agent_ui": agent_ui,
+                "authentication_override": authentication_override,
+                "certificate": certificate,
+                "client_certificate": client_certificate,
+                "custom_checks": custom_checks,
+                "gateways": gateways,
+                "gp_app_config": gp_app_config,
+                "hip_collection": hip_collection,
+                "internal_host_detection": internal_host_detection,
+                "internal_host_detection_v6": internal_host_detection_v6,
+                "machine_account_exists_with_serialno": machine_account_exists_with_serialno,
+            }.items()
+            if value is not None
+        }
+
+        self.logger.info(f"Creating or updating agent profile: {name} in folder {folder}")
+
+        if not self.client:
+            result = {"id": f"ap-{name}", "folder": folder, "name": name, **provided_fields, "__action__": "created"}
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            existing = None
+            try:
+                existing = self.client.agent_profile.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing agent profile '{name}' in folder '{folder}'")
+            except Exception as fetch_error:
+                if self._is_not_found_error(fetch_error):
+                    self.logger.info(f"Agent profile '{name}' not found in folder '{folder}', will create new")
+                else:
+                    self.logger.warning(f"Error fetching agent profile '{name}': {str(fetch_error)}")
+
+            if existing:
+                existing_data = json.loads(existing.model_dump_json(exclude_unset=True))
+                changed_fields = [key for key, value in provided_fields.items() if existing_data.get(key) != value]
+
+                if changed_fields:
+                    self.logger.info(f"Updating agent profile fields: {', '.join(changed_fields)}")
+                    update_data = {"name": name, "folder": folder, **provided_fields}
+                    result = self.client.agent_profile.update(update_data)
+                    if result is None:
+                        # The API may return 200 with no body; re-fetch for the response
+                        result = self.client.agent_profile.fetch(name=name, folder=folder)
+                    self.logger.info(f"Successfully updated agent profile '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for agent profile '{name}', skipping update")
+                    response = existing_data
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                profile_data = {"name": name, "folder": folder, **provided_fields}
+                result = self.client.agent_profile.create(profile_data)
+                self.logger.info(f"Successfully created agent profile '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_agent_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a GlobalProtect agent profile by name.
+
+        Args:
+            folder: Folder containing the agent profile (must be 'Mobile Users')
+            name: Name of the agent profile to get
+
+        Returns:
+            dict[str, Any]: The agent profile object
+
+        """
+        self.logger.info(f"Getting agent profile: {name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": f"ap-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "os": ["Windows", "Mac"],
+                "save_user_credentials": "0",
+                "gp_app_config": {"config": [{"name": "connect-method", "value": ["user-logon"]}]},
+            }
+
+        try:
+            result = self.client.agent_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_agent_profiles(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List GlobalProtect agent profiles.
+
+        Args:
+            folder: Folder to list from (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of agent profile objects
+
+        """
+        self.logger.info(f"Listing agent profiles in folder: {folder}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "ap-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "corp-app-settings",
+                    "os": ["Windows"],
+                    "save_user_credentials": "0",
+                },
+                {
+                    "id": "ap-mock2",
+                    "folder": folder or "Mobile Users",
+                    "name": "byod-app-settings",
+                    "os": ["iOS", "Android"],
+                    "save_user_credentials": "3",
+                },
+            ]
+
+        try:
+            results = self.client.agent_profile.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "agent profiles", e)
+
+    def delete_agent_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a GlobalProtect agent profile.
+
+        The API deletes by name and folder query parameters; no ID is involved.
+
+        Args:
+            folder: Folder containing the agent profile (must be 'Mobile Users')
+            name: Name of the agent profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting agent profile: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            self.client.agent_profile.delete(name=name, folder=folder)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
+    # ------------------------------------------------------------------------------ GlobalProtect Tunnel Profile (agent3) -----------------------------------------------------------------
+
+    def create_tunnel_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        no_direct_access_to_local_network: bool | None = None,
+        retrieve_framed_ip_address: bool | None = None,
+        os: list[str] | None = None,
+        source_user: list[str] | None = None,
+        authentication_override: dict[str, Any] | None = None,
+        source_address: dict[str, Any] | None = None,
+        split_tunneling: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a GlobalProtect tunnel profile using smart upsert logic.
+
+        Tunnel profiles live only in the 'Mobile Users' folder and are addressed by
+        name. The folder travels as a query parameter and must NOT appear in the
+        request body.
+
+        Args:
+            folder: Folder containing the tunnel profile (must be 'Mobile Users')
+            name: Name of the tunnel profile
+            no_direct_access_to_local_network: Disable direct access to the local network
+            retrieve_framed_ip_address: Retrieve framed IP address from the auth server
+            os: Operating systems this profile applies to
+            source_user: Source users this profile applies to
+            authentication_override: Authentication override configuration
+            source_address: Source address configuration
+            split_tunneling: Split tunneling configuration
+
+        Returns:
+            dict[str, Any]: The created/updated tunnel profile object with __action__ field
+
+        """
+        provided_fields: dict[str, Any] = {
+            key: value
+            for key, value in {
+                "no_direct_access_to_local_network": no_direct_access_to_local_network,
+                "retrieve_framed_ip_address": retrieve_framed_ip_address,
+                "os": os,
+                "source_user": source_user,
+                "authentication_override": authentication_override,
+                "source_address": source_address,
+                "split_tunneling": split_tunneling,
+            }.items()
+            if value is not None
+        }
+
+        self.logger.info(f"Creating or updating tunnel profile: {name} in folder {folder}")
+
+        if not self.client:
+            result = {"id": f"tp-{name}", "folder": folder, "name": name, **provided_fields, "__action__": "created"}
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            existing = None
+            try:
+                existing = self.client.tunnel_profile.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing tunnel profile '{name}' in folder '{folder}'")
+            except Exception as fetch_error:
+                if self._is_not_found_error(fetch_error):
+                    self.logger.info(f"Tunnel profile '{name}' not found in folder '{folder}', will create new")
+                else:
+                    self.logger.warning(f"Error fetching tunnel profile '{name}': {str(fetch_error)}")
+
+            # The tunnel-profiles API rejects folder in the request body
+            body = {"name": name, **provided_fields}
+
+            if existing:
+                existing_data = json.loads(existing.model_dump_json(exclude_unset=True))
+                changed_fields = [key for key, value in provided_fields.items() if existing_data.get(key) != value]
+
+                if changed_fields:
+                    self.logger.info(f"Updating tunnel profile fields: {', '.join(changed_fields)}")
+                    result = self.client.tunnel_profile.update(body, folder=folder)
+                    self.logger.info(f"Successfully updated tunnel profile '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for tunnel profile '{name}', skipping update")
+                    response = existing_data
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                result = self.client.tunnel_profile.create(body, folder=folder)
+                self.logger.info(f"Successfully created tunnel profile '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_tunnel_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a GlobalProtect tunnel profile by name.
+
+        Args:
+            folder: Folder containing the tunnel profile (must be 'Mobile Users')
+            name: Name of the tunnel profile to get
+
+        Returns:
+            dict[str, Any]: The tunnel profile object
+
+        """
+        self.logger.info(f"Getting tunnel profile: {name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": f"tp-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "no_direct_access_to_local_network": False,
+                "split_tunneling": {"access_route": ["10.0.0.0/8"]},
+            }
+
+        try:
+            result = self.client.tunnel_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_tunnel_profiles(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List GlobalProtect tunnel profiles.
+
+        Args:
+            folder: Folder to list from (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of tunnel profile objects
+
+        """
+        self.logger.info(f"Listing tunnel profiles in folder: {folder}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "tp-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "corp-tunnel",
+                    "split_tunneling": {"access_route": ["10.0.0.0/8"]},
+                },
+                {
+                    "id": "tp-mock2",
+                    "folder": folder or "Mobile Users",
+                    "name": "byod-tunnel",
+                    "no_direct_access_to_local_network": True,
+                },
+            ]
+
+        try:
+            results = self.client.tunnel_profile.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "tunnel profiles", e)
+
+    def delete_tunnel_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a GlobalProtect tunnel profile.
+
+        The API deletes by name and folder query parameters; no ID is involved.
+
+        Args:
+            folder: Folder containing the tunnel profile (must be 'Mobile Users')
+            name: Name of the tunnel profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting tunnel profile: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            self.client.tunnel_profile.delete(name=name, folder=folder)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
     # ======================================================================================================================================================================================
     # SETUP CONFIGURATION METHODS
     # ======================================================================================================================================================================================
