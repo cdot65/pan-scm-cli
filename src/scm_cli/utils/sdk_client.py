@@ -16467,6 +16467,407 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("fetching", "N/A", f"incident {incident_id}", e)
 
+    # ======================================================================================================================================================================================
+    # GLOBALPROTECT FORWARDING PROFILE METHODS (mobile-agent, SDK 0.15.0)
+    # ======================================================================================================================================================================================
+
+    # Forwarding Profile ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_forwarding_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        definition_method: str | None = None,
+        type: dict[str, Any] | None = None,  # noqa: A002 - matches SDK field name
+    ) -> dict[str, Any]:
+        """Create or update a GlobalProtect forwarding profile using smart upsert logic.
+
+        Args:
+            folder: Folder for the profile (must be 'Mobile Users'; sent as query param)
+            name: Name of the forwarding profile
+            description: Optional description
+            definition_method: How the profile is defined (rules or pac-file)
+            type: Profile type configuration ({pac_file|global_protect_proxy|ztna_agent: {...}})
+
+        Returns:
+            dict[str, Any]: The created/updated forwarding profile with __action__ field
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Creating or updating forwarding profile: {name} in folder {folder}")
+
+        if not self.client:
+            result = {
+                "id": f"fp-{name}",
+                "name": name,
+                "description": description,
+                "definition_method": definition_method,
+                "type": type,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing profile by name (SDK fetch raises a 404-style
+            # InvalidObjectError when missing, which lands in the generic handler below)
+            existing = None
+            try:
+                existing = self.client.forwarding_profile.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.info(f"Forwarding profile '{name}' lookup did not match ({fetch_error}), will create new")
+
+            if existing:
+                existing_dump = json.loads(existing.model_dump_json(exclude_unset=True))
+
+                # Step 2: Compare provided fields and update if needed
+                provided: dict[str, Any] = {}
+                if description is not None:
+                    provided["description"] = description
+                if definition_method is not None:
+                    provided["definition_method"] = definition_method
+                if type is not None:
+                    provided["type"] = type
+
+                needs_update = any(existing_dump.get(field) != value for field, value in provided.items())
+
+                if needs_update:
+                    payload = {k: v for k, v in existing_dump.items() if k != "id"}
+                    payload.update(provided)
+                    result = self.client.forwarding_profile.update(str(existing.id), payload)
+                    self.logger.info(f"Successfully updated forwarding profile '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile '{name}', skipping update")
+                    response = existing_dump
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new profile (folder goes as query param via the service)
+                profile_data: dict[str, Any] = {"name": name}
+                if description is not None:
+                    profile_data["description"] = description
+                if definition_method is not None:
+                    profile_data["definition_method"] = definition_method
+                if type is not None:
+                    profile_data["type"] = type
+
+                result = self.client.forwarding_profile.create(profile_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder, name or "", e)
+
+    def get_forwarding_profile(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        profile_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile by name (fetch) or UUID (direct get).
+
+        Args:
+            folder: Folder containing the profile (used with name)
+            name: Name of the forwarding profile
+            profile_id: UUID of the forwarding profile (takes precedence over name)
+
+        Returns:
+            dict[str, Any]: The forwarding profile object
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Getting forwarding profile: {profile_id or name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": profile_id or f"fp-{name}",
+                "name": name or "mock-profile",
+                "description": f"Mock forwarding profile {name or profile_id}",
+                "definition_method": "rules",
+                "type": {"ztna_agent": {"pac_upload": False}},
+            }
+
+        try:
+            result = self.client.forwarding_profile.get(profile_id) if profile_id else self.client.forwarding_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder, profile_id or name or "", e)
+
+    def list_forwarding_profiles(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profiles.
+
+        Args:
+            folder: Folder to list from (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of forwarding profile objects
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Listing forwarding profiles in folder: {folder}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "fp-mock1",
+                    "name": "ztna-profile",
+                    "definition_method": "rules",
+                    "type": {"ztna_agent": {"pac_upload": False}},
+                },
+                {
+                    "id": "fp-mock2",
+                    "name": "pac-profile",
+                    "definition_method": "pac-file",
+                    "type": {"pac_file": {"pac_upload": True}},
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "forwarding profiles", e)
+
+    def delete_forwarding_profile(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        profile_id: str | None = None,
+    ) -> bool:
+        """Delete a forwarding profile by name or UUID.
+
+        Args:
+            folder: Folder containing the profile (used with name)
+            name: Name of the forwarding profile to delete
+            profile_id: UUID of the forwarding profile (takes precedence over name)
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Deleting forwarding profile: {profile_id or name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            if not profile_id:
+                profile = self.client.forwarding_profile.fetch(name=name, folder=folder)
+                profile_id = str(profile.id)
+            self.client.forwarding_profile.delete(profile_id)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, profile_id or name or "", e)
+
+    # Forwarding Profile Destination ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_forwarding_profile_destination(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        fqdn: list[dict[str, Any]] | None = None,
+        ip_addresses: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a forwarding profile destination using smart upsert logic.
+
+        Args:
+            folder: Folder for the destination (must be 'Mobile Users'; sent as query param)
+            name: Name of the destination
+            description: Optional description
+            fqdn: FQDN entries ({name, port?})
+            ip_addresses: IP address entries ({name, port?})
+
+        Returns:
+            dict[str, Any]: The created/updated destination with __action__ field
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Creating or updating forwarding profile destination: {name} in folder {folder}")
+
+        if not self.client:
+            result = {
+                "id": f"fpd-{name}",
+                "name": name,
+                "description": description,
+                "fqdn": fqdn,
+                "ip_addresses": ip_addresses,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing destination by name (SDK fetch raises a 404-style
+            # InvalidObjectError when missing, which lands in the generic handler below)
+            existing = None
+            try:
+                existing = self.client.forwarding_profile_destination.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile destination '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile destination '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.info(f"Forwarding profile destination '{name}' lookup did not match ({fetch_error}), will create new")
+
+            if existing:
+                existing_dump = json.loads(existing.model_dump_json(exclude_unset=True))
+
+                # Step 2: Compare provided fields and update if needed
+                provided: dict[str, Any] = {}
+                if description is not None:
+                    provided["description"] = description
+                if fqdn is not None:
+                    provided["fqdn"] = fqdn
+                if ip_addresses is not None:
+                    provided["ip_addresses"] = ip_addresses
+
+                needs_update = any(existing_dump.get(field) != value for field, value in provided.items())
+
+                if needs_update:
+                    payload = {k: v for k, v in existing_dump.items() if k != "id"}
+                    payload.update(provided)
+                    result = self.client.forwarding_profile_destination.update(str(existing.id), payload)
+                    self.logger.info(f"Successfully updated forwarding profile destination '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile destination '{name}', skipping update")
+                    response = existing_dump
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new destination (folder goes as query param via the service)
+                destination_data: dict[str, Any] = {"name": name}
+                if description is not None:
+                    destination_data["description"] = description
+                if fqdn is not None:
+                    destination_data["fqdn"] = fqdn
+                if ip_addresses is not None:
+                    destination_data["ip_addresses"] = ip_addresses
+
+                result = self.client.forwarding_profile_destination.create(destination_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile destination '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder, name or "", e)
+
+    def get_forwarding_profile_destination(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        destination_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile destination by name (fetch) or UUID (direct get).
+
+        Args:
+            folder: Folder containing the destination (used with name)
+            name: Name of the destination
+            destination_id: UUID of the destination (takes precedence over name)
+
+        Returns:
+            dict[str, Any]: The destination object
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Getting forwarding profile destination: {destination_id or name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": destination_id or f"fpd-{name}",
+                "name": name or "mock-destination",
+                "description": f"Mock destination {name or destination_id}",
+                "fqdn": [{"name": "app.internal", "port": 443}],
+            }
+
+        try:
+            result = self.client.forwarding_profile_destination.get(destination_id) if destination_id else self.client.forwarding_profile_destination.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder, destination_id or name or "", e)
+
+    def list_forwarding_profile_destinations(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profile destinations.
+
+        Args:
+            folder: Folder to list from (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of destination objects
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Listing forwarding profile destinations in folder: {folder}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "fpd-mock1",
+                    "name": "internal-apps",
+                    "fqdn": [{"name": "app.internal", "port": 443}],
+                },
+                {
+                    "id": "fpd-mock2",
+                    "name": "corp-ranges",
+                    "ip_addresses": [{"name": "10.0.0.0/8"}],
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile_destination.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "forwarding profile destinations", e)
+
+    def delete_forwarding_profile_destination(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        destination_id: str | None = None,
+    ) -> bool:
+        """Delete a forwarding profile destination by name or UUID.
+
+        Args:
+            folder: Folder containing the destination (used with name)
+            name: Name of the destination to delete
+            destination_id: UUID of the destination (takes precedence over name)
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Deleting forwarding profile destination: {destination_id or name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            if not destination_id:
+                destination = self.client.forwarding_profile_destination.fetch(name=name, folder=folder)
+                destination_id = str(destination.id)
+            self.client.forwarding_profile_destination.delete(destination_id)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, destination_id or name or "", e)
+
 
 class LazyClient:
     """Lazy wrapper for SCMClient that delays initialization until first use."""
