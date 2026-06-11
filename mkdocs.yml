@@ -164,6 +164,8 @@ nav:
           - Forwarding Profile: cli/mobile-agent/forwarding-profile.md
           - Forwarding Profile Destination: cli/mobile-agent/forwarding-profile-destination.md
           - Tunnel Profile: cli/mobile-agent/tunnel-profile.md
+          - Global Setting: cli/mobile-agent/global-setting.md
+          - Infrastructure Setting: cli/mobile-agent/infrastructure-setting.md
           - SDK Reference: cli/mobile-agent/sdk-mobile-agent.md
       - Local Config:
           - Overview: cli/local/index.md

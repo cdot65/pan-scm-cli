@@ -8,6 +8,7 @@ that all required fields are present and correctly formatted.
 from typing import Any, ClassVar, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic_core import from_json
 
 # =============================================================================================================================================================================================
 # TYPE DEFINITIONS
@@ -4850,6 +4851,240 @@ class TunnelProfile(BaseModel):
                 model_data["split_tunneling"] = split_tunneling
 
         return model_data
+
+
+# ---------------------------------------------------- agent2: GlobalProtect infrastructure/global settings (begin) ----------------------------------------------------
+
+
+def _parse_json_value(value: Any) -> Any:
+    """Parse a JSON string into a structure, passing through non-strings.
+
+    Lets the same Pydantic models accept raw JSON strings from CLI options and
+    already-parsed structures from YAML loads.
+    """
+    if isinstance(value, str):
+        return from_json(value)
+    return value
+
+
+class InfraDnsServerSelection(BaseModel):
+    """Primary/secondary DNS server selection for an internal DNS match entry."""
+
+    dns_server: dict[str, Any] | None = Field(None, description="DNS server configuration")
+    use_cloud_default: dict[str, Any] | None = Field(None, description="Use the cloud default DNS server")
+
+
+class InfraInternalDnsMatch(BaseModel):
+    """Internal DNS match entry for a DNS server configuration."""
+
+    name: str | None = Field(None, description="Name of the internal DNS match entry")
+    domain_list: list[str] | None = Field(None, description="Domains to resolve with internal DNS servers")
+    primary: InfraDnsServerSelection | None = Field(None, description="Primary DNS server selection")
+    secondary: InfraDnsServerSelection | None = Field(None, description="Secondary DNS server selection")
+
+
+class InfraPublicDnsServer(BaseModel):
+    """Public DNS server configuration."""
+
+    dns_server: str | None = Field(None, description="IP address of the public DNS server")
+
+
+class InfraDnsServer(BaseModel):
+    """DNS server entry for infrastructure settings."""
+
+    name: str | None = Field(None, description="Name of the DNS server entry")
+    dns_suffix: list[str] | None = Field(None, description="DNS suffixes for the mobile users environment")
+    internal_dns_match: list[InfraInternalDnsMatch] | None = Field(None, description="Internal DNS match entries")
+    primary_public_dns: InfraPublicDnsServer | None = Field(None, description="Primary public DNS server")
+    secondary_public_dns: InfraPublicDnsServer | None = Field(None, description="Secondary public DNS server")
+
+
+class InfraIpPool(BaseModel):
+    """IP pool entry for infrastructure settings."""
+
+    name: str | None = Field(None, description="Name of the IP pool")
+    ip_pool: list[str] | None = Field(None, description="IP subnets of the pool")
+
+
+class InfraCustomDomain(BaseModel):
+    """Custom domain configuration for the portal hostname."""
+
+    cname: str | None = Field(None, description="CNAME record of the custom domain")
+    hostname: str | None = Field(None, description="Hostname of the custom domain")
+    ssl_tls_service_profile: str | None = Field(None, description="SSL/TLS service profile name")
+
+
+class InfraDefaultDomain(BaseModel):
+    """Default domain configuration for the portal hostname."""
+
+    hostname: str | None = Field(None, description="Hostname of the default domain")
+
+
+class InfraPortalHostname(BaseModel):
+    """Portal hostname configuration for infrastructure settings."""
+
+    custom_domain: InfraCustomDomain | None = Field(None, description="Custom domain configuration")
+    default_domain: InfraDefaultDomain | None = Field(None, description="Default domain configuration")
+
+
+class InfraWinsServer(BaseModel):
+    """WINS server entry for infrastructure settings."""
+
+    name: str | None = Field(None, description="Name of the WINS server entry")
+    primary: str | None = Field(None, description="Primary WINS server")
+    secondary: str | None = Field(None, description="Secondary WINS server")
+
+
+class InfraEnableWinsYes(BaseModel):
+    """Configuration when WINS is enabled."""
+
+    wins_servers: list[InfraWinsServer] | None = Field(None, description="WINS servers")
+
+
+class InfraEnableWins(BaseModel):
+    """Enable or disable WINS; exactly one of 'yes' or 'no' is expected by the API."""
+
+    no: dict[str, Any] | None = Field(None, description="WINS is disabled")
+    yes: InfraEnableWinsYes | None = Field(None, description="WINS is enabled with the given WINS servers")
+
+
+class InfraUdpQueryRetries(BaseModel):
+    """UDP query retry configuration."""
+
+    attempts: int | None = Field(None, ge=1, le=30, description="Maximum retries before trying the next name server")
+    interval: int | None = Field(None, ge=1, le=30, description="Time in seconds for another request to be sent")
+
+
+class InfraUdpQueries(BaseModel):
+    """UDP query configuration for infrastructure settings."""
+
+    retries: InfraUdpQueryRetries | None = Field(None, description="UDP query retry configuration")
+
+
+class InfraUserGroup(BaseModel):
+    """User group entry for a static IP pool."""
+
+    name: str | None = Field(None, max_length=320, description="Distinguished Name of the group")
+    directory: str | None = Field(None, description="Directory of the group")
+
+
+class InfraStaticIpPool(BaseModel):
+    """Static IP pool entry for infrastructure settings."""
+
+    name: str | None = Field(None, max_length=128, description="Name of the static IP pool entry")
+    pool_type: str | None = Field(None, description="Type of the pool (Static-IP)")
+    ip_pool: list[str] | None = Field(None, description="IP subnets")
+    theatres: list[str] | None = Field(None, description="IP pools on theatres")
+    users: list[str] | None = Field(None, description="IP pools on users")
+    user_groups: list[InfraUserGroup] | None = Field(None, description="IP pools on user groups")
+
+
+class InfrastructureSetting(BaseModel):
+    """Model for mobile agent infrastructure setting configurations.
+
+    Infrastructure settings are addressed by name within the 'Mobile Users'
+    folder only; the SCM API rejects any other container. Complex fields accept
+    either parsed structures (YAML load) or JSON strings (CLI options).
+    """
+
+    name: str = Field(..., description="Name of the infrastructure setting")
+    folder: str = Field("Mobile Users", description="Folder path (must be 'Mobile Users')")
+    dns_servers: list[InfraDnsServer] = Field(..., description="DNS server entries")
+    ip_pools: list[InfraIpPool] = Field(..., description="IP pools")
+    portal_hostname: InfraPortalHostname = Field(..., description="Portal hostname configuration")
+    enable_wins: InfraEnableWins | None = Field(None, description="WINS configuration")
+    ipv6: bool | None = Field(None, description="Whether IPv6 is enabled")
+    udp_queries: InfraUdpQueries | None = Field(None, description="UDP query retry configuration")
+    static_ip_pools: list[InfraStaticIpPool] | None = Field(None, description="Static IP pools")
+
+    @field_validator("dns_servers", "ip_pools", "portal_hostname", "enable_wins", "udp_queries", "static_ip_pools", mode="before")
+    @classmethod
+    def parse_json_strings(cls, value: Any) -> Any:
+        """Accept JSON strings for structured fields and parse them before validation."""
+        return _parse_json_value(value)
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "InfrastructureSetting":
+        """Validate that the folder is 'Mobile Users'.
+
+        Returns:
+            The validated infrastructure setting model
+
+        Raises:
+            ValueError: If the folder is not 'Mobile Users'
+
+        """
+        if self.folder != "Mobile Users":
+            raise ValueError("Folder must be 'Mobile Users' for infrastructure settings")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = self.model_dump(exclude_none=True)
+        return model_data
+
+
+class GlobalSettingManualGatewayRegion(BaseModel):
+    """Manual gateway region entry for global settings."""
+
+    name: str | None = Field(None, description="Name of the region")
+    locations: list[str] | None = Field(None, description="Locations within the region")
+
+
+class GlobalSettingManualGateway(BaseModel):
+    """Manual gateway configuration for global settings."""
+
+    region: list[GlobalSettingManualGatewayRegion] | None = Field(None, description="Manual gateway regions")
+
+
+class GlobalSetting(BaseModel):
+    """Model for mobile agent global setting configurations.
+
+    Global settings are a tenant-wide singleton with GET/PUT semantics only;
+    there is no container and no name.
+    """
+
+    agent_version: str | None = Field(None, description="GlobalProtect agent version")
+    manual_gateway: GlobalSettingManualGateway | None = Field(None, description="Manual gateway configuration")
+
+    @field_validator("manual_gateway", mode="before")
+    @classmethod
+    def parse_json_strings(cls, value: Any) -> Any:
+        """Accept JSON strings for structured fields and parse them before validation."""
+        return _parse_json_value(value)
+
+    @model_validator(mode="after")
+    def validate_not_empty(self) -> "GlobalSetting":
+        """Validate that at least one field is provided.
+
+        Returns:
+            The validated global setting model
+
+        Raises:
+            ValueError: If no fields are provided
+
+        """
+        if self.agent_version is None and self.manual_gateway is None:
+            raise ValueError("At least one of agent_version or manual_gateway must be provided")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = self.model_dump(exclude_none=True)
+        return model_data
+
+
+# ---------------------------------------------------- agent2: GlobalProtect infrastructure/global settings (end) ----------------------------------------------------
 
 
 # =============================================================================================================================================================================================
