@@ -4918,3 +4918,133 @@ class BpaStatusResponse(BaseModel):
         if v not in allowed:
             raise ValueError(f"status must be one of {allowed}, got '{v}'")
         return v
+
+
+# =============================================================================================================================================================================================
+# GLOBALPROTECT FORWARDING PROFILE MODELS (mobile-agent, SDK 0.15.0)
+# =============================================================================================================================================================================================
+
+_FORWARDING_PROFILE_TYPE_KEYS = {"pac_file", "global_protect_proxy", "ztna_agent"}
+_FORWARDING_PROFILE_DEFINITION_METHODS = {"rules", "pac-file"}
+
+
+class ForwardingProfile(BaseModel):
+    """Model for GlobalProtect forwarding profile configurations.
+
+    Forwarding profiles are folder-scoped to "Mobile Users" only; the SDK sends the
+    folder as a query parameter rather than in the request body.
+    """
+
+    name: str = Field(..., max_length=64, pattern=r"^[0-9a-zA-Z._-]+$", description="Name of the forwarding profile")
+    folder: str | None = Field(None, description="Folder path (must be 'Mobile Users')")
+    description: str | None = Field(None, max_length=1023, description="Description of the forwarding profile")
+    definition_method: str | None = Field(None, description="How the profile is defined (rules or pac-file)")
+    type: dict[str, Any] | None = Field(None, description="Profile type configuration (pac_file, global_protect_proxy, or ztna_agent)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfile":
+        """Validate that a folder is provided (only supported container)."""
+        if not self.folder:
+            raise ValueError("folder must be provided (forwarding profiles only support the 'Mobile Users' folder)")
+        return self
+
+    @field_validator("definition_method")
+    @classmethod
+    def validate_definition_method(cls, v: str | None) -> str | None:
+        """Validate definition_method value."""
+        if v is not None and v not in _FORWARDING_PROFILE_DEFINITION_METHODS:
+            raise ValueError(f"definition_method must be one of: {', '.join(sorted(_FORWARDING_PROFILE_DEFINITION_METHODS))}")
+        return v
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Validate the profile type wrapper has exactly one known key."""
+        if v is not None:
+            keys = set(v.keys())
+            if len(keys) != 1 or not keys.issubset(_FORWARDING_PROFILE_TYPE_KEYS):
+                raise ValueError(f"type must contain exactly one of: {', '.join(sorted(_FORWARDING_PROFILE_TYPE_KEYS))}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+        if self.folder:
+            model_data["folder"] = self.folder
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.definition_method is not None:
+            model_data["definition_method"] = self.definition_method
+        if self.type is not None:
+            model_data["type"] = self.type
+        return model_data
+
+
+def _parse_destination_entries(entries: Any) -> list[dict[str, Any]] | None:
+    """Normalize destination entries to [{name, port?}] dicts.
+
+    Accepts plain strings ("host" or "host:port") from CLI flags and dicts from YAML.
+    """
+    if entries is None:
+        return None
+    parsed: list[dict[str, Any]] = []
+    for entry in entries:
+        if isinstance(entry, dict):
+            parsed.append(dict(entry))
+            continue
+        if not isinstance(entry, str):
+            raise ValueError(f"destination entry must be a string or mapping, got {type(entry).__name__}")
+        name, sep, port = entry.rpartition(":")
+        if sep and port.isdigit():
+            parsed.append({"name": name, "port": int(port)})
+        else:
+            parsed.append({"name": entry})
+    for item in parsed:
+        port_value = item.get("port")
+        if port_value is not None and not (1 <= int(port_value) <= 65535):
+            raise ValueError(f"port must be between 1 and 65535, got {port_value}")
+    return parsed
+
+
+class ForwardingProfileDestination(BaseModel):
+    """Model for GlobalProtect forwarding profile destination configurations.
+
+    Destinations are folder-scoped to "Mobile Users" only; the SDK sends the folder
+    as a query parameter rather than in the request body.
+    """
+
+    name: str = Field(..., max_length=64, pattern=r"^[0-9a-zA-Z._-]+$", description="Name of the destination")
+    folder: str | None = Field(None, description="Folder path (must be 'Mobile Users')")
+    description: str | None = Field(None, max_length=1023, description="Description of the destination")
+    fqdn: list[dict[str, Any]] | None = Field(None, description="FQDN entries ({name, port?})")
+    ip_addresses: list[dict[str, Any]] | None = Field(None, description="IP address entries ({name, port?})")
+
+    @field_validator("fqdn", "ip_addresses", mode="before")
+    @classmethod
+    def parse_entries(cls, v: Any) -> list[dict[str, Any]] | None:
+        """Parse string ('host[:port]') or dict entries into {name, port?} dicts."""
+        return _parse_destination_entries(v)
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfileDestination":
+        """Validate that a folder is provided (only supported container)."""
+        if not self.folder:
+            raise ValueError("folder must be provided (forwarding profile destinations only support the 'Mobile Users' folder)")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+        if self.folder:
+            model_data["folder"] = self.folder
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.fqdn is not None:
+            model_data["fqdn"] = self.fqdn
+        if self.ip_addresses is not None:
+            model_data["ip_addresses"] = self.ip_addresses
+        return model_data

@@ -160,6 +160,8 @@ nav:
       - Mobile Agent:
           - Agent Version: cli/mobile-agent/agent-version.md
           - Auth Setting: cli/mobile-agent/auth-setting.md
+          - Forwarding Profile: cli/mobile-agent/forwarding-profile.md
+          - Forwarding Profile Destination: cli/mobile-agent/forwarding-profile-destination.md
           - SDK Reference: cli/mobile-agent/sdk-mobile-agent.md
       - Local Config:
           - Overview: cli/local/index.md
