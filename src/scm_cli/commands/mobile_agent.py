@@ -15,7 +15,7 @@ from ..utils import validate_location_params
 from ..utils.config import load_from_yaml, settings
 from ..utils.context import get_current_context
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AuthSetting, ForwardingProfile, ForwardingProfileDestination
+from ..utils.validators import AgentProfile, AuthSetting, ForwardingProfile, ForwardingProfileDestination, TunnelProfile
 
 # =============================================================================================================================================================================================
 # HELPER FUNCTIONS
@@ -1142,4 +1142,639 @@ def show_forwarding_profile_destination(
 
     except Exception as e:
         typer.echo(f"Error showing forwarding profile destination: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# AGENT PROFILE COMMANDS (agent3)
+# =============================================================================================================================================================================================
+
+# Agent/tunnel profiles live only in the 'Mobile Users' folder (no snippet/device)
+GP_FOLDER_OPTION = typer.Option(
+    "Mobile Users",
+    "--folder",
+    help="Folder path (GlobalProtect profiles only support 'Mobile Users')",
+)
+
+# Module-level option constants for repeatable list options (avoids B008 lint errors)
+GP_OS_OPTION: list[str] | None = typer.Option(
+    None,
+    "--os",
+    help="Operating system (repeatable: Android, Chrome, IoT, Linux, Mac, Windows, WindowsUWP, iOS)",
+)
+GP_SOURCE_USER_OPTION: list[str] | None = typer.Option(
+    None,
+    "--source-user",
+    help="Source user this profile applies to (repeatable)",
+)
+GP_THIRD_PARTY_VPN_CLIENT_OPTION: list[str] | None = typer.Option(
+    None,
+    "--third-party-vpn-client",
+    help="Third party VPN client supported by this profile (repeatable)",
+)
+GP_ACCESS_ROUTE_OPTION: list[str] | None = typer.Option(
+    None,
+    "--access-route",
+    help="Route included in the tunnel (repeatable)",
+)
+GP_EXCLUDE_ACCESS_ROUTE_OPTION: list[str] | None = typer.Option(
+    None,
+    "--exclude-access-route",
+    help="Route excluded from the tunnel (repeatable)",
+)
+GP_INCLUDE_APPLICATION_OPTION: list[str] | None = typer.Option(
+    None,
+    "--include-application",
+    help="Application included in the tunnel (repeatable)",
+)
+GP_EXCLUDE_APPLICATION_OPTION: list[str] | None = typer.Option(
+    None,
+    "--exclude-application",
+    help="Application excluded from the tunnel (repeatable)",
+)
+
+
+def _echo_nested(profile: dict[str, Any], keys: tuple[str, ...]) -> None:
+    """Echo nested dict fields of a profile as indented YAML blocks."""
+    for key in keys:
+        if profile.get(key):
+            typer.echo(f"{key.replace('_', ' ').title()}:")
+            block = yaml.dump(profile[key], default_flow_style=False, sort_keys=False)
+            typer.echo("\n".join(f"  {line}" for line in block.splitlines()))
+
+
+@backup_app.command("agent-profile")
+def backup_agent_profile(
+    folder: str = GP_FOLDER_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+):
+    """Backup all agent profiles from a folder to a YAML file.
+
+    Examples
+    --------
+        # Backup from the Mobile Users folder
+        scm backup mobile-agent agent-profile --folder "Mobile Users"
+
+        # Backup with custom output file
+        scm backup mobile-agent agent-profile --file agent-profiles-backup.yaml
+
+    """
+    try:
+        profiles = scm_client.list_agent_profiles(folder=folder)
+
+        if not profiles:
+            typer.echo(f"No agent profiles found in folder '{folder}'")
+            return
+
+        backup_data = []
+        for profile in profiles:
+            profile_dict = {k: v for k, v in profile.items() if v is not None}
+            profile_dict.pop("id", None)
+            backup_data.append(profile_dict)
+
+        yaml_data = {"agent_profiles": backup_data}
+
+        if file is None:
+            file = Path(get_default_backup_filename("agent-profile", "folder", folder))
+
+        with file.open("w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} agent profiles to {file}")
+        return str(file)
+
+    except Exception as e:
+        typer.echo(f"Error backing up agent profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("agent-profile")
+def delete_agent_profile(
+    folder: str = GP_FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
+    """Delete an agent profile.
+
+    Examples
+    --------
+        scm delete mobile-agent agent-profile --folder "Mobile Users" --name "corp-app-settings"
+
+    """
+    try:
+        if not force:
+            typer.confirm(f"Delete agent profile '{name}' from folder '{folder}'?", abort=True)
+        result = scm_client.delete_agent_profile(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted agent profile: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting agent profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("agent-profile")
+def load_agent_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+):
+    """Load agent profiles from a YAML file.
+
+    Examples
+    --------
+        # Load from file
+        scm load mobile-agent agent-profile --file config/agent_profiles.yml
+
+        # Load with folder override
+        scm load mobile-agent agent-profile --file config/agent_profiles.yml --folder "Mobile Users"
+
+    """
+    try:
+        config = load_from_yaml(str(file), "agent_profiles")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["agent_profiles"]))
+            return None
+
+        results = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for profile_data in config["agent_profiles"]:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+
+                agent_profile = AgentProfile(**profile_data)
+                sdk_data = agent_profile.to_sdk_model()
+
+                result = scm_client.create_agent_profile(**sdk_data)
+
+                action = result.pop("__action__", "created")
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created agent profile: {result.get('name', 'N/A')}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated agent profile: {result.get('name', 'N/A')}")
+                elif action == "no_change":
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for agent profile: {result.get('name', 'N/A')}")
+
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error loading agent profile '{profile_data.get('name', 'unknown')}': {str(e)}", err=True)
+
+        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading agent profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("agent-profile")
+def set_agent_profile(
+    folder: str = GP_FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    os: list[str] | None = GP_OS_OPTION,
+    connect_method: str | None = typer.Option(None, "--connect-method", help="Connect method (user-logon, pre-logon, on-demand, pre-logon-then-on-demand)"),
+    tunnel_mtu: int | None = typer.Option(None, "--tunnel-mtu", help="GlobalProtect connection MTU in bytes (1000-1420)"),
+    save_user_credentials: str | None = typer.Option(None, "--save-user-credentials", help="Save user credentials: 0=No, 1=Yes, 2=Save username only, 3=Only with user fingerprint"),
+    source_user: list[str] | None = GP_SOURCE_USER_OPTION,
+    third_party_vpn_clients: list[str] | None = GP_THIRD_PARTY_VPN_CLIENT_OPTION,
+):
+    r"""Create or update an agent profile (GlobalProtect app settings).
+
+    Nested settings (agent UI, gateways, HIP collection, ...) are supported via
+    `scm load mobile-agent agent-profile`.
+
+    Examples
+    --------
+        scm set mobile-agent agent-profile \
+        --folder "Mobile Users" \
+        --name "corp-app-settings" \
+        --connect-method user-logon \
+        --tunnel-mtu 1400 \
+        --os Windows --os Mac
+
+    """
+    try:
+        profile_data: dict[str, Any] = {
+            "name": name,
+            "folder": folder,
+        }
+
+        if os:
+            profile_data["os"] = os
+        if connect_method is not None:
+            profile_data["connect_method"] = connect_method
+        if tunnel_mtu is not None:
+            profile_data["tunnel_mtu"] = tunnel_mtu
+        if save_user_credentials is not None:
+            profile_data["save_user_credentials"] = save_user_credentials
+        if source_user:
+            profile_data["source_user"] = source_user
+        if third_party_vpn_clients:
+            profile_data["third_party_vpn_clients"] = third_party_vpn_clients
+
+        agent_profile = AgentProfile(**profile_data)
+        sdk_data = agent_profile.to_sdk_model()
+
+        result = scm_client.create_agent_profile(**sdk_data)
+
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "updated":
+            typer.echo(f"Updated agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating agent profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("agent-profile")
+def show_agent_profile(
+    folder: str = GP_FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the agent profile to show"),
+):
+    """Display agent profiles (GlobalProtect app settings).
+
+    Examples
+    --------
+        # List all agent profiles (default behavior)
+        scm show mobile-agent agent-profile --folder "Mobile Users"
+
+        # Show a specific agent profile by name
+        scm show mobile-agent agent-profile --folder "Mobile Users" --name "corp-app-settings"
+
+    """
+    try:
+        show_context_info()
+
+        if name:
+            profile = scm_client.get_agent_profile(folder=folder, name=name)
+
+            typer.echo(f"\nAgent Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+            typer.echo(f"Location: Folder '{profile.get('folder', folder)}'")
+
+            if profile.get("os"):
+                typer.echo(f"OS: {', '.join(profile['os'])}")
+            if profile.get("save_user_credentials") is not None:
+                typer.echo(f"Save User Credentials: {profile['save_user_credentials']}")
+            if profile.get("source_user"):
+                typer.echo(f"Source Users: {', '.join(profile['source_user'])}")
+            if profile.get("third_party_vpn_clients"):
+                typer.echo(f"Third Party VPN Clients: {', '.join(profile['third_party_vpn_clients'])}")
+            _echo_nested(
+                profile,
+                (
+                    "gp_app_config",
+                    "agent_ui",
+                    "authentication_override",
+                    "certificate",
+                    "client_certificate",
+                    "custom_checks",
+                    "gateways",
+                    "hip_collection",
+                    "internal_host_detection",
+                    "internal_host_detection_v6",
+                    "machine_account_exists_with_serialno",
+                ),
+            )
+            if profile.get("id"):
+                typer.echo(f"ID: {profile['id']}")
+
+            return profile
+
+        else:
+            profiles = scm_client.list_agent_profiles(folder=folder)
+
+            if not profiles:
+                typer.echo(f"No agent profiles found in folder '{folder}'")
+                return
+
+            typer.echo(f"\nAgent Profiles in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for profile in profiles:
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                if profile.get("os"):
+                    typer.echo(f"  OS: {', '.join(profile['os'])}")
+                if profile.get("save_user_credentials") is not None:
+                    typer.echo(f"  Save User Credentials: {profile['save_user_credentials']}")
+                typer.echo("-" * 60)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing agent profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# TUNNEL PROFILE COMMANDS (agent3)
+# =============================================================================================================================================================================================
+
+
+@backup_app.command("tunnel-profile")
+def backup_tunnel_profile(
+    folder: str = GP_FOLDER_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+):
+    """Backup all tunnel profiles from a folder to a YAML file.
+
+    Examples
+    --------
+        # Backup from the Mobile Users folder
+        scm backup mobile-agent tunnel-profile --folder "Mobile Users"
+
+        # Backup with custom output file
+        scm backup mobile-agent tunnel-profile --file tunnel-profiles-backup.yaml
+
+    """
+    try:
+        profiles = scm_client.list_tunnel_profiles(folder=folder)
+
+        if not profiles:
+            typer.echo(f"No tunnel profiles found in folder '{folder}'")
+            return
+
+        backup_data = []
+        for profile in profiles:
+            profile_dict = {k: v for k, v in profile.items() if v is not None}
+            profile_dict.pop("id", None)
+            backup_data.append(profile_dict)
+
+        yaml_data = {"tunnel_profiles": backup_data}
+
+        if file is None:
+            file = Path(get_default_backup_filename("tunnel-profile", "folder", folder))
+
+        with file.open("w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} tunnel profiles to {file}")
+        return str(file)
+
+    except Exception as e:
+        typer.echo(f"Error backing up tunnel profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("tunnel-profile")
+def delete_tunnel_profile(
+    folder: str = GP_FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
+    """Delete a tunnel profile.
+
+    Examples
+    --------
+        scm delete mobile-agent tunnel-profile --folder "Mobile Users" --name "corp-tunnel"
+
+    """
+    try:
+        if not force:
+            typer.confirm(f"Delete tunnel profile '{name}' from folder '{folder}'?", abort=True)
+        result = scm_client.delete_tunnel_profile(folder=folder, name=name)
+        if result:
+            typer.echo(f"Deleted tunnel profile: {name} from folder {folder}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting tunnel profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("tunnel-profile")
+def load_tunnel_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+):
+    """Load tunnel profiles from a YAML file.
+
+    Examples
+    --------
+        # Load from file
+        scm load mobile-agent tunnel-profile --file config/tunnel_profiles.yml
+
+        # Load with folder override
+        scm load mobile-agent tunnel-profile --file config/tunnel_profiles.yml --folder "Mobile Users"
+
+    """
+    try:
+        config = load_from_yaml(str(file), "tunnel_profiles")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["tunnel_profiles"]))
+            return None
+
+        results = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for profile_data in config["tunnel_profiles"]:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+
+                tunnel_profile = TunnelProfile(**profile_data)
+                sdk_data = tunnel_profile.to_sdk_model()
+
+                result = scm_client.create_tunnel_profile(**sdk_data)
+
+                action = result.pop("__action__", "created")
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created tunnel profile: {result.get('name', 'N/A')}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated tunnel profile: {result.get('name', 'N/A')}")
+                elif action == "no_change":
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for tunnel profile: {result.get('name', 'N/A')}")
+
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error loading tunnel profile '{profile_data.get('name', 'unknown')}': {str(e)}", err=True)
+
+        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading tunnel profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("tunnel-profile")
+def set_tunnel_profile(
+    folder: str = GP_FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    no_direct_access_to_local_network: bool | None = typer.Option(
+        None,
+        "--no-direct-access-to-local-network/--allow-direct-access-to-local-network",
+        help="Disable direct access to the local network",
+    ),
+    retrieve_framed_ip_address: bool | None = typer.Option(
+        None,
+        "--retrieve-framed-ip-address/--no-retrieve-framed-ip-address",
+        help="Retrieve the framed IP address from the authentication server",
+    ),
+    os: list[str] | None = GP_OS_OPTION,
+    source_user: list[str] | None = GP_SOURCE_USER_OPTION,
+    access_route: list[str] | None = GP_ACCESS_ROUTE_OPTION,
+    exclude_access_route: list[str] | None = GP_EXCLUDE_ACCESS_ROUTE_OPTION,
+    include_applications: list[str] | None = GP_INCLUDE_APPLICATION_OPTION,
+    exclude_applications: list[str] | None = GP_EXCLUDE_APPLICATION_OPTION,
+):
+    r"""Create or update a tunnel profile (GlobalProtect tunnel settings).
+
+    Nested settings (authentication override, source address, split tunneling
+    domains) are supported via `scm load mobile-agent tunnel-profile`.
+
+    Examples
+    --------
+        scm set mobile-agent tunnel-profile \
+        --folder "Mobile Users" \
+        --name "corp-tunnel" \
+        --access-route 10.0.0.0/8 \
+        --no-direct-access-to-local-network
+
+    """
+    try:
+        profile_data: dict[str, Any] = {
+            "name": name,
+            "folder": folder,
+        }
+
+        if no_direct_access_to_local_network is not None:
+            profile_data["no_direct_access_to_local_network"] = no_direct_access_to_local_network
+        if retrieve_framed_ip_address is not None:
+            profile_data["retrieve_framed_ip_address"] = retrieve_framed_ip_address
+        if os:
+            profile_data["os"] = os
+        if source_user:
+            profile_data["source_user"] = source_user
+        if access_route:
+            profile_data["access_route"] = access_route
+        if exclude_access_route:
+            profile_data["exclude_access_route"] = exclude_access_route
+        if include_applications:
+            profile_data["include_applications"] = include_applications
+        if exclude_applications:
+            profile_data["exclude_applications"] = exclude_applications
+
+        tunnel_profile = TunnelProfile(**profile_data)
+        sdk_data = tunnel_profile.to_sdk_model()
+
+        result = scm_client.create_tunnel_profile(**sdk_data)
+
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "updated":
+            typer.echo(f"Updated tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating tunnel profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("tunnel-profile")
+def show_tunnel_profile(
+    folder: str = GP_FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the tunnel profile to show"),
+):
+    """Display tunnel profiles (GlobalProtect tunnel settings).
+
+    Examples
+    --------
+        # List all tunnel profiles (default behavior)
+        scm show mobile-agent tunnel-profile --folder "Mobile Users"
+
+        # Show a specific tunnel profile by name
+        scm show mobile-agent tunnel-profile --folder "Mobile Users" --name "corp-tunnel"
+
+    """
+    try:
+        show_context_info()
+
+        if name:
+            profile = scm_client.get_tunnel_profile(folder=folder, name=name)
+
+            typer.echo(f"\nTunnel Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+            typer.echo(f"Location: Folder '{profile.get('folder', folder)}'")
+
+            if profile.get("no_direct_access_to_local_network") is not None:
+                typer.echo(f"No Direct Access To Local Network: {profile['no_direct_access_to_local_network']}")
+            if profile.get("retrieve_framed_ip_address") is not None:
+                typer.echo(f"Retrieve Framed IP Address: {profile['retrieve_framed_ip_address']}")
+            if profile.get("os"):
+                typer.echo(f"OS: {', '.join(profile['os'])}")
+            if profile.get("source_user"):
+                typer.echo(f"Source Users: {', '.join(profile['source_user'])}")
+            _echo_nested(profile, ("split_tunneling", "source_address", "authentication_override"))
+            if profile.get("id"):
+                typer.echo(f"ID: {profile['id']}")
+
+            return profile
+
+        else:
+            profiles = scm_client.list_tunnel_profiles(folder=folder)
+
+            if not profiles:
+                typer.echo(f"No tunnel profiles found in folder '{folder}'")
+                return
+
+            typer.echo(f"\nTunnel Profiles in folder '{folder}':")
+            typer.echo("-" * 60)
+
+            for profile in profiles:
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                if profile.get("os"):
+                    typer.echo(f"  OS: {', '.join(profile['os'])}")
+                if profile.get("no_direct_access_to_local_network") is not None:
+                    typer.echo(f"  No Direct Access To Local Network: {profile['no_direct_access_to_local_network']}")
+                typer.echo("-" * 60)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing tunnel profile: {str(e)}", err=True)
         raise typer.Exit(code=1) from e

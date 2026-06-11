@@ -159,9 +159,11 @@ nav:
           - TACACS+ Server Profile: cli/identity/tacacs-server-profile.md
       - Mobile Agent:
           - Agent Version: cli/mobile-agent/agent-version.md
+          - Agent Profile: cli/mobile-agent/agent-profile.md
           - Auth Setting: cli/mobile-agent/auth-setting.md
           - Forwarding Profile: cli/mobile-agent/forwarding-profile.md
           - Forwarding Profile Destination: cli/mobile-agent/forwarding-profile-destination.md
+          - Tunnel Profile: cli/mobile-agent/tunnel-profile.md
           - SDK Reference: cli/mobile-agent/sdk-mobile-agent.md
       - Local Config:
           - Overview: cli/local/index.md
