@@ -4636,6 +4636,222 @@ class AuthSetting(BaseModel):
         return model_data
 
 
+# --------------------------------------------------------------------------------------------- GlobalProtect Agent / Tunnel Profiles (agent3) ----------------------------------------------
+
+GP_PROFILE_OS_VALUES = {"Android", "Chrome", "IoT", "Linux", "Mac", "Windows", "WindowsUWP", "iOS"}
+GP_CONNECT_METHODS = {"user-logon", "pre-logon", "on-demand", "pre-logon-then-on-demand"}
+GP_SAVE_USER_CREDENTIALS = {"0", "1", "2", "3"}
+GP_THIRD_PARTY_VPN_CLIENTS = {
+    "PAN Virtual Ethernet Adapter",
+    "Juniper Network Virtual Adapter",
+    "Cisco Systems VPN Adapter",
+}
+
+
+class AgentProfile(BaseModel):
+    """Model for GlobalProtect agent profile (app settings) configurations.
+
+    Agent profiles are folder-scoped and only valid in the 'Mobile Users' folder.
+    Nested SDK structures (agent_ui, gateways, hip_collection, ...) are accepted
+    as dicts and passed through; the SDK models perform deep validation.
+    """
+
+    name: str = Field(..., description="Name of the agent profile")
+    folder: str = Field("Mobile Users", description="Folder path (must be 'Mobile Users')")
+    os: list[str] | None = Field(None, description="Operating systems this profile applies to (Android, Chrome, IoT, Linux, Mac, Windows, WindowsUWP, iOS)")
+    connect_method: str | None = Field(None, description="Connect method (user-logon, pre-logon, on-demand, pre-logon-then-on-demand)")
+    tunnel_mtu: int | None = Field(None, ge=1000, le=1420, description="GlobalProtect connection MTU in bytes (1000-1420)")
+    save_user_credentials: str | None = Field(None, description="Save user credentials (0=No, 1=Yes, 2=Save username only, 3=Only with user fingerprint)")
+    source_user: list[str] | None = Field(None, description="Source users this profile applies to")
+    third_party_vpn_clients: list[str] | None = Field(None, description="Third party VPN clients supported by this profile")
+    agent_ui: dict[str, Any] | None = Field(None, description="Agent UI configuration settings")
+    authentication_override: dict[str, Any] | None = Field(None, description="Authentication override settings")
+    certificate: dict[str, Any] | None = Field(None, description="Certificate settings")
+    client_certificate: dict[str, Any] | None = Field(None, description="Client certificate settings")
+    custom_checks: dict[str, Any] | None = Field(None, description="Custom checks settings")
+    gateways: dict[str, Any] | None = Field(None, description="Gateways configuration")
+    gp_app_config: dict[str, Any] | None = Field(None, description="GlobalProtect app configuration (takes precedence over connect_method/tunnel_mtu)")
+    hip_collection: dict[str, Any] | None = Field(None, description="HIP collection settings")
+    internal_host_detection: dict[str, Any] | None = Field(None, description="Internal host detection (IPv4) settings")
+    internal_host_detection_v6: dict[str, Any] | None = Field(None, description="Internal host detection (IPv6) settings")
+    machine_account_exists_with_serialno: dict[str, Any] | None = Field(None, description="Machine account exists with serial number setting")
+
+    @field_validator("folder")
+    @classmethod
+    def validate_folder(cls, v: str) -> str:
+        """Validate that folder is 'Mobile Users'."""
+        if v != "Mobile Users":
+            raise ValueError("folder must be 'Mobile Users' for GlobalProtect agent profiles")
+        return v
+
+    @field_validator("os")
+    @classmethod
+    def validate_os(cls, v: list[str] | None) -> list[str] | None:
+        """Validate operating system values."""
+        if v is not None:
+            invalid = [item for item in v if item not in GP_PROFILE_OS_VALUES]
+            if invalid:
+                raise ValueError(f"os values must be one of: {', '.join(sorted(GP_PROFILE_OS_VALUES))}; got: {', '.join(invalid)}")
+        return v
+
+    @field_validator("connect_method")
+    @classmethod
+    def validate_connect_method(cls, v: str | None) -> str | None:
+        """Validate connect_method value."""
+        if v is not None and v not in GP_CONNECT_METHODS:
+            raise ValueError(f"connect_method must be one of: {', '.join(sorted(GP_CONNECT_METHODS))}")
+        return v
+
+    @field_validator("save_user_credentials")
+    @classmethod
+    def validate_save_user_credentials(cls, v: str | None) -> str | None:
+        """Validate save_user_credentials value."""
+        if v is not None and v not in GP_SAVE_USER_CREDENTIALS:
+            raise ValueError("save_user_credentials must be one of: 0 (No), 1 (Yes), 2 (Save username only), 3 (Only with user fingerprint)")
+        return v
+
+    @field_validator("third_party_vpn_clients")
+    @classmethod
+    def validate_third_party_vpn_clients(cls, v: list[str] | None) -> list[str] | None:
+        """Validate third party VPN client values."""
+        if v is not None:
+            invalid = [item for item in v if item not in GP_THIRD_PARTY_VPN_CLIENTS]
+            if invalid:
+                raise ValueError(f"third_party_vpn_clients values must be one of: {', '.join(sorted(GP_THIRD_PARTY_VPN_CLIENTS))}; got: {', '.join(invalid)}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+        }
+
+        for field_name in (
+            "os",
+            "save_user_credentials",
+            "source_user",
+            "third_party_vpn_clients",
+            "agent_ui",
+            "authentication_override",
+            "certificate",
+            "client_certificate",
+            "custom_checks",
+            "gateways",
+            "hip_collection",
+            "internal_host_detection",
+            "internal_host_detection_v6",
+            "machine_account_exists_with_serialno",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                model_data[field_name] = value
+
+        # Explicit gp_app_config wins over the convenience flags
+        if self.gp_app_config is not None:
+            model_data["gp_app_config"] = self.gp_app_config
+        elif self.connect_method is not None or self.tunnel_mtu is not None:
+            entries: list[dict[str, Any]] = []
+            if self.connect_method is not None:
+                entries.append({"name": "connect-method", "value": [self.connect_method]})
+            if self.tunnel_mtu is not None:
+                entries.append({"name": "tunnel-mtu", "value": [self.tunnel_mtu]})
+            model_data["gp_app_config"] = {"config": entries}
+
+        return model_data
+
+
+class TunnelProfile(BaseModel):
+    """Model for GlobalProtect tunnel profile configurations.
+
+    Tunnel profiles are folder-scoped and only valid in the 'Mobile Users' folder.
+    Nested SDK structures (authentication_override, source_address, split_tunneling)
+    are accepted as dicts and passed through; the SDK models perform deep validation.
+    """
+
+    name: str = Field(..., min_length=1, max_length=31, description="Name of the tunnel profile")
+    folder: str = Field("Mobile Users", description="Folder path (must be 'Mobile Users')")
+    no_direct_access_to_local_network: bool | None = Field(None, description="Disable direct access to the local network")
+    retrieve_framed_ip_address: bool | None = Field(None, description="Retrieve the framed IP address from the authentication server")
+    os: list[str] | None = Field(None, description="Operating systems this profile applies to (Android, Chrome, IoT, Linux, Mac, Windows, WindowsUWP, iOS)")
+    source_user: list[str] | None = Field(None, description="Source users this profile applies to")
+    access_route: list[str] | None = Field(None, description="Routes included in the tunnel")
+    exclude_access_route: list[str] | None = Field(None, description="Routes excluded from the tunnel")
+    include_applications: list[str] | None = Field(None, description="Applications included in the tunnel")
+    exclude_applications: list[str] | None = Field(None, description="Applications excluded from the tunnel")
+    authentication_override: dict[str, Any] | None = Field(None, description="Authentication override configuration")
+    source_address: dict[str, Any] | None = Field(None, description="Source address configuration")
+    split_tunneling: dict[str, Any] | None = Field(None, description="Split tunneling configuration (takes precedence over the route/application list fields)")
+
+    @field_validator("folder")
+    @classmethod
+    def validate_folder(cls, v: str) -> str:
+        """Validate that folder is 'Mobile Users'."""
+        if v != "Mobile Users":
+            raise ValueError("folder must be 'Mobile Users' for GlobalProtect tunnel profiles")
+        return v
+
+    @field_validator("os")
+    @classmethod
+    def validate_os(cls, v: list[str] | None) -> list[str] | None:
+        """Validate operating system values."""
+        if v is not None:
+            invalid = [item for item in v if item not in GP_PROFILE_OS_VALUES]
+            if invalid:
+                raise ValueError(f"os values must be one of: {', '.join(sorted(GP_PROFILE_OS_VALUES))}; got: {', '.join(invalid)}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        The folder is included for the SDK client wrapper to consume as a query
+        parameter; the tunnel-profiles API does not accept folder in the body.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+        }
+
+        for field_name in (
+            "no_direct_access_to_local_network",
+            "retrieve_framed_ip_address",
+            "os",
+            "source_user",
+            "authentication_override",
+            "source_address",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                model_data[field_name] = value
+
+        # Explicit split_tunneling wins over the convenience list fields
+        if self.split_tunneling is not None:
+            model_data["split_tunneling"] = self.split_tunneling
+        else:
+            split_tunneling: dict[str, Any] = {}
+            if self.access_route is not None:
+                split_tunneling["access_route"] = self.access_route
+            if self.exclude_access_route is not None:
+                split_tunneling["exclude_access_route"] = self.exclude_access_route
+            if self.include_applications is not None:
+                split_tunneling["include_applications"] = self.include_applications
+            if self.exclude_applications is not None:
+                split_tunneling["exclude_applications"] = self.exclude_applications
+            if split_tunneling:
+                model_data["split_tunneling"] = split_tunneling
+
+        return model_data
+
+
 # =============================================================================================================================================================================================
 # INSIGHTS AND MONITORING MODELS
 # =============================================================================================================================================================================================
