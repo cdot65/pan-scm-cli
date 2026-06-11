@@ -163,6 +163,9 @@ nav:
           - Auth Setting: cli/mobile-agent/auth-setting.md
           - Forwarding Profile: cli/mobile-agent/forwarding-profile.md
           - Forwarding Profile Destination: cli/mobile-agent/forwarding-profile-destination.md
+          - Forwarding Profile Regional and Custom Proxy: cli/mobile-agent/forwarding-profile-regional-and-custom-proxy.md
+          - Forwarding Profile Source Application: cli/mobile-agent/forwarding-profile-source-application.md
+          - Forwarding Profile User Location: cli/mobile-agent/forwarding-profile-user-location.md
           - Tunnel Profile: cli/mobile-agent/tunnel-profile.md
           - Global Setting: cli/mobile-agent/global-setting.md
           - Infrastructure Setting: cli/mobile-agent/infrastructure-setting.md
