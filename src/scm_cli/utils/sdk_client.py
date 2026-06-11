@@ -11777,6 +11777,635 @@ class SCMClient:
 
     # ---------------------------------------------------------------- agent2: Global Settings (end) ----------------------------------------------------------------
 
+    # ---------------------------------------------------------------------- Forwarding Profile Source Application ----------------------------------------------------------------------
+
+    def create_forwarding_profile_source_application(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        applications: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a forwarding profile source application using smart upsert logic.
+
+        Args:
+            folder: Folder to create the source application in (must be "Mobile Users")
+            name: Name of the source application
+            description: Optional description
+            applications: List of applications
+
+        Returns:
+            dict[str, Any]: The created/updated source application object with __action__ field
+
+        """
+        self.logger.info(f"Creating or updating forwarding profile source application: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"fpsa-{name}",
+                "folder": folder,
+                "name": name,
+                "description": description,
+                "applications": applications,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing source application
+            existing = None
+            try:
+                existing = self.client.forwarding_profile_source_application.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile source application '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile source application '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching forwarding profile source application '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
+
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if applications is not None and getattr(existing, "applications", None) != applications:
+                    existing.applications = applications
+                    update_fields.append("applications")
+                    needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating forwarding profile source application fields: {', '.join(update_fields)}")
+                    result = self.client.forwarding_profile_source_application.update(existing)
+                    self.logger.info(f"Successfully updated forwarding profile source application '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile source application '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new source application (folder is a query param, not payload)
+                setting_data: dict[str, Any] = {
+                    "name": name,
+                    "applications": applications or [],
+                }
+                if description is not None:
+                    setting_data["description"] = description
+
+                result = self.client.forwarding_profile_source_application.create(setting_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile source application '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_forwarding_profile_source_application(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile source application by name.
+
+        Args:
+            folder: Folder containing the source application (must be "Mobile Users")
+            name: Name of the source application to get
+
+        Returns:
+            dict[str, Any]: The source application object
+
+        """
+        self.logger.info(f"Getting forwarding profile source application: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"fpsa-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "description": f"Mock forwarding profile source application {name}",
+                "applications": ["slack", "zoom"],
+            }
+
+        try:
+            result = self.client.forwarding_profile_source_application.fetch(name=name, folder=folder)
+
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"Forwarding profile source application '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_forwarding_profile_source_applications(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profile source applications.
+
+        Args:
+            folder: Folder to list from (must be "Mobile Users")
+
+        Returns:
+            list[dict[str, Any]]: List of source application objects
+
+        """
+        self.logger.info(f"Listing forwarding profile source applications in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "fpsa-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "office-apps",
+                    "description": "Office applications",
+                    "applications": ["slack", "zoom"],
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile_source_application.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "forwarding profile source applications", e)
+
+    def delete_forwarding_profile_source_application(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a forwarding profile source application.
+
+        Args:
+            folder: Folder containing the source application (must be "Mobile Users")
+            name: Name of the source application to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting forwarding profile source application: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            # Get the source application first to get its ID
+            setting = self.client.forwarding_profile_source_application.fetch(name=name, folder=folder)
+            if setting is None:
+                raise ValueError(f"Forwarding profile source application '{name}' not found")
+            self.client.forwarding_profile_source_application.delete(str(setting.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
+    # ------------------------------------------------------------------------- Forwarding Profile User Location -------------------------------------------------------------------------
+
+    def create_forwarding_profile_user_location(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        choice: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a forwarding profile user location using smart upsert logic.
+
+        Args:
+            folder: Folder to create the user location in (must be "Mobile Users")
+            name: Name of the user location
+            description: Optional description
+            choice: Location matching criteria (internal_host_detection or ip_addresses)
+
+        Returns:
+            dict[str, Any]: The created/updated user location object with __action__ field
+
+        """
+        self.logger.info(f"Creating or updating forwarding profile user location: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"fpul-{name}",
+                "folder": folder,
+                "name": name,
+                "description": description,
+                "choice": choice,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing user location
+            existing = None
+            try:
+                existing = self.client.forwarding_profile_user_location.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile user location '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile user location '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching forwarding profile user location '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
+
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if choice is not None:
+                    existing_choice = json.loads(existing.choice.model_dump_json(exclude_none=True)) if getattr(existing, "choice", None) else None
+                    if existing_choice != choice:
+                        existing.choice = choice
+                        update_fields.append("choice")
+                        needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating forwarding profile user location fields: {', '.join(update_fields)}")
+                    result = self.client.forwarding_profile_user_location.update(existing)
+                    self.logger.info(f"Successfully updated forwarding profile user location '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile user location '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new user location (folder is a query param, not payload)
+                setting_data: dict[str, Any] = {
+                    "name": name,
+                    "choice": choice or {},
+                }
+                if description is not None:
+                    setting_data["description"] = description
+
+                result = self.client.forwarding_profile_user_location.create(setting_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile user location '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_forwarding_profile_user_location(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile user location by name.
+
+        Args:
+            folder: Folder containing the user location (must be "Mobile Users")
+            name: Name of the user location to get
+
+        Returns:
+            dict[str, Any]: The user location object
+
+        """
+        self.logger.info(f"Getting forwarding profile user location: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"fpul-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "description": f"Mock forwarding profile user location {name}",
+                "choice": {"ip_addresses": [{"name": "10.1.0.0/16"}]},
+            }
+
+        try:
+            result = self.client.forwarding_profile_user_location.fetch(name=name, folder=folder)
+
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"Forwarding profile user location '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_forwarding_profile_user_locations(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profile user locations.
+
+        Args:
+            folder: Folder to list from (must be "Mobile Users")
+
+        Returns:
+            list[dict[str, Any]]: List of user location objects
+
+        """
+        self.logger.info(f"Listing forwarding profile user locations in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "fpul-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "branch-network",
+                    "description": "Branch office network",
+                    "choice": {"ip_addresses": [{"name": "10.1.0.0/16"}]},
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile_user_location.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "forwarding profile user locations", e)
+
+    def delete_forwarding_profile_user_location(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a forwarding profile user location.
+
+        Args:
+            folder: Folder containing the user location (must be "Mobile Users")
+            name: Name of the user location to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting forwarding profile user location: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            # Get the user location first to get its ID
+            setting = self.client.forwarding_profile_user_location.fetch(name=name, folder=folder)
+            if setting is None:
+                raise ValueError(f"Forwarding profile user location '{name}' not found")
+            self.client.forwarding_profile_user_location.delete(str(setting.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
+    # ------------------------------------------------------------------ Forwarding Profile Regional and Custom Proxy ------------------------------------------------------------------
+
+    def create_forwarding_profile_regional_and_custom_proxy(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        type: str | None = None,
+        proxy_1: dict[str, Any] | None = None,
+        proxy_2: dict[str, Any] | None = None,
+        connectivity_preference: list[dict[str, Any]] | None = None,
+        fallback_option: str | None = None,
+        location_preference: str | None = None,
+        prisma_access_locations: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a forwarding profile regional and custom proxy using smart upsert logic.
+
+        Args:
+            folder: Folder to create the regional and custom proxy in (must be "Mobile Users")
+            name: Name of the regional and custom proxy
+            description: Optional description
+            type: Proxy type (gp-and-pac, ztna-agent)
+            proxy_1: Primary proxy server (fqdn, port, location)
+            proxy_2: Secondary proxy server (fqdn, port, location)
+            connectivity_preference: Connectivity preference entries (name, enabled)
+            fallback_option: Fallback option (fail-open, fail-safe)
+            location_preference: Location preference
+            prisma_access_locations: Prisma Access locations (name, locations)
+
+        Returns:
+            dict[str, Any]: The created/updated regional and custom proxy object with __action__ field
+
+        """
+        self.logger.info(f"Creating or updating forwarding profile regional and custom proxy: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"fprcp-{name}",
+                "folder": folder,
+                "name": name,
+                "description": description,
+                "type": type,
+                "proxy_1": proxy_1,
+                "proxy_2": proxy_2,
+                "connectivity_preference": connectivity_preference,
+                "fallback_option": fallback_option,
+                "location_preference": location_preference,
+                "prisma_access_locations": prisma_access_locations,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        def nested_dump(value: Any) -> Any:
+            """Dump nested SDK models to plain data for comparison."""
+            if value is None:
+                return None
+            if isinstance(value, list):
+                return [json.loads(item.model_dump_json(exclude_none=True)) for item in value]
+            return json.loads(value.model_dump_json(exclude_none=True))
+
+        try:
+            # Step 1: Try to fetch existing regional and custom proxy
+            existing = None
+            try:
+                existing = self.client.forwarding_profile_regional_and_custom_proxy.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile regional and custom proxy '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile regional and custom proxy '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching forwarding profile regional and custom proxy '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
+
+                scalar_fields = {
+                    "description": description,
+                    "type": type,
+                    "fallback_option": fallback_option,
+                    "location_preference": location_preference,
+                }
+                for field_name, new_value in scalar_fields.items():
+                    if new_value is not None and getattr(existing, field_name, None) != new_value:
+                        setattr(existing, field_name, new_value)
+                        update_fields.append(field_name)
+                        needs_update = True
+
+                nested_fields = {
+                    "proxy_1": proxy_1,
+                    "proxy_2": proxy_2,
+                    "connectivity_preference": connectivity_preference,
+                    "prisma_access_locations": prisma_access_locations,
+                }
+                for field_name, new_value in nested_fields.items():
+                    if new_value is not None and nested_dump(getattr(existing, field_name, None)) != new_value:
+                        setattr(existing, field_name, new_value)
+                        update_fields.append(field_name)
+                        needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating forwarding profile regional and custom proxy fields: {', '.join(update_fields)}")
+                    result = self.client.forwarding_profile_regional_and_custom_proxy.update(existing)
+                    self.logger.info(f"Successfully updated forwarding profile regional and custom proxy '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile regional and custom proxy '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new regional and custom proxy (folder is a query param, not payload)
+                setting_data: dict[str, Any] = {
+                    "name": name,
+                }
+                if description is not None:
+                    setting_data["description"] = description
+                if type is not None:
+                    setting_data["type"] = type
+                if proxy_1 is not None:
+                    setting_data["proxy_1"] = proxy_1
+                if proxy_2 is not None:
+                    setting_data["proxy_2"] = proxy_2
+                if connectivity_preference is not None:
+                    setting_data["connectivity_preference"] = connectivity_preference
+                if fallback_option is not None:
+                    setting_data["fallback_option"] = fallback_option
+                if location_preference is not None:
+                    setting_data["location_preference"] = location_preference
+                if prisma_access_locations is not None:
+                    setting_data["prisma_access_locations"] = prisma_access_locations
+
+                result = self.client.forwarding_profile_regional_and_custom_proxy.create(setting_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile regional and custom proxy '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_forwarding_profile_regional_and_custom_proxy(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile regional and custom proxy by name.
+
+        Args:
+            folder: Folder containing the regional and custom proxy (must be "Mobile Users")
+            name: Name of the regional and custom proxy to get
+
+        Returns:
+            dict[str, Any]: The regional and custom proxy object
+
+        """
+        self.logger.info(f"Getting forwarding profile regional and custom proxy: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"fprcp-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "description": f"Mock forwarding profile regional and custom proxy {name}",
+                "type": "gp-and-pac",
+                "proxy_1": {"fqdn": "proxy1.example.com", "port": 8080},
+            }
+
+        try:
+            result = self.client.forwarding_profile_regional_and_custom_proxy.fetch(name=name, folder=folder)
+
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"Forwarding profile regional and custom proxy '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_forwarding_profile_regional_and_custom_proxies(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profile regional and custom proxies.
+
+        Args:
+            folder: Folder to list from (must be "Mobile Users")
+
+        Returns:
+            list[dict[str, Any]]: List of regional and custom proxy objects
+
+        """
+        self.logger.info(f"Listing forwarding profile regional and custom proxies in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "fprcp-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "emea-proxy",
+                    "description": "EMEA regional proxy",
+                    "type": "gp-and-pac",
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile_regional_and_custom_proxy.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "forwarding profile regional and custom proxies", e)
+
+    def delete_forwarding_profile_regional_and_custom_proxy(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a forwarding profile regional and custom proxy.
+
+        Args:
+            folder: Folder containing the regional and custom proxy (must be "Mobile Users")
+            name: Name of the regional and custom proxy to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting forwarding profile regional and custom proxy: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            # Get the regional and custom proxy first to get its ID
+            setting = self.client.forwarding_profile_regional_and_custom_proxy.fetch(name=name, folder=folder)
+            if setting is None:
+                raise ValueError(f"Forwarding profile regional and custom proxy '{name}' not found")
+            self.client.forwarding_profile_regional_and_custom_proxy.delete(str(setting.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
     # ======================================================================================================================================================================================
     # SETUP CONFIGURATION METHODS
     # ======================================================================================================================================================================================
