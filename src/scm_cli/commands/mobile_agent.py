@@ -15,7 +15,7 @@ from ..utils import validate_location_params
 from ..utils.config import load_from_yaml, settings
 from ..utils.context import get_current_context
 from ..utils.sdk_client import scm_client
-from ..utils.validators import AuthSetting
+from ..utils.validators import AuthSetting, ForwardingProfile, ForwardingProfileDestination
 
 # =============================================================================================================================================================================================
 # HELPER FUNCTIONS
@@ -539,4 +539,607 @@ def show_auth_setting(
 
     except Exception as e:
         typer.echo(f"Error showing auth setting: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# FORWARDING PROFILE COMMANDS (GlobalProtect, SDK 0.15.0)
+# =============================================================================================================================================================================================
+
+# Forwarding profile specific options
+PROFILE_TYPE_OPTION = typer.Option(
+    None,
+    "--profile-type",
+    help="Profile type: pac-file, global-protect-proxy, or ztna-agent",
+)
+DEFINITION_METHOD_OPTION = typer.Option(
+    None,
+    "--definition-method",
+    help="How the profile is defined: rules or pac-file",
+)
+PAC_UPLOAD_OPTION = typer.Option(
+    None,
+    "--pac-upload/--no-pac-upload",
+    help="Whether the user uploads a PAC file",
+)
+PROFILE_ID_OPTION = typer.Option(
+    None,
+    "--id",
+    help="UUID of the resource (alternative to --name)",
+)
+
+_PROFILE_TYPE_KEY_MAP = {
+    "pac-file": "pac_file",
+    "global-protect-proxy": "global_protect_proxy",
+    "ztna-agent": "ztna_agent",
+}
+
+
+@backup_app.command("forwarding-profile")
+def backup_forwarding_profile(
+    folder: str = BACKUP_FOLDER_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+):
+    """Backup all forwarding profiles from a folder to a YAML file.
+
+    Examples
+    --------
+        scm backup mobile-agent forwarding-profile --folder "Mobile Users"
+
+    """
+    try:
+        if not folder:
+            folder = "Mobile Users"
+
+        profiles = scm_client.list_forwarding_profiles(folder=folder)
+
+        if not profiles:
+            typer.echo(f"No forwarding profiles found in folder '{folder}'")
+            return None
+
+        backup_data = []
+        for profile in profiles:
+            profile_dict = {k: v for k, v in profile.items() if v is not None}
+            profile_dict.pop("id", None)
+            backup_data.append(profile_dict)
+
+        yaml_data = {"forwarding_profiles": backup_data}
+
+        if file is None:
+            file = Path(get_default_backup_filename("forwarding-profile", "folder", folder))
+
+        with file.open("w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profiles to {file}")
+        return str(file)
+
+    except Exception as e:
+        typer.echo(f"Error backing up forwarding profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("forwarding-profile")
+def delete_forwarding_profile(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    profile_id: str | None = PROFILE_ID_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
+    """Delete a forwarding profile by name or UUID.
+
+    Examples
+    --------
+        scm delete mobile-agent forwarding-profile --folder "Mobile Users" --name "ztna-profile"
+
+        scm delete mobile-agent forwarding-profile --id "123e4567-e89b-12d3-a456-426655440000"
+
+    """
+    try:
+        identifier = profile_id or name
+        if not force:
+            typer.confirm(f"Delete forwarding profile '{identifier}'?", abort=True)
+        result = scm_client.delete_forwarding_profile(folder=folder, name=name, profile_id=profile_id)
+        if result:
+            typer.echo(f"Deleted forwarding profile: {identifier}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting forwarding profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("forwarding-profile")
+def load_forwarding_profile(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+):
+    """Load forwarding profiles from a YAML file.
+
+    Complex profile configurations (forwarding rules, block rules) are expressed in
+    YAML under the `type` key: {pac_file | global_protect_proxy | ztna_agent: {...}}.
+
+    Examples
+    --------
+        scm load mobile-agent forwarding-profile --file config/forwarding_profiles.yml
+
+    """
+    try:
+        config = load_from_yaml(str(file), "forwarding_profiles")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["forwarding_profiles"]))
+            return None
+
+        results = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for profile_data in config["forwarding_profiles"]:
+            try:
+                if folder:
+                    profile_data["folder"] = folder
+
+                profile = ForwardingProfile(**profile_data)
+                sdk_data = profile.to_sdk_model()
+
+                result = scm_client.create_forwarding_profile(**sdk_data)
+
+                action = result.pop("__action__", "created")
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created forwarding profile: {result.get('name', 'N/A')}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated forwarding profile: {result.get('name', 'N/A')}")
+                elif action == "no_change":
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for forwarding profile: {result.get('name', 'N/A')}")
+
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error loading forwarding profile '{profile_data.get('name', 'unknown')}': {str(e)}", err=True)
+
+        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading forwarding profiles: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("forwarding-profile")
+def set_forwarding_profile(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    definition_method: str | None = DEFINITION_METHOD_OPTION,
+    profile_type: str | None = PROFILE_TYPE_OPTION,
+    pac_upload: bool | None = PAC_UPLOAD_OPTION,
+):
+    r"""Create or update a forwarding profile.
+
+    The folder must be "Mobile Users" (the only folder supported by the API).
+    Use --profile-type to select the profile flavor; full forwarding/block rules
+    are supported via `scm load mobile-agent forwarding-profile --file ...`.
+
+    Examples
+    --------
+        scm set mobile-agent forwarding-profile \
+        --folder "Mobile Users" \
+        --name "ztna-profile" \
+        --profile-type ztna-agent
+
+    """
+    try:
+        profile_data: dict[str, Any] = {
+            "name": name,
+        }
+
+        if folder:
+            profile_data["folder"] = folder
+        if description is not None:
+            profile_data["description"] = description
+        if definition_method is not None:
+            profile_data["definition_method"] = definition_method
+        if profile_type is not None:
+            type_key = _PROFILE_TYPE_KEY_MAP.get(profile_type)
+            if type_key is None:
+                typer.echo(
+                    f"Error: --profile-type must be one of: {', '.join(sorted(_PROFILE_TYPE_KEY_MAP))}",
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+            type_config: dict[str, Any] = {}
+            if pac_upload is not None:
+                type_config["pac_upload"] = pac_upload
+            profile_data["type"] = {type_key: type_config}
+
+        profile = ForwardingProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+
+        result = scm_client.create_forwarding_profile(**sdk_data)
+
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created forwarding profile: {result.get('name', name)}")
+        elif action == "updated":
+            typer.echo(f"Updated forwarding profile: {result.get('name', name)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for forwarding profile: {result.get('name', name)}")
+
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except typer.Exit:
+        raise
+    except Exception as e:
+        typer.echo(f"Error creating/updating forwarding profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("forwarding-profile")
+def show_forwarding_profile(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the forwarding profile to show"),
+    profile_id: str | None = PROFILE_ID_OPTION,
+):
+    """Display forwarding profiles.
+
+    Examples
+    --------
+        # List all forwarding profiles (default behavior)
+        scm show mobile-agent forwarding-profile --folder "Mobile Users"
+
+        # Show a specific forwarding profile by name
+        scm show mobile-agent forwarding-profile --folder "Mobile Users" --name "ztna-profile"
+
+        # Show a specific forwarding profile by UUID
+        scm show mobile-agent forwarding-profile --id "123e4567-e89b-12d3-a456-426655440000"
+
+    """
+    try:
+        show_context_info()
+
+        if profile_id or name:
+            profile = scm_client.get_forwarding_profile(folder=folder, name=name, profile_id=profile_id)
+
+            typer.echo(f"\nForwarding Profile: {profile.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            if profile.get("description"):
+                typer.echo(f"Description: {profile['description']}")
+            if profile.get("definition_method"):
+                typer.echo(f"Definition Method: {profile['definition_method']}")
+            if profile.get("type"):
+                typer.echo("Type:")
+                typer.echo(yaml.dump(profile["type"], default_flow_style=False, sort_keys=False).rstrip())
+            if profile.get("id"):
+                typer.echo(f"ID: {profile['id']}")
+
+            return profile
+
+        else:
+            profiles = scm_client.list_forwarding_profiles(folder=folder)
+
+            if not profiles:
+                typer.echo(f"No forwarding profiles found in folder '{folder or 'Mobile Users'}'")
+                return None
+
+            typer.echo(f"\nForwarding Profiles in folder '{folder or 'Mobile Users'}':")
+            typer.echo("-" * 60)
+
+            for profile in profiles:
+                typer.echo(f"Name: {profile.get('name', 'N/A')}")
+                if profile.get("definition_method"):
+                    typer.echo(f"  Definition Method: {profile['definition_method']}")
+                if profile.get("type"):
+                    typer.echo(f"  Profile Type: {', '.join(profile['type'].keys())}")
+                if profile.get("description"):
+                    typer.echo(f"  Description: {profile['description']}")
+                if profile.get("id"):
+                    typer.echo(f"  ID: {profile['id']}")
+                typer.echo("-" * 60)
+
+            return profiles
+
+    except Exception as e:
+        typer.echo(f"Error showing forwarding profile: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+# =============================================================================================================================================================================================
+# FORWARDING PROFILE DESTINATION COMMANDS (GlobalProtect, SDK 0.15.0)
+# =============================================================================================================================================================================================
+
+# Forwarding profile destination specific options
+FQDN_OPTION = typer.Option(
+    None,
+    "--fqdn",
+    help="FQDN entry as 'host' or 'host:port' (repeatable)",
+)
+IP_ADDRESS_OPTION = typer.Option(
+    None,
+    "--ip-address",
+    help="IP entry as 'ip', 'ip/prefix', or 'ip:port' (repeatable)",
+)
+
+
+@backup_app.command("forwarding-profile-destination")
+def backup_forwarding_profile_destination(
+    folder: str = BACKUP_FOLDER_OPTION,
+    file: Path | None = BACKUP_FILE_OPTION,
+):
+    """Backup all forwarding profile destinations from a folder to a YAML file.
+
+    Examples
+    --------
+        scm backup mobile-agent forwarding-profile-destination --folder "Mobile Users"
+
+    """
+    try:
+        if not folder:
+            folder = "Mobile Users"
+
+        destinations = scm_client.list_forwarding_profile_destinations(folder=folder)
+
+        if not destinations:
+            typer.echo(f"No forwarding profile destinations found in folder '{folder}'")
+            return None
+
+        backup_data = []
+        for destination in destinations:
+            destination_dict = {k: v for k, v in destination.items() if v is not None}
+            destination_dict.pop("id", None)
+            backup_data.append(destination_dict)
+
+        yaml_data = {"forwarding_profile_destinations": backup_data}
+
+        if file is None:
+            file = Path(get_default_backup_filename("forwarding-profile-destination", "folder", folder))
+
+        with file.open("w") as f:
+            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profile destinations to {file}")
+        return str(file)
+
+    except Exception as e:
+        typer.echo(f"Error backing up forwarding profile destinations: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@delete_app.command("forwarding-profile-destination")
+def delete_forwarding_profile_destination(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    destination_id: str | None = PROFILE_ID_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
+):
+    """Delete a forwarding profile destination by name or UUID.
+
+    Examples
+    --------
+        scm delete mobile-agent forwarding-profile-destination --folder "Mobile Users" --name "internal-apps"
+
+    """
+    try:
+        identifier = destination_id or name
+        if not force:
+            typer.confirm(f"Delete forwarding profile destination '{identifier}'?", abort=True)
+        result = scm_client.delete_forwarding_profile_destination(folder=folder, name=name, destination_id=destination_id)
+        if result:
+            typer.echo(f"Deleted forwarding profile destination: {identifier}")
+        return result
+    except Exception as e:
+        typer.echo(f"Error deleting forwarding profile destination: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@load_app.command("forwarding-profile-destination")
+def load_forwarding_profile_destination(
+    file: Path = FILE_OPTION,
+    dry_run: bool = DRY_RUN_OPTION,
+    folder: str = LOAD_FOLDER_OPTION,
+):
+    """Load forwarding profile destinations from a YAML file.
+
+    Examples
+    --------
+        scm load mobile-agent forwarding-profile-destination --file config/destinations.yml
+
+    """
+    try:
+        config = load_from_yaml(str(file), "forwarding_profile_destinations")
+
+        if dry_run:
+            typer.echo("Dry run mode: would apply the following configurations:")
+            typer.echo(yaml.dump(config["forwarding_profile_destinations"]))
+            return None
+
+        results = []
+        created_count = 0
+        updated_count = 0
+        no_change_count = 0
+
+        for destination_data in config["forwarding_profile_destinations"]:
+            try:
+                if folder:
+                    destination_data["folder"] = folder
+
+                destination = ForwardingProfileDestination(**destination_data)
+                sdk_data = destination.to_sdk_model()
+
+                result = scm_client.create_forwarding_profile_destination(**sdk_data)
+
+                action = result.pop("__action__", "created")
+                if action == "created":
+                    created_count += 1
+                    typer.echo(f"Created forwarding profile destination: {result.get('name', 'N/A')}")
+                elif action == "updated":
+                    updated_count += 1
+                    typer.echo(f"Updated forwarding profile destination: {result.get('name', 'N/A')}")
+                elif action == "no_change":
+                    no_change_count += 1
+                    typer.echo(f"No changes needed for forwarding profile destination: {result.get('name', 'N/A')}")
+
+                results.append(result)
+
+            except Exception as e:
+                typer.echo(f"Error loading forwarding profile destination '{destination_data.get('name', 'unknown')}': {str(e)}", err=True)
+
+        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+        return results
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error loading forwarding profile destinations: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@set_app.command("forwarding-profile-destination")
+def set_forwarding_profile_destination(
+    folder: str = FOLDER_OPTION,
+    name: str = NAME_OPTION,
+    description: str | None = DESCRIPTION_OPTION,
+    fqdn: list[str] | None = FQDN_OPTION,
+    ip_address: list[str] | None = IP_ADDRESS_OPTION,
+):
+    r"""Create or update a forwarding profile destination.
+
+    The folder must be "Mobile Users" (the only folder supported by the API).
+    Entries accept an optional ':port' suffix.
+
+    Examples
+    --------
+        scm set mobile-agent forwarding-profile-destination \
+        --folder "Mobile Users" \
+        --name "internal-apps" \
+        --fqdn "*.example.com:8080" \
+        --ip-address "10.0.0.0/8"
+
+    """
+    try:
+        destination_data: dict[str, Any] = {
+            "name": name,
+        }
+
+        if folder:
+            destination_data["folder"] = folder
+        if description is not None:
+            destination_data["description"] = description
+        if fqdn:
+            destination_data["fqdn"] = fqdn
+        if ip_address:
+            destination_data["ip_addresses"] = ip_address
+
+        destination = ForwardingProfileDestination(**destination_data)
+        sdk_data = destination.to_sdk_model()
+
+        result = scm_client.create_forwarding_profile_destination(**sdk_data)
+
+        action = result.pop("__action__", "created")
+
+        if action == "created":
+            typer.echo(f"Created forwarding profile destination: {result.get('name', name)}")
+        elif action == "updated":
+            typer.echo(f"Updated forwarding profile destination: {result.get('name', name)}")
+        elif action == "no_change":
+            typer.echo(f"No changes needed for forwarding profile destination: {result.get('name', name)}")
+
+        return result
+
+    except ValidationError as e:
+        typer.echo(f"Validation error: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        typer.echo(f"Error creating/updating forwarding profile destination: {str(e)}", err=True)
+        raise typer.Exit(code=1) from e
+
+
+@show_app.command("forwarding-profile-destination")
+def show_forwarding_profile_destination(
+    folder: str = FOLDER_OPTION,
+    name: str | None = typer.Option(None, "--name", help="Name of the forwarding profile destination to show"),
+    destination_id: str | None = PROFILE_ID_OPTION,
+):
+    """Display forwarding profile destinations.
+
+    Examples
+    --------
+        # List all forwarding profile destinations (default behavior)
+        scm show mobile-agent forwarding-profile-destination --folder "Mobile Users"
+
+        # Show a specific destination by name
+        scm show mobile-agent forwarding-profile-destination --folder "Mobile Users" --name "internal-apps"
+
+        # Show a specific destination by UUID
+        scm show mobile-agent forwarding-profile-destination --id "123e4567-e89b-12d3-a456-426655440000"
+
+    """
+    try:
+        show_context_info()
+
+        if destination_id or name:
+            destination = scm_client.get_forwarding_profile_destination(folder=folder, name=name, destination_id=destination_id)
+
+            typer.echo(f"\nForwarding Profile Destination: {destination.get('name', 'N/A')}")
+            typer.echo("=" * 80)
+
+            if destination.get("description"):
+                typer.echo(f"Description: {destination['description']}")
+            if destination.get("fqdn"):
+                typer.echo("FQDN Entries:")
+                for entry in destination["fqdn"]:
+                    port_suffix = f":{entry['port']}" if entry.get("port") else ""
+                    typer.echo(f"  - {entry.get('name', 'N/A')}{port_suffix}")
+            if destination.get("ip_addresses"):
+                typer.echo("IP Address Entries:")
+                for entry in destination["ip_addresses"]:
+                    port_suffix = f":{entry['port']}" if entry.get("port") else ""
+                    typer.echo(f"  - {entry.get('name', 'N/A')}{port_suffix}")
+            if destination.get("id"):
+                typer.echo(f"ID: {destination['id']}")
+
+            return destination
+
+        else:
+            destinations = scm_client.list_forwarding_profile_destinations(folder=folder)
+
+            if not destinations:
+                typer.echo(f"No forwarding profile destinations found in folder '{folder or 'Mobile Users'}'")
+                return None
+
+            typer.echo(f"\nForwarding Profile Destinations in folder '{folder or 'Mobile Users'}':")
+            typer.echo("-" * 60)
+
+            for destination in destinations:
+                typer.echo(f"Name: {destination.get('name', 'N/A')}")
+                if destination.get("fqdn"):
+                    typer.echo(f"  FQDN Entries: {len(destination['fqdn'])}")
+                if destination.get("ip_addresses"):
+                    typer.echo(f"  IP Address Entries: {len(destination['ip_addresses'])}")
+                if destination.get("description"):
+                    typer.echo(f"  Description: {destination['description']}")
+                if destination.get("id"):
+                    typer.echo(f"  ID: {destination['id']}")
+                typer.echo("-" * 60)
+
+            return destinations
+
+    except Exception as e:
+        typer.echo(f"Error showing forwarding profile destination: {str(e)}", err=True)
         raise typer.Exit(code=1) from e
