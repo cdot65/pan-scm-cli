@@ -104,6 +104,14 @@ def get_auth_config() -> dict[str, str]:
     # Add region (not required — defaults to americas)
     auth["region"] = settings.get("region", "americas")
 
+    # Endpoint overrides (not required — omitted entirely so SDK defaults apply)
+    api_base_url = settings.get("api_base_url", None)
+    if api_base_url:
+        auth["api_base_url"] = api_base_url
+    token_url = settings.get("token_url", None)
+    if token_url:
+        auth["token_url"] = token_url
+
     return auth
 
 

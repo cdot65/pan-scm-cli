@@ -95,6 +95,8 @@ def create_context(
     log_level: str = "INFO",
     access_token: str | None = None,
     region: str = "americas",
+    api_base_url: str | None = None,
+    token_url: str | None = None,
 ) -> None:
     """Create or update a context configuration.
 
@@ -107,6 +109,8 @@ def create_context(
         log_level: Logging level (default: INFO).
         access_token: Bearer token for direct auth (alternative to OAuth2).
         region: SCM API region (default: americas).
+        api_base_url: Override for the SCM API base URL (omitted when unset; SDK default applies).
+        token_url: Override for the OAuth2 token URL (omitted when unset; SDK default applies).
 
     """
     ensure_context_dir()
@@ -117,6 +121,11 @@ def create_context(
         "log_level": log_level,
         "region": region,
     }
+
+    if api_base_url:
+        config["api_base_url"] = api_base_url
+    if token_url:
+        config["token_url"] = token_url
 
     if access_token:
         config["access_token"] = access_token
