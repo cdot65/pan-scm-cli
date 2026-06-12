@@ -103,6 +103,8 @@ def show_command(
                 console.print("  Client Secret: [red]Not set[/red]")
 
         console.print(f"  Log Level: {config.get('log_level', 'INFO')}")
+        console.print(f"  API Base URL: {config.get('api_base_url') or '[dim]SDK default[/dim]'}")
+        console.print(f"  Token URL: {config.get('token_url') or '[dim]SDK default[/dim]'}")
 
     except ValueError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -156,6 +158,16 @@ def create_command(
         "-r",
         help="SCM API region (default: americas)",
     ),
+    api_base_url: str = typer.Option(
+        None,
+        "--api-base-url",
+        help="Override the SCM API base URL (default: SDK default)",
+    ),
+    token_url: str = typer.Option(
+        None,
+        "--token-url",
+        help="Override the OAuth2 token URL (default: SDK default)",
+    ),
 ):
     """Create a new authentication context.
 
@@ -193,6 +205,8 @@ def create_command(
             log_level=log_level,
             access_token=access_token,
             region=region,
+            api_base_url=api_base_url,
+            token_url=token_url,
         )
 
         console.print(f"[green]✓ Context '{context_name}' created successfully[/green]")
@@ -369,12 +383,18 @@ def test_command(
                 raise typer.Exit(1)
 
             # Initialize the SCM client with context credentials
-            client = Scm(
-                client_id=config.get("client_id"),
-                client_secret=config.get("client_secret"),
-                tsg_id=config.get("tsg_id"),
-                log_level=config.get("log_level", "INFO"),
-            )
+            scm_kwargs = {
+                "client_id": config.get("client_id"),
+                "client_secret": config.get("client_secret"),
+                "tsg_id": config.get("tsg_id"),
+                "log_level": config.get("log_level", "INFO"),
+            }
+            # Endpoint overrides — omit when unset so SDK defaults apply
+            if config.get("api_base_url"):
+                scm_kwargs["api_base_url"] = config["api_base_url"]
+            if config.get("token_url"):
+                scm_kwargs["token_url"] = config["token_url"]
+            client = Scm(**scm_kwargs)
 
             console.print("[green]✓ Authentication successful![/green]")
             console.print(f"  Client ID: {config.get('client_id')}")
