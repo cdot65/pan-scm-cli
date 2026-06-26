@@ -49,3 +49,21 @@ def test_load_command_help(runner):
     assert "network" in result.stdout
     assert "object" in result.stdout
     assert "security" in result.stdout
+
+
+def test_version_flag(runner):
+    """`scm --version` prints the installed version and exits 0."""
+    from scm_cli import __version__
+
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert __version__ in result.stdout
+
+
+def test_version_short_flag(runner):
+    """`scm -V` is an alias for --version."""
+    from scm_cli import __version__
+
+    result = runner.invoke(app, ["-V"])
+    assert result.exit_code == 0
+    assert __version__ in result.stdout
