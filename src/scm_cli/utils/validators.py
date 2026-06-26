@@ -8,6 +8,7 @@ that all required fields are present and correctly formatted.
 from typing import Any, ClassVar, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic_core import from_json
 
 # =============================================================================================================================================================================================
 # TYPE DEFINITIONS
@@ -4636,6 +4637,624 @@ class AuthSetting(BaseModel):
         return model_data
 
 
+# --------------------------------------------------------------------------------------------- GlobalProtect Agent / Tunnel Profiles (agent3) ----------------------------------------------
+
+GP_PROFILE_OS_VALUES = {"Android", "Chrome", "IoT", "Linux", "Mac", "Windows", "WindowsUWP", "iOS"}
+GP_CONNECT_METHODS = {"user-logon", "pre-logon", "on-demand", "pre-logon-then-on-demand"}
+GP_SAVE_USER_CREDENTIALS = {"0", "1", "2", "3"}
+GP_THIRD_PARTY_VPN_CLIENTS = {
+    "PAN Virtual Ethernet Adapter",
+    "Juniper Network Virtual Adapter",
+    "Cisco Systems VPN Adapter",
+}
+
+
+class AgentProfile(BaseModel):
+    """Model for GlobalProtect agent profile (app settings) configurations.
+
+    Agent profiles are folder-scoped and only valid in the 'Mobile Users' folder.
+    Nested SDK structures (agent_ui, gateways, hip_collection, ...) are accepted
+    as dicts and passed through; the SDK models perform deep validation.
+    """
+
+    name: str = Field(..., description="Name of the agent profile")
+    folder: str = Field("Mobile Users", description="Folder path (must be 'Mobile Users')")
+    os: list[str] | None = Field(None, description="Operating systems this profile applies to (Android, Chrome, IoT, Linux, Mac, Windows, WindowsUWP, iOS)")
+    connect_method: str | None = Field(None, description="Connect method (user-logon, pre-logon, on-demand, pre-logon-then-on-demand)")
+    tunnel_mtu: int | None = Field(None, ge=1000, le=1420, description="GlobalProtect connection MTU in bytes (1000-1420)")
+    save_user_credentials: str | None = Field(None, description="Save user credentials (0=No, 1=Yes, 2=Save username only, 3=Only with user fingerprint)")
+    source_user: list[str] | None = Field(None, description="Source users this profile applies to")
+    third_party_vpn_clients: list[str] | None = Field(None, description="Third party VPN clients supported by this profile")
+    agent_ui: dict[str, Any] | None = Field(None, description="Agent UI configuration settings")
+    authentication_override: dict[str, Any] | None = Field(None, description="Authentication override settings")
+    certificate: dict[str, Any] | None = Field(None, description="Certificate settings")
+    client_certificate: dict[str, Any] | None = Field(None, description="Client certificate settings")
+    custom_checks: dict[str, Any] | None = Field(None, description="Custom checks settings")
+    gateways: dict[str, Any] | None = Field(None, description="Gateways configuration")
+    gp_app_config: dict[str, Any] | None = Field(None, description="GlobalProtect app configuration (takes precedence over connect_method/tunnel_mtu)")
+    hip_collection: dict[str, Any] | None = Field(None, description="HIP collection settings")
+    internal_host_detection: dict[str, Any] | None = Field(None, description="Internal host detection (IPv4) settings")
+    internal_host_detection_v6: dict[str, Any] | None = Field(None, description="Internal host detection (IPv6) settings")
+    machine_account_exists_with_serialno: dict[str, Any] | None = Field(None, description="Machine account exists with serial number setting")
+
+    @field_validator("folder")
+    @classmethod
+    def validate_folder(cls, v: str) -> str:
+        """Validate that folder is 'Mobile Users'."""
+        if v != "Mobile Users":
+            raise ValueError("folder must be 'Mobile Users' for GlobalProtect agent profiles")
+        return v
+
+    @field_validator("os")
+    @classmethod
+    def validate_os(cls, v: list[str] | None) -> list[str] | None:
+        """Validate operating system values."""
+        if v is not None:
+            invalid = [item for item in v if item not in GP_PROFILE_OS_VALUES]
+            if invalid:
+                raise ValueError(f"os values must be one of: {', '.join(sorted(GP_PROFILE_OS_VALUES))}; got: {', '.join(invalid)}")
+        return v
+
+    @field_validator("connect_method")
+    @classmethod
+    def validate_connect_method(cls, v: str | None) -> str | None:
+        """Validate connect_method value."""
+        if v is not None and v not in GP_CONNECT_METHODS:
+            raise ValueError(f"connect_method must be one of: {', '.join(sorted(GP_CONNECT_METHODS))}")
+        return v
+
+    @field_validator("save_user_credentials")
+    @classmethod
+    def validate_save_user_credentials(cls, v: str | None) -> str | None:
+        """Validate save_user_credentials value."""
+        if v is not None and v not in GP_SAVE_USER_CREDENTIALS:
+            raise ValueError("save_user_credentials must be one of: 0 (No), 1 (Yes), 2 (Save username only), 3 (Only with user fingerprint)")
+        return v
+
+    @field_validator("third_party_vpn_clients")
+    @classmethod
+    def validate_third_party_vpn_clients(cls, v: list[str] | None) -> list[str] | None:
+        """Validate third party VPN client values."""
+        if v is not None:
+            invalid = [item for item in v if item not in GP_THIRD_PARTY_VPN_CLIENTS]
+            if invalid:
+                raise ValueError(f"third_party_vpn_clients values must be one of: {', '.join(sorted(GP_THIRD_PARTY_VPN_CLIENTS))}; got: {', '.join(invalid)}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+        }
+
+        for field_name in (
+            "os",
+            "save_user_credentials",
+            "source_user",
+            "third_party_vpn_clients",
+            "agent_ui",
+            "authentication_override",
+            "certificate",
+            "client_certificate",
+            "custom_checks",
+            "gateways",
+            "hip_collection",
+            "internal_host_detection",
+            "internal_host_detection_v6",
+            "machine_account_exists_with_serialno",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                model_data[field_name] = value
+
+        # Explicit gp_app_config wins over the convenience flags
+        if self.gp_app_config is not None:
+            model_data["gp_app_config"] = self.gp_app_config
+        elif self.connect_method is not None or self.tunnel_mtu is not None:
+            entries: list[dict[str, Any]] = []
+            if self.connect_method is not None:
+                entries.append({"name": "connect-method", "value": [self.connect_method]})
+            if self.tunnel_mtu is not None:
+                entries.append({"name": "tunnel-mtu", "value": [self.tunnel_mtu]})
+            model_data["gp_app_config"] = {"config": entries}
+
+        return model_data
+
+
+class TunnelProfile(BaseModel):
+    """Model for GlobalProtect tunnel profile configurations.
+
+    Tunnel profiles are folder-scoped and only valid in the 'Mobile Users' folder.
+    Nested SDK structures (authentication_override, source_address, split_tunneling)
+    are accepted as dicts and passed through; the SDK models perform deep validation.
+    """
+
+    name: str = Field(..., min_length=1, max_length=31, description="Name of the tunnel profile")
+    folder: str = Field("Mobile Users", description="Folder path (must be 'Mobile Users')")
+    no_direct_access_to_local_network: bool | None = Field(None, description="Disable direct access to the local network")
+    retrieve_framed_ip_address: bool | None = Field(None, description="Retrieve the framed IP address from the authentication server")
+    os: list[str] | None = Field(None, description="Operating systems this profile applies to (Android, Chrome, IoT, Linux, Mac, Windows, WindowsUWP, iOS)")
+    source_user: list[str] | None = Field(None, description="Source users this profile applies to")
+    access_route: list[str] | None = Field(None, description="Routes included in the tunnel")
+    exclude_access_route: list[str] | None = Field(None, description="Routes excluded from the tunnel")
+    include_applications: list[str] | None = Field(None, description="Applications included in the tunnel")
+    exclude_applications: list[str] | None = Field(None, description="Applications excluded from the tunnel")
+    authentication_override: dict[str, Any] | None = Field(None, description="Authentication override configuration")
+    source_address: dict[str, Any] | None = Field(None, description="Source address configuration")
+    split_tunneling: dict[str, Any] | None = Field(None, description="Split tunneling configuration (takes precedence over the route/application list fields)")
+
+    @field_validator("folder")
+    @classmethod
+    def validate_folder(cls, v: str) -> str:
+        """Validate that folder is 'Mobile Users'."""
+        if v != "Mobile Users":
+            raise ValueError("folder must be 'Mobile Users' for GlobalProtect tunnel profiles")
+        return v
+
+    @field_validator("os")
+    @classmethod
+    def validate_os(cls, v: list[str] | None) -> list[str] | None:
+        """Validate operating system values."""
+        if v is not None:
+            invalid = [item for item in v if item not in GP_PROFILE_OS_VALUES]
+            if invalid:
+                raise ValueError(f"os values must be one of: {', '.join(sorted(GP_PROFILE_OS_VALUES))}; got: {', '.join(invalid)}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        The folder is included for the SDK client wrapper to consume as a query
+        parameter; the tunnel-profiles API does not accept folder in the body.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+        }
+
+        for field_name in (
+            "no_direct_access_to_local_network",
+            "retrieve_framed_ip_address",
+            "os",
+            "source_user",
+            "authentication_override",
+            "source_address",
+        ):
+            value = getattr(self, field_name)
+            if value is not None:
+                model_data[field_name] = value
+
+        # Explicit split_tunneling wins over the convenience list fields
+        if self.split_tunneling is not None:
+            model_data["split_tunneling"] = self.split_tunneling
+        else:
+            split_tunneling: dict[str, Any] = {}
+            if self.access_route is not None:
+                split_tunneling["access_route"] = self.access_route
+            if self.exclude_access_route is not None:
+                split_tunneling["exclude_access_route"] = self.exclude_access_route
+            if self.include_applications is not None:
+                split_tunneling["include_applications"] = self.include_applications
+            if self.exclude_applications is not None:
+                split_tunneling["exclude_applications"] = self.exclude_applications
+            if split_tunneling:
+                model_data["split_tunneling"] = split_tunneling
+
+        return model_data
+
+
+# ---------------------------------------------------- agent2: GlobalProtect infrastructure/global settings (begin) ----------------------------------------------------
+
+
+def _parse_json_value(value: Any) -> Any:
+    """Parse a JSON string into a structure, passing through non-strings.
+
+    Lets the same Pydantic models accept raw JSON strings from CLI options and
+    already-parsed structures from YAML loads.
+    """
+    if isinstance(value, str):
+        return from_json(value)
+    return value
+
+
+class InfraDnsServerSelection(BaseModel):
+    """Primary/secondary DNS server selection for an internal DNS match entry."""
+
+    dns_server: dict[str, Any] | None = Field(None, description="DNS server configuration")
+    use_cloud_default: dict[str, Any] | None = Field(None, description="Use the cloud default DNS server")
+
+
+class InfraInternalDnsMatch(BaseModel):
+    """Internal DNS match entry for a DNS server configuration."""
+
+    name: str | None = Field(None, description="Name of the internal DNS match entry")
+    domain_list: list[str] | None = Field(None, description="Domains to resolve with internal DNS servers")
+    primary: InfraDnsServerSelection | None = Field(None, description="Primary DNS server selection")
+    secondary: InfraDnsServerSelection | None = Field(None, description="Secondary DNS server selection")
+
+
+class InfraPublicDnsServer(BaseModel):
+    """Public DNS server configuration."""
+
+    dns_server: str | None = Field(None, description="IP address of the public DNS server")
+
+
+class InfraDnsServer(BaseModel):
+    """DNS server entry for infrastructure settings."""
+
+    name: str | None = Field(None, description="Name of the DNS server entry")
+    dns_suffix: list[str] | None = Field(None, description="DNS suffixes for the mobile users environment")
+    internal_dns_match: list[InfraInternalDnsMatch] | None = Field(None, description="Internal DNS match entries")
+    primary_public_dns: InfraPublicDnsServer | None = Field(None, description="Primary public DNS server")
+    secondary_public_dns: InfraPublicDnsServer | None = Field(None, description="Secondary public DNS server")
+
+
+class InfraIpPool(BaseModel):
+    """IP pool entry for infrastructure settings."""
+
+    name: str | None = Field(None, description="Name of the IP pool")
+    ip_pool: list[str] | None = Field(None, description="IP subnets of the pool")
+
+
+class InfraCustomDomain(BaseModel):
+    """Custom domain configuration for the portal hostname."""
+
+    cname: str | None = Field(None, description="CNAME record of the custom domain")
+    hostname: str | None = Field(None, description="Hostname of the custom domain")
+    ssl_tls_service_profile: str | None = Field(None, description="SSL/TLS service profile name")
+
+
+class InfraDefaultDomain(BaseModel):
+    """Default domain configuration for the portal hostname."""
+
+    hostname: str | None = Field(None, description="Hostname of the default domain")
+
+
+class InfraPortalHostname(BaseModel):
+    """Portal hostname configuration for infrastructure settings."""
+
+    custom_domain: InfraCustomDomain | None = Field(None, description="Custom domain configuration")
+    default_domain: InfraDefaultDomain | None = Field(None, description="Default domain configuration")
+
+
+class InfraWinsServer(BaseModel):
+    """WINS server entry for infrastructure settings."""
+
+    name: str | None = Field(None, description="Name of the WINS server entry")
+    primary: str | None = Field(None, description="Primary WINS server")
+    secondary: str | None = Field(None, description="Secondary WINS server")
+
+
+class InfraEnableWinsYes(BaseModel):
+    """Configuration when WINS is enabled."""
+
+    wins_servers: list[InfraWinsServer] | None = Field(None, description="WINS servers")
+
+
+class InfraEnableWins(BaseModel):
+    """Enable or disable WINS; exactly one of 'yes' or 'no' is expected by the API."""
+
+    no: dict[str, Any] | None = Field(None, description="WINS is disabled")
+    yes: InfraEnableWinsYes | None = Field(None, description="WINS is enabled with the given WINS servers")
+
+
+class InfraUdpQueryRetries(BaseModel):
+    """UDP query retry configuration."""
+
+    attempts: int | None = Field(None, ge=1, le=30, description="Maximum retries before trying the next name server")
+    interval: int | None = Field(None, ge=1, le=30, description="Time in seconds for another request to be sent")
+
+
+class InfraUdpQueries(BaseModel):
+    """UDP query configuration for infrastructure settings."""
+
+    retries: InfraUdpQueryRetries | None = Field(None, description="UDP query retry configuration")
+
+
+class InfraUserGroup(BaseModel):
+    """User group entry for a static IP pool."""
+
+    name: str | None = Field(None, max_length=320, description="Distinguished Name of the group")
+    directory: str | None = Field(None, description="Directory of the group")
+
+
+class InfraStaticIpPool(BaseModel):
+    """Static IP pool entry for infrastructure settings."""
+
+    name: str | None = Field(None, max_length=128, description="Name of the static IP pool entry")
+    pool_type: str | None = Field(None, description="Type of the pool (Static-IP)")
+    ip_pool: list[str] | None = Field(None, description="IP subnets")
+    theatres: list[str] | None = Field(None, description="IP pools on theatres")
+    users: list[str] | None = Field(None, description="IP pools on users")
+    user_groups: list[InfraUserGroup] | None = Field(None, description="IP pools on user groups")
+
+
+class InfrastructureSetting(BaseModel):
+    """Model for mobile agent infrastructure setting configurations.
+
+    Infrastructure settings are addressed by name within the 'Mobile Users'
+    folder only; the SCM API rejects any other container. Complex fields accept
+    either parsed structures (YAML load) or JSON strings (CLI options).
+    """
+
+    name: str = Field(..., description="Name of the infrastructure setting")
+    folder: str = Field("Mobile Users", description="Folder path (must be 'Mobile Users')")
+    dns_servers: list[InfraDnsServer] = Field(..., description="DNS server entries")
+    ip_pools: list[InfraIpPool] = Field(..., description="IP pools")
+    portal_hostname: InfraPortalHostname = Field(..., description="Portal hostname configuration")
+    enable_wins: InfraEnableWins | None = Field(None, description="WINS configuration")
+    ipv6: bool | None = Field(None, description="Whether IPv6 is enabled")
+    udp_queries: InfraUdpQueries | None = Field(None, description="UDP query retry configuration")
+    static_ip_pools: list[InfraStaticIpPool] | None = Field(None, description="Static IP pools")
+
+    @field_validator("dns_servers", "ip_pools", "portal_hostname", "enable_wins", "udp_queries", "static_ip_pools", mode="before")
+    @classmethod
+    def parse_json_strings(cls, value: Any) -> Any:
+        """Accept JSON strings for structured fields and parse them before validation."""
+        return _parse_json_value(value)
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "InfrastructureSetting":
+        """Validate that the folder is 'Mobile Users'.
+
+        Returns:
+            The validated infrastructure setting model
+
+        Raises:
+            ValueError: If the folder is not 'Mobile Users'
+
+        """
+        if self.folder != "Mobile Users":
+            raise ValueError("Folder must be 'Mobile Users' for infrastructure settings")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = self.model_dump(exclude_none=True)
+        return model_data
+
+
+class GlobalSettingManualGatewayRegion(BaseModel):
+    """Manual gateway region entry for global settings."""
+
+    name: str | None = Field(None, description="Name of the region")
+    locations: list[str] | None = Field(None, description="Locations within the region")
+
+
+class GlobalSettingManualGateway(BaseModel):
+    """Manual gateway configuration for global settings."""
+
+    region: list[GlobalSettingManualGatewayRegion] | None = Field(None, description="Manual gateway regions")
+
+
+class GlobalSetting(BaseModel):
+    """Model for mobile agent global setting configurations.
+
+    Global settings are a tenant-wide singleton with GET/PUT semantics only;
+    there is no container and no name.
+    """
+
+    agent_version: str | None = Field(None, description="GlobalProtect agent version")
+    manual_gateway: GlobalSettingManualGateway | None = Field(None, description="Manual gateway configuration")
+
+    @field_validator("manual_gateway", mode="before")
+    @classmethod
+    def parse_json_strings(cls, value: Any) -> Any:
+        """Accept JSON strings for structured fields and parse them before validation."""
+        return _parse_json_value(value)
+
+    @model_validator(mode="after")
+    def validate_not_empty(self) -> "GlobalSetting":
+        """Validate that at least one field is provided.
+
+        Returns:
+            The validated global setting model
+
+        Raises:
+            ValueError: If no fields are provided
+
+        """
+        if self.agent_version is None and self.manual_gateway is None:
+            raise ValueError("At least one of agent_version or manual_gateway must be provided")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = self.model_dump(exclude_none=True)
+        return model_data
+
+
+# ---------------------------------------------------- agent2: GlobalProtect infrastructure/global settings (end) ----------------------------------------------------
+
+
+# =============================================================================================================================================================================================
+# GLOBALPROTECT FORWARDING PROFILE SUB-RESOURCE MODELS
+# =============================================================================================================================================================================================
+
+
+class ForwardingProfileSourceApplication(BaseModel):
+    """Model for mobile agent forwarding profile source application configurations."""
+
+    name: str = Field(..., description="Name of the source application")
+    folder: str | None = Field(None, description="Folder path (only 'Mobile Users' is supported)")
+    description: str | None = Field(None, description="Description of the source application")
+    applications: list[str] = Field(..., description="List of applications")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfileSourceApplication":
+        """Validate that a folder is provided.
+
+        Returns:
+            The validated source application model
+
+        Raises:
+            ValueError: If no folder is provided
+
+        """
+        if not self.folder:
+            raise ValueError("folder must be provided (only 'Mobile Users' is supported)")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+            "applications": self.applications,
+        }
+
+        if self.description is not None:
+            model_data["description"] = self.description
+
+        return model_data
+
+
+class ForwardingProfileUserLocation(BaseModel):
+    """Model for mobile agent forwarding profile user location configurations."""
+
+    name: str = Field(..., description="Name of the user location")
+    folder: str | None = Field(None, description="Folder path (only 'Mobile Users' is supported)")
+    description: str | None = Field(None, description="Description of the user location")
+    internal_host_ip: str | None = Field(None, description="Internal host detection IP address")
+    internal_host_fqdn: str | None = Field(None, description="Internal host detection FQDN")
+    ip_addresses: list[str] | None = Field(None, description="List of user location IP addresses")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfileUserLocation":
+        """Validate folder and that exactly one location matching criteria is provided.
+
+        Returns:
+            The validated user location model
+
+        Raises:
+            ValueError: If no folder is provided or the choice fields are invalid
+
+        """
+        if not self.folder:
+            raise ValueError("folder must be provided (only 'Mobile Users' is supported)")
+
+        has_internal_host = bool(self.internal_host_ip or self.internal_host_fqdn)
+        has_ip_addresses = bool(self.ip_addresses)
+        if has_internal_host == has_ip_addresses:
+            raise ValueError("Exactly one of internal host detection (internal_host_ip/internal_host_fqdn) or ip_addresses must be provided")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        choice: dict[str, Any]
+        if self.ip_addresses:
+            choice = {"ip_addresses": [{"name": ip} for ip in self.ip_addresses]}
+        else:
+            internal_host_detection: dict[str, Any] = {}
+            if self.internal_host_ip is not None:
+                internal_host_detection["ip_address"] = self.internal_host_ip
+            if self.internal_host_fqdn is not None:
+                internal_host_detection["fqdn"] = self.internal_host_fqdn
+            choice = {"internal_host_detection": internal_host_detection}
+
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+            "choice": choice,
+        }
+
+        if self.description is not None:
+            model_data["description"] = self.description
+
+        return model_data
+
+
+class ForwardingProfileRegionalAndCustomProxy(BaseModel):
+    """Model for mobile agent forwarding profile regional and custom proxy configurations."""
+
+    name: str = Field(..., description="Name of the regional and custom proxy")
+    folder: str | None = Field(None, description="Folder path (only 'Mobile Users' is supported)")
+    description: str | None = Field(None, description="Description of the regional and custom proxy")
+    type: str | None = Field(None, description="Proxy type (gp-and-pac, ztna-agent)")
+    proxy_1: dict[str, Any] | None = Field(None, description="Primary proxy server (fqdn, port, location)")
+    proxy_2: dict[str, Any] | None = Field(None, description="Secondary proxy server (fqdn, port, location)")
+    connectivity_preference: list[dict[str, Any]] | None = Field(None, description="Connectivity preference entries (name, enabled)")
+    fallback_option: str | None = Field(None, description="Fallback option (fail-open, fail-safe)")
+    location_preference: str | None = Field(None, description="Location preference (best-available-pa-location, specific-pa-location)")
+    prisma_access_locations: list[dict[str, Any]] | None = Field(None, description="Prisma Access locations (name, locations)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfileRegionalAndCustomProxy":
+        """Validate that a folder is provided.
+
+        Returns:
+            The validated regional and custom proxy model
+
+        Raises:
+            ValueError: If no folder is provided
+
+        """
+        if not self.folder:
+            raise ValueError("folder must be provided (only 'Mobile Users' is supported)")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format.
+
+        Returns:
+            dict[str, Any]: SDK-compatible dictionary
+
+        """
+        model_data: dict[str, Any] = {
+            "name": self.name,
+            "folder": self.folder,
+        }
+
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.type is not None:
+            model_data["type"] = self.type
+        if self.proxy_1 is not None:
+            model_data["proxy_1"] = self.proxy_1
+        if self.proxy_2 is not None:
+            model_data["proxy_2"] = self.proxy_2
+        if self.connectivity_preference is not None:
+            model_data["connectivity_preference"] = self.connectivity_preference
+        if self.fallback_option is not None:
+            model_data["fallback_option"] = self.fallback_option
+        if self.location_preference is not None:
+            model_data["location_preference"] = self.location_preference
+        if self.prisma_access_locations is not None:
+            model_data["prisma_access_locations"] = self.prisma_access_locations
+
+        return model_data
+
+
 # =============================================================================================================================================================================================
 # INSIGHTS AND MONITORING MODELS
 # =============================================================================================================================================================================================
@@ -4918,3 +5537,133 @@ class BpaStatusResponse(BaseModel):
         if v not in allowed:
             raise ValueError(f"status must be one of {allowed}, got '{v}'")
         return v
+
+
+# =============================================================================================================================================================================================
+# GLOBALPROTECT FORWARDING PROFILE MODELS (mobile-agent, SDK 0.15.0)
+# =============================================================================================================================================================================================
+
+_FORWARDING_PROFILE_TYPE_KEYS = {"pac_file", "global_protect_proxy", "ztna_agent"}
+_FORWARDING_PROFILE_DEFINITION_METHODS = {"rules", "pac-file"}
+
+
+class ForwardingProfile(BaseModel):
+    """Model for GlobalProtect forwarding profile configurations.
+
+    Forwarding profiles are folder-scoped to "Mobile Users" only; the SDK sends the
+    folder as a query parameter rather than in the request body.
+    """
+
+    name: str = Field(..., max_length=64, pattern=r"^[0-9a-zA-Z._-]+$", description="Name of the forwarding profile")
+    folder: str | None = Field(None, description="Folder path (must be 'Mobile Users')")
+    description: str | None = Field(None, max_length=1023, description="Description of the forwarding profile")
+    definition_method: str | None = Field(None, description="How the profile is defined (rules or pac-file)")
+    type: dict[str, Any] | None = Field(None, description="Profile type configuration (pac_file, global_protect_proxy, or ztna_agent)")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfile":
+        """Validate that a folder is provided (only supported container)."""
+        if not self.folder:
+            raise ValueError("folder must be provided (forwarding profiles only support the 'Mobile Users' folder)")
+        return self
+
+    @field_validator("definition_method")
+    @classmethod
+    def validate_definition_method(cls, v: str | None) -> str | None:
+        """Validate definition_method value."""
+        if v is not None and v not in _FORWARDING_PROFILE_DEFINITION_METHODS:
+            raise ValueError(f"definition_method must be one of: {', '.join(sorted(_FORWARDING_PROFILE_DEFINITION_METHODS))}")
+        return v
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Validate the profile type wrapper has exactly one known key."""
+        if v is not None:
+            keys = set(v.keys())
+            if len(keys) != 1 or not keys.issubset(_FORWARDING_PROFILE_TYPE_KEYS):
+                raise ValueError(f"type must contain exactly one of: {', '.join(sorted(_FORWARDING_PROFILE_TYPE_KEYS))}")
+        return v
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+        if self.folder:
+            model_data["folder"] = self.folder
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.definition_method is not None:
+            model_data["definition_method"] = self.definition_method
+        if self.type is not None:
+            model_data["type"] = self.type
+        return model_data
+
+
+def _parse_destination_entries(entries: Any) -> list[dict[str, Any]] | None:
+    """Normalize destination entries to [{name, port?}] dicts.
+
+    Accepts plain strings ("host" or "host:port") from CLI flags and dicts from YAML.
+    """
+    if entries is None:
+        return None
+    parsed: list[dict[str, Any]] = []
+    for entry in entries:
+        if isinstance(entry, dict):
+            parsed.append(dict(entry))
+            continue
+        if not isinstance(entry, str):
+            raise ValueError(f"destination entry must be a string or mapping, got {type(entry).__name__}")
+        name, sep, port = entry.rpartition(":")
+        if sep and port.isdigit():
+            parsed.append({"name": name, "port": int(port)})
+        else:
+            parsed.append({"name": entry})
+    for item in parsed:
+        port_value = item.get("port")
+        if port_value is not None and not (1 <= int(port_value) <= 65535):
+            raise ValueError(f"port must be between 1 and 65535, got {port_value}")
+    return parsed
+
+
+class ForwardingProfileDestination(BaseModel):
+    """Model for GlobalProtect forwarding profile destination configurations.
+
+    Destinations are folder-scoped to "Mobile Users" only; the SDK sends the folder
+    as a query parameter rather than in the request body.
+    """
+
+    name: str = Field(..., max_length=64, pattern=r"^[0-9a-zA-Z._-]+$", description="Name of the destination")
+    folder: str | None = Field(None, description="Folder path (must be 'Mobile Users')")
+    description: str | None = Field(None, max_length=1023, description="Description of the destination")
+    fqdn: list[dict[str, Any]] | None = Field(None, description="FQDN entries ({name, port?})")
+    ip_addresses: list[dict[str, Any]] | None = Field(None, description="IP address entries ({name, port?})")
+
+    @field_validator("fqdn", "ip_addresses", mode="before")
+    @classmethod
+    def parse_entries(cls, v: Any) -> list[dict[str, Any]] | None:
+        """Parse string ('host[:port]') or dict entries into {name, port?} dicts."""
+        return _parse_destination_entries(v)
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "ForwardingProfileDestination":
+        """Validate that a folder is provided (only supported container)."""
+        if not self.folder:
+            raise ValueError("folder must be provided (forwarding profile destinations only support the 'Mobile Users' folder)")
+        return self
+
+    def to_sdk_model(self) -> dict[str, Any]:
+        """Convert CLI model to SDK model format."""
+        model_data: dict[str, Any] = {
+            "name": self.name,
+        }
+        if self.folder:
+            model_data["folder"] = self.folder
+        if self.description is not None:
+            model_data["description"] = self.description
+        if self.fqdn is not None:
+            model_data["fqdn"] = self.fqdn
+        if self.ip_addresses is not None:
+            model_data["ip_addresses"] = self.ip_addresses
+        return model_data

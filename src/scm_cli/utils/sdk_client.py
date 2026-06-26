@@ -112,8 +112,16 @@ class SCMClient:
                     "access_token": access_token,
                     "log_level": settings.get("log_level", "INFO"),
                 }
-                if "region" in inspect.signature(Scm.__init__).parameters:
+                scm_params = inspect.signature(Scm.__init__).parameters
+                if "region" in scm_params:
                     scm_kwargs["region"] = resolved_region
+                # Endpoint overrides (env > context) — omitted when unset so SDK defaults apply
+                api_base_url = settings.get("api_base_url", None)
+                if api_base_url and "api_base_url" in scm_params:
+                    scm_kwargs["api_base_url"] = api_base_url
+                token_url = settings.get("token_url", None)
+                if token_url and "token_url" in scm_params:
+                    scm_kwargs["token_url"] = token_url
                 self.client = Scm(**scm_kwargs)
                 self.logger.info("Successfully initialized SDK client with bearer token")
             else:
@@ -138,8 +146,16 @@ class SCMClient:
                     "tsg_id": self.tsg_id,
                     "log_level": settings.get("log_level", "INFO"),
                 }
-                if "region" in inspect.signature(Scm.__init__).parameters:
+                scm_params = inspect.signature(Scm.__init__).parameters
+                if "region" in scm_params:
                     scm_kwargs["region"] = resolved_region
+                # Endpoint overrides (env > context) — omitted when unset so SDK defaults apply
+                api_base_url = credentials.get("api_base_url") or settings.get("api_base_url", None)
+                if api_base_url and "api_base_url" in scm_params:
+                    scm_kwargs["api_base_url"] = api_base_url
+                token_url = credentials.get("token_url") or settings.get("token_url", None)
+                if token_url and "token_url" in scm_params:
+                    scm_kwargs["token_url"] = token_url
                 self.client = Scm(**scm_kwargs)
                 self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
         except (ValueError, AuthenticationError) as e:
@@ -11081,6 +11097,1331 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("deletion", container or "", name or "", e)
 
+    # ------------------------------------------------------------------------------ GlobalProtect Agent Profile (agent3) ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_not_found_error(exception: Exception) -> bool:
+        """Check whether an SDK exception represents a 404 / not-found condition.
+
+        The mobile-agent profile services raise InvalidObjectError with
+        http_status_code 404 (rather than NotFoundError) when a fetch matches
+        nothing.
+        """
+        if isinstance(exception, NotFoundError):
+            return True
+        return getattr(exception, "http_status_code", None) == 404
+
+    def create_agent_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        os: list[str] | None = None,
+        save_user_credentials: str | None = None,
+        source_user: list[str] | None = None,
+        third_party_vpn_clients: list[str] | None = None,
+        agent_ui: dict[str, Any] | None = None,
+        authentication_override: dict[str, Any] | None = None,
+        certificate: dict[str, Any] | None = None,
+        client_certificate: dict[str, Any] | None = None,
+        custom_checks: dict[str, Any] | None = None,
+        gateways: dict[str, Any] | None = None,
+        gp_app_config: dict[str, Any] | None = None,
+        hip_collection: dict[str, Any] | None = None,
+        internal_host_detection: dict[str, Any] | None = None,
+        internal_host_detection_v6: dict[str, Any] | None = None,
+        machine_account_exists_with_serialno: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a GlobalProtect agent profile using smart upsert logic.
+
+        Agent profiles live only in the 'Mobile Users' folder and are addressed by
+        name (the API exposes no ID-based endpoints). Updates send the merged field
+        set; each provided field replaces the existing value wholesale.
+
+        Args:
+            folder: Folder containing the agent profile (must be 'Mobile Users')
+            name: Name of the agent profile
+            os: Operating systems this profile applies to
+            save_user_credentials: Save user credentials behavior ('0'-'3')
+            source_user: Source users this profile applies to
+            third_party_vpn_clients: Supported third party VPN clients
+            agent_ui: Agent UI configuration settings
+            authentication_override: Authentication override settings
+            certificate: Certificate settings
+            client_certificate: Client certificate settings
+            custom_checks: Custom checks settings
+            gateways: Gateways configuration
+            gp_app_config: GlobalProtect app configuration (connect-method / tunnel-mtu)
+            hip_collection: HIP collection settings
+            internal_host_detection: Internal host detection (IPv4) settings
+            internal_host_detection_v6: Internal host detection (IPv6) settings
+            machine_account_exists_with_serialno: Machine account / serial number setting
+
+        Returns:
+            dict[str, Any]: The created/updated agent profile object with __action__ field
+
+        """
+        provided_fields: dict[str, Any] = {
+            key: value
+            for key, value in {
+                "os": os,
+                "save_user_credentials": save_user_credentials,
+                "source_user": source_user,
+                "third_party_vpn_clients": third_party_vpn_clients,
+                "agent_ui": agent_ui,
+                "authentication_override": authentication_override,
+                "certificate": certificate,
+                "client_certificate": client_certificate,
+                "custom_checks": custom_checks,
+                "gateways": gateways,
+                "gp_app_config": gp_app_config,
+                "hip_collection": hip_collection,
+                "internal_host_detection": internal_host_detection,
+                "internal_host_detection_v6": internal_host_detection_v6,
+                "machine_account_exists_with_serialno": machine_account_exists_with_serialno,
+            }.items()
+            if value is not None
+        }
+
+        self.logger.info(f"Creating or updating agent profile: {name} in folder {folder}")
+
+        if not self.client:
+            result = {"id": f"ap-{name}", "folder": folder, "name": name, **provided_fields, "__action__": "created"}
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            existing = None
+            try:
+                existing = self.client.agent_profile.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing agent profile '{name}' in folder '{folder}'")
+            except Exception as fetch_error:
+                if self._is_not_found_error(fetch_error):
+                    self.logger.info(f"Agent profile '{name}' not found in folder '{folder}', will create new")
+                else:
+                    self.logger.warning(f"Error fetching agent profile '{name}': {str(fetch_error)}")
+
+            if existing:
+                existing_data = json.loads(existing.model_dump_json(exclude_unset=True))
+                changed_fields = [key for key, value in provided_fields.items() if existing_data.get(key) != value]
+
+                if changed_fields:
+                    self.logger.info(f"Updating agent profile fields: {', '.join(changed_fields)}")
+                    update_data = {"name": name, "folder": folder, **provided_fields}
+                    result = self.client.agent_profile.update(update_data)
+                    if result is None:
+                        # The API may return 200 with no body; re-fetch for the response
+                        result = self.client.agent_profile.fetch(name=name, folder=folder)
+                    self.logger.info(f"Successfully updated agent profile '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for agent profile '{name}', skipping update")
+                    response = existing_data
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                profile_data = {"name": name, "folder": folder, **provided_fields}
+                result = self.client.agent_profile.create(profile_data)
+                self.logger.info(f"Successfully created agent profile '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_agent_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a GlobalProtect agent profile by name.
+
+        Args:
+            folder: Folder containing the agent profile (must be 'Mobile Users')
+            name: Name of the agent profile to get
+
+        Returns:
+            dict[str, Any]: The agent profile object
+
+        """
+        self.logger.info(f"Getting agent profile: {name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": f"ap-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "os": ["Windows", "Mac"],
+                "save_user_credentials": "0",
+                "gp_app_config": {"config": [{"name": "connect-method", "value": ["user-logon"]}]},
+            }
+
+        try:
+            result = self.client.agent_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_agent_profiles(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List GlobalProtect agent profiles.
+
+        Args:
+            folder: Folder to list from (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of agent profile objects
+
+        """
+        self.logger.info(f"Listing agent profiles in folder: {folder}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "ap-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "corp-app-settings",
+                    "os": ["Windows"],
+                    "save_user_credentials": "0",
+                },
+                {
+                    "id": "ap-mock2",
+                    "folder": folder or "Mobile Users",
+                    "name": "byod-app-settings",
+                    "os": ["iOS", "Android"],
+                    "save_user_credentials": "3",
+                },
+            ]
+
+        try:
+            results = self.client.agent_profile.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "agent profiles", e)
+
+    def delete_agent_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a GlobalProtect agent profile.
+
+        The API deletes by name and folder query parameters; no ID is involved.
+
+        Args:
+            folder: Folder containing the agent profile (must be 'Mobile Users')
+            name: Name of the agent profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting agent profile: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            self.client.agent_profile.delete(name=name, folder=folder)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
+    # ------------------------------------------------------------------------------ GlobalProtect Tunnel Profile (agent3) -----------------------------------------------------------------
+
+    def create_tunnel_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        no_direct_access_to_local_network: bool | None = None,
+        retrieve_framed_ip_address: bool | None = None,
+        os: list[str] | None = None,
+        source_user: list[str] | None = None,
+        authentication_override: dict[str, Any] | None = None,
+        source_address: dict[str, Any] | None = None,
+        split_tunneling: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a GlobalProtect tunnel profile using smart upsert logic.
+
+        Tunnel profiles live only in the 'Mobile Users' folder and are addressed by
+        name. The folder travels as a query parameter and must NOT appear in the
+        request body.
+
+        Args:
+            folder: Folder containing the tunnel profile (must be 'Mobile Users')
+            name: Name of the tunnel profile
+            no_direct_access_to_local_network: Disable direct access to the local network
+            retrieve_framed_ip_address: Retrieve framed IP address from the auth server
+            os: Operating systems this profile applies to
+            source_user: Source users this profile applies to
+            authentication_override: Authentication override configuration
+            source_address: Source address configuration
+            split_tunneling: Split tunneling configuration
+
+        Returns:
+            dict[str, Any]: The created/updated tunnel profile object with __action__ field
+
+        """
+        provided_fields: dict[str, Any] = {
+            key: value
+            for key, value in {
+                "no_direct_access_to_local_network": no_direct_access_to_local_network,
+                "retrieve_framed_ip_address": retrieve_framed_ip_address,
+                "os": os,
+                "source_user": source_user,
+                "authentication_override": authentication_override,
+                "source_address": source_address,
+                "split_tunneling": split_tunneling,
+            }.items()
+            if value is not None
+        }
+
+        self.logger.info(f"Creating or updating tunnel profile: {name} in folder {folder}")
+
+        if not self.client:
+            result = {"id": f"tp-{name}", "folder": folder, "name": name, **provided_fields, "__action__": "created"}
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            existing = None
+            try:
+                existing = self.client.tunnel_profile.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing tunnel profile '{name}' in folder '{folder}'")
+            except Exception as fetch_error:
+                if self._is_not_found_error(fetch_error):
+                    self.logger.info(f"Tunnel profile '{name}' not found in folder '{folder}', will create new")
+                else:
+                    self.logger.warning(f"Error fetching tunnel profile '{name}': {str(fetch_error)}")
+
+            # The tunnel-profiles API rejects folder in the request body
+            body = {"name": name, **provided_fields}
+
+            if existing:
+                existing_data = json.loads(existing.model_dump_json(exclude_unset=True))
+                changed_fields = [key for key, value in provided_fields.items() if existing_data.get(key) != value]
+
+                if changed_fields:
+                    self.logger.info(f"Updating tunnel profile fields: {', '.join(changed_fields)}")
+                    result = self.client.tunnel_profile.update(body, folder=folder)
+                    self.logger.info(f"Successfully updated tunnel profile '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for tunnel profile '{name}', skipping update")
+                    response = existing_data
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                result = self.client.tunnel_profile.create(body, folder=folder)
+                self.logger.info(f"Successfully created tunnel profile '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_tunnel_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a GlobalProtect tunnel profile by name.
+
+        Args:
+            folder: Folder containing the tunnel profile (must be 'Mobile Users')
+            name: Name of the tunnel profile to get
+
+        Returns:
+            dict[str, Any]: The tunnel profile object
+
+        """
+        self.logger.info(f"Getting tunnel profile: {name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": f"tp-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "no_direct_access_to_local_network": False,
+                "split_tunneling": {"access_route": ["10.0.0.0/8"]},
+            }
+
+        try:
+            result = self.client.tunnel_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_tunnel_profiles(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List GlobalProtect tunnel profiles.
+
+        Args:
+            folder: Folder to list from (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of tunnel profile objects
+
+        """
+        self.logger.info(f"Listing tunnel profiles in folder: {folder}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "tp-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "corp-tunnel",
+                    "split_tunneling": {"access_route": ["10.0.0.0/8"]},
+                },
+                {
+                    "id": "tp-mock2",
+                    "folder": folder or "Mobile Users",
+                    "name": "byod-tunnel",
+                    "no_direct_access_to_local_network": True,
+                },
+            ]
+
+        try:
+            results = self.client.tunnel_profile.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "tunnel profiles", e)
+
+    def delete_tunnel_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a GlobalProtect tunnel profile.
+
+        The API deletes by name and folder query parameters; no ID is involved.
+
+        Args:
+            folder: Folder containing the tunnel profile (must be 'Mobile Users')
+            name: Name of the tunnel profile to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting tunnel profile: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            self.client.tunnel_profile.delete(name=name, folder=folder)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
+    # ---------------------------------------------------------------- agent2: Infrastructure Setting (begin) ----------------------------------------------------------------
+
+    def create_infrastructure_setting(
+        self,
+        name: str = None,
+        folder: str = "Mobile Users",
+        dns_servers: list[dict[str, Any]] | None = None,
+        ip_pools: list[dict[str, Any]] | None = None,
+        portal_hostname: dict[str, Any] | None = None,
+        enable_wins: dict[str, Any] | None = None,
+        ipv6: bool | None = None,
+        udp_queries: dict[str, Any] | None = None,
+        static_ip_pools: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update an infrastructure setting using smart upsert logic.
+
+        Infrastructure settings have no ID-based paths; the SDK addresses them
+        by name and the 'Mobile Users' folder query parameter. Create and update
+        may return an empty body, in which case the validated payload is echoed.
+
+        Args:
+            name: Name of the infrastructure setting
+            folder: Folder (must be 'Mobile Users')
+            dns_servers: DNS server entries
+            ip_pools: IP pools
+            portal_hostname: Portal hostname configuration
+            enable_wins: WINS configuration
+            ipv6: Whether IPv6 is enabled
+            udp_queries: UDP query retry configuration
+            static_ip_pools: Static IP pools
+
+        Returns:
+            dict[str, Any]: The created/updated infrastructure setting with __action__ field
+
+        """
+        self.logger.info(f"Creating or updating infrastructure setting: {name} in folder {folder}")
+
+        setting_data: dict[str, Any] = {"name": name}
+        if dns_servers is not None:
+            setting_data["dns_servers"] = dns_servers
+        if ip_pools is not None:
+            setting_data["ip_pools"] = ip_pools
+        if portal_hostname is not None:
+            setting_data["portal_hostname"] = portal_hostname
+        if enable_wins is not None:
+            setting_data["enable_wins"] = enable_wins
+        if ipv6 is not None:
+            setting_data["ipv6"] = ipv6
+        if udp_queries is not None:
+            setting_data["udp_queries"] = udp_queries
+        if static_ip_pools is not None:
+            setting_data["static_ip_pools"] = static_ip_pools
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = dict(setting_data)
+            result["id"] = f"is-{name}"
+            result["folder"] = folder
+            result["__action__"] = "created"
+            return result
+
+        try:
+            # Step 1: Try to fetch the existing infrastructure setting. The SDK raises
+            # InvalidObjectError (404) rather than NotFoundError when absent.
+            existing = None
+            try:
+                existing = self.client.infrastructure_settings.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing infrastructure setting '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Infrastructure setting '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                if getattr(fetch_error, "http_status_code", None) == 404:
+                    self.logger.info(f"Infrastructure setting '{name}' not found in folder '{folder}', will create new")
+                else:
+                    self.logger.warning(f"Error fetching infrastructure setting '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare the desired payload against the existing object
+                existing_data = json.loads(existing.model_dump_json(exclude_unset=True))
+                existing_data.pop("id", None)
+                if all(existing_data.get(key) == value for key, value in setting_data.items()):
+                    self.logger.info(f"No changes detected for infrastructure setting '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+
+                result = self.client.infrastructure_settings.update(setting_data, folder=folder)
+                self.logger.info(f"Successfully updated infrastructure setting '{name}' in folder '{folder}'")
+                # The API may respond with an empty body; echo the payload then
+                response = json.loads(result.model_dump_json(exclude_unset=True)) if result is not None else dict(setting_data)
+                response["__action__"] = "updated"
+                return response
+            else:
+                # Step 3: Create a new infrastructure setting
+                result = self.client.infrastructure_settings.create(setting_data, folder=folder)
+                self.logger.info(f"Successfully created infrastructure setting '{name}' in folder '{folder}'")
+                # The API responds with 201 Created and may have no body; echo the payload then
+                response = json.loads(result.model_dump_json(exclude_unset=True)) if result is not None else dict(setting_data)
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder, name or "", e)
+
+    def get_infrastructure_setting(
+        self,
+        name: str = None,
+        folder: str = "Mobile Users",
+    ) -> dict[str, Any]:
+        """Get an infrastructure setting by name.
+
+        Args:
+            name: Name of the infrastructure setting to get
+            folder: Folder (must be 'Mobile Users')
+
+        Returns:
+            dict[str, Any]: The infrastructure setting object
+
+        """
+        self.logger.info(f"Getting infrastructure setting: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"is-{name}",
+                "folder": folder,
+                "name": name,
+                "dns_servers": [{"name": "dns-1", "dns_suffix": ["example.com"]}],
+                "ip_pools": [{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}],
+                "portal_hostname": {"default_domain": {"hostname": "example"}},
+            }
+
+        try:
+            result = self.client.infrastructure_settings.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder, name or "", e)
+
+    def list_infrastructure_settings(
+        self,
+        name: str = None,
+        folder: str = "Mobile Users",
+    ) -> list[dict[str, Any]]:
+        """List infrastructure settings matching a name.
+
+        The SCM API requires the 'name' query parameter for this endpoint;
+        there is no enumerate-all listing.
+
+        Args:
+            name: Name of the infrastructure settings (required by the API)
+            folder: Folder (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of infrastructure setting objects
+
+        """
+        self.logger.info(f"Listing infrastructure settings named '{name}' in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "is-mock1",
+                    "folder": folder,
+                    "name": name or "gp-infra",
+                    "dns_servers": [{"name": "dns-1", "dns_suffix": ["example.com"]}],
+                    "ip_pools": [{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}],
+                    "portal_hostname": {"default_domain": {"hostname": "example"}},
+                },
+            ]
+
+        try:
+            results = self.client.infrastructure_settings.list(name=name, folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "infrastructure settings", e)
+
+    def delete_infrastructure_setting(
+        self,
+        name: str = None,
+        folder: str = "Mobile Users",
+    ) -> bool:
+        """Delete an infrastructure setting.
+
+        Args:
+            name: Name of the infrastructure setting to delete
+            folder: Folder (must be 'Mobile Users')
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting infrastructure setting: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            self.client.infrastructure_settings.delete(name=name, folder=folder)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, name or "", e)
+
+    # ---------------------------------------------------------------- agent2: Infrastructure Setting (end) ----------------------------------------------------------------
+
+    # ---------------------------------------------------------------- agent2: Global Settings (begin) ----------------------------------------------------------------
+
+    def get_global_settings(self) -> dict[str, Any]:
+        """Get the GlobalProtect global settings singleton.
+
+        Returns:
+            dict[str, Any]: The global settings object
+
+        """
+        self.logger.info("Getting GlobalProtect global settings")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "agent_version": "6.2.0",
+                "manual_gateway": {"region": [{"name": "americas", "locations": ["us-east-1"]}]},
+            }
+
+        try:
+            result = self.client.global_settings.get()
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", "global", "global settings", e)
+
+    def update_global_settings(
+        self,
+        agent_version: str | None = None,
+        manual_gateway: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Update the GlobalProtect global settings singleton.
+
+        Global settings always exist for the tenant, so this is a plain PUT;
+        there is no create path and the action is always reported as updated.
+
+        Args:
+            agent_version: GlobalProtect agent version
+            manual_gateway: Manual gateway configuration
+
+        Returns:
+            dict[str, Any]: The updated global settings with __action__ field
+
+        """
+        self.logger.info("Updating GlobalProtect global settings")
+
+        settings_data: dict[str, Any] = {}
+        if agent_version is not None:
+            settings_data["agent_version"] = agent_version
+        if manual_gateway is not None:
+            settings_data["manual_gateway"] = manual_gateway
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = dict(settings_data)
+            result["__action__"] = "updated"
+            return result
+
+        try:
+            result = self.client.global_settings.update(settings_data)
+            response = json.loads(result.model_dump_json(exclude_unset=True))
+            response["__action__"] = "updated"
+            return response
+        except Exception as e:
+            self._handle_api_exception("updating", "global", "global settings", e)
+
+    # ---------------------------------------------------------------- agent2: Global Settings (end) ----------------------------------------------------------------
+
+    # ---------------------------------------------------------------------- Forwarding Profile Source Application ----------------------------------------------------------------------
+
+    def create_forwarding_profile_source_application(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        applications: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a forwarding profile source application using smart upsert logic.
+
+        Args:
+            folder: Folder to create the source application in (must be "Mobile Users")
+            name: Name of the source application
+            description: Optional description
+            applications: List of applications
+
+        Returns:
+            dict[str, Any]: The created/updated source application object with __action__ field
+
+        """
+        self.logger.info(f"Creating or updating forwarding profile source application: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"fpsa-{name}",
+                "folder": folder,
+                "name": name,
+                "description": description,
+                "applications": applications,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing source application
+            existing = None
+            try:
+                existing = self.client.forwarding_profile_source_application.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile source application '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile source application '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching forwarding profile source application '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
+
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if applications is not None and getattr(existing, "applications", None) != applications:
+                    existing.applications = applications
+                    update_fields.append("applications")
+                    needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating forwarding profile source application fields: {', '.join(update_fields)}")
+                    result = self.client.forwarding_profile_source_application.update(existing)
+                    self.logger.info(f"Successfully updated forwarding profile source application '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile source application '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new source application (folder is a query param, not payload)
+                setting_data: dict[str, Any] = {
+                    "name": name,
+                    "applications": applications or [],
+                }
+                if description is not None:
+                    setting_data["description"] = description
+
+                result = self.client.forwarding_profile_source_application.create(setting_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile source application '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_forwarding_profile_source_application(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile source application by name.
+
+        Args:
+            folder: Folder containing the source application (must be "Mobile Users")
+            name: Name of the source application to get
+
+        Returns:
+            dict[str, Any]: The source application object
+
+        """
+        self.logger.info(f"Getting forwarding profile source application: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"fpsa-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "description": f"Mock forwarding profile source application {name}",
+                "applications": ["slack", "zoom"],
+            }
+
+        try:
+            result = self.client.forwarding_profile_source_application.fetch(name=name, folder=folder)
+
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"Forwarding profile source application '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_forwarding_profile_source_applications(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profile source applications.
+
+        Args:
+            folder: Folder to list from (must be "Mobile Users")
+
+        Returns:
+            list[dict[str, Any]]: List of source application objects
+
+        """
+        self.logger.info(f"Listing forwarding profile source applications in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "fpsa-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "office-apps",
+                    "description": "Office applications",
+                    "applications": ["slack", "zoom"],
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile_source_application.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "forwarding profile source applications", e)
+
+    def delete_forwarding_profile_source_application(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a forwarding profile source application.
+
+        Args:
+            folder: Folder containing the source application (must be "Mobile Users")
+            name: Name of the source application to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting forwarding profile source application: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            # Get the source application first to get its ID
+            setting = self.client.forwarding_profile_source_application.fetch(name=name, folder=folder)
+            if setting is None:
+                raise ValueError(f"Forwarding profile source application '{name}' not found")
+            self.client.forwarding_profile_source_application.delete(str(setting.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
+    # ------------------------------------------------------------------------- Forwarding Profile User Location -------------------------------------------------------------------------
+
+    def create_forwarding_profile_user_location(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        choice: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a forwarding profile user location using smart upsert logic.
+
+        Args:
+            folder: Folder to create the user location in (must be "Mobile Users")
+            name: Name of the user location
+            description: Optional description
+            choice: Location matching criteria (internal_host_detection or ip_addresses)
+
+        Returns:
+            dict[str, Any]: The created/updated user location object with __action__ field
+
+        """
+        self.logger.info(f"Creating or updating forwarding profile user location: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"fpul-{name}",
+                "folder": folder,
+                "name": name,
+                "description": description,
+                "choice": choice,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing user location
+            existing = None
+            try:
+                existing = self.client.forwarding_profile_user_location.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile user location '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile user location '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching forwarding profile user location '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
+
+                if description is not None and getattr(existing, "description", None) != description:
+                    existing.description = description
+                    update_fields.append("description")
+                    needs_update = True
+
+                if choice is not None:
+                    existing_choice = json.loads(existing.choice.model_dump_json(exclude_none=True)) if getattr(existing, "choice", None) else None
+                    if existing_choice != choice:
+                        existing.choice = choice
+                        update_fields.append("choice")
+                        needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating forwarding profile user location fields: {', '.join(update_fields)}")
+                    result = self.client.forwarding_profile_user_location.update(existing)
+                    self.logger.info(f"Successfully updated forwarding profile user location '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile user location '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new user location (folder is a query param, not payload)
+                setting_data: dict[str, Any] = {
+                    "name": name,
+                    "choice": choice or {},
+                }
+                if description is not None:
+                    setting_data["description"] = description
+
+                result = self.client.forwarding_profile_user_location.create(setting_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile user location '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_forwarding_profile_user_location(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile user location by name.
+
+        Args:
+            folder: Folder containing the user location (must be "Mobile Users")
+            name: Name of the user location to get
+
+        Returns:
+            dict[str, Any]: The user location object
+
+        """
+        self.logger.info(f"Getting forwarding profile user location: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"fpul-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "description": f"Mock forwarding profile user location {name}",
+                "choice": {"ip_addresses": [{"name": "10.1.0.0/16"}]},
+            }
+
+        try:
+            result = self.client.forwarding_profile_user_location.fetch(name=name, folder=folder)
+
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"Forwarding profile user location '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_forwarding_profile_user_locations(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profile user locations.
+
+        Args:
+            folder: Folder to list from (must be "Mobile Users")
+
+        Returns:
+            list[dict[str, Any]]: List of user location objects
+
+        """
+        self.logger.info(f"Listing forwarding profile user locations in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "fpul-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "branch-network",
+                    "description": "Branch office network",
+                    "choice": {"ip_addresses": [{"name": "10.1.0.0/16"}]},
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile_user_location.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "forwarding profile user locations", e)
+
+    def delete_forwarding_profile_user_location(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a forwarding profile user location.
+
+        Args:
+            folder: Folder containing the user location (must be "Mobile Users")
+            name: Name of the user location to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting forwarding profile user location: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            # Get the user location first to get its ID
+            setting = self.client.forwarding_profile_user_location.fetch(name=name, folder=folder)
+            if setting is None:
+                raise ValueError(f"Forwarding profile user location '{name}' not found")
+            self.client.forwarding_profile_user_location.delete(str(setting.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
+    # ------------------------------------------------------------------ Forwarding Profile Regional and Custom Proxy ------------------------------------------------------------------
+
+    def create_forwarding_profile_regional_and_custom_proxy(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        type: str | None = None,
+        proxy_1: dict[str, Any] | None = None,
+        proxy_2: dict[str, Any] | None = None,
+        connectivity_preference: list[dict[str, Any]] | None = None,
+        fallback_option: str | None = None,
+        location_preference: str | None = None,
+        prisma_access_locations: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a forwarding profile regional and custom proxy using smart upsert logic.
+
+        Args:
+            folder: Folder to create the regional and custom proxy in (must be "Mobile Users")
+            name: Name of the regional and custom proxy
+            description: Optional description
+            type: Proxy type (gp-and-pac, ztna-agent)
+            proxy_1: Primary proxy server (fqdn, port, location)
+            proxy_2: Secondary proxy server (fqdn, port, location)
+            connectivity_preference: Connectivity preference entries (name, enabled)
+            fallback_option: Fallback option (fail-open, fail-safe)
+            location_preference: Location preference
+            prisma_access_locations: Prisma Access locations (name, locations)
+
+        Returns:
+            dict[str, Any]: The created/updated regional and custom proxy object with __action__ field
+
+        """
+        self.logger.info(f"Creating or updating forwarding profile regional and custom proxy: {name} in folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            result = {
+                "id": f"fprcp-{name}",
+                "folder": folder,
+                "name": name,
+                "description": description,
+                "type": type,
+                "proxy_1": proxy_1,
+                "proxy_2": proxy_2,
+                "connectivity_preference": connectivity_preference,
+                "fallback_option": fallback_option,
+                "location_preference": location_preference,
+                "prisma_access_locations": prisma_access_locations,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        def nested_dump(value: Any) -> Any:
+            """Dump nested SDK models to plain data for comparison."""
+            if value is None:
+                return None
+            if isinstance(value, list):
+                return [json.loads(item.model_dump_json(exclude_none=True)) for item in value]
+            return json.loads(value.model_dump_json(exclude_none=True))
+
+        try:
+            # Step 1: Try to fetch existing regional and custom proxy
+            existing = None
+            try:
+                existing = self.client.forwarding_profile_regional_and_custom_proxy.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile regional and custom proxy '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile regional and custom proxy '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.warning(f"Error fetching forwarding profile regional and custom proxy '{name}': {str(fetch_error)}")
+
+            if existing:
+                # Step 2: Compare fields and update if needed
+                needs_update = False
+                update_fields = []
+
+                scalar_fields = {
+                    "description": description,
+                    "type": type,
+                    "fallback_option": fallback_option,
+                    "location_preference": location_preference,
+                }
+                for field_name, new_value in scalar_fields.items():
+                    if new_value is not None and getattr(existing, field_name, None) != new_value:
+                        setattr(existing, field_name, new_value)
+                        update_fields.append(field_name)
+                        needs_update = True
+
+                nested_fields = {
+                    "proxy_1": proxy_1,
+                    "proxy_2": proxy_2,
+                    "connectivity_preference": connectivity_preference,
+                    "prisma_access_locations": prisma_access_locations,
+                }
+                for field_name, new_value in nested_fields.items():
+                    if new_value is not None and nested_dump(getattr(existing, field_name, None)) != new_value:
+                        setattr(existing, field_name, new_value)
+                        update_fields.append(field_name)
+                        needs_update = True
+
+                if needs_update:
+                    self.logger.info(f"Updating forwarding profile regional and custom proxy fields: {', '.join(update_fields)}")
+                    result = self.client.forwarding_profile_regional_and_custom_proxy.update(existing)
+                    self.logger.info(f"Successfully updated forwarding profile regional and custom proxy '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile regional and custom proxy '{name}', skipping update")
+                    response = json.loads(existing.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new regional and custom proxy (folder is a query param, not payload)
+                setting_data: dict[str, Any] = {
+                    "name": name,
+                }
+                if description is not None:
+                    setting_data["description"] = description
+                if type is not None:
+                    setting_data["type"] = type
+                if proxy_1 is not None:
+                    setting_data["proxy_1"] = proxy_1
+                if proxy_2 is not None:
+                    setting_data["proxy_2"] = proxy_2
+                if connectivity_preference is not None:
+                    setting_data["connectivity_preference"] = connectivity_preference
+                if fallback_option is not None:
+                    setting_data["fallback_option"] = fallback_option
+                if location_preference is not None:
+                    setting_data["location_preference"] = location_preference
+                if prisma_access_locations is not None:
+                    setting_data["prisma_access_locations"] = prisma_access_locations
+
+                result = self.client.forwarding_profile_regional_and_custom_proxy.create(setting_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile regional and custom proxy '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder or "", name or "", e)
+
+    def get_forwarding_profile_regional_and_custom_proxy(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile regional and custom proxy by name.
+
+        Args:
+            folder: Folder containing the regional and custom proxy (must be "Mobile Users")
+            name: Name of the regional and custom proxy to get
+
+        Returns:
+            dict[str, Any]: The regional and custom proxy object
+
+        """
+        self.logger.info(f"Getting forwarding profile regional and custom proxy: {name} from folder {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return {
+                "id": f"fprcp-{name}",
+                "folder": folder or "Mobile Users",
+                "name": name,
+                "description": f"Mock forwarding profile regional and custom proxy {name}",
+                "type": "gp-and-pac",
+                "proxy_1": {"fqdn": "proxy1.example.com", "port": 8080},
+            }
+
+        try:
+            result = self.client.forwarding_profile_regional_and_custom_proxy.fetch(name=name, folder=folder)
+
+            if result is not None:
+                return json.loads(result.model_dump_json(exclude_unset=True))
+            else:
+                raise ValueError(f"Forwarding profile regional and custom proxy '{name}' not found")
+        except Exception as e:
+            self._handle_api_exception("getting", folder or "", name or "", e)
+
+    def list_forwarding_profile_regional_and_custom_proxies(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profile regional and custom proxies.
+
+        Args:
+            folder: Folder to list from (must be "Mobile Users")
+
+        Returns:
+            list[dict[str, Any]]: List of regional and custom proxy objects
+
+        """
+        self.logger.info(f"Listing forwarding profile regional and custom proxies in folder: {folder}")
+
+        if not self.client:
+            # Return mock data if no client is available
+            return [
+                {
+                    "id": "fprcp-mock1",
+                    "folder": folder or "Mobile Users",
+                    "name": "emea-proxy",
+                    "description": "EMEA regional proxy",
+                    "type": "gp-and-pac",
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile_regional_and_custom_proxy.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder or "", "forwarding profile regional and custom proxies", e)
+
+    def delete_forwarding_profile_regional_and_custom_proxy(
+        self,
+        folder: str | None = None,
+        name: str = None,
+    ) -> bool:
+        """Delete a forwarding profile regional and custom proxy.
+
+        Args:
+            folder: Folder containing the regional and custom proxy (must be "Mobile Users")
+            name: Name of the regional and custom proxy to delete
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        self.logger.info(f"Deleting forwarding profile regional and custom proxy: {name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            # Get the regional and custom proxy first to get its ID
+            setting = self.client.forwarding_profile_regional_and_custom_proxy.fetch(name=name, folder=folder)
+            if setting is None:
+                raise ValueError(f"Forwarding profile regional and custom proxy '{name}' not found")
+            self.client.forwarding_profile_regional_and_custom_proxy.delete(str(setting.id))
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder or "", name or "", e)
+
     # ======================================================================================================================================================================================
     # SETUP CONFIGURATION METHODS
     # ======================================================================================================================================================================================
@@ -16466,6 +17807,407 @@ class SCMClient:
             raise
         except Exception as e:
             self._handle_api_exception("fetching", "N/A", f"incident {incident_id}", e)
+
+    # ======================================================================================================================================================================================
+    # GLOBALPROTECT FORWARDING PROFILE METHODS (mobile-agent, SDK 0.15.0)
+    # ======================================================================================================================================================================================
+
+    # Forwarding Profile ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_forwarding_profile(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        definition_method: str | None = None,
+        type: dict[str, Any] | None = None,  # noqa: A002 - matches SDK field name
+    ) -> dict[str, Any]:
+        """Create or update a GlobalProtect forwarding profile using smart upsert logic.
+
+        Args:
+            folder: Folder for the profile (must be 'Mobile Users'; sent as query param)
+            name: Name of the forwarding profile
+            description: Optional description
+            definition_method: How the profile is defined (rules or pac-file)
+            type: Profile type configuration ({pac_file|global_protect_proxy|ztna_agent: {...}})
+
+        Returns:
+            dict[str, Any]: The created/updated forwarding profile with __action__ field
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Creating or updating forwarding profile: {name} in folder {folder}")
+
+        if not self.client:
+            result = {
+                "id": f"fp-{name}",
+                "name": name,
+                "description": description,
+                "definition_method": definition_method,
+                "type": type,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing profile by name (SDK fetch raises a 404-style
+            # InvalidObjectError when missing, which lands in the generic handler below)
+            existing = None
+            try:
+                existing = self.client.forwarding_profile.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.info(f"Forwarding profile '{name}' lookup did not match ({fetch_error}), will create new")
+
+            if existing:
+                existing_dump = json.loads(existing.model_dump_json(exclude_unset=True))
+
+                # Step 2: Compare provided fields and update if needed
+                provided: dict[str, Any] = {}
+                if description is not None:
+                    provided["description"] = description
+                if definition_method is not None:
+                    provided["definition_method"] = definition_method
+                if type is not None:
+                    provided["type"] = type
+
+                needs_update = any(existing_dump.get(field) != value for field, value in provided.items())
+
+                if needs_update:
+                    payload = {k: v for k, v in existing_dump.items() if k != "id"}
+                    payload.update(provided)
+                    result = self.client.forwarding_profile.update(str(existing.id), payload)
+                    self.logger.info(f"Successfully updated forwarding profile '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile '{name}', skipping update")
+                    response = existing_dump
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new profile (folder goes as query param via the service)
+                profile_data: dict[str, Any] = {"name": name}
+                if description is not None:
+                    profile_data["description"] = description
+                if definition_method is not None:
+                    profile_data["definition_method"] = definition_method
+                if type is not None:
+                    profile_data["type"] = type
+
+                result = self.client.forwarding_profile.create(profile_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder, name or "", e)
+
+    def get_forwarding_profile(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        profile_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile by name (fetch) or UUID (direct get).
+
+        Args:
+            folder: Folder containing the profile (used with name)
+            name: Name of the forwarding profile
+            profile_id: UUID of the forwarding profile (takes precedence over name)
+
+        Returns:
+            dict[str, Any]: The forwarding profile object
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Getting forwarding profile: {profile_id or name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": profile_id or f"fp-{name}",
+                "name": name or "mock-profile",
+                "description": f"Mock forwarding profile {name or profile_id}",
+                "definition_method": "rules",
+                "type": {"ztna_agent": {"pac_upload": False}},
+            }
+
+        try:
+            result = self.client.forwarding_profile.get(profile_id) if profile_id else self.client.forwarding_profile.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder, profile_id or name or "", e)
+
+    def list_forwarding_profiles(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profiles.
+
+        Args:
+            folder: Folder to list from (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of forwarding profile objects
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Listing forwarding profiles in folder: {folder}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "fp-mock1",
+                    "name": "ztna-profile",
+                    "definition_method": "rules",
+                    "type": {"ztna_agent": {"pac_upload": False}},
+                },
+                {
+                    "id": "fp-mock2",
+                    "name": "pac-profile",
+                    "definition_method": "pac-file",
+                    "type": {"pac_file": {"pac_upload": True}},
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "forwarding profiles", e)
+
+    def delete_forwarding_profile(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        profile_id: str | None = None,
+    ) -> bool:
+        """Delete a forwarding profile by name or UUID.
+
+        Args:
+            folder: Folder containing the profile (used with name)
+            name: Name of the forwarding profile to delete
+            profile_id: UUID of the forwarding profile (takes precedence over name)
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Deleting forwarding profile: {profile_id or name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            if not profile_id:
+                profile = self.client.forwarding_profile.fetch(name=name, folder=folder)
+                profile_id = str(profile.id)
+            self.client.forwarding_profile.delete(profile_id)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, profile_id or name or "", e)
+
+    # Forwarding Profile Destination ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def create_forwarding_profile_destination(
+        self,
+        folder: str | None = None,
+        name: str = None,
+        description: str | None = None,
+        fqdn: list[dict[str, Any]] | None = None,
+        ip_addresses: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Create or update a forwarding profile destination using smart upsert logic.
+
+        Args:
+            folder: Folder for the destination (must be 'Mobile Users'; sent as query param)
+            name: Name of the destination
+            description: Optional description
+            fqdn: FQDN entries ({name, port?})
+            ip_addresses: IP address entries ({name, port?})
+
+        Returns:
+            dict[str, Any]: The created/updated destination with __action__ field
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Creating or updating forwarding profile destination: {name} in folder {folder}")
+
+        if not self.client:
+            result = {
+                "id": f"fpd-{name}",
+                "name": name,
+                "description": description,
+                "fqdn": fqdn,
+                "ip_addresses": ip_addresses,
+                "__action__": "created",
+            }
+            return {k: v for k, v in result.items() if v is not None}
+
+        try:
+            # Step 1: Try to fetch existing destination by name (SDK fetch raises a 404-style
+            # InvalidObjectError when missing, which lands in the generic handler below)
+            existing = None
+            try:
+                existing = self.client.forwarding_profile_destination.fetch(name=name, folder=folder)
+                self.logger.info(f"Found existing forwarding profile destination '{name}' in folder '{folder}'")
+            except NotFoundError:
+                self.logger.info(f"Forwarding profile destination '{name}' not found in folder '{folder}', will create new")
+            except Exception as fetch_error:
+                self.logger.info(f"Forwarding profile destination '{name}' lookup did not match ({fetch_error}), will create new")
+
+            if existing:
+                existing_dump = json.loads(existing.model_dump_json(exclude_unset=True))
+
+                # Step 2: Compare provided fields and update if needed
+                provided: dict[str, Any] = {}
+                if description is not None:
+                    provided["description"] = description
+                if fqdn is not None:
+                    provided["fqdn"] = fqdn
+                if ip_addresses is not None:
+                    provided["ip_addresses"] = ip_addresses
+
+                needs_update = any(existing_dump.get(field) != value for field, value in provided.items())
+
+                if needs_update:
+                    payload = {k: v for k, v in existing_dump.items() if k != "id"}
+                    payload.update(provided)
+                    result = self.client.forwarding_profile_destination.update(str(existing.id), payload)
+                    self.logger.info(f"Successfully updated forwarding profile destination '{name}' in folder '{folder}'")
+                    response = json.loads(result.model_dump_json(exclude_unset=True))
+                    response["__action__"] = "updated"
+                    return response
+                else:
+                    self.logger.info(f"No changes detected for forwarding profile destination '{name}', skipping update")
+                    response = existing_dump
+                    response["__action__"] = "no_change"
+                    return response
+            else:
+                # Step 3: Create new destination (folder goes as query param via the service)
+                destination_data: dict[str, Any] = {"name": name}
+                if description is not None:
+                    destination_data["description"] = description
+                if fqdn is not None:
+                    destination_data["fqdn"] = fqdn
+                if ip_addresses is not None:
+                    destination_data["ip_addresses"] = ip_addresses
+
+                result = self.client.forwarding_profile_destination.create(destination_data, folder=folder)
+                self.logger.info(f"Successfully created forwarding profile destination '{name}' in folder '{folder}'")
+                response = json.loads(result.model_dump_json(exclude_unset=True))
+                response["__action__"] = "created"
+                return response
+
+        except Exception as e:
+            self._handle_api_exception("create/update", folder, name or "", e)
+
+    def get_forwarding_profile_destination(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        destination_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Get a forwarding profile destination by name (fetch) or UUID (direct get).
+
+        Args:
+            folder: Folder containing the destination (used with name)
+            name: Name of the destination
+            destination_id: UUID of the destination (takes precedence over name)
+
+        Returns:
+            dict[str, Any]: The destination object
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Getting forwarding profile destination: {destination_id or name} from folder {folder}")
+
+        if not self.client:
+            return {
+                "id": destination_id or f"fpd-{name}",
+                "name": name or "mock-destination",
+                "description": f"Mock destination {name or destination_id}",
+                "fqdn": [{"name": "app.internal", "port": 443}],
+            }
+
+        try:
+            result = self.client.forwarding_profile_destination.get(destination_id) if destination_id else self.client.forwarding_profile_destination.fetch(name=name, folder=folder)
+            return json.loads(result.model_dump_json(exclude_unset=True))
+        except Exception as e:
+            self._handle_api_exception("getting", folder, destination_id or name or "", e)
+
+    def list_forwarding_profile_destinations(
+        self,
+        folder: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List forwarding profile destinations.
+
+        Args:
+            folder: Folder to list from (must be 'Mobile Users')
+
+        Returns:
+            list[dict[str, Any]]: List of destination objects
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Listing forwarding profile destinations in folder: {folder}")
+
+        if not self.client:
+            return [
+                {
+                    "id": "fpd-mock1",
+                    "name": "internal-apps",
+                    "fqdn": [{"name": "app.internal", "port": 443}],
+                },
+                {
+                    "id": "fpd-mock2",
+                    "name": "corp-ranges",
+                    "ip_addresses": [{"name": "10.0.0.0/8"}],
+                },
+            ]
+
+        try:
+            results = self.client.forwarding_profile_destination.list(folder=folder)
+            return [json.loads(result.model_dump_json(exclude_unset=True)) for result in results]
+        except Exception as e:
+            self._handle_api_exception("listing", folder, "forwarding profile destinations", e)
+
+    def delete_forwarding_profile_destination(
+        self,
+        folder: str | None = None,
+        name: str | None = None,
+        destination_id: str | None = None,
+    ) -> bool:
+        """Delete a forwarding profile destination by name or UUID.
+
+        Args:
+            folder: Folder containing the destination (used with name)
+            name: Name of the destination to delete
+            destination_id: UUID of the destination (takes precedence over name)
+
+        Returns:
+            bool: True if deletion was successful
+
+        """
+        folder = folder or "Mobile Users"
+        self.logger.info(f"Deleting forwarding profile destination: {destination_id or name} from folder {folder}")
+
+        if not self.client:
+            return True
+
+        try:
+            if not destination_id:
+                destination = self.client.forwarding_profile_destination.fetch(name=name, folder=folder)
+                destination_id = str(destination.id)
+            self.client.forwarding_profile_destination.delete(destination_id)
+            return True
+        except Exception as e:
+            self._handle_api_exception("deletion", folder, destination_id or name or "", e)
 
 
 class LazyClient:
