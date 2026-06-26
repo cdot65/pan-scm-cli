@@ -275,8 +275,7 @@ def delete_folder(
         if child_folders:
             child_list = ", ".join(child_folders)
             typer.echo(
-                f"Cannot delete folder '{name}' because it contains child folder(s): {child_list}. "
-                "Delete or move the child folder(s) first.",
+                f"Cannot delete folder '{name}' because it contains child folder(s): {child_list}. Delete or move the child folder(s) first.",
                 err=True,
             )
             raise typer.Exit(code=1)
