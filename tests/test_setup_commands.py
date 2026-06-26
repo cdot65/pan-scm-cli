@@ -115,6 +115,7 @@ class TestFolderCommands:
     def test_delete_folder_command(self, runner, monkeypatch):
         from scm_cli.utils.sdk_client import scm_client
 
+        monkeypatch.setattr(scm_client, "list_folders", lambda *a, **kw: [])
         monkeypatch.setattr(scm_client, "delete_folder", lambda *a, **kw: True)
 
         test_app = typer.Typer()
@@ -124,6 +125,30 @@ class TestFolderCommands:
 
         assert result.exit_code == 0
         assert "Deleted folder" in result.stdout
+
+    def test_delete_folder_with_child_folders_fails(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(*args, **kwargs):
+            return [
+                {"id": "f1", "name": "Texas", "parent": "All"},
+                {"id": "f2", "name": "Austin", "parent": "Texas"},
+            ]
+
+        def mock_delete(*args, **kwargs):
+            pytest.fail("delete_folder should not be called when child folders exist")
+
+        monkeypatch.setattr(scm_client, "list_folders", mock_list)
+        monkeypatch.setattr(scm_client, "delete_folder", mock_delete)
+
+        test_app = typer.Typer()
+        test_app.command()(delete_folder)
+
+        result = runner.invoke(test_app, ["--name", "Texas", "--force"])
+
+        assert result.exit_code == 1
+        assert "Cannot delete folder 'Texas'" in result.output
+        assert "Austin" in result.output
 
 
 class TestLabelCommands:
