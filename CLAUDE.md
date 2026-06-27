@@ -186,7 +186,7 @@ Always refer to the appropriate style guide when writing or modifying code to en
 - Mock mode allows full testing without API credentials
 - Bulk operations use YAML files - see `examples/` for formats
 - All commands support `--mock` flag for testing
-- Documentation uses MkDocs Material with custom Termynal integration for CLI examples
+- Documentation is a Docusaurus site in `docs-site/` (authored MDX/Markdown under `docs-site/docs/`, sidebar in `docs-site/sidebars.ts`); it builds and deploys to GitHub Pages via `.github/workflows/deploy-docs.yml`. Run locally with `make docs-serve`; build with `make docs-build`.
 - SDK service names use singular form (e.g., `application_filter` not `application_filters`, `external_dynamic_list` not `external_dynamic_lists`, `hip_object` not `hip_objects`, `hip_profile` not `hip_profiles`, `http_server_profile` not `http_server_profiles`, `log_forwarding_profile` not `log_forwarding_profiles`, `service` not `services`, `service_group` not `service_groups`, `syslog_server_profile` not `syslog_server_profiles`, `tag` not `tags`)
 - Boolean fields in API requests should be omitted when false to avoid validation errors
 - Dynamic user group filters use tag-based expressions with specific syntax requirements

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/logo - banner.svg" alt="pan-scm-cli" width="400">
+  <img src="docs-site/static/img/logo-banner.svg" alt="pan-scm-cli" width="400">
 </p>
 
 <p align="center">
