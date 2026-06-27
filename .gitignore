@@ -96,13 +96,15 @@ venv.bak/
 
 # Virtualenv
 # http://iamzed.com/2009/05/07/a-primer-on-virtualenv/
+# Root-anchored so they only match a venv at the repo root, not nested
+# directories like docs-site/docs/cli/local/.
 .Python
-[Bb]in
-[Ii]nclude
-[Ll]ib
-[Ll]ib64
-[Ll]ocal
-[Ss]cripts
+/[Bb]in
+/[Ii]nclude
+/[Ll]ib
+/[Ll]ib64
+/[Ll]ocal
+/[Ss]cripts
 pyvenv.cfg
 pip-selfcheck.json
 
