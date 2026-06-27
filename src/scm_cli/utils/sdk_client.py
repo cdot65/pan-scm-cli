@@ -112,8 +112,16 @@ class SCMClient:
                     "access_token": access_token,
                     "log_level": settings.get("log_level", "INFO"),
                 }
-                if "region" in inspect.signature(Scm.__init__).parameters:
+                scm_params = inspect.signature(Scm.__init__).parameters
+                if "region" in scm_params:
                     scm_kwargs["region"] = resolved_region
+                # Endpoint overrides (env > context) — omitted when unset so SDK defaults apply
+                api_base_url = settings.get("api_base_url", None)
+                if api_base_url and "api_base_url" in scm_params:
+                    scm_kwargs["api_base_url"] = api_base_url
+                token_url = settings.get("token_url", None)
+                if token_url and "token_url" in scm_params:
+                    scm_kwargs["token_url"] = token_url
                 self.client = Scm(**scm_kwargs)
                 self.logger.info("Successfully initialized SDK client with bearer token")
             else:
@@ -138,8 +146,16 @@ class SCMClient:
                     "tsg_id": self.tsg_id,
                     "log_level": settings.get("log_level", "INFO"),
                 }
-                if "region" in inspect.signature(Scm.__init__).parameters:
+                scm_params = inspect.signature(Scm.__init__).parameters
+                if "region" in scm_params:
                     scm_kwargs["region"] = resolved_region
+                # Endpoint overrides (env > context) — omitted when unset so SDK defaults apply
+                api_base_url = credentials.get("api_base_url") or settings.get("api_base_url", None)
+                if api_base_url and "api_base_url" in scm_params:
+                    scm_kwargs["api_base_url"] = api_base_url
+                token_url = credentials.get("token_url") or settings.get("token_url", None)
+                if token_url and "token_url" in scm_params:
+                    scm_kwargs["token_url"] = token_url
                 self.client = Scm(**scm_kwargs)
                 self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
         except (ValueError, AuthenticationError) as e:

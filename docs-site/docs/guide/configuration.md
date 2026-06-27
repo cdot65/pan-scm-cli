@@ -44,6 +44,30 @@ The CLI requires three credentials for SCM API authentication:
 | `client_secret` | `SCM_CLIENT_SECRET` | Service account client secret |
 | `tsg_id` | `SCM_TSG_ID` | Tenant Service Group ID |
 
+### API Endpoint Overrides
+
+By default the SDK talks to the production SCM endpoints. Both can be
+overridden per context or via environment variables (env wins over context;
+when unset, the SDK defaults apply):
+
+| Setting | Environment Variable | Description |
+| --- | --- | --- |
+| `api_base_url` | `SCM_API_BASE_URL` | Override the SCM API base URL |
+| `token_url` | `SCM_TOKEN_URL` | Override the OAuth2 token URL |
+
+```bash
+# Persist per context
+$ scm context create fedramp \
+    --client-id "fed@333333333.iam.panserviceaccount.com" \
+    --client-secret "fed-secret" \
+    --tsg-id "333333333" \
+    --api-base-url "https://api.example.paloaltonetworks.com" \
+    --token-url "https://auth.example.paloaltonetworks.com/am/oauth2/access_token"
+
+# Or override for a one-off command
+SCM_API_BASE_URL="https://api.example.paloaltonetworks.com" scm context test
+```
+
 ### Authentication Fallback
 
 If no credentials are configured, the CLI automatically enters mock mode:
@@ -295,6 +319,8 @@ The following legacy configuration methods are no longer supported as of version
 | `client_id` | None | `SCM_CLIENT_ID` | SCM API authentication |
 | `client_secret` | None | `SCM_CLIENT_SECRET` | SCM API authentication |
 | `tsg_id` | None | `SCM_TSG_ID` | SCM API tenant identification |
+| `api_base_url` | SDK default | `SCM_API_BASE_URL` | Override the SCM API base URL |
+| `token_url` | SDK default | `SCM_TOKEN_URL` | Override the OAuth2 token URL |
 
 ### Reserved Settings
 
