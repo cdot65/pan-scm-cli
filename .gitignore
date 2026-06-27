@@ -164,3 +164,7 @@ config.xml
 report.json
 results.tsv
 pan-scm-sdk.csv
+
+# Local working artifacts (downloaded configs, test bundles)
+running-config.xml
+*.tar.gz
