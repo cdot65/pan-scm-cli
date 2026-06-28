@@ -4,8 +4,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 <!-- SYNC: The body below (from "## Project Overview" onward) is kept identical between AGENTS.md and CLAUDE.md. Only the header above differs per file. -->
 
-## Project Overview" onward) is kept identical between AGENTS.md and CLAUDE.md. Only the header above differs per file. -->
-
 ## Project Overview
 
 `pan-scm-cli` is a CLI tool for managing Palo Alto Networks Strata Cloud Manager (SCM) configurations. It manages objects, network configs, security policy, identity profiles, mobile agent settings, setup containers, and SASE/deployment resources through a consistent verb-based interface, plus monitoring (insights, incidents), device operations, local config retrieval, jobs, and firewall posture (BPA) assessment.
@@ -118,13 +116,16 @@ scm <action> <category> <object-type> [options]
 
 ### Docker Support
 
-Multi-platform build script:
+The image is built from local source (multi-stage, `python:3.12-alpine`, non-root `scmuser`). Run the helper script from the repo root:
 
 ```bash
-docker/docker-build.sh --local   # Build locally for Apple Silicon
-docker/docker-build.sh --amd64   # Build AMD64 for testing
-docker/docker-build.sh           # Build both platforms (requires push to registry)
+./docker/docker-build.sh --local-only   # ARM64 image for local use (tags :local, :apple)
+./docker/docker-build.sh                 # Build ARM64 (local) + AMD64 (:latest), no push
+./docker/docker-build.sh --push          # Build and push :latest + :apple to GHCR
+# --no-cache forces a clean rebuild
 ```
+
+Pushing requires `docker login ghcr.io -u <user>`. See `docker/README.md` for full details.
 
 Contexts persist in containers via volume mounting:
 

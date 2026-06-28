@@ -56,7 +56,6 @@ tests/
 examples/
 mkdocs.yml
 poetry.lock
-pyproject.toml
 Makefile
 mypy.ini
 
@@ -65,7 +64,8 @@ mypy.ini
 .gitignore
 .github/
 
-# Documentation
+# Documentation (keep README.md — pyproject references it as the package readme)
 *.md
+!README.md
 LICENSE
 _config.yml
