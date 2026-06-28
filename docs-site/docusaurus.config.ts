@@ -1,8 +1,27 @@
-import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import type {PrismTheme} from 'prism-react-renderer';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+
+// Gruvbox dark (hard contrast) Prism theme — mirrors tokens/colors.css
+// (--code-* syntax tokens). prism-react-renderer applies inline styles, so the
+// syntax palette must live here rather than in custom.css.
+const gruvboxDark: PrismTheme = {
+  plain: {color: '#ebdbb2', backgroundColor: '#282828'},
+  styles: [
+    {types: ['comment', 'prolog', 'cdata'], style: {color: '#928374', fontStyle: 'italic'}},
+    {types: ['punctuation'], style: {color: '#bdae93'}},
+    {types: ['keyword', 'atrule', 'selector', 'important'], style: {color: '#fb4934'}},
+    {types: ['string', 'char', 'attr-value', 'inserted'], style: {color: '#b8bb26'}},
+    {types: ['function', 'function-name'], style: {color: '#b8bb26'}},
+    {types: ['number', 'boolean', 'constant', 'symbol'], style: {color: '#d3869b'}},
+    {types: ['operator', 'entity', 'url', 'variable'], style: {color: '#fe8019'}},
+    {types: ['class-name', 'tag', 'property'], style: {color: '#fabd2f'}},
+    {types: ['builtin', 'namespace', 'attr-name'], style: {color: '#8ec07c'}},
+    {types: ['deleted'], style: {color: '#fb4934'}},
+  ],
+};
 
 const config: Config = {
   title: 'SCM CLI',
@@ -65,8 +84,11 @@ const config: Config = {
 
   themeConfig: {
     image: 'img/logo.png',
+    // The Gruvbox design system is dark, hard-contrast only.
     colorMode: {
-      respectPrefersColorScheme: true,
+      defaultMode: 'dark',
+      disableSwitch: true,
+      respectPrefersColorScheme: false,
     },
     navbar: {
       title: 'SCM CLI',
@@ -119,8 +141,8 @@ const config: Config = {
       copyright: `Copyright © ${new Date().getFullYear()} cdot65. Built with Docusaurus.`,
     },
     prism: {
-      theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
+      theme: gruvboxDark,
+      darkTheme: gruvboxDark,
       additionalLanguages: ['bash', 'json', 'yaml', 'python', 'toml'],
     },
   } satisfies Preset.ThemeConfig,

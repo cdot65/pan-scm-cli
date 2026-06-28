@@ -1,0 +1,36 @@
+/* ============================================================
+   Spacing, radii, layout — 4px base grid
+   Vendored from the "Gruvbox Docs Design System" (Claude Design).
+   ============================================================ */
+:root {
+  --space-0:  0;
+  --space-1:  0.25rem;  /* 4px */
+  --space-2:  0.5rem;   /* 8px */
+  --space-3:  0.75rem;  /* 12px */
+  --space-4:  1rem;     /* 16px */
+  --space-5:  1.5rem;   /* 24px */
+  --space-6:  2rem;     /* 32px */
+  --space-7:  2.5rem;   /* 40px */
+  --space-8:  3rem;     /* 48px */
+  --space-10: 4rem;     /* 64px */
+  --space-12: 6rem;     /* 96px */
+
+  /* Radii — docs UI is mostly square with gentle softening */
+  --radius-none: 0;
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* Borders */
+  --border-width: 1px;
+  --border-width-accent: 3px; /* admonition left bars, active nav */
+
+  /* Layout */
+  --layout-max: 1280px;     /* full content shell */
+  --layout-doc: 75ch;       /* readable doc column */
+  --sidebar-width: 280px;
+  --toc-width: 220px;
+  --navbar-height: 60px;
+  --content-pad: var(--space-6);
+}

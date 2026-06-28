@@ -1,30 +1,237 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Gruvbox Docs theme for Docusaurus.
+ * Implements the "Gruvbox Docs Design System" (Claude Design):
+ * Gruvbox dark, hard-contrast — warm, low-glare, terminal-adjacent.
+ *
+ * Token layers are vendored under ./tokens and mapped onto Infima below.
+ * The site is dark-only by design; see colorMode in docusaurus.config.ts.
  */
 
-/* You can override the default Infima variables here. */
-:root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+/* Fonts first, then variable layers (colors must precede consumers). */
+@import './tokens/fonts.css';
+@import './tokens/colors.css';
+@import './tokens/typography.css';
+@import './tokens/spacing.css';
+@import './tokens/effects.css';
+
+/* ============================================================
+   Map Gruvbox tokens -> Infima. Applied to both :root and the
+   dark attribute so our values win over Infima's dark defaults.
+   ============================================================ */
+:root,
+[data-theme='dark'] {
+  /* Brand primary = Gruvbox bright yellow */
+  --ifm-color-primary: #fabd2f;
+  --ifm-color-primary-dark: #f4b417;
+  --ifm-color-primary-darker: #e9ab12;
+  --ifm-color-primary-darkest: #c08d0f;
+  --ifm-color-primary-light: #fbc647;
+  --ifm-color-primary-lighter: #fbcb55;
+  --ifm-color-primary-lightest: #fcd87f;
+
+  /* Surfaces & text */
+  --ifm-background-color: var(--color-bg);
+  --ifm-background-surface-color: var(--color-surface);
+  --ifm-color-content: var(--color-text);
+  --ifm-color-content-secondary: var(--color-text-muted);
+  --ifm-font-color-base: var(--color-text);
+  --ifm-heading-color: var(--color-text-strong);
+  --ifm-hr-background-color: var(--color-border);
+  --ifm-toc-border-color: var(--color-border);
+  --ifm-table-border-color: var(--color-border);
+  --ifm-table-stripe-background: var(--color-surface);
+
+  /* Typography */
+  --ifm-font-family-base: var(--font-sans);
+  --ifm-font-family-monospace: var(--font-mono);
+  --ifm-font-size-base: 18px;
+  --ifm-line-height-base: 1.7;
+  --ifm-heading-font-family: var(--font-sans);
+  --ifm-heading-font-weight: var(--weight-bold);
+  --ifm-heading-line-height: var(--leading-tight);
+  --ifm-h1-font-size: var(--text-h1);
+  --ifm-h2-font-size: var(--text-h2);
+  --ifm-h3-font-size: var(--text-h3);
+  --ifm-h4-font-size: var(--text-h4);
+
+  /* Links */
+  --ifm-link-color: var(--color-link);
+  --ifm-link-hover-color: var(--color-link-hover);
+  --ifm-link-hover-decoration: underline;
+
+  /* Inline code */
+  --ifm-code-font-size: 0.875em;
+  --ifm-code-background: var(--color-surface-2);
+  --ifm-code-color: var(--gb-aqua-bright);
+  --ifm-code-border-radius: var(--radius-sm);
+  --docusaurus-highlighted-code-line-bg: rgba(250, 189, 47, 0.12);
+
+  /* Geometry */
+  --ifm-global-radius: var(--radius-md);
+  --ifm-card-border-radius: var(--radius-lg);
+  --ifm-global-shadow-lw: var(--shadow-sm);
+  --ifm-global-shadow-md: var(--shadow-md);
+  --ifm-global-shadow-tl: var(--shadow-lg);
+
+  /* Navbar */
+  --ifm-navbar-height: var(--navbar-height);
+  --ifm-navbar-background-color: var(--color-bg-elevated);
+  --ifm-navbar-link-color: var(--color-text);
+  --ifm-navbar-link-hover-color: var(--color-primary);
+  --ifm-navbar-shadow: 0 1px 0 var(--color-border);
+
+  /* Sidebar / menu */
+  --ifm-menu-color: var(--color-text-muted);
+  --ifm-menu-color-active: var(--color-primary);
+  --ifm-menu-color-background-active: var(--color-surface-2);
+  --ifm-menu-color-background-hover: var(--color-surface-2);
+
+  /* TOC */
+  --ifm-toc-link-color: var(--color-text-muted);
+
+  /* Footer */
+  --ifm-footer-background-color: var(--color-bg-elevated);
+  --ifm-footer-color: var(--color-text-muted);
+  --ifm-footer-link-color: var(--color-text-muted);
+  --ifm-footer-title-color: var(--color-text-strong);
+
+  /* Blockquote */
+  --ifm-blockquote-color: var(--color-text-muted);
+  --ifm-blockquote-border-color: var(--color-border-strong);
+
+  /* Layout width from the design system */
+  --ifm-container-width-xl: var(--layout-max);
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
-[data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+/* ============================================================
+   Element + component polish
+   ============================================================ */
+
+/* Mono breadcrumbs + TOC heading for the terminal/docs vibe. */
+.breadcrumbs__item {
+  font-family: var(--font-mono);
+}
+.table-of-contents > li > .table-of-contents__link {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--color-text-muted);
+}
+
+/* Prose column: relaxed leading for long reading sessions. */
+.markdown {
+  line-height: var(--leading-relaxed);
+}
+.markdown h1:first-child {
+  font-size: var(--text-display);
+}
+
+/* Active sidebar item gets the 3px yellow accent rail. */
+.menu__link--active:not(.menu__link--sublist) {
+  box-shadow: inset var(--border-width-accent) 0 0 var(--color-primary);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-strong);
+}
+
+/* Navbar active link in brand yellow. */
+.navbar__link--active {
+  color: var(--color-primary);
+}
+
+/* Cards: flat matte surface, crisp top edge, lift on hover. */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm), var(--edge-top);
+  transition: transform var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-base) var(--ease-standard);
+}
+a.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), var(--edge-top);
+}
+
+/* Code blocks: hairline border around gruvbox bg0. */
+div[class*='codeBlockContainer'] {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* Buttons: square-ish, snappy. */
+.button {
+  border-radius: var(--radius-sm);
+  transition: var(--transition-base);
+}
+.button--primary {
+  --ifm-button-color: var(--color-on-primary);
+  color: var(--color-on-primary);
+}
+.button--primary:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+/* ============================================================
+   Admonitions — 3px left rail + faded gruvbox tint per type.
+   Docusaurus maps: note->secondary, tip->success, info->info,
+   warning->warning, danger->danger.
+   ============================================================ */
+.theme-admonition {
+  border: 1px solid var(--color-border);
+  border-left-width: var(--border-width-accent);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+.theme-admonition.alert--secondary {
+  background: var(--color-note-bg);
+  border-left-color: var(--color-note-accent);
+}
+.theme-admonition.alert--success {
+  background: var(--color-tip-bg);
+  border-left-color: var(--color-tip-accent);
+}
+.theme-admonition.alert--info {
+  background: var(--color-info-bg);
+  border-left-color: var(--color-info-accent);
+}
+.theme-admonition.alert--warning {
+  background: var(--color-warning-bg);
+  border-left-color: var(--color-warning-accent);
+}
+.theme-admonition.alert--danger {
+  background: var(--color-danger-bg);
+  border-left-color: var(--color-danger-accent);
+}
+
+/* ============================================================
+   Focus, selection, scrollbars (from the design base layer)
+   ============================================================ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+.navbar__link:focus-visible,
+.menu__link:focus-visible,
+.pagination-nav__link:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: rgba(250, 189, 47, 0.25);
+}
+
+* {
+  scrollbar-color: var(--gb-bg3) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gb-bg3);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
