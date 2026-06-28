@@ -1,0 +1,7 @@
+/* ============================================================
+   Webfonts — IBM Plex Sans + JetBrains Mono (Google Fonts CDN)
+   Vendored from the "Gruvbox Docs Design System" (Claude Design).
+   To self-host, drop the .woff2 files under static/fonts/ and
+   replace this @import with @font-face rules pointing at them.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap');

@@ -1,0 +1,54 @@
+/* ============================================================
+   Typography tokens
+   Body/UI: IBM Plex Sans  ·  Code/labels: JetBrains Mono
+   Vendored from the "Gruvbox Docs Design System" (Claude Design).
+   ============================================================ */
+:root {
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+
+  /* Family roles */
+  --font-body:    var(--font-sans);
+  --font-heading: var(--font-sans);
+  --font-code:    var(--font-mono);
+  --font-eyebrow: var(--font-mono); /* small uppercase labels */
+
+  /* Type scale (1.250 major third, 16px base) */
+  --text-xs:   0.75rem;   /* 12px */
+  --text-sm:   0.875rem;  /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-md:   1.125rem;  /* 18px */
+  --text-lg:   1.25rem;   /* 20px */
+  --text-xl:   1.5rem;    /* 24px */
+  --text-2xl:  1.953rem;  /* ~31px */
+  --text-3xl:  2.441rem;  /* ~39px */
+  --text-4xl:  3.052rem;  /* ~49px */
+  --text-5xl:  3.815rem;  /* ~61px */
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold: 600;
+  --weight-bold:    700;
+
+  /* Line heights */
+  --leading-tight:   1.15;
+  --leading-snug:    1.3;
+  --leading-normal:  1.6;
+  --leading-relaxed: 1.75; /* doc body copy */
+
+  /* Letter spacing */
+  --tracking-tight:  -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-eyebrow: 0.12em; /* uppercase mono labels */
+
+  /* Semantic text roles */
+  --text-display: var(--text-4xl);
+  --text-h1: var(--text-3xl);
+  --text-h2: var(--text-2xl);
+  --text-h3: var(--text-xl);
+  --text-h4: var(--text-lg);
+  --text-body-size: var(--text-md);
+  --text-small: var(--text-sm);
+}
