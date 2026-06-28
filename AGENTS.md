@@ -1,6 +1,157 @@
 # AI Agent Instructions for pan-scm-cli
 
-> This document provides comprehensive instructions for AI agents (Claude Code, Gemini CLI, etc.) to operate the `scm` CLI for managing Palo Alto Networks Strata Cloud Manager configurations.
+> This document provides comprehensive instructions for AI agents (Claude Code, Gemini CLI, etc.) to both **develop** and **operate** the `scm` CLI for managing Palo Alto Networks Strata Cloud Manager (SCM) configurations. `CLAUDE.md` mirrors this content.
+
+<!-- SYNC: The body below (from "## Project Overview" onward) is kept identical between AGENTS.md and CLAUDE.md. Only the header above differs per file. -->
+
+## Project Overview
+
+`pan-scm-cli` is a CLI tool for managing Palo Alto Networks Strata Cloud Manager (SCM) configurations. It manages objects, network configs, security policy, identity profiles, mobile agent settings, setup containers, and SASE/deployment resources through a consistent verb-based interface, plus monitoring (insights, incidents), device operations, local config retrieval, jobs, and firewall posture (BPA) assessment.
+
+- **Package:** `pan-scm-cli` (version `1.5.0`), console script `scm`.
+- **Runtime:** Python `>=3.10,<3.14`, built with Typer + Click, validated with Pydantic v2.
+- **SDK dependency:** `pan-scm-sdk ^0.15.0` (i.e. `>=0.15.0,<0.16.0`) — verify compatibility when bumping.
+- **Packaging/build:** Poetry (`pyproject.toml`).
+
+---
+
+## Development
+
+### Setup and Build
+
+```bash
+make setup              # Install dependencies via poetry
+make reinstall          # Rebuild and reinstall the package locally (poetry build)
+```
+
+### Code Quality
+
+```bash
+make lint               # Run flake8
+make format             # Format code with ruff (ruff format)
+make ruff               # Run ruff formatting + lint with fixes
+make mypy               # Type-check with mypy
+make quality            # Run all quality checks (lint, format, mypy, tests)
+```
+
+> Note: there is no `make fix` target. Use `make ruff` for autofix.
+
+### Testing
+
+```bash
+make tests              # Run pytest suite
+pytest tests/test_specific.py::test_name  # Run a single test
+pytest -v               # Run with verbose output
+```
+
+### Documentation (Docusaurus)
+
+Documentation is a Docusaurus site in `docs-site/` (authored Markdown/MDX under `docs-site/docs/`, sidebar in `docs-site/sidebars.ts`). It builds and deploys to GitHub Pages via `.github/workflows/deploy-docs.yml`.
+
+```bash
+make docs-install       # Install the docs-site toolchain
+make docs-serve         # Serve docs locally
+make docs-build         # Build docs with strict checks
+```
+
+The command reference under `docs-site/docs/cli/` is the source of truth for the documented CLI surface; the live `scm --help` output is the source of truth for actual behavior. Keep both in sync with the code.
+
+---
+
+## Architecture
+
+### Command Structure
+
+For configuration verbs the CLI follows:
+
+```
+scm <action> <category> <object-type> [options]
+```
+
+**Actions:** `set`, `delete`, `show`, `load`, `backup`, `move`
+**Categories:** `object`, `network`, `security`, `identity`, `mobile-agent`, `setup`, `sase`
+**Standalone top-level commands:** `commit`, `context`, `jobs`, `insights`, `incidents`, `local`, `operations`, `posture`
+
+### Command Modules (`src/scm_cli/commands/`)
+
+- `objects.py` — object category: address, address group, application, application group, application filter, auto-tag-action, dynamic user group, external dynamic list, HIP object, HIP profile, HTTP server profile, log forwarding profile, quarantined-device, region, schedule, service, service group, syslog server profile, tag
+- `network.py` — network category: security zones, interfaces (aggregate/ethernet/loopback/tunnel/vlan/layer2-sub/layer3-sub), BGP profiles & route maps, DHCP/DNS-proxy, IKE/IPSec crypto, IKE gateway, NAT/PBF/QoS rules, route access/prefix lists, OSPF auth
+- `security.py` — security category: security rules + profiles (anti-spyware, app-override, authentication, decryption profile/rule, dns-security, url-access, url-category, vulnerability-protection, wildfire-antivirus)
+- `identity.py` — identity category: authentication/kerberos/ldap/radius/saml/tacacs server profiles
+- `mobile_agent.py` — mobile-agent category: agent-version (read-only), auth-setting, profiles
+- `setup.py` — setup category: folder, label, snippet, variable, device
+- `deployment.py` — sase category: bandwidth-allocation, bgp-routing, internal-dns-server, remote-network, service-connection
+- `commit.py` — commit staged changes
+- `context.py` — authentication context management
+- `jobs.py` — SCM job management
+- `insights.py` — monitoring insights
+- `incidents.py` — security incident search/detail
+- `local.py` — local device config version listing & XML download
+- `operations.py` — device operations with sync/async job support
+- `posture.py` — firewall posture / BPA scoring
+
+### Key Components
+
+- `client.py` — initializes SCM client (real or mock mode)
+- `utils/sdk_client.py` — wrapper around `pan-scm-sdk` with error handling
+- `utils/validators.py` — Pydantic models for input validation
+- `utils/config.py` — Dynaconf-based configuration management
+- `utils/context.py` — authentication context storage/resolution
+- `utils/decorators.py` — shared command decorators
+
+### Adding New Commands
+
+1. Create/update the appropriate command module in `src/scm_cli/commands/`
+2. Add Pydantic validator models in `utils/validators.py` if needed
+3. Register the command in `main.py` (alphabetical ordering)
+4. Add corresponding tests in `tests/`
+5. Update documentation under `docs-site/docs/cli/`
+
+### Testing Patterns
+
+- Tests automatically use mock credentials via the `mock_dynaconf_settings` fixture
+- Use the `mock_scm_client` fixture for API testing without real calls
+- Test data fixtures live in `tests/data/`
+- Environment-specific tests check auth/config behavior
+
+### Docker Support
+
+Multi-platform build script:
+
+```bash
+docker/docker-build.sh --local   # Build locally for Apple Silicon
+docker/docker-build.sh --amd64   # Build AMD64 for testing
+docker/docker-build.sh           # Build both platforms (requires push to registry)
+```
+
+Contexts persist in containers via volume mounting:
+
+```bash
+docker run -d --name pan-scm \
+  -v ~/.scm-cli:/home/scmuser/.scm-cli \
+  ghcr.io/cdot65/pan-scm-cli:latest
+
+docker exec pan-scm scm context list
+docker exec pan-scm scm context use production
+```
+
+Images: `ghcr.io/cdot65/pan-scm-cli:latest` (AMD64), `ghcr.io/cdot65/pan-scm-cli:apple` (ARM64).
+
+---
+
+## Code Style and Standards
+
+All code must follow the style guides in the `.claude/` directory:
+
+- **`.claude/STYLE_GUIDE.md`** — command module patterns: section organization with 192-char separators, Typer app architecture, Google-format docstrings, error handling, Python 3.10+ type annotations, naming conventions, output formatting, alphabetical ordering in `main.py`, backup command patterns.
+- **`.claude/SDK_CLIENT_STYLE_GUIDE.md`** — patterns for `utils/sdk_client.py`: client class design/init, method organization by config type, CRUD patterns, mock-mode data, `_handle_api_exception`, logging, SDK field mapping, `exact_match` on list methods.
+- **`.claude/VALIDATORS_STYLE_GUIDE.md`** — patterns for `utils/validators.py`: Pydantic model design, field constraints, validation, `to_sdk_model()` conversion, YAML validation utilities, type definitions.
+
+Lint config: ruff `line-length = 192`, `target-version = py310`, rules `E,F,I,B,C4,SIM,UP,W,N,D`.
+
+---
+
+# Operating the CLI
 
 ## Quick Reference
 
@@ -10,7 +161,9 @@ scm <action> <category> <object-type> [options]
 
 **Actions:** `set`, `delete`, `show`, `load`, `backup`, `move`
 **Categories:** `object`, `network`, `security`, `identity`, `mobile-agent`, `setup`, `sase`
-**Standalone:** `scm commit`, `scm context`, `scm jobs`, `scm insights`
+**Standalone:** `scm commit`, `scm context`, `scm jobs`, `scm insights`, `scm incidents`, `scm local`, `scm operations`, `scm posture`
+
+Global options: `--version`/`-V`, `--region <region>` (override SCM API region for the invocation).
 
 ---
 
@@ -31,16 +184,18 @@ scm context use <name>
 # Verify auth works
 scm context test
 
-# List / show / delete contexts
+# List / show / delete / current contexts
 scm context list
 scm context show [name]
 scm context delete <name> [--force]
 scm context current
 ```
 
-**Environment variable overrides:** `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID`
+**Environment variable overrides:** `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID` (useful for CI/CD).
 
 **Mock mode:** Append `--mock` to most commands to test without API credentials.
+
+**Note:** Legacy config files (`~/.scm-cli/config.yaml`, `.secrets.yaml`) are no longer supported — use contexts.
 
 ---
 
@@ -60,22 +215,17 @@ Most commands require exactly ONE container location:
 
 ### Addresses
 
-**Create:**
 ```bash
 # IP netmask
 scm set object address --folder Texas --name webserver --ip-netmask 10.1.1.10/32 --description "Web server" --tags web prod
-
 # IP range
 scm set object address --folder Texas --name dhcp-pool --ip-range 10.1.3.1-10.1.3.10
-
 # FQDN
 scm set object address --folder Texas --name google-dns --fqdn dns.google.com
-
 # IP wildcard
 scm set object address --folder Texas --name wildcard --ip-wildcard 10.20.0.0/0.0.255.255
 ```
 
-**Show / Delete:**
 ```bash
 scm show object address --folder Texas                    # list all
 scm show object address --folder Texas --name webserver   # show one
@@ -84,21 +234,14 @@ scm delete object address --folder Texas --name webserver [--force]
 
 **Constraints:** Name 1-63 chars. Exactly ONE address type required.
 
----
-
 ### Address Groups
 
 ```bash
-# Static group
 scm set object address-group --folder Texas --name web-servers --type static --members webserver1 webserver2
-
-# Dynamic group
 scm set object address-group --folder Texas --name tagged-web --type dynamic --filter "'web' and 'prod'"
 ```
 
 **Constraints:** Static requires `--members` (min 1). Dynamic uses tag-based filter expressions.
-
----
 
 ### Applications
 
@@ -110,15 +253,11 @@ scm set object application --folder Texas --name custom-app \
 
 **Risk levels:** 1-5. Boolean flags: `--evasive`, `--pervasive`, `--excessive-bandwidth-use`, `--used-by-malware`, `--transfers-files`, `--has-known-vulnerabilities`, `--tunnels-other-apps`, `--prone-to-misuse`, `--no-certifications`.
 
----
-
 ### Application Groups
 
 ```bash
 scm set object application-group --folder Texas --name web-apps --members web-browsing ssl http
 ```
-
----
 
 ### Application Filters
 
@@ -127,17 +266,13 @@ scm set object application-filter --folder Texas --name high-risk \
   --category business-systems --subcategory erp --technology client-server --risk 4 5
 ```
 
----
-
 ### Tags
 
 ```bash
 scm set object tag --folder Texas --name production --color Red --comments "Production environment"
 ```
 
-**42 valid colors:** Red, Green, Blue, Yellow, Copper, Orange, Purple, Gray, Light Green, Cyan, Light Gray, Blue Gray, Lime, Black, Gold, Brown, Olive, Maroon, Red-Orange, Yellow-Orange, Forest Green, Turquoise Blue, Azure Blue, Cerulean Blue, Midnight Blue, Medium Blue, Cobalt Blue, Violet Blue, Blue Violet, Medium Violet, Medium Rose, Lavender, Orchid, Thistle, Peach, Salmon, Magenta, Red Violet, Mahogany, Burnt Sienna, Chestnut.
-
----
+**42 valid colors:** Red, Green, Blue, Yellow, Copper, Orange, Purple, Gray, Light Green, Cyan, Light Gray, Blue Gray, Lime, Black, Gold, Brown, Olive, Maroon, Red-Orange, Yellow-Orange, Forest Green, Turquoise Blue, Azure Blue, Cerulean Blue, Midnight Blue, Medium Blue, Cobalt Blue, Violet Blue, Blue Violet, Medium Violet, Medium Rose, Lavender, Orchid, Thistle, Peach, Salmon, Magenta, Red Violet, Mahogany, Burnt Sienna, Chestnut. Color names are case-insensitive in the CLI validator but case-sensitive in the API.
 
 ### Services
 
@@ -148,9 +283,7 @@ scm set object service --folder Texas --name multi-port --protocol tcp --port 80
 scm set object service --folder Texas --name port-range --protocol tcp --port 8000-8999
 ```
 
-**Constraints:** Protocol: `tcp` or `udp`. Port: single, range (80-443), or comma-separated (80,443,8080).
-
----
+**Constraints:** Protocol `tcp` or `udp`. Port: single, range (80-443), or comma-separated (80,443,8080). Service tags must reference existing tag objects.
 
 ### Service Groups
 
@@ -158,9 +291,7 @@ scm set object service --folder Texas --name port-range --protocol tcp --port 80
 scm set object service-group --folder Texas --name web-services --members web-http web-https
 ```
 
-**Constraints:** Members must be unique, can reference services or other service groups.
-
----
+**Constraints:** Members must be unique; can reference services or other service groups (nested allowed).
 
 ### Dynamic User Groups
 
@@ -169,22 +300,15 @@ scm set object dynamic-user-group --folder Texas --name risky-users \
   --filter "'high-risk' and 'external'" --description "High risk external users"
 ```
 
-**Constraints:** Filter max 2047 chars. Uses tag-based expressions with single quotes.
-
----
+**Constraints:** Filter max 2047 chars. Tag-based expressions with single quotes.
 
 ### External Dynamic Lists
 
 ```bash
-# Predefined IP list
 scm set object external-dynamic-list --folder Texas --name bulletproof-ips \
   --type predefined_ip --url panw-bulletproof-ip-list
-
-# Custom IP list with daily updates
 scm set object external-dynamic-list --folder Texas --name threat-ips \
   --type ip --url https://example.com/threats.txt --recurring daily --hour 03
-
-# Domain list with auth
 scm set object external-dynamic-list --folder Texas --name blocked-domains \
   --type domain --url https://example.com/domains.txt --recurring hourly \
   --username api_user --password secret --expand-domain
@@ -192,8 +316,7 @@ scm set object external-dynamic-list --folder Texas --name blocked-domains \
 
 **Types:** `predefined_ip`, `predefined_url`, `ip`, `domain`, `url`, `imsi`, `imei`.
 **Recurring:** `five_minute`, `hourly`, `daily`, `weekly`, `monthly`.
-
----
+Predefined EDLs use short names (e.g. `panw-bulletproof-ip-list`) not full URLs.
 
 ### HIP Objects
 
@@ -203,18 +326,15 @@ scm set object hip-object --folder Texas --name corporate-host \
   --disk-encryption-enabled true
 ```
 
-HIP objects have many criteria types (host info, network info, patch management, disk encryption, mobile device, certificate). Refer to `examples/hip-objects.yml` for full field reference.
-
----
+Criteria types: host info, network info, patch management, disk encryption, mobile device, certificate. HIP objects use a flattened field structure in validators (converted to nested SDK format). See `examples/hip-objects.yml`.
 
 ### HIP Profiles
 
 ```bash
-scm set object hip-profile --folder Texas --name corp-compliance \
-  --match "corporate-host is"
+scm set object hip-profile --folder Texas --name corp-compliance --match "corporate-host is"
 ```
 
----
+Reference HIP objects through match criteria with boolean operators (is/is-not).
 
 ### HTTP Server Profiles
 
@@ -224,20 +344,15 @@ scm set object http-server-profile --folder Texas --name webhook-profile \
   --server-port 8080 --server-http-method POST
 ```
 
-**Important:** `http_method` is required for all server configs.
-
----
+**Important:** `http_method` is required for all server configs. The `server` field is singular from the API but YAML uses plural `servers` for consistency.
 
 ### Log Forwarding Profiles
 
 ```bash
-scm set object log-forwarding-profile --folder Texas --name forward-all \
-  --enhanced-application-logging
+scm set object log-forwarding-profile --folder Texas --name forward-all --enhanced-application-logging
 ```
 
-**Important:** The `filter` field is required in match list entries despite SDK docs showing it as optional.
-
----
+**Important:** the `filter` field is required in match list entries despite SDK docs showing it optional. Match lists support traffic, threat, wildfire, url, data, tunnel, auth, decryption, dns-security log types.
 
 ### Syslog Server Profiles
 
@@ -247,9 +362,7 @@ scm set object syslog-server-profile --folder Texas --name syslog-central \
   --server-transport UDP --server-port 514 --server-format BSD --server-facility LOG_USER
 ```
 
-**Transport:** UDP, TCP. **Format:** BSD, IETF. **Facilities:** LOG_USER, LOG_LOCAL0 through LOG_LOCAL7.
-
----
+**Transport:** UDP, TCP (SSL not supported by SDK). **Format:** BSD, IETF. **Facilities:** LOG_USER, LOG_LOCAL0–LOG_LOCAL7. Uses `fetch()` (not `get()`) in the SDK client for retrieval.
 
 ### Schedules
 
@@ -258,21 +371,25 @@ scm set object schedule --folder Texas --name maintenance-window \
   --saturday 02:00-06:00 --sunday 02:00-06:00
 ```
 
----
-
 ### Regions
 
 ```bash
 scm set object region --folder Texas --name us-east --address 10.0.0.0/8 172.16.0.0/12
 ```
 
----
-
 ### Auto Tag Actions
 
 ```bash
 scm set object auto-tag-action --folder Texas --name auto-tag-threats
 ```
+
+### Quarantined Devices
+
+```bash
+scm show object quarantined-device --folder Texas
+```
+
+Manage quarantined devices (list/set/delete) — see `docs-site/docs/cli/objects/quarantined-device.md`.
 
 ---
 
@@ -288,7 +405,7 @@ scm delete network zone --folder Texas --name trust [--force]
 
 ### Other Network Objects
 
-All follow the same `scm <action> network <type>` pattern:
+All follow `scm <action> network <type>`:
 
 | Object Type | Description |
 |-------------|-------------|
@@ -325,40 +442,23 @@ All follow the same `scm <action> network <type>` pattern:
 
 ### Security Rules
 
-**Create:**
 ```bash
 scm set security rule --folder Texas --name allow-web \
   --source-zones trust --destination-zones untrust \
   --source-addresses any --destination-addresses web-servers \
   --applications web-browsing ssl --services application-default \
-  --action allow --log-end --description "Allow web traffic" \
-  --rulebase pre
-```
+  --action allow --log-end --description "Allow web traffic" --rulebase pre
 
-**Show / Delete:**
-```bash
 scm show security rule --folder Texas
 scm show security rule --folder Texas --name allow-web
 scm delete security rule --folder Texas --name allow-web [--force]
-```
 
-**Move (reorder):**
-```bash
+# Move (reorder)
 scm move security rule --folder Texas --name allow-web --insert before --reference deny-all --rulebase pre
 scm move security rule --folder Texas --name allow-web --insert after --reference allow-dns --rulebase pre
 ```
 
-**Options:**
-- `--source-zones`, `--destination-zones`: Zone names or `any`
-- `--source-addresses`, `--destination-addresses`: Address/group names or `any`
-- `--applications`: Application names or `any`
-- `--services`: Service names, `application-default`, or `any`
-- `--action`: `allow`, `deny`, `drop`
-- `--enabled` / `--disabled`
-- `--log-start`, `--log-end`
-- `--log-setting`: Log forwarding profile name
-- `--rulebase`: `pre` (default), `post`, `default`
-- `--tags`: Tag names
+**Options:** `--source-zones`/`--destination-zones` (names or `any`); `--source-addresses`/`--destination-addresses`; `--applications`; `--services` (names, `application-default`, or `any`); `--action` (`allow`/`deny`/`drop`); `--enabled`/`--disabled`; `--log-start`/`--log-end`; `--log-setting`; `--rulebase` (`pre` default, `post`, `default`); `--tags`.
 
 ### Security Profiles
 
@@ -367,7 +467,7 @@ scm move security rule --folder Texas --name allow-web --insert after --referenc
 | `anti-spyware-profile` | Anti-spyware profiles (min 1 rule required) |
 | `app-override-rule` | Application override rules |
 | `authentication-rule` | Authentication rules |
-| `decryption-profile` | SSL/TLS decryption profiles |
+| `decryption-profile` | SSL/TLS decryption profiles (SSL Forward Proxy, SSL Inbound Proxy, SSL No Proxy; uses JSON input for nested settings in `set`) |
 | `decryption-rule` | Decryption rules |
 | `dns-security-profile` | DNS security profiles |
 | `url-access-profile` | URL filtering profiles |
@@ -396,6 +496,8 @@ scm move security rule --folder Texas --name allow-web --insert after --referenc
 |-------------|-------------|
 | `agent-version` | Agent versions (show only, read-only) |
 | `auth-setting` | GlobalProtect auth settings |
+
+Also includes agent/forwarding/tunnel profiles and global/infrastructure settings — see `docs-site/docs/cli/mobile-agent/`.
 
 ```bash
 scm set mobile-agent auth-setting --folder Texas --name gp-auth \
@@ -434,6 +536,14 @@ scm set setup variable --folder Texas --name '$dns-server' --type ip-netmask --v
 
 **Variable types:** `percent`, `count`, `ip-netmask`, `zone`, `ip-range`, `ip-wildcard`, `fqdn`, `port`, `egress-max`, and more.
 
+### Devices
+
+```bash
+scm show setup device
+```
+
+Manage device records — see `docs-site/docs/cli/setup/device.md`.
+
 ---
 
 ## SASE / Deployment (`scm ... sase ...`)
@@ -463,9 +573,9 @@ scm load object address --file addresses.yml --folder Override-Folder
 scm load security rule --file rules.yml [--dry-run]
 ```
 
-- `--file` (required): Path to YAML file
-- `--dry-run`: Preview changes without applying
-- `--folder` / `--snippet` / `--device`: Override container location in the YAML
+- `--file` (required): path to YAML file
+- `--dry-run`: preview changes without applying
+- `--folder` / `--snippet` / `--device`: override container location in the YAML
 
 ### Backing Up to YAML
 
@@ -474,7 +584,7 @@ scm backup object address --folder Texas [--file custom-output.yaml]
 scm backup security rule --folder Texas --file rules-backup.yaml
 ```
 
-- Defaults output file to `{object-type}-{location}.yaml`
+Defaults output file to `{object-type}-{location}.yaml`.
 
 ### YAML File Formats
 
@@ -576,22 +686,17 @@ syslog_server_profiles:
         facility: LOG_USER
 ```
 
-See `examples/` directory for complete YAML templates for all object types.
+See `examples/` for complete YAML templates for all object types.
 
 ---
 
 ## Committing Changes
 
-Changes made via `set`, `delete`, or `load` are staged and must be committed:
+Changes from `set`, `delete`, or `load` are staged and must be committed:
 
 ```bash
-# Simple commit
 scm commit --folder Texas --description "Updated address objects"
-
-# Multi-folder commit
 scm commit --folder Texas --folder California --description "Multi-site update"
-
-# Synchronous commit (wait for completion)
 scm commit --folder Texas --description "Update" --sync --timeout 600
 ```
 
@@ -610,24 +715,14 @@ scm jobs wait --id 12345 [--timeout 600]
 ## Insights (Monitoring)
 
 ```bash
-# Alerts
 scm insights alerts --list [--severity Critical] [--max-results 20]
 scm insights alerts --id <alert-id>
 scm insights alerts --list --export json --output alerts.json
 
-# Mobile users
 scm insights mobile-users --list [--status connected] [--location "US West"]
-
-# Locations
 scm insights locations --list [--region "Americas"]
-
-# Remote networks
 scm insights remote-networks --list [--connectivity connected] [--metrics]
-
-# Service connections
 scm insights service-connections --list [--health healthy] [--metrics]
-
-# Tunnels
 scm insights tunnels --list [--status up] [--stats]
 ```
 
@@ -635,94 +730,87 @@ All insights commands support: `--export json|csv`, `--output <file>`, `--max-re
 
 ---
 
-## Common Workflows for Agents
+## Incidents (`scm incidents ...`)
 
-### 1. Create a complete security policy
-
-```bash
-# Step 1: Create tags
-scm set object tag --folder Texas --name web-tier --color Blue
-scm set object tag --folder Texas --name app-tier --color Green
-
-# Step 2: Create address objects
-scm set object address --folder Texas --name web-server-1 --ip-netmask 10.1.1.10/32 --tags web-tier
-scm set object address --folder Texas --name app-server-1 --ip-netmask 10.1.2.10/32 --tags app-tier
-
-# Step 3: Create address groups
-scm set object address-group --folder Texas --name web-servers --type static --members web-server-1
-scm set object address-group --folder Texas --name app-servers --type static --members app-server-1
-
-# Step 4: Create security rule
-scm set security rule --folder Texas --name allow-web-to-app \
-  --source-zones web --destination-zones app \
-  --source-addresses web-servers --destination-addresses app-servers \
-  --applications web-browsing ssl --services application-default \
-  --action allow --log-end --rulebase pre
-
-# Step 5: Commit
-scm commit --folder Texas --description "Add web-to-app security policy" --sync
-```
-
-### 2. Bulk import from YAML
+Search and view security incidents.
 
 ```bash
-# Preview first
-scm load object address --file addresses.yml --dry-run
-
-# Apply
-scm load object address --file addresses.yml
-
-# Commit
-scm commit --folder Texas --description "Bulk address import"
+scm incidents list                                   # list all
+scm incidents list --status open --severity high     # filter
+scm incidents list --product "Prisma Access"
+scm incidents list --json                            # JSON for automation
+scm incidents show INC-2026-04-001 [--json]          # detail w/ alerts & remediation
 ```
 
-### 3. Backup and restore
+---
+
+## Local Device Config (`scm local ...`)
+
+Retrieve on-device configuration versions.
 
 ```bash
-# Backup everything
-scm backup object address --folder Texas --file addr-backup.yaml
-scm backup object tag --folder Texas --file tag-backup.yaml
-scm backup security rule --folder Texas --file rule-backup.yaml
-
-# Restore
-scm load object tag --file tag-backup.yaml
-scm load object address --file addr-backup.yaml
-scm load security rule --file rule-backup.yaml
-scm commit --folder Texas --description "Restore from backup" --sync
+scm local list --device 007951000123456                              # list config versions
+scm local download --device 007951000123456 --version 42             # XML to stdout
+scm local download --device 007951000123456 --version 42 --output config.xml
 ```
 
-### 4. Monitor and troubleshoot
+---
+
+## Device Operations (`scm operations ...`)
+
+Dispatch and monitor device operations (support sync and `--async` job dispatch).
 
 ```bash
-# Check alerts
-scm insights alerts --list --severity Critical --max-results 10
-
-# Check tunnel status
-scm insights tunnels --list --status down
-
-# Check mobile user connectivity
-scm insights mobile-users --list --status disconnected
-
-# Export for analysis
-scm insights alerts --list --export csv --output alerts.csv
+scm operations route-table --device 007951000123456 [--async]
+scm operations fib-table --device 007951000123456
+scm operations dns-proxy --device 007951000123456
+scm operations interfaces --device 007951000123456
+scm operations device-rules --device 007951000123456
+scm operations bgp-export --device 007951000123456
+scm operations logging-status --device 007951000123456
+scm operations status --job-id abc-123               # check a dispatched async job
 ```
+
+---
+
+## Posture / BPA (`scm posture ...`)
+
+Best Practice Assessment against PAN-OS firewall configs: export a config, upload for assessment, and score results. Progress prints to stderr so stdout can be piped cleanly to an agent.
+
+```bash
+# Export running (default) or candidate config from a firewall
+scm posture export --host <fw> --password <pw> [--user automation] [--output config.xml] [--category running|candidate]
+
+# Upload config to BPA API, poll, and output scored results
+scm posture assess --config config.xml [--format json|markdown|csv] [--output report.json] [--keep|--delete-after] [--timeout 300]
+
+# Parse an existing BPA report JSON and score it
+scm posture score --report report.json [--scope all|device|service_health|network|policies|objects] [--format json|markdown|csv]
+
+# Agent-friendly: silence progress, capture score
+scm posture assess --config config.xml --format json 2>/dev/null | jq '.score'
+```
+
+Env vars: `PANOS_HOST`, `PANOS_USER`, `PANOS_PASSWORD`.
 
 ---
 
 ## Important Notes for Agents
 
-1. **Always commit after changes.** `set`, `delete`, and `load` stage changes but do not apply them until `scm commit` is run.
-2. **One address type per address object.** Use exactly one of: `--ip-netmask`, `--ip-range`, `--ip-wildcard`, `--fqdn`.
-3. **One container per command.** Specify exactly one of `--folder`, `--snippet`, or `--device`.
-4. **Boolean fields:** Omit false booleans from YAML to avoid API validation errors.
-5. **Tag references must exist.** Tags referenced by objects must be created first.
-6. **Service names are singular in SDK.** e.g., `application_filter` not `application_filters`.
-7. **Predefined EDLs use short names.** e.g., `panw-bulletproof-ip-list` not the full URL.
-8. **HTTP server profiles require `http_method`.** Always include it.
-9. **Log forwarding profile match lists require `filter`.** Despite SDK docs showing it as optional.
-10. **`--force` skips confirmation prompts.** Use on `delete` commands when running non-interactively.
-11. **`--mock` flag** is available on most commands for testing without API credentials.
-12. **Security rule ordering matters.** Use `scm move security rule` to reorder rules after creation.
-13. **Rulebase options:** `pre` (before default rules), `post` (after), `default` (the default rulebase).
-14. **Color names are case-sensitive in API** but case-insensitive in the CLI validator.
-15. **YAML key names** may differ from CLI flags (e.g., YAML uses `tag` while CLI uses `--tags`). Refer to the examples above.
+1. **Always commit after changes.** `set`, `delete`, and `load` stage changes; nothing applies until `scm commit`.
+2. **One address type per address object.** Exactly one of `--ip-netmask`, `--ip-range`, `--ip-wildcard`, `--fqdn`.
+3. **One container per command.** Exactly one of `--folder`, `--snippet`, `--device`.
+4. **Boolean fields:** omit false booleans from YAML/requests to avoid API validation errors.
+5. **Tag references must exist** before objects reference them.
+6. **SDK service names are singular** (e.g. `application_filter`, `external_dynamic_list`, `hip_object`, `service`, `tag`).
+7. **Predefined EDLs use short names** (e.g. `panw-bulletproof-ip-list`), not full URLs.
+8. **HTTP server profiles require `http_method`.**
+9. **Log forwarding profile match lists require `filter`** despite SDK docs.
+10. **`--force` skips confirmation prompts** — use on `delete`/`commit` when non-interactive.
+11. **`--mock`** is available on most commands for testing without credentials.
+12. **Security rule ordering matters** — use `scm move security rule` to reorder.
+13. **Rulebase options:** `pre` (before default), `post` (after), `default` (the default rulebase).
+14. **Color names are case-sensitive in the API** but case-insensitive in the CLI validator.
+15. **YAML key names may differ from CLI flags** (e.g. YAML `tag` vs CLI `--tags`).
+16. **Anti-spyware profiles require at least one rule** (SDK validation).
+17. **Decryption profiles** use JSON input for nested settings in the `set` command.
