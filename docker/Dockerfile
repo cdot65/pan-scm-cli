@@ -1,4 +1,4 @@
-# Multi-stage build for pan-scm-cli
+# Multi-stage build for pan-scm-cli (built from local source)
 FROM python:3.12-alpine AS builder
 
 # Install build dependencies
@@ -14,9 +14,14 @@ RUN apk add --no-cache \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install pan-scm-cli
+# Install pan-scm-cli from the local source tree (build context = repo root).
+# Building from source ensures the image matches this checkout rather than the
+# last release published to PyPI.
+WORKDIR /src
+COPY pyproject.toml README.md ./
+COPY src ./src
 RUN pip install --upgrade pip && \
-    pip install pan-scm-cli
+    pip install .
 
 # Final stage
 FROM python:3.12-alpine
@@ -42,7 +47,7 @@ WORKDIR /home/scmuser
 # Create config directory
 RUN mkdir -p /home/scmuser/.scm-cli
 
-# Set bash as the default shell
+# Use ash as the default shell
 SHELL ["/bin/ash"]
 
 # Keep container running
