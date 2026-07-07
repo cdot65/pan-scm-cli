@@ -1,13 +1,94 @@
 """Main entry point for the scm-cli tool.
 
 This module initializes the Typer CLI application and registers subcommands for the
-various SCM configuration actions (set, delete, load) and object types.
+various SCM configuration actions (set, delete, show, load, backup, move) and the
+standalone top-level commands.
+
+Command modules are loaded lazily: help listings render from static metadata, and a
+module is only imported when one of its commands is actually dispatched. This keeps
+`scm --help` / `scm --version` free of the SDK/validator import cost.
 """
 
+import click
 import typer
+from typer.core import TyperGroup
 
-# Import object type modules
-from .commands import commit, context, deployment, identity, incidents, insights, jobs, local, mobile_agent, network, objects, operations, posture, security, setup
+# =============================================================================================================================================================================================
+# LAZY COMMAND LOADING
+# =============================================================================================================================================================================================
+
+# Lazy specs map a subcommand name to (module attribute path, help text). Module
+# paths are relative to this package so the module resolves correctly whether the
+# package is imported as `scm_cli` or `src.scm_cli` (tests use both).
+_PACKAGE = __package__
+
+
+def _lazy_group(lazy_map: dict[str, tuple[str, str]]) -> type[TyperGroup]:
+    """Build a TyperGroup subclass whose subcommands load on dispatch.
+
+    Help listings use the static help text from the spec (no imports); actual
+    dispatch (including `<subcommand> --help`) imports the target module.
+    """
+
+    class LazyGroup(TyperGroup):
+        _lazy = lazy_map
+
+        def list_commands(self, ctx: click.Context) -> list[str]:
+            return sorted(set(super().list_commands(ctx)) | set(self._lazy))
+
+        def get_command(self, ctx: click.Context, name: str) -> click.Command | None:
+            # Used by help rendering and completion: return a lightweight stub
+            # carrying the static help so nothing gets imported.
+            if name in self._lazy:
+                _, help_text = self._lazy[name]
+                return click.Command(name=name, help=help_text, short_help=help_text)
+            return super().get_command(ctx, name)
+
+        def resolve_command(self, ctx: click.Context, args: list[str]) -> tuple[str | None, click.Command | None, list[str]]:
+            # Used only for actual dispatch: import the real subcommand.
+            name = args[0] if args else ""
+            if name in self._lazy:
+                return name, self._load(name), args[1:]
+            return super().resolve_command(ctx, args)
+
+        def _load(self, name: str) -> click.Command:
+            import importlib
+
+            attr_path, help_text = self._lazy[name]
+            module_name, attr = attr_path.split(":")
+            module = importlib.import_module(f"{_PACKAGE}.commands.{module_name}")
+            command = typer.main.get_command(getattr(module, attr))
+            command.name = name
+            if help_text and not command.help:
+                command.help = help_text
+            return command
+
+    return LazyGroup
+
+
+def _action_spec(action: str, verb: str) -> dict[str, tuple[str, str]]:
+    """Lazy spec for one action group: category -> module app."""
+    return {
+        "identity": (f"identity:{action}_app", f"{verb} identity configurations"),
+        "mobile-agent": (f"mobile_agent:{action}_app", f"{verb} mobile agent configurations"),
+        "network": (f"network:{action}_app", f"{verb} network configurations"),
+        "object": (f"objects:{action}_app", f"{verb} object configurations"),
+        "sase": (f"deployment:{action}_app", f"{verb} SASE configurations"),
+        "security": (f"security:{action}_app", f"{verb} security configurations"),
+        "setup": (f"setup:{action}_app", f"{verb} setup configurations"),
+    }
+
+
+_TOP_LEVEL_SPEC: dict[str, tuple[str, str]] = {
+    "commit": ("commit:app", "Commit staged configuration changes"),
+    "context": ("context:app", "Manage authentication contexts"),
+    "incidents": ("incidents:app", "Search and view security incidents"),
+    "insights": ("insights:app", "Query monitoring insights"),
+    "jobs": ("jobs:app", "Manage SCM jobs"),
+    "local": ("local:app", "Retrieve local device configurations"),
+    "operations": ("operations:app", "Run device operations"),
+    "posture": ("posture:posture_app", "Firewall posture / BPA assessment"),
+}
 
 # =============================================================================================================================================================================================
 # MAIN CLI APPLICATION
@@ -16,281 +97,30 @@ from .commands import commit, context, deployment, identity, incidents, insights
 app = typer.Typer(
     name="scm",
     help="CLI for Palo Alto Networks Strata Cloud Manager",
+    cls=_lazy_group(_TOP_LEVEL_SPEC),
 )
 
 # =============================================================================================================================================================================================
-# ACTION APP GROUPS
+# ACTION APP GROUPS (categories load lazily per action)
 # =============================================================================================================================================================================================
 
-# Create app groups for each action
-backup_app = typer.Typer(
-    help="Backup configurations to YAML files",
-    name="backup",
-)
-delete_app = typer.Typer(
-    help="Remove configurations",
-    name="delete",
-)
-load_app = typer.Typer(
-    help="Load configurations from YAML files",
-    name="load",
-)
-set_app = typer.Typer(
-    help="Create or update configurations",
-    name="set",
-)
-move_app = typer.Typer(
-    help="Move rules to a new position",
-    name="move",
-)
-show_app = typer.Typer(
-    help="Display configurations",
-    name="show",
-)
+backup_app = typer.Typer(help="Backup configurations to YAML files", cls=_lazy_group(_action_spec("backup", "Backup")))
+delete_app = typer.Typer(help="Remove configurations", cls=_lazy_group(_action_spec("delete", "Delete")))
+load_app = typer.Typer(help="Load configurations from YAML files", cls=_lazy_group(_action_spec("load", "Load")))
+move_app = typer.Typer(help="Move rules to a new position", cls=_lazy_group({"security": ("security:move_app", "Move security rules")}))
+set_app = typer.Typer(help="Create or update configurations", cls=_lazy_group(_action_spec("set", "Set")))
+show_app = typer.Typer(help="Display configurations", cls=_lazy_group(_action_spec("show", "Show")))
+
+app.add_typer(backup_app, name="backup")
+app.add_typer(delete_app, name="delete")
+app.add_typer(load_app, name="load")
+app.add_typer(move_app, name="move")
+app.add_typer(set_app, name="set")
+app.add_typer(show_app, name="show")
 
 # =============================================================================================================================================================================================
-# APP REGISTRATION
+# GLOBAL OPTIONS
 # =============================================================================================================================================================================================
-
-# ----------------------------------------------------------------------------------- Register Action Apps -----------------------------------------------------------------------------------
-
-app.add_typer(
-    backup_app,
-    name="backup",
-)
-app.add_typer(
-    delete_app,
-    name="delete",
-)
-app.add_typer(
-    load_app,
-    name="load",
-)
-app.add_typer(
-    move_app,
-    name="move",
-)
-app.add_typer(
-    set_app,
-    name="set",
-)
-app.add_typer(
-    show_app,
-    name="show",
-)
-
-# --------------------------------------------------------------------------------- Register Module Commands ---------------------------------------------------------------------------------
-
-# Backup commands
-backup_app.add_typer(
-    identity.backup_app,
-    name="identity",
-    help="Backup identity configurations",
-)
-backup_app.add_typer(
-    mobile_agent.backup_app,
-    name="mobile-agent",
-    help="Backup mobile agent configurations",
-)
-backup_app.add_typer(
-    network.backup_app,
-    name="network",
-    help="Backup network configurations",
-)
-backup_app.add_typer(
-    objects.backup_app,
-    name="object",
-    help="Backup object configurations",
-)
-backup_app.add_typer(
-    deployment.backup_app,
-    name="sase",
-    help="Backup SASE configurations",
-)
-backup_app.add_typer(
-    security.backup_app,
-    name="security",
-    help="Backup security configurations",
-)
-backup_app.add_typer(
-    setup.backup_app,
-    name="setup",
-    help="Backup setup configurations",
-)
-
-# Delete commands
-delete_app.add_typer(
-    identity.delete_app,
-    name="identity",
-    help="Delete identity configurations",
-)
-delete_app.add_typer(
-    mobile_agent.delete_app,
-    name="mobile-agent",
-    help="Delete mobile agent configurations",
-)
-delete_app.add_typer(
-    network.delete_app,
-    name="network",
-    help="Delete network configurations",
-)
-delete_app.add_typer(
-    objects.delete_app,
-    name="object",
-    help="Delete object configurations",
-)
-delete_app.add_typer(
-    deployment.delete_app,
-    name="sase",
-    help="Delete SASE configurations",
-)
-delete_app.add_typer(
-    security.delete_app,
-    name="security",
-    help="Delete security configurations",
-)
-delete_app.add_typer(
-    setup.delete_app,
-    name="setup",
-    help="Delete setup configurations",
-)
-
-# Load commands
-load_app.add_typer(
-    identity.load_app,
-    name="identity",
-    help="Load identity configurations",
-)
-load_app.add_typer(
-    mobile_agent.load_app,
-    name="mobile-agent",
-    help="Load mobile agent configurations",
-)
-load_app.add_typer(
-    network.load_app,
-    name="network",
-    help="Load network configurations",
-)
-load_app.add_typer(
-    objects.load_app,
-    name="object",
-    help="Load object configurations",
-)
-load_app.add_typer(
-    deployment.load_app,
-    name="sase",
-    help="Load SASE configurations",
-)
-load_app.add_typer(
-    security.load_app,
-    name="security",
-    help="Load security configurations",
-)
-load_app.add_typer(
-    setup.load_app,
-    name="setup",
-    help="Load setup configurations",
-)
-
-# Move commands
-move_app.add_typer(
-    security.move_app,
-    name="security",
-    help="Move security rules",
-)
-
-# Set commands
-set_app.add_typer(
-    identity.set_app,
-    name="identity",
-    help="Set identity configurations",
-)
-set_app.add_typer(
-    mobile_agent.set_app,
-    name="mobile-agent",
-    help="Set mobile agent configurations",
-)
-set_app.add_typer(
-    network.set_app,
-    name="network",
-    help="Set network configurations",
-)
-set_app.add_typer(
-    objects.set_app,
-    name="object",
-    help="Set object configurations",
-)
-set_app.add_typer(
-    deployment.set_app,
-    name="sase",
-    help="Set SASE configurations",
-)
-set_app.add_typer(
-    security.set_app,
-    name="security",
-    help="Set security configurations",
-)
-set_app.add_typer(
-    setup.set_app,
-    name="setup",
-    help="Set setup configurations",
-)
-
-# Show commands
-show_app.add_typer(
-    identity.show_app,
-    name="identity",
-    help="Show identity configurations",
-)
-show_app.add_typer(
-    mobile_agent.show_app,
-    name="mobile-agent",
-    help="Show mobile agent configurations",
-)
-show_app.add_typer(
-    network.show_app,
-    name="network",
-    help="Show network configurations",
-)
-show_app.add_typer(
-    objects.show_app,
-    name="object",
-    help="Show object configurations",
-)
-show_app.add_typer(
-    deployment.show_app,
-    name="sase",
-    help="Show SASE configurations",
-)
-show_app.add_typer(
-    security.show_app,
-    name="security",
-    help="Show security configurations",
-)
-show_app.add_typer(
-    setup.show_app,
-    name="setup",
-    help="Show setup configurations",
-)
-
-# =============================================================================================================================================================================================
-# CLI COMMANDS
-# =============================================================================================================================================================================================
-
-# Register top-level commands (alphabetical)
-app.add_typer(commit.app, name="commit")
-app.add_typer(context.app, name="context")
-app.add_typer(incidents.app, name="incidents")
-app.add_typer(insights.app, name="insights")
-app.add_typer(jobs.app, name="jobs")
-app.add_typer(local.app, name="local")
-app.add_typer(operations.app, name="operations")
-app.add_typer(posture.posture_app, name="posture")
-
-
-# Note: test-auth command has been removed in favor of 'scm context test'
-# Use 'scm context test' to test the current context
-# Use 'scm context test <name>' to test a specific context without switching
 
 _region_override: str | None = None
 
@@ -333,9 +163,9 @@ def _configure_logging(debug: bool) -> None:
 
 def _version_callback(value: bool) -> None:
     if value:
-        from scm_cli import __version__
+        from importlib.metadata import version
 
-        typer.echo(__version__)
+        typer.echo(version("pan-scm-cli"))
         raise typer.Exit()
 
 
