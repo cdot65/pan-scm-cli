@@ -11,6 +11,8 @@ receives pure data regardless of any human-oriented messaging.
 """
 
 import json
+import os
+import sys
 from enum import Enum
 from typing import Any
 
@@ -19,8 +21,20 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
+
+def _console_width() -> int | None:
+    """Width for the data console.
+
+    Interactive terminals auto-detect; pipes get a generous fixed width so
+    rich does not truncate table cells at the default 80 columns.
+    """
+    if sys.stdout.isatty():
+        return None
+    return int(os.environ.get("COLUMNS", "200"))
+
+
 # Data console (stdout) and message console (stderr).
-console = Console()
+console = Console(width=_console_width())
 err_console = Console(stderr=True)
 
 
