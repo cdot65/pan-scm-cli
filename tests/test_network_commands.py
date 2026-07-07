@@ -257,6 +257,7 @@ class TestZoneCommands:
                 "test-folder",
                 "--name",
                 "test-zone",
+                "--force",
             ],
         )
 
@@ -1198,6 +1199,7 @@ class TestNATRuleCommands:
                 "Texas",
                 "--name",
                 "outbound-nat",
+                "--force",
             ],
         )
 
