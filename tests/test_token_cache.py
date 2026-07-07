@@ -5,7 +5,6 @@ invocations skip the token + JWKS roundtrips. Cache entries carry the
 client_id (needed for commit admin under cached-token bearer mode).
 """
 
-import json
 import os
 import time
 

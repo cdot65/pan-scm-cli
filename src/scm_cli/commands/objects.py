@@ -12,6 +12,7 @@ import yaml
 
 # Removed unused import: from the `..utils.config` import load_from_yaml
 from ..utils import parse_comma_separated_list, validate_location_params
+from ..utils.bulk import run_bulk
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, redact, success, warning
 from ..utils.sdk_client import scm_client
@@ -40,6 +41,9 @@ from ..utils.validators import (
 # =============================================================================================================================================================================================
 # HELPER FUNCTIONS
 # =============================================================================================================================================================================================
+
+# Sentinel returned by bulk-load workers for items skipped due to unsupported container overrides
+_SKIPPED = object()
 
 
 # =============================================================================================================================================================================================
@@ -559,49 +563,54 @@ def load_address_group(
         return
 
     # Apply each address group
+    def _apply(ag_data: dict):
+        # Apply container override if specified
+        if folder:
+            ag_data["folder"] = folder
+            ag_data.pop("snippet", None)
+            ag_data.pop("device", None)
+        elif snippet or device:
+            return _SKIPPED
+
+        # Validate using the Pydantic model
+        address_group = AddressGroup(**ag_data)
+
+        # Call the SDK client to create the address group
+        return scm_client.create_address_group(
+            folder=address_group.folder,
+            name=address_group.name,
+            type=address_group.type,
+            members=address_group.members,
+            description=address_group.description,
+            tags=address_group.tags,
+        )
+
+    outcomes = run_bulk(address_groups, _apply)
+
     results: list[dict[str, Any]] = []
     created_count = 0
     updated_count = 0
 
-    for ag_data in address_groups:
-        try:
-            # Apply container override if specified
-            if folder:
-                ag_data["folder"] = folder
-                ag_data.pop("snippet", None)
-                ag_data.pop("device", None)
-            elif snippet:
-                warning(f"Warning: Address groups do not support snippets. Skipping group '{ag_data.get('name', 'unknown')}'")
-                continue
-            elif device:
-                warning(f"Warning: Address groups do not support devices. Skipping group '{ag_data.get('name', 'unknown')}'")
-                continue
-
-            # Validate using the Pydantic model
-            address_group = AddressGroup(**ag_data)
-
-            # Call the SDK client to create the address group
-            result = scm_client.create_address_group(
-                folder=address_group.folder,
-                name=address_group.name,
-                type=address_group.type,
-                members=address_group.members,
-                description=address_group.description,
-                tags=address_group.tags,
-            )
-
-            results.append(result)
-
-            # Track if created or updated based on response
-            if "created" in str(result).lower():
-                created_count += 1
-            else:
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing address group '{ag_data.get('name', 'unknown')}': {str(e)}")
+    for ag_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing address group '{ag_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other objects
             continue
+
+        if result is _SKIPPED:
+            if snippet:
+                warning(f"Warning: Address groups do not support snippets. Skipping group '{ag_data.get('name', 'unknown')}'")
+            else:
+                warning(f"Warning: Address groups do not support devices. Skipping group '{ag_data.get('name', 'unknown')}'")
+            continue
+
+        results.append(result)
+
+        # Track if created or updated based on response
+        if "created" in str(result).lower():
+            created_count += 1
+        else:
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} address group(s):")
@@ -856,53 +865,55 @@ def load_address(
         return
 
     # Apply each address
+    def _apply(addr_data: dict):
+        # Apply container override if specified
+        if folder:
+            addr_data["folder"] = folder
+            addr_data.pop("snippet", None)
+            addr_data.pop("device", None)
+        elif snippet:
+            addr_data["snippet"] = snippet
+            addr_data.pop("folder", None)
+            addr_data.pop("device", None)
+        elif device:
+            addr_data["device"] = device
+            addr_data.pop("folder", None)
+            addr_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        address = Address(**addr_data)
+
+        # Call the SDK client to create the address
+        return scm_client.create_address(
+            folder=address.folder,
+            name=address.name,
+            description=address.description,
+            tags=address.tags,
+            ip_netmask=address.ip_netmask,
+            ip_range=address.ip_range,
+            ip_wildcard=address.ip_wildcard,
+            fqdn=address.fqdn,
+        )
+
+    outcomes = run_bulk(addresses, _apply)
+
     results: list[dict[str, Any]] = []
     created_count = 0
     updated_count = 0
 
-    for addr_data in addresses:
-        try:
-            # Apply container override if specified
-            if folder:
-                addr_data["folder"] = folder
-                addr_data.pop("snippet", None)
-                addr_data.pop("device", None)
-            elif snippet:
-                addr_data["snippet"] = snippet
-                addr_data.pop("folder", None)
-                addr_data.pop("device", None)
-            elif device:
-                addr_data["device"] = device
-                addr_data.pop("folder", None)
-                addr_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            address = Address(**addr_data)
-
-            # Call the SDK client to create the address
-            result = scm_client.create_address(
-                folder=address.folder,
-                name=address.name,
-                description=address.description,
-                tags=address.tags,
-                ip_netmask=address.ip_netmask,
-                ip_range=address.ip_range,
-                ip_wildcard=address.ip_wildcard,
-                fqdn=address.fqdn,
-            )
-
-            results.append(result)
-
-            # Track if created or updated based on response
-            if "created" in str(result).lower():
-                created_count += 1
-            else:
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing address '{addr_data.get('name', 'unknown')}': {str(e)}")
+    for addr_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing address '{addr_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other addresses
             continue
+
+        results.append(result)
+
+        # Track if created or updated based on response
+        if "created" in str(result).lower():
+            created_count += 1
+        else:
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} address(es):")
@@ -1162,60 +1173,65 @@ def load_application(
         return
 
     # Apply each application
+    def _apply(app_data: dict):
+        # Apply container override if specified
+        if folder:
+            app_data["folder"] = folder
+            app_data.pop("snippet", None)
+            app_data.pop("device", None)
+        elif snippet or device:
+            return _SKIPPED
+
+        # Validate using the Pydantic model
+        application = Application(**app_data)
+
+        # Call the SDK client to create the application
+        return scm_client.create_application(
+            folder=application.folder,
+            name=application.name,
+            category=application.category,
+            subcategory=application.subcategory,
+            technology=application.technology,
+            risk=application.risk,
+            description=application.description,
+            ports=application.ports,
+            evasive=application.evasive,
+            pervasive=application.pervasive,
+            excessive_bandwidth_use=application.excessive_bandwidth_use,
+            used_by_malware=application.used_by_malware,
+            transfers_files=application.transfers_files,
+            has_known_vulnerabilities=application.has_known_vulnerabilities,
+            tunnels_other_apps=application.tunnels_other_apps,
+            prone_to_misuse=application.prone_to_misuse,
+            no_certifications=application.no_certifications,
+        )
+
+    outcomes = run_bulk(applications, _apply)
+
     results: list[dict[str, Any]] = []
     created_count = 0
     updated_count = 0
 
-    for app_data in applications:
-        try:
-            # Apply container override if specified
-            if folder:
-                app_data["folder"] = folder
-                app_data.pop("snippet", None)
-                app_data.pop("device", None)
-            elif snippet:
-                warning(f"Warning: Applications do not support snippets. Skipping application '{app_data.get('name', 'unknown')}'")
-                continue
-            elif device:
-                warning(f"Warning: Applications do not support devices. Skipping application '{app_data.get('name', 'unknown')}'")
-                continue
-
-            # Validate using the Pydantic model
-            application = Application(**app_data)
-
-            # Call the SDK client to create the application
-            result = scm_client.create_application(
-                folder=application.folder,
-                name=application.name,
-                category=application.category,
-                subcategory=application.subcategory,
-                technology=application.technology,
-                risk=application.risk,
-                description=application.description,
-                ports=application.ports,
-                evasive=application.evasive,
-                pervasive=application.pervasive,
-                excessive_bandwidth_use=application.excessive_bandwidth_use,
-                used_by_malware=application.used_by_malware,
-                transfers_files=application.transfers_files,
-                has_known_vulnerabilities=application.has_known_vulnerabilities,
-                tunnels_other_apps=application.tunnels_other_apps,
-                prone_to_misuse=application.prone_to_misuse,
-                no_certifications=application.no_certifications,
-            )
-
-            results.append(result)
-
-            # Track if created or updated based on response
-            if "created" in str(result).lower():
-                created_count += 1
-            else:
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing application '{app_data.get('name', 'unknown')}': {str(e)}")
+    for app_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing application '{app_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other objects
             continue
+
+        if result is _SKIPPED:
+            if snippet:
+                warning(f"Warning: Applications do not support snippets. Skipping application '{app_data.get('name', 'unknown')}'")
+            else:
+                warning(f"Warning: Applications do not support devices. Skipping application '{app_data.get('name', 'unknown')}'")
+            continue
+
+        results.append(result)
+
+        # Track if created or updated based on response
+        if "created" in str(result).lower():
+            created_count += 1
+        else:
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} application(s):")
@@ -1475,42 +1491,44 @@ def load_application_group(
         return
 
     # Apply each application group
+    def _apply(group_data: dict):
+        # Apply container overrides if specified
+        if folder:
+            group_data["folder"] = folder
+            group_data.pop("snippet", None)
+            group_data.pop("device", None)
+        elif snippet:
+            group_data["snippet"] = snippet
+            group_data.pop("folder", None)
+            group_data.pop("device", None)
+        elif device:
+            group_data["device"] = device
+            group_data.pop("folder", None)
+            group_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        app_group = ApplicationGroup(**group_data)
+
+        # Call the SDK client to create the application group
+        return scm_client.create_application_group(
+            folder=app_group.folder,
+            name=app_group.name,
+            members=app_group.members,
+        )
+
+    outcomes = run_bulk(application_groups, _apply)
+
     results: list[dict[str, Any]] = []
     created_count = 0
     updated_count = 0
 
-    for group_data in application_groups:
-        try:
-            # Apply container overrides if specified
-            if folder:
-                group_data["folder"] = folder
-                group_data.pop("snippet", None)
-                group_data.pop("device", None)
-            elif snippet:
-                group_data["snippet"] = snippet
-                group_data.pop("folder", None)
-                group_data.pop("device", None)
-            elif device:
-                group_data["device"] = device
-                group_data.pop("folder", None)
-                group_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            app_group = ApplicationGroup(**group_data)
-
-            # Call the SDK client to create the application group
-            result = scm_client.create_application_group(
-                folder=app_group.folder,
-                name=app_group.name,
-                members=app_group.members,
-            )
-
-            results.append(result)
-            created_count += 1
-
-        except Exception as e:
-            error(f"Error processing application group '{group_data.get('name', 'unknown')}': {str(e)}")
+    for group_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing application group '{group_data.get('name', 'unknown')}': {str(exc)}")
             continue
+
+        results.append(result)
+        created_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} application group(s)")
@@ -1724,54 +1742,56 @@ def load_application_filter(
         return
 
     # Apply each application filter
+    def _apply(filter_data: dict):
+        # Apply container overrides if specified
+        if folder:
+            filter_data["folder"] = folder
+            filter_data.pop("snippet", None)
+            filter_data.pop("device", None)
+        elif snippet:
+            filter_data["snippet"] = snippet
+            filter_data.pop("folder", None)
+            filter_data.pop("device", None)
+        elif device:
+            filter_data["device"] = device
+            filter_data.pop("folder", None)
+            filter_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        app_filter = ApplicationFilter(**filter_data)
+
+        # Call the SDK client to create the application filter
+        return scm_client.create_application_filter(
+            folder=app_filter.folder,
+            name=app_filter.name,
+            category=app_filter.category,
+            subcategory=app_filter.subcategory,
+            technology=app_filter.technology,
+            risk=app_filter.risk,
+            evasive=app_filter.evasive,
+            pervasive=app_filter.pervasive,
+            excessive_bandwidth_use=app_filter.excessive_bandwidth_use,
+            used_by_malware=app_filter.used_by_malware,
+            transfers_files=app_filter.transfers_files,
+            has_known_vulnerabilities=app_filter.has_known_vulnerabilities,
+            tunnels_other_apps=app_filter.tunnels_other_apps,
+            prone_to_misuse=app_filter.prone_to_misuse,
+            no_certifications=app_filter.no_certifications,
+        )
+
+    outcomes = run_bulk(application_filters, _apply)
+
     results: list[dict[str, Any]] = []
     created_count = 0
     updated_count = 0
 
-    for filter_data in application_filters:
-        try:
-            # Apply container overrides if specified
-            if folder:
-                filter_data["folder"] = folder
-                filter_data.pop("snippet", None)
-                filter_data.pop("device", None)
-            elif snippet:
-                filter_data["snippet"] = snippet
-                filter_data.pop("folder", None)
-                filter_data.pop("device", None)
-            elif device:
-                filter_data["device"] = device
-                filter_data.pop("folder", None)
-                filter_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            app_filter = ApplicationFilter(**filter_data)
-
-            # Call the SDK client to create the application filter
-            result = scm_client.create_application_filter(
-                folder=app_filter.folder,
-                name=app_filter.name,
-                category=app_filter.category,
-                subcategory=app_filter.subcategory,
-                technology=app_filter.technology,
-                risk=app_filter.risk,
-                evasive=app_filter.evasive,
-                pervasive=app_filter.pervasive,
-                excessive_bandwidth_use=app_filter.excessive_bandwidth_use,
-                used_by_malware=app_filter.used_by_malware,
-                transfers_files=app_filter.transfers_files,
-                has_known_vulnerabilities=app_filter.has_known_vulnerabilities,
-                tunnels_other_apps=app_filter.tunnels_other_apps,
-                prone_to_misuse=app_filter.prone_to_misuse,
-                no_certifications=app_filter.no_certifications,
-            )
-
-            results.append(result)
-            created_count += 1
-
-        except Exception as e:
-            error(f"Error processing application filter '{filter_data.get('name', 'unknown')}': {str(e)}")
+    for filter_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing application filter '{filter_data.get('name', 'unknown')}': {str(exc)}")
             continue
+
+        results.append(result)
+        created_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} application filter(s)")
@@ -2033,44 +2053,46 @@ def load_dynamic_user_group(
         return
 
     # Apply each dynamic user group
+    def _apply(group_data: dict):
+        # Apply container overrides if specified
+        if folder:
+            group_data["folder"] = folder
+            group_data.pop("snippet", None)
+            group_data.pop("device", None)
+        elif snippet:
+            group_data["snippet"] = snippet
+            group_data.pop("folder", None)
+            group_data.pop("device", None)
+        elif device:
+            group_data["device"] = device
+            group_data.pop("folder", None)
+            group_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        dug = DynamicUserGroup(**group_data)
+
+        # Call the SDK client to create the dynamic user group
+        return scm_client.create_dynamic_user_group(
+            folder=dug.folder,
+            name=dug.name,
+            filter=dug.filter,
+            description=dug.description,
+            tags=dug.tags,
+        )
+
+    outcomes = run_bulk(dynamic_user_groups, _apply)
+
     results: list[dict[str, Any]] = []
     created_count = 0
     updated_count = 0
 
-    for group_data in dynamic_user_groups:
-        try:
-            # Apply container overrides if specified
-            if folder:
-                group_data["folder"] = folder
-                group_data.pop("snippet", None)
-                group_data.pop("device", None)
-            elif snippet:
-                group_data["snippet"] = snippet
-                group_data.pop("folder", None)
-                group_data.pop("device", None)
-            elif device:
-                group_data["device"] = device
-                group_data.pop("folder", None)
-                group_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            dug = DynamicUserGroup(**group_data)
-
-            # Call the SDK client to create the dynamic user group
-            result = scm_client.create_dynamic_user_group(
-                folder=dug.folder,
-                name=dug.name,
-                filter=dug.filter,
-                description=dug.description,
-                tags=dug.tags,
-            )
-
-            results.append(result)
-            created_count += 1
-
-        except Exception as e:
-            error(f"Error processing dynamic user group '{group_data.get('name', 'unknown')}': {str(e)}")
+    for group_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing dynamic user group '{group_data.get('name', 'unknown')}': {str(exc)}")
             continue
+
+        results.append(result)
+        created_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} dynamic user group(s)")
@@ -2319,8 +2341,42 @@ def load_external_dynamic_list(
     results: list[dict[str, Any]] = []
     loaded_count = 0
 
-    for idx, edl_config in enumerate(external_dynamic_lists, 1):
-        try:
+    if dry_run:
+        for idx, edl_config in enumerate(external_dynamic_lists, 1):
+            try:
+                # Override container if specified in command line
+                if location_value:
+                    edl_config[location_type] = location_value
+                    # Remove other container fields
+                    for container in ["folder", "snippet", "device"]:
+                        if container != location_type and container in edl_config:
+                            del edl_config[container]
+
+                # Validate the configuration
+                edl = ExternalDynamicList(**edl_config)
+
+                typer.echo(f"\n[{idx}] External Dynamic List: {edl.name}")
+                typer.echo(f"  Container: {getattr(edl, location_type or 'folder')}")
+                typer.echo(f"  Type: {edl.type}")
+                typer.echo(f"  URL: {edl.url}")
+                if edl.description:
+                    typer.echo(f"  Description: {edl.description}")
+                if edl.recurring:
+                    typer.echo(f"  Update Frequency: {edl.recurring}")
+                results.append({"action": "would create/update", "name": edl.name})
+            except Exception as e:
+                error(f"Error with external dynamic list '{edl_config.get('name', 'unknown')}': {str(e)}")
+                results.append(
+                    {
+                        "action": "error",
+                        "name": edl_config.get("name", "unknown"),
+                        "error": str(e),
+                    }
+                )
+                continue
+    else:
+
+        def _apply(edl_config: dict):
             # Override container if specified in command line
             if location_value:
                 edl_config[location_type] = location_value
@@ -2332,52 +2388,46 @@ def load_external_dynamic_list(
             # Validate the configuration
             edl = ExternalDynamicList(**edl_config)
 
-            if dry_run:
-                typer.echo(f"\n[{idx}] External Dynamic List: {edl.name}")
-                typer.echo(f"  Container: {getattr(edl, location_type or 'folder')}")
-                typer.echo(f"  Type: {edl.type}")
-                typer.echo(f"  URL: {edl.url}")
-                if edl.description:
-                    typer.echo(f"  Description: {edl.description}")
-                if edl.recurring:
-                    typer.echo(f"  Update Frequency: {edl.recurring}")
-                results.append({"action": "would create/update", "name": edl.name})
-            else:
-                # Convert to SDK model format
-                sdk_data = edl.to_sdk_model()
+            # Convert to SDK model format
+            sdk_data = edl.to_sdk_model()
 
-                # Extract container params
-                container_params = {}
-                if "folder" in edl_config:
-                    container_params["folder"] = edl_config["folder"]
-                elif "snippet" in edl_config:
-                    container_params["snippet"] = edl_config["snippet"]
-                elif "device" in edl_config:
-                    container_params["device"] = edl_config["device"]
-                # Create the EDL using the SDK data
-                result = scm_client.create_external_dynamic_list(
-                    **container_params,
-                    **sdk_data,
-                )
-                success(f"Loaded external dynamic list: {edl.name}")
-                loaded_count += 1
+            # Extract container params
+            container_params = {}
+            if "folder" in edl_config:
+                container_params["folder"] = edl_config["folder"]
+            elif "snippet" in edl_config:
+                container_params["snippet"] = edl_config["snippet"]
+            elif "device" in edl_config:
+                container_params["device"] = edl_config["device"]
+            # Create the EDL using the SDK data
+            result = scm_client.create_external_dynamic_list(
+                **container_params,
+                **sdk_data,
+            )
+            return edl, result
+
+        for edl_config, outcome, exc in run_bulk(external_dynamic_lists, _apply):
+            if exc is not None:
+                error(f"Error with external dynamic list '{edl_config.get('name', 'unknown')}': {str(exc)}")
                 results.append(
                     {
-                        "action": "created/updated",
-                        "name": edl.name,
-                        "result": result,
+                        "action": "error",
+                        "name": edl_config.get("name", "unknown"),
+                        "error": str(exc),
                     }
                 )
-        except Exception as e:
-            error(f"Error with external dynamic list '{edl_config.get('name', 'unknown')}': {str(e)}")
+                continue
+
+            edl, result = outcome
+            success(f"Loaded external dynamic list: {edl.name}")
+            loaded_count += 1
             results.append(
                 {
-                    "action": "error",
-                    "name": edl_config.get("name", "unknown"),
-                    "error": str(e),
+                    "action": "created/updated",
+                    "name": edl.name,
+                    "result": result,
                 }
             )
-            continue
 
     # Summary
     if dry_run:
@@ -2763,8 +2813,38 @@ def load_hip_object(
     results: list[dict[str, Any]] = []
     loaded_count = 0
 
-    for idx, hip_data in enumerate(hip_objects, 1):
-        try:
+    if dry_run:
+        for idx, hip_data in enumerate(hip_objects, 1):
+            try:
+                # Override container if specified in command line
+                if location_value:
+                    hip_data[location_type] = location_value
+                    # Remove other container fields
+                    for container in ["folder", "snippet", "device"]:
+                        if container != location_type and container in hip_data:
+                            del hip_data[container]
+
+                # Validate using the Pydantic model
+                hip_obj = HIPObject(**hip_data)
+
+                typer.echo(f"\n[{idx}] HIP Object: {hip_obj.name}")
+                typer.echo(f"  Container: {getattr(hip_obj, location_type or 'folder')}")
+                if hip_obj.description:
+                    typer.echo(f"  Description: {hip_obj.description}")
+                results.append({"action": "would create/update", "name": hip_obj.name})
+            except Exception as e:
+                error(f"Error with HIP object '{hip_data.get('name', 'unknown')}': {str(e)}")
+                results.append(
+                    {
+                        "action": "error",
+                        "name": hip_data.get("name", "unknown"),
+                        "error": str(e),
+                    }
+                )
+                continue
+    else:
+
+        def _apply(hip_data: dict):
             # Override container if specified in command line
             if location_value:
                 hip_data[location_type] = location_value
@@ -2776,42 +2856,39 @@ def load_hip_object(
             # Validate using the Pydantic model
             hip_obj = HIPObject(**hip_data)
 
-            if dry_run:
-                typer.echo(f"\n[{idx}] HIP Object: {hip_obj.name}")
-                typer.echo(f"  Container: {getattr(hip_obj, location_type or 'folder')}")
-                if hip_obj.description:
-                    typer.echo(f"  Description: {hip_obj.description}")
-                results.append({"action": "would create/update", "name": hip_obj.name})
-            else:
-                # Convert to SDK model format
-                sdk_data = hip_obj.to_sdk_model()
+            # Convert to SDK model format
+            sdk_data = hip_obj.to_sdk_model()
 
-                # Call the SDK client to create the HIP object
-                container_params = {location_type or "folder": getattr(hip_obj, location_type or "folder")}
-                result = scm_client.create_hip_object(
-                    **container_params,
-                    **sdk_data,
-                )
+            # Call the SDK client to create the HIP object
+            container_params = {location_type or "folder": getattr(hip_obj, location_type or "folder")}
+            result = scm_client.create_hip_object(
+                **container_params,
+                **sdk_data,
+            )
+            return hip_obj, result
 
-                success(f"Loaded HIP object: {hip_obj.name}")
-                loaded_count += 1
+        for hip_data, outcome, exc in run_bulk(hip_objects, _apply):
+            if exc is not None:
+                error(f"Error with HIP object '{hip_data.get('name', 'unknown')}': {str(exc)}")
                 results.append(
                     {
-                        "action": "created/updated",
-                        "name": hip_obj.name,
-                        "result": result,
+                        "action": "error",
+                        "name": hip_data.get("name", "unknown"),
+                        "error": str(exc),
                     }
                 )
-        except Exception as e:
-            error(f"Error with HIP object '{hip_data.get('name', 'unknown')}': {str(e)}")
+                continue
+
+            hip_obj, result = outcome
+            success(f"Loaded HIP object: {hip_obj.name}")
+            loaded_count += 1
             results.append(
                 {
-                    "action": "error",
-                    "name": hip_data.get("name", "unknown"),
-                    "error": str(e),
+                    "action": "created/updated",
+                    "name": hip_obj.name,
+                    "result": result,
                 }
             )
-            continue
 
     # Summary
     if dry_run:
@@ -3124,8 +3201,39 @@ def load_hip_profile(
     results: list[dict[str, Any]] = []
     loaded_count = 0
 
-    for idx, profile_data in enumerate(hip_profiles, 1):
-        try:
+    if dry_run:
+        for idx, profile_data in enumerate(hip_profiles, 1):
+            try:
+                # Override container if specified in command line
+                if location_value:
+                    profile_data[location_type] = location_value
+                    # Remove other container fields
+                    for container in ["folder", "snippet", "device"]:
+                        if container != location_type and container in profile_data:
+                            del profile_data[container]
+
+                # Validate the configuration
+                profile = HIPProfile(**profile_data)
+
+                typer.echo(f"\n[{idx}] HIP Profile: {profile.name}")
+                typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
+                typer.echo(f"  Match: {profile.match}")
+                if profile.description:
+                    typer.echo(f"  Description: {profile.description}")
+                results.append({"action": "would create/update", "name": profile.name})
+            except Exception as e:
+                error(f"Error with HIP profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+                results.append(
+                    {
+                        "action": "error",
+                        "name": profile_data.get("name", "unknown"),
+                        "error": str(e),
+                    }
+                )
+                continue
+    else:
+
+        def _apply(profile_data: dict):
             # Override container if specified in command line
             if location_value:
                 profile_data[location_type] = location_value
@@ -3137,44 +3245,41 @@ def load_hip_profile(
             # Validate the configuration
             profile = HIPProfile(**profile_data)
 
-            if dry_run:
-                typer.echo(f"\n[{idx}] HIP Profile: {profile.name}")
-                typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
-                typer.echo(f"  Match: {profile.match}")
-                if profile.description:
-                    typer.echo(f"  Description: {profile.description}")
-                results.append({"action": "would create/update", "name": profile.name})
-            else:
-                # Convert to SDK model format
-                profile_sdk = profile.to_sdk_model()
+            # Convert to SDK model format
+            profile_sdk = profile.to_sdk_model()
 
-                # Call the SDK client to create the HIP profile
-                container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
-                scm_client.create_hip_profile(
-                    **container_params,
-                    name=profile_sdk["name"],
-                    match=profile_sdk["match"],
-                    description=profile_sdk.get("description"),
-                )
-                success(f"Loaded HIP profile: {profile.name}")
-                loaded_count += 1
+            # Call the SDK client to create the HIP profile
+            container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
+            scm_client.create_hip_profile(
+                **container_params,
+                name=profile_sdk["name"],
+                match=profile_sdk["match"],
+                description=profile_sdk.get("description"),
+            )
+            return profile, profile_sdk
+
+        for profile_data, outcome, exc in run_bulk(hip_profiles, _apply):
+            if exc is not None:
+                error(f"Error with HIP profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
                 results.append(
                     {
-                        "action": "created/updated",
-                        "name": profile.name,
-                        "result": profile_sdk,
+                        "action": "error",
+                        "name": profile_data.get("name", "unknown"),
+                        "error": str(exc),
                     }
                 )
-        except Exception as e:
-            error(f"Error with HIP profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+                continue
+
+            profile, profile_sdk = outcome
+            success(f"Loaded HIP profile: {profile.name}")
+            loaded_count += 1
             results.append(
                 {
-                    "action": "error",
-                    "name": profile_data.get("name", "unknown"),
-                    "error": str(e),
+                    "action": "created/updated",
+                    "name": profile.name,
+                    "result": profile_sdk,
                 }
             )
-            continue
 
     # Summary
     if dry_run:
@@ -3387,8 +3492,43 @@ def load_http_server_profile(
     results: list[dict[str, Any]] = []
     loaded_count = 0
 
-    for idx, profile_data in enumerate(http_server_profiles, 1):
-        try:
+    if dry_run:
+        for idx, profile_data in enumerate(http_server_profiles, 1):
+            try:
+                # Override container if specified in command line
+                if location_value:
+                    profile_data[location_type] = location_value
+                    # Remove other container fields
+                    for container in ["folder", "snippet", "device"]:
+                        if container != location_type and container in profile_data:
+                            del profile_data[container]
+
+                # Validate using the Pydantic model
+                profile = HTTPServerProfile(**profile_data)
+
+                typer.echo(f"\n[{idx}] HTTP Server Profile: {profile.name}")
+                typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
+                typer.echo(f"  Servers: {len(profile.servers)}")
+                for server_idx, server in enumerate(profile.servers):
+                    typer.echo(f"    Server {server_idx + 1}: {server.get('name', 'unnamed')} - {server.get('address', 'N/A')}:{server.get('port', 'N/A')} ({server.get('protocol', 'N/A')})")
+                if profile.description:
+                    typer.echo(f"  Description: {profile.description}")
+                if profile.tag_registration:
+                    typer.echo(f"  Tag Registration: {profile.tag_registration}")
+                results.append({"action": "would create/update", "name": profile.name})
+            except Exception as e:
+                error(f"Error with HTTP server profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+                results.append(
+                    {
+                        "action": "error",
+                        "name": profile_data.get("name", "unknown"),
+                        "error": str(e),
+                    }
+                )
+                continue
+    else:
+
+        def _apply(profile_data: dict):
             # Override container if specified in command line
             if location_value:
                 profile_data[location_type] = location_value
@@ -3400,46 +3540,39 @@ def load_http_server_profile(
             # Validate using the Pydantic model
             profile = HTTPServerProfile(**profile_data)
 
-            if dry_run:
-                typer.echo(f"\n[{idx}] HTTP Server Profile: {profile.name}")
-                typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
-                typer.echo(f"  Servers: {len(profile.servers)}")
-                for server_idx, server in enumerate(profile.servers):
-                    typer.echo(f"    Server {server_idx + 1}: {server.get('name', 'unnamed')} - {server.get('address', 'N/A')}:{server.get('port', 'N/A')} ({server.get('protocol', 'N/A')})")
-                if profile.description:
-                    typer.echo(f"  Description: {profile.description}")
-                if profile.tag_registration:
-                    typer.echo(f"  Tag Registration: {profile.tag_registration}")
-                results.append({"action": "would create/update", "name": profile.name})
-            else:
-                # Convert to SDK model format
-                profile_sdk = profile.to_sdk_model()
+            # Convert to SDK model format
+            profile_sdk = profile.to_sdk_model()
 
-                # Call the SDK client to create the HTTP server profile
-                container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
-                scm_client.create_http_server_profile(
-                    **container_params,
-                    **profile_sdk,
-                )
-                success(f"Loaded HTTP server profile: {profile.name}")
-                loaded_count += 1
+            # Call the SDK client to create the HTTP server profile
+            container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
+            scm_client.create_http_server_profile(
+                **container_params,
+                **profile_sdk,
+            )
+            return profile, profile_sdk
+
+        for profile_data, outcome, exc in run_bulk(http_server_profiles, _apply):
+            if exc is not None:
+                error(f"Error with HTTP server profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
                 results.append(
                     {
-                        "action": "created/updated",
-                        "name": profile.name,
-                        "result": profile_sdk,
+                        "action": "error",
+                        "name": profile_data.get("name", "unknown"),
+                        "error": str(exc),
                     }
                 )
-        except Exception as e:
-            error(f"Error with HTTP server profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+                continue
+
+            profile, profile_sdk = outcome
+            success(f"Loaded HTTP server profile: {profile.name}")
+            loaded_count += 1
             results.append(
                 {
-                    "action": "error",
-                    "name": profile_data.get("name", "unknown"),
-                    "error": str(e),
+                    "action": "created/updated",
+                    "name": profile.name,
+                    "result": profile_sdk,
                 }
             )
-            continue
 
     # Summary
     if dry_run:
@@ -3677,20 +3810,20 @@ def load_log_forwarding_profile(
     results: list[dict[str, Any]] = []
     loaded_count = 0
 
-    for idx, profile_data in enumerate(log_forwarding_profiles, 1):
-        try:
-            # Override container if specified in command line
-            if location_value:
-                profile_data[location_type] = location_value
-                # Remove other container fields
-                for container in ["folder", "snippet", "device"]:
-                    if container != location_type and container in profile_data:
-                        del profile_data[container]
+    if dry_run:
+        for idx, profile_data in enumerate(log_forwarding_profiles, 1):
+            try:
+                # Override container if specified in command line
+                if location_value:
+                    profile_data[location_type] = location_value
+                    # Remove other container fields
+                    for container in ["folder", "snippet", "device"]:
+                        if container != location_type and container in profile_data:
+                            del profile_data[container]
 
-            # Validate using Pydantic model
-            profile = LogForwardingProfile(**profile_data)
+                # Validate using Pydantic model
+                profile = LogForwardingProfile(**profile_data)
 
-            if dry_run:
                 typer.echo(f"\n[{idx}] Log Forwarding Profile: {profile.name}")
                 typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
                 if profile.description:
@@ -3702,36 +3835,63 @@ def load_log_forwarding_profile(
                     for match_idx, match in enumerate(profile.match_list):
                         typer.echo(f"    Match {match_idx + 1}: {match.get('name', 'unnamed')} - {match.get('log_type', 'N/A')}")
                 results.append({"action": "would create/update", "name": profile.name})
-            else:
-                # Create the log forwarding profile
-                container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
-                result = scm_client.create_log_forwarding_profile(
-                    **container_params,
-                    name=profile.name,
-                    description=profile.description,
-                    enhanced_application_logging=profile.enhanced_application_logging or False,
-                    match_list=profile.match_list,
-                )
-
-                success(f"Loaded log forwarding profile: {profile.name}")
-                loaded_count += 1
+            except Exception as e:
+                error(f"Error with log forwarding profile '{profile_data.get('name', 'unknown')}': {str(e)}")
                 results.append(
                     {
-                        "action": "created/updated",
-                        "name": profile.name,
-                        "result": result,
+                        "action": "error",
+                        "name": profile_data.get("name", "unknown"),
+                        "error": str(e),
                     }
                 )
-        except Exception as e:
-            error(f"Error with log forwarding profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+                continue
+    else:
+
+        def _apply(profile_data: dict):
+            # Override container if specified in command line
+            if location_value:
+                profile_data[location_type] = location_value
+                # Remove other container fields
+                for container in ["folder", "snippet", "device"]:
+                    if container != location_type and container in profile_data:
+                        del profile_data[container]
+
+            # Validate using Pydantic model
+            profile = LogForwardingProfile(**profile_data)
+
+            # Create the log forwarding profile
+            container_params = {location_type or "folder": getattr(profile, location_type or "folder")}
+            result = scm_client.create_log_forwarding_profile(
+                **container_params,
+                name=profile.name,
+                description=profile.description,
+                enhanced_application_logging=profile.enhanced_application_logging or False,
+                match_list=profile.match_list,
+            )
+            return profile, result
+
+        for profile_data, outcome, exc in run_bulk(log_forwarding_profiles, _apply):
+            if exc is not None:
+                error(f"Error with log forwarding profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
+                results.append(
+                    {
+                        "action": "error",
+                        "name": profile_data.get("name", "unknown"),
+                        "error": str(exc),
+                    }
+                )
+                continue
+
+            profile, result = outcome
+            success(f"Loaded log forwarding profile: {profile.name}")
+            loaded_count += 1
             results.append(
                 {
-                    "action": "error",
-                    "name": profile_data.get("name", "unknown"),
-                    "error": str(e),
+                    "action": "created/updated",
+                    "name": profile.name,
+                    "result": result,
                 }
             )
-            continue
 
     # Summary
     if dry_run:
@@ -3968,40 +4128,41 @@ def load_region(
         regions = [regions]
 
     # Process each region
+    def _apply(region_data: dict):
+        # Validate with Pydantic model
+        validated_region = Region(**region_data)
+
+        # Override container if specified
+        if folder:
+            validated_region.folder = folder
+            validated_region.snippet = None
+            validated_region.device = None
+        elif snippet:
+            validated_region.snippet = snippet
+            validated_region.folder = None
+            validated_region.device = None
+        elif device:
+            validated_region.device = device
+            validated_region.folder = None
+            validated_region.snippet = None
+
+        # Convert to SDK format
+        sdk_data = validated_region.to_sdk_model()
+
+        # Create/update the region
+        scm_client.create_region(sdk_data)
+        return validated_region
+
     created_count = 0
-    for region_data in regions:
-        try:
-            # Validate with Pydantic model
-            validated_region = Region(**region_data)
-
-            # Override container if specified
-            if folder:
-                validated_region.folder = folder
-                validated_region.snippet = None
-                validated_region.device = None
-            elif snippet:
-                validated_region.snippet = snippet
-                validated_region.folder = None
-                validated_region.device = None
-            elif device:
-                validated_region.device = device
-                validated_region.folder = None
-                validated_region.snippet = None
-
-            # Convert to SDK format
-            sdk_data = validated_region.to_sdk_model()
-
-            # Create/update the region
-            scm_client.create_region(sdk_data)
-
-            created_count += 1
-
-            container = validated_region.folder or validated_region.snippet or validated_region.device
-            success(f"Created region: {validated_region.name} in {container}")
-
-        except Exception as e:
-            error(f"Error processing region: {str(e)}")
+    for _region_data, validated_region, exc in run_bulk(regions, _apply):
+        if exc is not None:
+            error(f"Error processing region: {str(exc)}")
             continue
+
+        created_count += 1
+
+        container = validated_region.folder or validated_region.snippet or validated_region.device
+        success(f"Created region: {validated_region.name} in {container}")
 
     success(f"Summary: Processed {created_count} regions")
 
@@ -4052,24 +4213,25 @@ def load_quarantined_device(
         devices = [devices]
 
     # Process each device
+    def _apply(device_data: dict):
+        # Validate with Pydantic model
+        validated_device = QuarantinedDevice(**device_data)
+
+        # Convert to SDK format
+        sdk_data = validated_device.to_sdk_model()
+
+        # Create the quarantined device
+        scm_client.create_quarantined_device(sdk_data)
+        return validated_device
+
     created_count = 0
-    for device_data in devices:
-        try:
-            # Validate with Pydantic model
-            validated_device = QuarantinedDevice(**device_data)
-
-            # Convert to SDK format
-            sdk_data = validated_device.to_sdk_model()
-
-            # Create the quarantined device
-            scm_client.create_quarantined_device(sdk_data)
-
-            created_count += 1
-            success(f"Created quarantined device: {validated_device.host_id}")
-
-        except Exception as e:
-            error(f"Error processing quarantined device: {str(e)}")
+    for _device_data, validated_device, exc in run_bulk(devices, _apply):
+        if exc is not None:
+            error(f"Error processing quarantined device: {str(exc)}")
             continue
+
+        created_count += 1
+        success(f"Created quarantined device: {validated_device.host_id}")
 
     success(f"Summary: Processed {created_count} quarantined devices")
 
@@ -4373,20 +4535,20 @@ def load_service(
     results: list[dict[str, Any]] = []
     loaded_count = 0
 
-    for idx, service_data in enumerate(services, 1):
-        try:
-            # Override container if specified in command line
-            if location_value:
-                service_data[location_type] = location_value
-                # Remove other container fields
-                for container in ["folder", "snippet", "device"]:
-                    if container != location_type and container in service_data:
-                        del service_data[container]
+    if dry_run:
+        for idx, service_data in enumerate(services, 1):
+            try:
+                # Override container if specified in command line
+                if location_value:
+                    service_data[location_type] = location_value
+                    # Remove other container fields
+                    for container in ["folder", "snippet", "device"]:
+                        if container != location_type and container in service_data:
+                            del service_data[container]
 
-            # Validate using Pydantic model
-            service = Service(**service_data)
+                # Validate using Pydantic model
+                service = Service(**service_data)
 
-            if dry_run:
                 typer.echo(f"\n[{idx}] Service: {service.name}")
                 typer.echo(f"  Container: {getattr(service, location_type or 'folder')}")
                 if service.description:
@@ -4408,37 +4570,63 @@ def load_service(
                 if service.tag:
                     typer.echo(f"  Tags: {', '.join(service.tag)}")
                 results.append({"action": "would create/update", "name": service.name})
-            else:
-                # Create the service
-                container_params = {location_type or "folder": getattr(service, location_type or "folder")}
-                result = scm_client.create_service(
-                    **container_params,
-                    name=service.name,
-                    protocol=service.protocol,
-                    description=service.description,
-                    tag=service.tag,
-                )
-
-                success(f"Loaded service: {service.name}")
-                loaded_count += 1
+            except Exception as e:
+                error(f"Error with service '{service_data.get('name', 'unknown')}': {str(e)}")
                 results.append(
                     {
-                        "action": "created/updated",
-                        "name": service.name,
-                        "result": result,
+                        "action": "error",
+                        "name": service_data.get("name", "unknown"),
+                        "error": str(e),
                     }
                 )
+                continue
+    else:
 
-        except Exception as e:
-            error(f"Error with service '{service_data.get('name', 'unknown')}': {str(e)}")
+        def _apply(service_data: dict):
+            # Override container if specified in command line
+            if location_value:
+                service_data[location_type] = location_value
+                # Remove other container fields
+                for container in ["folder", "snippet", "device"]:
+                    if container != location_type and container in service_data:
+                        del service_data[container]
+
+            # Validate using Pydantic model
+            service = Service(**service_data)
+
+            # Create the service
+            container_params = {location_type or "folder": getattr(service, location_type or "folder")}
+            result = scm_client.create_service(
+                **container_params,
+                name=service.name,
+                protocol=service.protocol,
+                description=service.description,
+                tag=service.tag,
+            )
+            return service, result
+
+        for service_data, outcome, exc in run_bulk(services, _apply):
+            if exc is not None:
+                error(f"Error with service '{service_data.get('name', 'unknown')}': {str(exc)}")
+                results.append(
+                    {
+                        "action": "error",
+                        "name": service_data.get("name", "unknown"),
+                        "error": str(exc),
+                    }
+                )
+                continue
+
+            service, result = outcome
+            success(f"Loaded service: {service.name}")
+            loaded_count += 1
             results.append(
                 {
-                    "action": "error",
-                    "name": service_data.get("name", "unknown"),
-                    "error": str(e),
+                    "action": "created/updated",
+                    "name": service.name,
+                    "result": result,
                 }
             )
-            continue
 
     # Summary
     if dry_run:
@@ -4691,8 +4879,39 @@ def load_service_group(
     results: list[dict[str, Any]] = []
     loaded_count = 0
 
-    for idx, group_data in enumerate(service_groups, 1):
-        try:
+    if dry_run:
+        for idx, group_data in enumerate(service_groups, 1):
+            try:
+                # Override container if specified in command line
+                if location_value:
+                    group_data[location_type] = location_value
+                    # Remove other container fields
+                    for container in ["folder", "snippet", "device"]:
+                        if container != location_type and container in group_data:
+                            del group_data[container]
+
+                # Validate using Pydantic model
+                service_group = ServiceGroup(**group_data)
+
+                typer.echo(f"\n[{idx}] Service Group: {service_group.name}")
+                typer.echo(f"  Container: {getattr(service_group, location_type or 'folder')}")
+                typer.echo(f"  Members ({len(service_group.members)}): {', '.join(service_group.members)}")
+                if service_group.tag:
+                    typer.echo(f"  Tags: {', '.join(service_group.tag)}")
+                results.append({"action": "would create/update", "name": service_group.name})
+            except Exception as e:
+                error(f"Error with service group '{group_data.get('name', 'unknown')}': {str(e)}")
+                results.append(
+                    {
+                        "action": "error",
+                        "name": group_data.get("name", "unknown"),
+                        "error": str(e),
+                    }
+                )
+                continue
+    else:
+
+        def _apply(group_data: dict):
             # Override container if specified in command line
             if location_value:
                 group_data[location_type] = location_value
@@ -4704,43 +4923,38 @@ def load_service_group(
             # Validate using Pydantic model
             service_group = ServiceGroup(**group_data)
 
-            if dry_run:
-                typer.echo(f"\n[{idx}] Service Group: {service_group.name}")
-                typer.echo(f"  Container: {getattr(service_group, location_type or 'folder')}")
-                typer.echo(f"  Members ({len(service_group.members)}): {', '.join(service_group.members)}")
-                if service_group.tag:
-                    typer.echo(f"  Tags: {', '.join(service_group.tag)}")
-                results.append({"action": "would create/update", "name": service_group.name})
-            else:
-                # Create the service group
-                container_params = {location_type or "folder": getattr(service_group, location_type or "folder")}
-                result = scm_client.create_service_group(
-                    **container_params,
-                    name=service_group.name,
-                    members=service_group.members,
-                    tag=service_group.tag,
-                )
+            # Create the service group
+            container_params = {location_type or "folder": getattr(service_group, location_type or "folder")}
+            result = scm_client.create_service_group(
+                **container_params,
+                name=service_group.name,
+                members=service_group.members,
+                tag=service_group.tag,
+            )
+            return service_group, result
 
-                success(f"Loaded service group: {service_group.name}")
-                loaded_count += 1
+        for group_data, outcome, exc in run_bulk(service_groups, _apply):
+            if exc is not None:
+                error(f"Error with service group '{group_data.get('name', 'unknown')}': {str(exc)}")
                 results.append(
                     {
-                        "action": "created/updated",
-                        "name": service_group.name,
-                        "result": result,
+                        "action": "error",
+                        "name": group_data.get("name", "unknown"),
+                        "error": str(exc),
                     }
                 )
+                continue
 
-        except Exception as e:
-            error(f"Error with service group '{group_data.get('name', 'unknown')}': {str(e)}")
+            service_group, result = outcome
+            success(f"Loaded service group: {service_group.name}")
+            loaded_count += 1
             results.append(
                 {
-                    "action": "error",
-                    "name": group_data.get("name", "unknown"),
-                    "error": str(e),
+                    "action": "created/updated",
+                    "name": service_group.name,
+                    "result": result,
                 }
             )
-            continue
 
     # Summary
     if dry_run:
@@ -4983,20 +5197,20 @@ def load_syslog_server_profile(
     results: list[dict[str, Any]] = []
     loaded_count = 0
 
-    for idx, profile_data in enumerate(syslog_server_profiles, 1):
-        try:
-            # Override container if specified in command line
-            if location_value:
-                profile_data[location_type] = location_value
-                # Remove other container fields
-                for container in ["folder", "snippet", "device"]:
-                    if container != location_type and container in profile_data:
-                        del profile_data[container]
+    if dry_run:
+        for idx, profile_data in enumerate(syslog_server_profiles, 1):
+            try:
+                # Override container if specified in command line
+                if location_value:
+                    profile_data[location_type] = location_value
+                    # Remove other container fields
+                    for container in ["folder", "snippet", "device"]:
+                        if container != location_type and container in profile_data:
+                            del profile_data[container]
 
-            # Validate with Pydantic model
-            profile = SyslogServerProfile(**profile_data)
+                # Validate with Pydantic model
+                profile = SyslogServerProfile(**profile_data)
 
-            if dry_run:
                 typer.echo(f"\n[{idx}] Syslog Server Profile: {profile.name}")
                 typer.echo(f"  Container: {getattr(profile, location_type or 'folder')}")
                 if profile.description:
@@ -5010,33 +5224,59 @@ def load_syslog_server_profile(
                 if profile.tag:
                     typer.echo(f"  Tags: {', '.join(profile.tag)}")
                 results.append({"action": "would create/update", "name": profile.name})
-            else:
-                # Convert to SDK format
-                sdk_data = profile.to_sdk_model()
-
-                # Create/update the profile
-                scm_client.create_syslog_server_profile(sdk_data)
-
-                success(f"Loaded syslog server profile: {profile.name}")
-                loaded_count += 1
+            except Exception as e:
+                error(f"Error with syslog server profile '{profile_data.get('name', 'unknown')}': {str(e)}")
                 results.append(
                     {
-                        "action": "created/updated",
-                        "name": profile.name,
-                        "result": sdk_data,
+                        "action": "error",
+                        "name": profile_data.get("name", "unknown"),
+                        "error": str(e),
                     }
                 )
+                continue
+    else:
 
-        except Exception as e:
-            error(f"Error with syslog server profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+        def _apply(profile_data: dict):
+            # Override container if specified in command line
+            if location_value:
+                profile_data[location_type] = location_value
+                # Remove other container fields
+                for container in ["folder", "snippet", "device"]:
+                    if container != location_type and container in profile_data:
+                        del profile_data[container]
+
+            # Validate with Pydantic model
+            profile = SyslogServerProfile(**profile_data)
+
+            # Convert to SDK format
+            sdk_data = profile.to_sdk_model()
+
+            # Create/update the profile
+            scm_client.create_syslog_server_profile(sdk_data)
+            return profile, sdk_data
+
+        for profile_data, outcome, exc in run_bulk(syslog_server_profiles, _apply):
+            if exc is not None:
+                error(f"Error with syslog server profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
+                results.append(
+                    {
+                        "action": "error",
+                        "name": profile_data.get("name", "unknown"),
+                        "error": str(exc),
+                    }
+                )
+                continue
+
+            profile, sdk_data = outcome
+            success(f"Loaded syslog server profile: {profile.name}")
+            loaded_count += 1
             results.append(
                 {
-                    "action": "error",
-                    "name": profile_data.get("name", "unknown"),
-                    "error": str(e),
+                    "action": "created/updated",
+                    "name": profile.name,
+                    "result": sdk_data,
                 }
             )
-            continue
 
     # Summary
     if dry_run:
@@ -5306,20 +5546,23 @@ def load_schedule(
         schedules = [schedules]
 
     # Process each schedule
+    def _apply(schedule_data: dict):
+        # Create/update the schedule directly (YAML already has SDK format)
+        scm_client.create_schedule(schedule_data)
+
+        container = schedule_data.get("folder") or schedule_data.get("snippet") or schedule_data.get("device")
+        return schedule_data["name"], container
+
     created_count = 0
-    for schedule_data in schedules:
-        try:
-            # Create/update the schedule directly (YAML already has SDK format)
-            scm_client.create_schedule(schedule_data)
-
-            created_count += 1
-
-            container = schedule_data.get("folder") or schedule_data.get("snippet") or schedule_data.get("device")
-            success(f"Created schedule: {schedule_data['name']} in {container}")
-
-        except Exception as e:
-            error(f"Error processing schedule: {str(e)}")
+    for _schedule_data, outcome, exc in run_bulk(schedules, _apply):
+        if exc is not None:
+            error(f"Error processing schedule: {str(exc)}")
             continue
+
+        created_count += 1
+
+        name, container = outcome
+        success(f"Created schedule: {name} in {container}")
 
     success(f"Summary: Processed {created_count} schedules")
 
@@ -5591,40 +5834,41 @@ def load_tag(
         tags = [tags]
 
     # Process each tag
+    def _apply(tag_data: dict):
+        # Validate with Pydantic model
+        validated_tag = Tag(**tag_data)
+
+        # Override container if specified
+        if folder:
+            validated_tag.folder = folder
+            validated_tag.snippet = None
+            validated_tag.device = None
+        elif snippet:
+            validated_tag.snippet = snippet
+            validated_tag.folder = None
+            validated_tag.device = None
+        elif device:
+            validated_tag.device = device
+            validated_tag.folder = None
+            validated_tag.snippet = None
+
+        # Convert to SDK format
+        sdk_data = validated_tag.to_sdk_model()
+
+        # Create/update the tag
+        scm_client.create_tag(sdk_data)
+        return validated_tag
+
     created_count = 0
-    for tag_data in tags:
-        try:
-            # Validate with Pydantic model
-            validated_tag = Tag(**tag_data)
-
-            # Override container if specified
-            if folder:
-                validated_tag.folder = folder
-                validated_tag.snippet = None
-                validated_tag.device = None
-            elif snippet:
-                validated_tag.snippet = snippet
-                validated_tag.folder = None
-                validated_tag.device = None
-            elif device:
-                validated_tag.device = device
-                validated_tag.folder = None
-                validated_tag.snippet = None
-
-            # Convert to SDK format
-            sdk_data = validated_tag.to_sdk_model()
-
-            # Create/update the tag
-            scm_client.create_tag(sdk_data)
-
-            created_count += 1
-
-            container = validated_tag.folder or validated_tag.snippet or validated_tag.device
-            success(f"Created tag: {validated_tag.name} in {container}")
-
-        except Exception as e:
-            error(f"Error processing tag: {str(e)}")
+    for _tag_data, validated_tag, exc in run_bulk(tags, _apply):
+        if exc is not None:
+            error(f"Error processing tag: {str(exc)}")
             continue
+
+        created_count += 1
+
+        container = validated_tag.folder or validated_tag.snippet or validated_tag.device
+        success(f"Created tag: {validated_tag.name} in {container}")
 
     success(f"Summary: Processed {created_count} tags")
 
@@ -5852,24 +6096,35 @@ def load_auto_tag_action(
         raise typer.Exit(code=1)
 
     created_count = 0
-    for entry in config["auto_tag_actions"]:
-        try:
+    if dry_run:
+        for entry in config["auto_tag_actions"]:
+            try:
+                validated = AutoTagAction(**entry)
+                validated.to_sdk_model()
+
+                info(f"[DRY RUN] Would create auto tag action: {validated.name}")
+                created_count += 1
+
+            except Exception as e:
+                error(f"Error processing auto tag action: {str(e)}")
+                continue
+    else:
+
+        def _apply(entry: dict):
             validated = AutoTagAction(**entry)
             sdk_data = validated.to_sdk_model()
 
-            if dry_run:
-                info(f"[DRY RUN] Would create auto tag action: {validated.name}")
-                created_count += 1
+            scm_client.create_auto_tag_action(sdk_data)
+            return validated
+
+        for entry, validated, exc in run_bulk(config["auto_tag_actions"], _apply):
+            if exc is not None:
+                error(f"Error processing auto tag action: {str(exc)}")
                 continue
 
-            scm_client.create_auto_tag_action(sdk_data)
             created_count += 1
             container = entry.get("folder") or entry.get("snippet") or entry.get("device")
             success(f"Created auto tag action: {validated.name} in {container}")
-
-        except Exception as e:
-            error(f"Error processing auto tag action: {str(e)}")
-            continue
 
     success(f"Summary: Processed {created_count} auto tag actions")
 

@@ -10,6 +10,7 @@ from typing import Any
 import typer
 import yaml
 
+from ..utils.bulk import run_bulk
 from ..utils.config import load_from_yaml
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
@@ -163,9 +164,7 @@ def load_bandwidth_allocation(
         typer.echo(yaml.dump(config["bandwidth_allocations"]))
         return None
 
-    # Apply each allocation
-    results = []
-    for allocation_data in config["bandwidth_allocations"]:
+    def _apply(allocation_data: dict):
         # Extract description before validation since it's not in the model
         description = allocation_data.pop("description", "")
 
@@ -173,13 +172,19 @@ def load_bandwidth_allocation(
         allocation = BandwidthAllocation(**allocation_data)
 
         # Call the SDK client to create the bandwidth allocation
-        result = scm_client.create_bandwidth_allocation(
+        return scm_client.create_bandwidth_allocation(
             name=allocation.name,
             bandwidth=allocation.bandwidth,
             spn_name_list=allocation.spn_name_list,
             description=description,
             tags=allocation.tags,
         )
+
+    # Apply each allocation concurrently, reporting outcomes in input order
+    results = []
+    for _allocation_data, result, exc in run_bulk(config["bandwidth_allocations"], _apply):
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential loop
 
         results.append(result)
         # Output details about each allocation
@@ -403,17 +408,18 @@ def load_service_connection(
         typer.echo(yaml.dump(config["service_connections"]))
         return None
 
-    # Apply each connection
-    results = []
-    for connection_data in config["service_connections"]:
+    def _apply(connection_data: dict):
         # Validate using the Pydantic model
         connection = ServiceConnection(**connection_data)
 
-        # Convert to SDK model format
-        sdk_data = connection.to_sdk_model()
-
         # Call the SDK client to create the service connection
-        result = scm_client.create_service_connection(**sdk_data)
+        return scm_client.create_service_connection(**connection.to_sdk_model())
+
+    # Apply each connection concurrently, reporting outcomes in input order
+    results = []
+    for _connection_data, result, exc in run_bulk(config["service_connections"], _apply):
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential loop
 
         results.append(result)
         # Show appropriate message based on action taken
@@ -660,17 +666,18 @@ def load_remote_network(
         typer.echo(yaml.dump(config["remote_networks"]))
         return None
 
-    # Apply each network
-    results = []
-    for network_data in config["remote_networks"]:
+    def _apply(network_data: dict):
         # Validate using the Pydantic model
         network = RemoteNetwork(**network_data)
 
-        # Convert to SDK model format
-        sdk_data = network.to_sdk_model()
-
         # Call the SDK client to create the remote network
-        result = scm_client.create_remote_network(**sdk_data)
+        return scm_client.create_remote_network(**network.to_sdk_model())
+
+    # Apply each network concurrently, reporting outcomes in input order
+    results = []
+    for _network_data, result, exc in run_bulk(config["remote_networks"], _apply):
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential loop
 
         results.append(result)
         # Show appropriate message based on action taken
@@ -1016,11 +1023,15 @@ def load_internal_dns_server(
         typer.echo(yaml.dump(config["internal_dns_servers"]))
         return None
 
-    results = []
-    for server_data in config["internal_dns_servers"]:
+    def _apply(server_data: dict):
         server = InternalDNSServer(**server_data)
-        sdk_data = server.to_sdk_model()
-        result = scm_client.create_internal_dns_server(**sdk_data)
+        return scm_client.create_internal_dns_server(**server.to_sdk_model())
+
+    # Apply each server concurrently, reporting outcomes in input order
+    results = []
+    for _server_data, result, exc in run_bulk(config["internal_dns_servers"], _apply):
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential loop
 
         results.append(result)
         action = result.get("__action__", "created")

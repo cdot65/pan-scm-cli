@@ -343,3 +343,40 @@ class TestShowJsonOutput:
 
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout) == []
+
+
+class TestIdentityBulkLoadConcurrency:
+    """Bulk loads issue create calls concurrently (bounded thread pool)."""
+
+    def test_load_authentication_profile_runs_concurrently(self, runner, monkeypatch, tmp_path):
+        import threading
+        import time
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_content = "authentication_profiles:\n" + "".join(f"  - name: auth-{i}\n    folder: Texas\n" for i in range(4))
+        test_file = tmp_path / "auth_profiles.yaml"
+        test_file.write_text(yaml_content)
+
+        active = {"now": 0, "max": 0}
+        lock = threading.Lock()
+        created = []
+
+        def mock_create(**kwargs):
+            with lock:
+                active["now"] += 1
+                active["max"] = max(active["max"], active["now"])
+            time.sleep(0.05)
+            with lock:
+                active["now"] -= 1
+                created.append(kwargs.get("name"))
+            return {"name": kwargs.get("name"), "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_authentication_profile", mock_create)
+
+        result = runner.invoke(load_app, ["authentication-profile", "--file", str(test_file)])
+
+        assert result.exit_code == 0, result.output
+        assert active["max"] > 1, "create calls never overlapped"
+        assert sorted(created) == [f"auth-{i}" for i in range(4)]
+        assert "Processed 4 authentication profiles" in result.output

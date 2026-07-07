@@ -83,7 +83,7 @@ def load_token(context_name: str | None) -> dict[str, Any] | None:
 
 def clear_token(context_name: str | None) -> None:
     """Delete the cached token for a context (no-op if absent)."""
-    try:
+    import contextlib
+
+    with contextlib.suppress(OSError):
         os.remove(_cache_path(context_name))
-    except OSError:
-        pass

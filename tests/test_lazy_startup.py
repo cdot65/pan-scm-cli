@@ -7,8 +7,6 @@ SDK/validator stacks — they load on dispatch of the matching subcommand.
 import subprocess
 import sys
 
-from typer.testing import CliRunner
-
 from src.scm_cli.main import app
 
 HEAVY_MODULES = [
@@ -26,9 +24,9 @@ class TestImportLaziness:
         code = (
             "import sys\n"
             "import scm_cli.main\n"
-            "loaded = [m for m in {mods!r} if m in sys.modules]\n"
+            f"loaded = [m for m in {HEAVY_MODULES!r} if m in sys.modules]\n"
             "print(','.join(loaded))\n"
-        ).format(mods=HEAVY_MODULES)
+        )
         result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
 
         assert result.stdout.strip() == "", f"heavy modules imported at startup: {result.stdout.strip()}"
@@ -40,9 +38,9 @@ class TestImportLaziness:
             "from scm_cli.main import app\n"
             "r = CliRunner().invoke(app, ['--help'])\n"
             "assert r.exit_code == 0, r.output\n"
-            "loaded = [m for m in {mods!r} if m in sys.modules]\n"
+            f"loaded = [m for m in {HEAVY_MODULES!r} if m in sys.modules]\n"
             "print(','.join(loaded))\n"
-        ).format(mods=HEAVY_MODULES)
+        )
         result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
 
         assert result.stdout.strip() == "", f"--help imported heavy modules: {result.stdout.strip()}"

@@ -225,6 +225,33 @@ scm context test staging --mock
 scm context test
 ```
 
+### Token Cache
+
+OAuth tokens are cached per context in `~/.scm-cli/cache/` (file mode 0600) and
+reused until shortly before expiry, so consecutive commands skip the token and
+signing-key roundtrips. The cache is invalidated automatically when the API
+rejects a cached token or when the cached credentials no longer match the
+active context.
+
+```bash
+# Disable the token cache entirely
+export SCM_NO_TOKEN_CACHE=1
+
+# Clear it manually
+rm -rf ~/.scm-cli/cache
+```
+
+### Bulk Load Concurrency
+
+`scm load ...` commands apply objects concurrently (default 5 workers).
+Position-sensitive types (security/NAT/PBF/QoS rules) always load sequentially
+to preserve rule order.
+
+```bash
+# Tune or serialize bulk loads
+export SCM_BULK_WORKERS=1
+```
+
 ### Context Storage
 
 Contexts are stored in `~/.scm-cli/contexts/` as individual YAML files:

@@ -13,6 +13,7 @@ import typer
 import yaml
 
 from ..utils import validate_location_params
+from ..utils.bulk import run_bulk
 from ..utils.config import load_from_yaml
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
@@ -336,29 +337,32 @@ def load_ike_crypto_profile(
     if not isinstance(profiles, list):
         profiles = [profiles]
     created_count = 0
-    for profile_data in profiles:
-        try:
-            validated_profile = IKECryptoProfile(**profile_data)
-            if folder:
-                validated_profile.folder = folder
-                validated_profile.snippet = None
-                validated_profile.device = None
-            elif snippet:
-                validated_profile.snippet = snippet
-                validated_profile.folder = None
-                validated_profile.device = None
-            elif device:
-                validated_profile.device = device
-                validated_profile.folder = None
-                validated_profile.snippet = None
-            sdk_data = validated_profile.to_sdk_model()
-            scm_client.create_ike_crypto_profile(sdk_data)
-            created_count += 1
-            container = validated_profile.folder or validated_profile.snippet or validated_profile.device
-            success(f"Created IKE crypto profile: {validated_profile.name} in {container}")
-        except Exception as e:
-            error(f"Error processing IKE crypto profile: {str(e)}")
+
+    def _apply(profile_data: dict):
+        validated_profile = IKECryptoProfile(**profile_data)
+        if folder:
+            validated_profile.folder = folder
+            validated_profile.snippet = None
+            validated_profile.device = None
+        elif snippet:
+            validated_profile.snippet = snippet
+            validated_profile.folder = None
+            validated_profile.device = None
+        elif device:
+            validated_profile.device = device
+            validated_profile.folder = None
+            validated_profile.snippet = None
+        sdk_data = validated_profile.to_sdk_model()
+        scm_client.create_ike_crypto_profile(sdk_data)
+        return validated_profile
+
+    for _item, validated_profile, exc in run_bulk(profiles, _apply):
+        if exc is not None:
+            error(f"Error processing IKE crypto profile: {str(exc)}")
             continue
+        created_count += 1
+        container = validated_profile.folder or validated_profile.snippet or validated_profile.device
+        success(f"Created IKE crypto profile: {validated_profile.name} in {container}")
     info(f"\nSummary: Processed {created_count} IKE crypto profiles")
 
 
@@ -512,37 +516,41 @@ def load_aggregate_interface(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for iface_data in interfaces:
-        try:
-            if folder:
-                iface_data["folder"] = folder
-                iface_data.pop("snippet", None)
-                iface_data.pop("device", None)
-            elif snippet:
-                iface_data["snippet"] = snippet
-                iface_data.pop("folder", None)
-                iface_data.pop("device", None)
-            elif device:
-                iface_data["device"] = device
-                iface_data.pop("folder", None)
-                iface_data.pop("snippet", None)
-            validated_iface = AggregateInterface(**iface_data)
-            sdk_data = validated_iface.to_sdk_model()
-            result = scm_client.create_aggregate_interface(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_iface.folder or validated_iface.snippet or validated_iface.device
-            if action == "created":
-                created_count += 1
-                success(f"Created aggregate interface: {validated_iface.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated aggregate interface: {validated_iface.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for aggregate interface: {validated_iface.name} in {container}")
-        except Exception as e:
-            error(f"Error processing aggregate interface: {str(e)}")
+
+    def _apply(iface_data: dict):
+        if folder:
+            iface_data["folder"] = folder
+            iface_data.pop("snippet", None)
+            iface_data.pop("device", None)
+        elif snippet:
+            iface_data["snippet"] = snippet
+            iface_data.pop("folder", None)
+            iface_data.pop("device", None)
+        elif device:
+            iface_data["device"] = device
+            iface_data.pop("folder", None)
+            iface_data.pop("snippet", None)
+        validated_iface = AggregateInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_aggregate_interface(sdk_data)
+        return validated_iface, result
+
+    for _item, outcome, exc in run_bulk(interfaces, _apply):
+        if exc is not None:
+            error(f"Error processing aggregate interface: {str(exc)}")
             continue
+        validated_iface, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+        if action == "created":
+            created_count += 1
+            success(f"Created aggregate interface: {validated_iface.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated aggregate interface: {validated_iface.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for aggregate interface: {validated_iface.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} aggregate interfaces")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -699,37 +707,41 @@ def load_ike_gateway(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for gateway_data in gateways:
-        try:
-            if folder:
-                gateway_data["folder"] = folder
-                gateway_data.pop("snippet", None)
-                gateway_data.pop("device", None)
-            elif snippet:
-                gateway_data["snippet"] = snippet
-                gateway_data.pop("folder", None)
-                gateway_data.pop("device", None)
-            elif device:
-                gateway_data["device"] = device
-                gateway_data.pop("folder", None)
-                gateway_data.pop("snippet", None)
-            validated_gw = IKEGateway(**gateway_data)
-            sdk_data = validated_gw.to_sdk_model()
-            result = scm_client.create_ike_gateway(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_gw.folder or validated_gw.snippet or validated_gw.device
-            if action == "created":
-                created_count += 1
-                success(f"Created IKE gateway: {validated_gw.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated IKE gateway: {validated_gw.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for IKE gateway: {validated_gw.name} in {container}")
-        except Exception as e:
-            error(f"Error processing IKE gateway: {str(e)}")
+
+    def _apply(gateway_data: dict):
+        if folder:
+            gateway_data["folder"] = folder
+            gateway_data.pop("snippet", None)
+            gateway_data.pop("device", None)
+        elif snippet:
+            gateway_data["snippet"] = snippet
+            gateway_data.pop("folder", None)
+            gateway_data.pop("device", None)
+        elif device:
+            gateway_data["device"] = device
+            gateway_data.pop("folder", None)
+            gateway_data.pop("snippet", None)
+        validated_gw = IKEGateway(**gateway_data)
+        sdk_data = validated_gw.to_sdk_model()
+        result = scm_client.create_ike_gateway(sdk_data)
+        return validated_gw, result
+
+    for _item, outcome, exc in run_bulk(gateways, _apply):
+        if exc is not None:
+            error(f"Error processing IKE gateway: {str(exc)}")
             continue
+        validated_gw, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_gw.folder or validated_gw.snippet or validated_gw.device
+        if action == "created":
+            created_count += 1
+            success(f"Created IKE gateway: {validated_gw.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated IKE gateway: {validated_gw.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for IKE gateway: {validated_gw.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} IKE gateways")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -985,20 +997,24 @@ def load_security_zone(
         typer.echo(yaml.dump(config["security_zones"]))
         return None
 
-    # Apply each zone
-    results = []
-    for zone_data in config["security_zones"]:
+    def _apply(zone_data: dict):
         # Validate using the Pydantic model
         zone = Zone(**zone_data)
 
         # Convert to the SDK model and create the zone
         sdk_data = zone.to_sdk_model()
-        result = scm_client.create_zone(
+        return scm_client.create_zone(
             folder=zone.folder,
             name=sdk_data["name"],
             mode=sdk_data["mode"],
             interfaces=sdk_data["interfaces"],
         )
+
+    # Apply each zone
+    results = []
+    for _item, result, exc in run_bulk(config["security_zones"], _apply):
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential behavior
 
         results.append(result)
         success(f"Applied zone: {result['name']} in folder {result['folder']}")
@@ -1197,12 +1213,11 @@ def load_ipsec_crypto_profile(
         typer.echo(yaml.dump(config["ipsec_crypto_profiles"]))
         return None
 
-    results = []
-    for profile_data in config["ipsec_crypto_profiles"]:
+    def _apply(profile_data: dict):
         profile = IPSecCryptoProfile(**profile_data)
         sdk_data = profile.to_sdk_model()
 
-        result = scm_client.create_ipsec_crypto_profile(
+        return scm_client.create_ipsec_crypto_profile(
             folder=profile.folder or "Texas",
             name=sdk_data["name"],
             esp_encryption=sdk_data["esp"]["encryption"],
@@ -1211,6 +1226,11 @@ def load_ipsec_crypto_profile(
             lifetime=sdk_data.get("lifetime"),
             lifesize=sdk_data.get("lifesize"),
         )
+
+    results = []
+    for _item, result, exc in run_bulk(config["ipsec_crypto_profiles"], _apply):
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential behavior
 
         results.append(result)
         action = result.get("__action__", "applied")
@@ -1425,6 +1445,7 @@ def load_nat_rule(
     updated_count = 0
     no_change_count = 0
 
+    # sequential: rule order matters
     for rule_data in nat_rules:
         try:
             # Apply container override
@@ -1665,37 +1686,41 @@ def load_dhcp_interface(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for iface_data in interfaces:
-        try:
-            if folder:
-                iface_data["folder"] = folder
-                iface_data.pop("snippet", None)
-                iface_data.pop("device", None)
-            elif snippet:
-                iface_data["snippet"] = snippet
-                iface_data.pop("folder", None)
-                iface_data.pop("device", None)
-            elif device:
-                iface_data["device"] = device
-                iface_data.pop("folder", None)
-                iface_data.pop("snippet", None)
-            validated_iface = DhcpInterface(**iface_data)
-            sdk_data = validated_iface.to_sdk_model()
-            result = scm_client.create_dhcp_interface(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_iface.folder or validated_iface.snippet or validated_iface.device
-            if action == "created":
-                created_count += 1
-                success(f"Created DHCP interface: {validated_iface.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated DHCP interface: {validated_iface.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for DHCP interface: {validated_iface.name} in {container}")
-        except Exception as e:
-            error(f"Error processing DHCP interface: {str(e)}")
+
+    def _apply(iface_data: dict):
+        if folder:
+            iface_data["folder"] = folder
+            iface_data.pop("snippet", None)
+            iface_data.pop("device", None)
+        elif snippet:
+            iface_data["snippet"] = snippet
+            iface_data.pop("folder", None)
+            iface_data.pop("device", None)
+        elif device:
+            iface_data["device"] = device
+            iface_data.pop("folder", None)
+            iface_data.pop("snippet", None)
+        validated_iface = DhcpInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_dhcp_interface(sdk_data)
+        return validated_iface, result
+
+    for _item, outcome, exc in run_bulk(interfaces, _apply):
+        if exc is not None:
+            error(f"Error processing DHCP interface: {str(exc)}")
             continue
+        validated_iface, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+        if action == "created":
+            created_count += 1
+            success(f"Created DHCP interface: {validated_iface.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated DHCP interface: {validated_iface.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for DHCP interface: {validated_iface.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} DHCP interfaces")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -1840,37 +1865,41 @@ def load_ethernet_interface(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for iface_data in interfaces:
-        try:
-            if folder:
-                iface_data["folder"] = folder
-                iface_data.pop("snippet", None)
-                iface_data.pop("device", None)
-            elif snippet:
-                iface_data["snippet"] = snippet
-                iface_data.pop("folder", None)
-                iface_data.pop("device", None)
-            elif device:
-                iface_data["device"] = device
-                iface_data.pop("folder", None)
-                iface_data.pop("snippet", None)
-            validated_iface = EthernetInterface(**iface_data)
-            sdk_data = validated_iface.to_sdk_model()
-            result = scm_client.create_ethernet_interface(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_iface.folder or validated_iface.snippet or validated_iface.device
-            if action == "created":
-                created_count += 1
-                success(f"Created ethernet interface: {validated_iface.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated ethernet interface: {validated_iface.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for ethernet interface: {validated_iface.name} in {container}")
-        except Exception as e:
-            error(f"Error processing ethernet interface: {str(e)}")
+
+    def _apply(iface_data: dict):
+        if folder:
+            iface_data["folder"] = folder
+            iface_data.pop("snippet", None)
+            iface_data.pop("device", None)
+        elif snippet:
+            iface_data["snippet"] = snippet
+            iface_data.pop("folder", None)
+            iface_data.pop("device", None)
+        elif device:
+            iface_data["device"] = device
+            iface_data.pop("folder", None)
+            iface_data.pop("snippet", None)
+        validated_iface = EthernetInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_ethernet_interface(sdk_data)
+        return validated_iface, result
+
+    for _item, outcome, exc in run_bulk(interfaces, _apply):
+        if exc is not None:
+            error(f"Error processing ethernet interface: {str(exc)}")
             continue
+        validated_iface, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+        if action == "created":
+            created_count += 1
+            success(f"Created ethernet interface: {validated_iface.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated ethernet interface: {validated_iface.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for ethernet interface: {validated_iface.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} ethernet interfaces")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -2039,37 +2068,41 @@ def load_layer2_subinterface(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for iface_data in interfaces:
-        try:
-            if folder:
-                iface_data["folder"] = folder
-                iface_data.pop("snippet", None)
-                iface_data.pop("device", None)
-            elif snippet:
-                iface_data["snippet"] = snippet
-                iface_data.pop("folder", None)
-                iface_data.pop("device", None)
-            elif device:
-                iface_data["device"] = device
-                iface_data.pop("folder", None)
-                iface_data.pop("snippet", None)
-            validated_iface = Layer2Subinterface(**iface_data)
-            sdk_data = validated_iface.to_sdk_model()
-            result = scm_client.create_layer2_subinterface(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_iface.folder or validated_iface.snippet or validated_iface.device
-            if action == "created":
-                created_count += 1
-                success(f"Created layer2 subinterface: {validated_iface.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated layer2 subinterface: {validated_iface.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for layer2 subinterface: {validated_iface.name} in {container}")
-        except Exception as e:
-            error(f"Error processing layer2 subinterface: {str(e)}")
+
+    def _apply(iface_data: dict):
+        if folder:
+            iface_data["folder"] = folder
+            iface_data.pop("snippet", None)
+            iface_data.pop("device", None)
+        elif snippet:
+            iface_data["snippet"] = snippet
+            iface_data.pop("folder", None)
+            iface_data.pop("device", None)
+        elif device:
+            iface_data["device"] = device
+            iface_data.pop("folder", None)
+            iface_data.pop("snippet", None)
+        validated_iface = Layer2Subinterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_layer2_subinterface(sdk_data)
+        return validated_iface, result
+
+    for _item, outcome, exc in run_bulk(interfaces, _apply):
+        if exc is not None:
+            error(f"Error processing layer2 subinterface: {str(exc)}")
             continue
+        validated_iface, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+        if action == "created":
+            created_count += 1
+            success(f"Created layer2 subinterface: {validated_iface.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated layer2 subinterface: {validated_iface.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for layer2 subinterface: {validated_iface.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} layer2 subinterfaces")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -2221,37 +2254,41 @@ def load_layer3_subinterface(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for iface_data in interfaces:
-        try:
-            if folder:
-                iface_data["folder"] = folder
-                iface_data.pop("snippet", None)
-                iface_data.pop("device", None)
-            elif snippet:
-                iface_data["snippet"] = snippet
-                iface_data.pop("folder", None)
-                iface_data.pop("device", None)
-            elif device:
-                iface_data["device"] = device
-                iface_data.pop("folder", None)
-                iface_data.pop("snippet", None)
-            validated_iface = Layer3Subinterface(**iface_data)
-            sdk_data = validated_iface.to_sdk_model()
-            result = scm_client.create_layer3_subinterface(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_iface.folder or validated_iface.snippet or validated_iface.device
-            if action == "created":
-                created_count += 1
-                success(f"Created layer3 subinterface: {validated_iface.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated layer3 subinterface: {validated_iface.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for layer3 subinterface: {validated_iface.name} in {container}")
-        except Exception as e:
-            error(f"Error processing layer3 subinterface: {str(e)}")
+
+    def _apply(iface_data: dict):
+        if folder:
+            iface_data["folder"] = folder
+            iface_data.pop("snippet", None)
+            iface_data.pop("device", None)
+        elif snippet:
+            iface_data["snippet"] = snippet
+            iface_data.pop("folder", None)
+            iface_data.pop("device", None)
+        elif device:
+            iface_data["device"] = device
+            iface_data.pop("folder", None)
+            iface_data.pop("snippet", None)
+        validated_iface = Layer3Subinterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_layer3_subinterface(sdk_data)
+        return validated_iface, result
+
+    for _item, outcome, exc in run_bulk(interfaces, _apply):
+        if exc is not None:
+            error(f"Error processing layer3 subinterface: {str(exc)}")
             continue
+        validated_iface, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+        if action == "created":
+            created_count += 1
+            success(f"Created layer3 subinterface: {validated_iface.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated layer3 subinterface: {validated_iface.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for layer3 subinterface: {validated_iface.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} layer3 subinterfaces")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -2414,37 +2451,41 @@ def load_loopback_interface(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for iface_data in interfaces:
-        try:
-            if folder:
-                iface_data["folder"] = folder
-                iface_data.pop("snippet", None)
-                iface_data.pop("device", None)
-            elif snippet:
-                iface_data["snippet"] = snippet
-                iface_data.pop("folder", None)
-                iface_data.pop("device", None)
-            elif device:
-                iface_data["device"] = device
-                iface_data.pop("folder", None)
-                iface_data.pop("snippet", None)
-            validated_iface = LoopbackInterface(**iface_data)
-            sdk_data = validated_iface.to_sdk_model()
-            result = scm_client.create_loopback_interface(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_iface.folder or validated_iface.snippet or validated_iface.device
-            if action == "created":
-                created_count += 1
-                success(f"Created loopback interface: {validated_iface.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated loopback interface: {validated_iface.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for loopback interface: {validated_iface.name} in {container}")
-        except Exception as e:
-            error(f"Error processing loopback interface: {str(e)}")
+
+    def _apply(iface_data: dict):
+        if folder:
+            iface_data["folder"] = folder
+            iface_data.pop("snippet", None)
+            iface_data.pop("device", None)
+        elif snippet:
+            iface_data["snippet"] = snippet
+            iface_data.pop("folder", None)
+            iface_data.pop("device", None)
+        elif device:
+            iface_data["device"] = device
+            iface_data.pop("folder", None)
+            iface_data.pop("snippet", None)
+        validated_iface = LoopbackInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_loopback_interface(sdk_data)
+        return validated_iface, result
+
+    for _item, outcome, exc in run_bulk(interfaces, _apply):
+        if exc is not None:
+            error(f"Error processing loopback interface: {str(exc)}")
             continue
+        validated_iface, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+        if action == "created":
+            created_count += 1
+            success(f"Created loopback interface: {validated_iface.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated loopback interface: {validated_iface.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for loopback interface: {validated_iface.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} loopback interfaces")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -2604,37 +2645,41 @@ def load_tunnel_interface(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for iface_data in interfaces:
-        try:
-            if folder:
-                iface_data["folder"] = folder
-                iface_data.pop("snippet", None)
-                iface_data.pop("device", None)
-            elif snippet:
-                iface_data["snippet"] = snippet
-                iface_data.pop("folder", None)
-                iface_data.pop("device", None)
-            elif device:
-                iface_data["device"] = device
-                iface_data.pop("folder", None)
-                iface_data.pop("snippet", None)
-            validated_iface = TunnelInterface(**iface_data)
-            sdk_data = validated_iface.to_sdk_model()
-            result = scm_client.create_tunnel_interface(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_iface.folder or validated_iface.snippet or validated_iface.device
-            if action == "created":
-                created_count += 1
-                success(f"Created tunnel interface: {validated_iface.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated tunnel interface: {validated_iface.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for tunnel interface: {validated_iface.name} in {container}")
-        except Exception as e:
-            error(f"Error processing tunnel interface: {str(e)}")
+
+    def _apply(iface_data: dict):
+        if folder:
+            iface_data["folder"] = folder
+            iface_data.pop("snippet", None)
+            iface_data.pop("device", None)
+        elif snippet:
+            iface_data["snippet"] = snippet
+            iface_data.pop("folder", None)
+            iface_data.pop("device", None)
+        elif device:
+            iface_data["device"] = device
+            iface_data.pop("folder", None)
+            iface_data.pop("snippet", None)
+        validated_iface = TunnelInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_tunnel_interface(sdk_data)
+        return validated_iface, result
+
+    for _item, outcome, exc in run_bulk(interfaces, _apply):
+        if exc is not None:
+            error(f"Error processing tunnel interface: {str(exc)}")
             continue
+        validated_iface, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+        if action == "created":
+            created_count += 1
+            success(f"Created tunnel interface: {validated_iface.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated tunnel interface: {validated_iface.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for tunnel interface: {validated_iface.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} tunnel interfaces")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -2791,37 +2836,41 @@ def load_vlan_interface(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for iface_data in interfaces:
-        try:
-            if folder:
-                iface_data["folder"] = folder
-                iface_data.pop("snippet", None)
-                iface_data.pop("device", None)
-            elif snippet:
-                iface_data["snippet"] = snippet
-                iface_data.pop("folder", None)
-                iface_data.pop("device", None)
-            elif device:
-                iface_data["device"] = device
-                iface_data.pop("folder", None)
-                iface_data.pop("snippet", None)
-            validated_iface = VlanInterface(**iface_data)
-            sdk_data = validated_iface.to_sdk_model()
-            result = scm_client.create_vlan_interface(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated_iface.folder or validated_iface.snippet or validated_iface.device
-            if action == "created":
-                created_count += 1
-                success(f"Created VLAN interface: {validated_iface.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated VLAN interface: {validated_iface.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for VLAN interface: {validated_iface.name} in {container}")
-        except Exception as e:
-            error(f"Error processing VLAN interface: {str(e)}")
+
+    def _apply(iface_data: dict):
+        if folder:
+            iface_data["folder"] = folder
+            iface_data.pop("snippet", None)
+            iface_data.pop("device", None)
+        elif snippet:
+            iface_data["snippet"] = snippet
+            iface_data.pop("folder", None)
+            iface_data.pop("device", None)
+        elif device:
+            iface_data["device"] = device
+            iface_data.pop("folder", None)
+            iface_data.pop("snippet", None)
+        validated_iface = VlanInterface(**iface_data)
+        sdk_data = validated_iface.to_sdk_model()
+        result = scm_client.create_vlan_interface(sdk_data)
+        return validated_iface, result
+
+    for _item, outcome, exc in run_bulk(interfaces, _apply):
+        if exc is not None:
+            error(f"Error processing VLAN interface: {str(exc)}")
             continue
+        validated_iface, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated_iface.folder or validated_iface.snippet or validated_iface.device
+        if action == "created":
+            created_count += 1
+            success(f"Created VLAN interface: {validated_iface.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated VLAN interface: {validated_iface.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for VLAN interface: {validated_iface.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} VLAN interfaces")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -2981,37 +3030,41 @@ def load_bgp_address_family_profile(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-            validated = BgpAddressFamilyProfile(**profile_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_bgp_address_family_profile(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            if action == "created":
-                created_count += 1
-                success(f"Created BGP address family profile: {validated.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated BGP address family profile: {validated.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for BGP address family profile: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing BGP address family profile: {str(e)}")
+
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+        validated = BgpAddressFamilyProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_address_family_profile(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(profiles, _apply):
+        if exc is not None:
+            error(f"Error processing BGP address family profile: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        if action == "created":
+            created_count += 1
+            success(f"Created BGP address family profile: {validated.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated BGP address family profile: {validated.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for BGP address family profile: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} BGP address family profiles")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -3156,37 +3209,41 @@ def load_bgp_auth_profile(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-            validated = BgpAuthProfile(**profile_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_bgp_auth_profile(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            if action == "created":
-                created_count += 1
-                success(f"Created BGP auth profile: {validated.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated BGP auth profile: {validated.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for BGP auth profile: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing BGP auth profile: {str(e)}")
+
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+        validated = BgpAuthProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_auth_profile(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(profiles, _apply):
+        if exc is not None:
+            error(f"Error processing BGP auth profile: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        if action == "created":
+            created_count += 1
+            success(f"Created BGP auth profile: {validated.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated BGP auth profile: {validated.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for BGP auth profile: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} BGP auth profiles")
 
 
@@ -3319,37 +3376,41 @@ def load_ospf_auth_profile(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-            validated = OspfAuthProfile(**profile_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_ospf_auth_profile(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            if action == "created":
-                created_count += 1
-                success(f"Created OSPF auth profile: {validated.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated OSPF auth profile: {validated.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for OSPF auth profile: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing OSPF auth profile: {str(e)}")
+
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+        validated = OspfAuthProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_ospf_auth_profile(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(profiles, _apply):
+        if exc is not None:
+            error(f"Error processing OSPF auth profile: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        if action == "created":
+            created_count += 1
+            success(f"Created OSPF auth profile: {validated.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated OSPF auth profile: {validated.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for OSPF auth profile: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} OSPF auth profiles")
 
 
@@ -3491,37 +3552,41 @@ def load_route_access_list(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for item_data in items:
-        try:
-            if folder:
-                item_data["folder"] = folder
-                item_data.pop("snippet", None)
-                item_data.pop("device", None)
-            elif snippet:
-                item_data["snippet"] = snippet
-                item_data.pop("folder", None)
-                item_data.pop("device", None)
-            elif device:
-                item_data["device"] = device
-                item_data.pop("folder", None)
-                item_data.pop("snippet", None)
-            validated = RouteAccessList(**item_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_route_access_list(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            if action == "created":
-                created_count += 1
-                success(f"Created route access list: {validated.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated route access list: {validated.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for route access list: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing route access list: {str(e)}")
+
+    def _apply(item_data: dict):
+        if folder:
+            item_data["folder"] = folder
+            item_data.pop("snippet", None)
+            item_data.pop("device", None)
+        elif snippet:
+            item_data["snippet"] = snippet
+            item_data.pop("folder", None)
+            item_data.pop("device", None)
+        elif device:
+            item_data["device"] = device
+            item_data.pop("folder", None)
+            item_data.pop("snippet", None)
+        validated = RouteAccessList(**item_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_route_access_list(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(items, _apply):
+        if exc is not None:
+            error(f"Error processing route access list: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        if action == "created":
+            created_count += 1
+            success(f"Created route access list: {validated.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated route access list: {validated.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for route access list: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} route access lists")
 
 
@@ -3663,37 +3728,41 @@ def load_route_prefix_list(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for item_data in items:
-        try:
-            if folder:
-                item_data["folder"] = folder
-                item_data.pop("snippet", None)
-                item_data.pop("device", None)
-            elif snippet:
-                item_data["snippet"] = snippet
-                item_data.pop("folder", None)
-                item_data.pop("device", None)
-            elif device:
-                item_data["device"] = device
-                item_data.pop("folder", None)
-                item_data.pop("snippet", None)
-            validated = RoutePrefixList(**item_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_route_prefix_list(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            if action == "created":
-                created_count += 1
-                success(f"Created route prefix list: {validated.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated route prefix list: {validated.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for route prefix list: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing route prefix list: {str(e)}")
+
+    def _apply(item_data: dict):
+        if folder:
+            item_data["folder"] = folder
+            item_data.pop("snippet", None)
+            item_data.pop("device", None)
+        elif snippet:
+            item_data["snippet"] = snippet
+            item_data.pop("folder", None)
+            item_data.pop("device", None)
+        elif device:
+            item_data["device"] = device
+            item_data.pop("folder", None)
+            item_data.pop("snippet", None)
+        validated = RoutePrefixList(**item_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_route_prefix_list(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(items, _apply):
+        if exc is not None:
+            error(f"Error processing route prefix list: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        if action == "created":
+            created_count += 1
+            success(f"Created route prefix list: {validated.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated route prefix list: {validated.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for route prefix list: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} route prefix lists")
 
 
@@ -3833,30 +3902,34 @@ def load_bgp_filtering_profile(
             info(f"  Would process: {p.get('name', 'N/A')}")
         return
     created_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-            validated = BgpFilteringProfile(**profile_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_bgp_filtering_profile(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            created_count += 1
-            success(f"{action.capitalize()} BGP filtering profile: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing BGP filtering profile: {str(e)}")
+
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+        validated = BgpFilteringProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_filtering_profile(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(profiles, _apply):
+        if exc is not None:
+            error(f"Error processing BGP filtering profile: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        created_count += 1
+        success(f"{action.capitalize()} BGP filtering profile: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count} BGP filtering profiles")
 
 
@@ -3993,30 +4066,34 @@ def load_bgp_redistribution_profile(
             info(f"  Would process: {p.get('name', 'N/A')}")
         return
     created_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-            validated = BgpRedistributionProfile(**profile_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_bgp_redistribution_profile(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            created_count += 1
-            success(f"{action.capitalize()} BGP redistribution profile: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing BGP redistribution profile: {str(e)}")
+
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+        validated = BgpRedistributionProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_redistribution_profile(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(profiles, _apply):
+        if exc is not None:
+            error(f"Error processing BGP redistribution profile: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        created_count += 1
+        success(f"{action.capitalize()} BGP redistribution profile: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count} BGP redistribution profiles")
 
 
@@ -4153,30 +4230,34 @@ def load_bgp_route_map(
             info(f"  Would process: {item.get('name', 'N/A')}")
         return
     created_count = 0
-    for item_data in items:
-        try:
-            if folder:
-                item_data["folder"] = folder
-                item_data.pop("snippet", None)
-                item_data.pop("device", None)
-            elif snippet:
-                item_data["snippet"] = snippet
-                item_data.pop("folder", None)
-                item_data.pop("device", None)
-            elif device:
-                item_data["device"] = device
-                item_data.pop("folder", None)
-                item_data.pop("snippet", None)
-            validated = BgpRouteMap(**item_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_bgp_route_map(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            created_count += 1
-            success(f"{action.capitalize()} BGP route map: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing BGP route map: {str(e)}")
+
+    def _apply(item_data: dict):
+        if folder:
+            item_data["folder"] = folder
+            item_data.pop("snippet", None)
+            item_data.pop("device", None)
+        elif snippet:
+            item_data["snippet"] = snippet
+            item_data.pop("folder", None)
+            item_data.pop("device", None)
+        elif device:
+            item_data["device"] = device
+            item_data.pop("folder", None)
+            item_data.pop("snippet", None)
+        validated = BgpRouteMap(**item_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_route_map(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(items, _apply):
+        if exc is not None:
+            error(f"Error processing BGP route map: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        created_count += 1
+        success(f"{action.capitalize()} BGP route map: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count} BGP route maps")
 
 
@@ -4313,30 +4394,34 @@ def load_bgp_route_map_redistribution(
             info(f"  Would process: {item.get('name', 'N/A')}")
         return
     created_count = 0
-    for item_data in items:
-        try:
-            if folder:
-                item_data["folder"] = folder
-                item_data.pop("snippet", None)
-                item_data.pop("device", None)
-            elif snippet:
-                item_data["snippet"] = snippet
-                item_data.pop("folder", None)
-                item_data.pop("device", None)
-            elif device:
-                item_data["device"] = device
-                item_data.pop("folder", None)
-                item_data.pop("snippet", None)
-            validated = BgpRouteMapRedistribution(**item_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_bgp_route_map_redistribution(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            created_count += 1
-            success(f"{action.capitalize()} BGP route map redistribution: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing BGP route map redistribution: {str(e)}")
+
+    def _apply(item_data: dict):
+        if folder:
+            item_data["folder"] = folder
+            item_data.pop("snippet", None)
+            item_data.pop("device", None)
+        elif snippet:
+            item_data["snippet"] = snippet
+            item_data.pop("folder", None)
+            item_data.pop("device", None)
+        elif device:
+            item_data["device"] = device
+            item_data.pop("folder", None)
+            item_data.pop("snippet", None)
+        validated = BgpRouteMapRedistribution(**item_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_bgp_route_map_redistribution(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(items, _apply):
+        if exc is not None:
+            error(f"Error processing BGP route map redistribution: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        created_count += 1
+        success(f"{action.capitalize()} BGP route map redistribution: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count} BGP route map redistributions")
 
 
@@ -4481,37 +4566,41 @@ def load_dns_proxy(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for proxy_data in proxies:
-        try:
-            if folder:
-                proxy_data["folder"] = folder
-                proxy_data.pop("snippet", None)
-                proxy_data.pop("device", None)
-            elif snippet:
-                proxy_data["snippet"] = snippet
-                proxy_data.pop("folder", None)
-                proxy_data.pop("device", None)
-            elif device:
-                proxy_data["device"] = device
-                proxy_data.pop("folder", None)
-                proxy_data.pop("snippet", None)
-            validated = DnsProxy(**proxy_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_dns_proxy(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            if action == "created":
-                created_count += 1
-                success(f"Created DNS proxy: {validated.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated DNS proxy: {validated.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for DNS proxy: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing DNS proxy: {str(e)}")
+
+    def _apply(proxy_data: dict):
+        if folder:
+            proxy_data["folder"] = folder
+            proxy_data.pop("snippet", None)
+            proxy_data.pop("device", None)
+        elif snippet:
+            proxy_data["snippet"] = snippet
+            proxy_data.pop("folder", None)
+            proxy_data.pop("device", None)
+        elif device:
+            proxy_data["device"] = device
+            proxy_data.pop("folder", None)
+            proxy_data.pop("snippet", None)
+        validated = DnsProxy(**proxy_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_dns_proxy(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(proxies, _apply):
+        if exc is not None:
+            error(f"Error processing DNS proxy: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        if action == "created":
+            created_count += 1
+            success(f"Created DNS proxy: {validated.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated DNS proxy: {validated.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for DNS proxy: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} DNS proxies")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -4662,6 +4751,7 @@ def load_pbf_rule(
     created_count = 0
     updated_count = 0
     no_change_count = 0
+    # sequential: rule order matters
     for rule_data in rules:
         try:
             if folder:
@@ -4845,37 +4935,41 @@ def load_qos_profile(
     created_count = 0
     updated_count = 0
     no_change_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-            validated = QosProfile(**profile_data)
-            sdk_data = validated.to_sdk_model()
-            result = scm_client.create_qos_profile(sdk_data)
-            action = result.pop("__action__", "created")
-            container = validated.folder or validated.snippet or validated.device
-            if action == "created":
-                created_count += 1
-                success(f"Created QoS profile: {validated.name} in {container}")
-            elif action == "updated":
-                updated_count += 1
-                success(f"Updated QoS profile: {validated.name} in {container}")
-            else:
-                no_change_count += 1
-                info(f"No changes needed for QoS profile: {validated.name} in {container}")
-        except Exception as e:
-            error(f"Error processing QoS profile: {str(e)}")
+
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+        validated = QosProfile(**profile_data)
+        sdk_data = validated.to_sdk_model()
+        result = scm_client.create_qos_profile(sdk_data)
+        return validated, result
+
+    for _item, outcome, exc in run_bulk(profiles, _apply):
+        if exc is not None:
+            error(f"Error processing QoS profile: {str(exc)}")
             continue
+        validated, result = outcome
+        action = result.pop("__action__", "created")
+        container = validated.folder or validated.snippet or validated.device
+        if action == "created":
+            created_count += 1
+            success(f"Created QoS profile: {validated.name} in {container}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated QoS profile: {validated.name} in {container}")
+        else:
+            no_change_count += 1
+            info(f"No changes needed for QoS profile: {validated.name} in {container}")
     info(f"\nSummary: Processed {created_count + updated_count + no_change_count} QoS profiles")
     if created_count > 0:
         info(f"  - Created: {created_count}")
@@ -5025,6 +5119,7 @@ def load_qos_rule(
     created_count = 0
     updated_count = 0
     no_change_count = 0
+    # sequential: rule order matters
     for rule_data in rules:
         try:
             if folder:

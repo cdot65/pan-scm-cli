@@ -585,6 +585,54 @@ wildfire_antivirus_profiles:
         assert "Dry run mode" in result.stdout
         mock_client.create_wildfire_antivirus_profile.assert_not_called()
 
+    def test_load_wildfire_antivirus_profile_runs_concurrently(self, runner, monkeypatch, tmp_path):
+        """Bulk load issues create calls concurrently via run_bulk."""
+        import threading
+        import time
+
+        mock_client = self._mock_scm_client(monkeypatch)
+        active = {"now": 0, "max": 0}
+        lock = threading.Lock()
+        created = []
+
+        def mock_create(*args, **kwargs):
+            with lock:
+                active["now"] += 1
+                active["max"] = max(active["max"], active["now"])
+            time.sleep(0.05)
+            with lock:
+                active["now"] -= 1
+                created.append(kwargs.get("name"))
+            return {"id": f"wfav-{kwargs.get('name')}", "name": kwargs.get("name"), "folder": kwargs.get("folder")}
+
+        mock_client.create_wildfire_antivirus_profile.side_effect = mock_create
+
+        entries = "\n".join(
+            f"""  - name: wf-{i}
+    folder: Texas
+    rules:
+      - name: Forward All
+        direction: both
+        analysis: public-cloud
+        application:
+          - any
+        file_type:
+          - any"""
+            for i in range(4)
+        )
+        test_file = tmp_path / "wf_profiles.yml"
+        test_file.write_text("wildfire_antivirus_profiles:\n" + entries + "\n")
+
+        test_app = typer.Typer()
+        test_app.command()(load_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0
+        assert active["max"] > 1, "create calls never overlapped — load looks sequential"
+        assert sorted(created) == [f"wf-{i}" for i in range(4)]
+        assert "Successfully processed 4 WildFire antivirus profile(s)" in result.stdout
+
     def test_set_wildfire_antivirus_profile_updated(self, runner, monkeypatch):
         mock_client = self._mock_scm_client(monkeypatch)
         mock_client.create_wildfire_antivirus_profile.return_value = {

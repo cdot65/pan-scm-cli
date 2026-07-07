@@ -3111,3 +3111,46 @@ class TestShowJsonOutput:
         result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "missing"])
         assert result.exit_code == 1
         assert "not found" in result.output
+
+
+class TestNetworkLoadConcurrency:
+    """Load commands issue their per-item API calls concurrently via run_bulk."""
+
+    def test_load_ethernet_interface_runs_concurrently(self, runner, monkeypatch, tmp_path):
+        """Loading >=4 ethernet interfaces overlaps create calls in the thread pool."""
+        import threading
+        import time
+
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {"ethernet_interfaces": [{"name": f"$eth{i}", "folder": "test-folder", "layer3": {"mtu": 1500}} for i in range(1, 5)]}
+        yaml_file = tmp_path / "ethernet-interfaces.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        active = {"now": 0, "max": 0}
+        created = []
+        lock = threading.Lock()
+
+        def mock_create(sdk_data):
+            with lock:
+                active["now"] += 1
+                active["max"] = max(active["max"], active["now"])
+            time.sleep(0.05)
+            with lock:
+                active["now"] -= 1
+                created.append(sdk_data["name"])
+            return {**sdk_data, "id": "eth-12345", "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_ethernet_interface", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(load_ethernet_interface)
+        result = runner.invoke(test_app, ["--file", str(yaml_file)])
+
+        assert result.exit_code == 0
+        assert active["max"] > 1, "create calls never overlapped — load looks sequential"
+        assert sorted(created) == ["$eth1", "$eth2", "$eth3", "$eth4"]
+        assert result.stdout.count("Created ethernet interface") == 4
+        assert "Summary: Processed 4 ethernet interfaces" in result.stdout

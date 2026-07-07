@@ -11,6 +11,7 @@ import typer
 import yaml
 from pydantic import ValidationError
 
+from ..utils.bulk import run_bulk
 from ..utils.config import load_from_yaml
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
@@ -275,6 +276,7 @@ def load_folder(
         typer.echo(yaml.dump(config["folders"]))
         return None
 
+    # sequential: folder hierarchy — a child folder may reference a parent defined earlier in the same file
     results = []
     for folder_data in config["folders"]:
         try:
@@ -436,15 +438,19 @@ def load_label(
         typer.echo(yaml.dump(config["labels"]))
         return None
 
+    def _apply(label_data: dict):
+        label_model = Label(**label_data)
+        return label_model, scm_client.create_label(**label_model.to_sdk_model())
+
+    # Apply each label concurrently, reporting outcomes in input order
     results = []
-    for label_data in config["labels"]:
-        try:
-            label_model = Label(**label_data)
-        except ValidationError as e:
-            error(f"Validation error: {e}")
-            raise typer.Exit(code=1) from e
-        sdk_data = label_model.to_sdk_model()
-        result = scm_client.create_label(**sdk_data)
+    for _label_data, outcome, exc in run_bulk(config["labels"], _apply):
+        if isinstance(exc, ValidationError):
+            error(f"Validation error: {exc}")
+            raise typer.Exit(code=1) from exc
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential loop
+        label_model, result = outcome
         results.append(result)
 
         action = result.get("__action__", "created")
@@ -601,15 +607,19 @@ def load_snippet(
         typer.echo(yaml.dump(config["snippets"]))
         return None
 
+    def _apply(snippet_data: dict):
+        snippet_model = Snippet(**snippet_data)
+        return snippet_model, scm_client.create_snippet(**snippet_model.to_sdk_model())
+
+    # Apply each snippet concurrently, reporting outcomes in input order
     results = []
-    for snippet_data in config["snippets"]:
-        try:
-            snippet_model = Snippet(**snippet_data)
-        except ValidationError as e:
-            error(f"Validation error: {e}")
-            raise typer.Exit(code=1) from e
-        sdk_data = snippet_model.to_sdk_model()
-        result = scm_client.create_snippet(**sdk_data)
+    for _snippet_data, outcome, exc in run_bulk(config["snippets"], _apply):
+        if isinstance(exc, ValidationError):
+            error(f"Validation error: {exc}")
+            raise typer.Exit(code=1) from exc
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential loop
+        snippet_model, result = outcome
         results.append(result)
 
         action = result.get("__action__", "created")
@@ -783,15 +793,19 @@ def load_variable(
         typer.echo(yaml.dump(config["variables"]))
         return None
 
+    def _apply(var_data: dict):
+        variable_model = Variable(**var_data)
+        return variable_model, scm_client.create_variable(**variable_model.to_sdk_model())
+
+    # Apply each variable concurrently, reporting outcomes in input order
     results = []
-    for var_data in config["variables"]:
-        try:
-            variable_model = Variable(**var_data)
-        except ValidationError as e:
-            error(f"Validation error: {e}")
-            raise typer.Exit(code=1) from e
-        sdk_data = variable_model.to_sdk_model()
-        result = scm_client.create_variable(**sdk_data)
+    for _var_data, outcome, exc in run_bulk(config["variables"], _apply):
+        if isinstance(exc, ValidationError):
+            error(f"Validation error: {exc}")
+            raise typer.Exit(code=1) from exc
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential loop
+        variable_model, result = outcome
         results.append(result)
 
         action = result.get("__action__", "created")
@@ -955,14 +969,19 @@ def load_device(
         typer.echo(yaml.dump(config["devices"]))
         return None
 
+    def _apply(device_data: dict):
+        device_model = Device(**device_data)
+        return device_model, scm_client.update_device(**device_model.to_sdk_model())
+
+    # Apply each device concurrently, reporting outcomes in input order
     results = []
-    for device_data in config["devices"]:
-        try:
-            device_model = Device(**device_data)
-        except ValidationError as e:
-            error(f"Validation error: {e}")
-            raise typer.Exit(code=1) from e
-        result = scm_client.update_device(**device_model.to_sdk_model())
+    for _device_data, outcome, exc in run_bulk(config["devices"], _apply):
+        if isinstance(exc, ValidationError):
+            error(f"Validation error: {exc}")
+            raise typer.Exit(code=1) from exc
+        if exc is not None:
+            raise exc  # abort on first error, matching the previous sequential loop
+        device_model, result = outcome
         results.append(result)
 
         action = result.get("__action__", "updated")
