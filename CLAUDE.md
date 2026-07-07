@@ -196,7 +196,7 @@ scm context current
 
 **Environment variable overrides:** `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID` (useful for CI/CD).
 
-**Mock mode:** Append `--mock` to most commands to test without API credentials.
+**Mock mode:** Set `SCM_MOCK=1` (or use `--mock` where available) to test without API credentials. Missing credentials without explicit mock mode fail with exit code 1 — there is no silent fallback.
 
 **Note:** Legacy config files (`~/.scm-cli/config.yaml`, `.secrets.yaml`) are no longer supported — use contexts.
 
@@ -810,7 +810,7 @@ Env vars: `PANOS_HOST`, `PANOS_USER`, `PANOS_PASSWORD`.
 8. **HTTP server profiles require `http_method`.**
 9. **Log forwarding profile match lists require `filter`** despite SDK docs.
 10. **`--force` skips confirmation prompts** — use on `delete`/`commit` when non-interactive.
-11. **`--mock`** is available on most commands for testing without credentials.
+11. **Mock mode is explicit:** set `SCM_MOCK=1` (or `--mock` where available) to test without credentials; missing credentials otherwise exit 1.
 12. **Security rule ordering matters** — use `scm move security rule` to reorder.
 13. **Rulebase options:** `pre` (before default), `post` (after), `default` (the default rulebase).
 14. **Color names are case-sensitive in the API** but case-insensitive in the CLI validator.

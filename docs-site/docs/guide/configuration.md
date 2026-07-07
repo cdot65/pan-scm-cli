@@ -68,13 +68,29 @@ $ scm context create fedramp \
 SCM_API_BASE_URL="https://api.example.paloaltonetworks.com" scm context test
 ```
 
-### Authentication Fallback
+### Missing Credentials
 
-If no credentials are configured, the CLI automatically enters mock mode:
+If no credentials are configured, commands fail with a clear error (exit code 1)
+and remediation steps — the CLI never silently falls back to mock data:
 
 ```bash
 $ scm show object address --folder Shared
-⚠️  No API credentials found. Using mock mode.
+
+❌ Authentication not configured: Missing required authentication parameters: client_id, client_secret, tsg_id
+
+To fix this issue:
+  1. Create a context: scm context create <name> --client-id <id> --client-secret <secret> --tsg-id <tsg>
+  2. Switch context: scm context use <name>
+  3. Or use environment variables: SCM_CLIENT_ID, SCM_CLIENT_SECRET, SCM_TSG_ID
+```
+
+### Mock Mode
+
+To test commands without credentials or API calls, opt in explicitly with the
+`SCM_MOCK` environment variable (or the `--mock` flag where available):
+
+```bash
+$ SCM_MOCK=1 scm show object address --folder Shared
 ```
 
 ## Examples
