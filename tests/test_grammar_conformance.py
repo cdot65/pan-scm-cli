@@ -114,6 +114,10 @@ class TestContainerFlags:
         for module_name, cmd_name, cmd in _iter_commands(app_attr):
             if (module_name, cmd_name) in NO_CONTAINER:
                 continue
+            if module_name == "mobile_agent":
+                # SDK mobile-agent services are folder-scoped ("Mobile Users");
+                # snippet/device are not supported upstream.
+                continue
             names = _param_names(cmd)
             missing = {"--folder", "--snippet", "--device"} - names
             if missing:
