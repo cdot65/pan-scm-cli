@@ -33,30 +33,34 @@ Create or update a HIP profile object.
 ### Syntax
 
 ```bash
-scm set object hip-profile [OPTIONS]
+scm set object hip-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HIP profile (max 31 characters) | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the HIP profile object | No\* |
-| `--snippet TEXT` | Snippet for the HIP profile object | No\* |
-| `--device TEXT` | Device for the HIP profile object | No\* |
-| `--name TEXT` | Name of the HIP profile (max 31 characters) | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--match TEXT` | Match criteria in JSON format (max 2048 characters) | Yes |
 | `--description TEXT` | Description (max 255 characters) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create Basic HIP Profile
 
 ```bash
-$ scm set object hip-profile \
+$ scm set object hip-profile basic-compliance \
     --folder Texas \
-    --name basic-compliance \
     --match '{"windows-patches": {"is": true}}' \
     --description "Basic Windows patch compliance"
 ---> 100%
@@ -66,9 +70,8 @@ Created HIP profile: basic-compliance in folder Texas
 #### Create Multi-Object Compliance Profile
 
 ```bash
-$ scm set object hip-profile \
+$ scm set object hip-profile secure-endpoints \
     --folder Texas \
-    --name secure-endpoints \
     --match '{"windows-patches": {"is": true}, "disk-encryption": {"is": true}, "antivirus": {"is": true}}' \
     --description "Comprehensive endpoint security"
 ---> 100%
@@ -82,25 +85,30 @@ Delete a HIP profile object from SCM.
 ### Syntax
 
 ```bash
-scm delete object hip-profile [OPTIONS]
+scm delete object hip-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HIP profile object to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the HIP profile object | No\* |
-| `--snippet TEXT` | Snippet containing the HIP profile object | No\* |
-| `--device TEXT` | Device containing the HIP profile object | No\* |
-| `--name TEXT` | Name of the HIP profile object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object hip-profile --folder Texas --name secure-endpoints --force
+$ scm delete object hip-profile secure-endpoints --folder Texas --force
 ---> 100%
 Deleted HIP profile: secure-endpoints from folder Texas
 ```
@@ -192,30 +200,37 @@ Display HIP profile objects.
 ### Syntax
 
 ```bash
-scm show object hip-profile [OPTIONS]
+scm show object hip-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HIP profile object to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the HIP profile object | No\* |
-| `--snippet TEXT` | Snippet containing the HIP profile object | No\* |
-| `--device TEXT` | Device containing the HIP profile object | No\* |
-| `--name TEXT` | Name of the HIP profile object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific HIP Profile
 
 ```bash
-$ scm show object hip-profile --folder Texas --name secure-endpoints
+$ scm show object hip-profile secure-endpoints --folder Texas
 ---> 100%
 HIP Profile: secure-endpoints
   Location: Folder 'Texas'

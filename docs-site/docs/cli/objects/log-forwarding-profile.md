@@ -34,31 +34,35 @@ Create or update a log forwarding profile object.
 ### Syntax
 
 ```bash
-scm set object log-forwarding-profile [OPTIONS]
+scm set object log-forwarding-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the log forwarding profile | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the log forwarding profile object | No\* |
-| `--snippet TEXT` | Snippet for the log forwarding profile object | No\* |
-| `--device TEXT` | Device for the log forwarding profile object | No\* |
-| `--name TEXT` | Name of the log forwarding profile | Yes |
-| `--match-list JSON` | JSON array of match list configurations | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--match-list TEXT` | JSON array of match list configurations | No |
 | `--description TEXT` | Description of the profile | No |
 | `--enhanced-application-logging` | Enable enhanced application logging | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create Basic Traffic Log Forwarding
 
 ```bash
-$ scm set object log-forwarding-profile \
+$ scm set object log-forwarding-profile traffic-logs \
     --folder Texas \
-    --name traffic-logs \
     --match-list '[{"name": "all-traffic", "log_type": "traffic", "filter": "All Logs", "syslog_profiles": ["central-syslog"]}]' \
     --description "Forward all traffic logs"
 ---> 100%
@@ -68,9 +72,8 @@ Created log forwarding profile: traffic-logs in folder Texas
 #### Create Threat Log Forwarding with HTTP
 
 ```bash
-$ scm set object log-forwarding-profile \
+$ scm set object log-forwarding-profile threat-logs \
     --folder Texas \
-    --name threat-logs \
     --match-list '[{"name": "threats", "log_type": "threat", "filter": "All Logs", "http_profiles": ["splunk-hec"], "syslog_profiles": ["security-syslog"]}]' \
     --enhanced-application-logging \
     --description "Forward threat logs to SIEM"
@@ -81,9 +84,8 @@ Created log forwarding profile: threat-logs in folder Texas
 #### Create Multi-Destination Forwarding
 
 ```bash
-$ scm set object log-forwarding-profile \
+$ scm set object log-forwarding-profile comprehensive-logging \
     --folder Texas \
-    --name comprehensive-logging \
     --match-list '[{"name": "traffic", "log_type": "traffic", "filter": "All Logs", "syslog_profiles": ["central-syslog"]}, {"name": "threats", "log_type": "threat", "filter": "All Logs", "http_profiles": ["splunk-hec"]}, {"name": "urls", "log_type": "url", "filter": "All Logs", "http_profiles": ["splunk-hec"]}]' \
     --description "Comprehensive log forwarding"
 ---> 100%
@@ -97,25 +99,30 @@ Delete a log forwarding profile object from SCM.
 ### Syntax
 
 ```bash
-scm delete object log-forwarding-profile [OPTIONS]
+scm delete object log-forwarding-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the log forwarding profile to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the log forwarding profile object | No\* |
-| `--snippet TEXT` | Snippet containing the log forwarding profile object | No\* |
-| `--device TEXT` | Device containing the log forwarding profile object | No\* |
-| `--name TEXT` | Name of the log forwarding profile object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object log-forwarding-profile --folder Texas --name traffic-logs --force
+$ scm delete object log-forwarding-profile traffic-logs --folder Texas --force
 ---> 100%
 Deleted log forwarding profile: traffic-logs from folder Texas
 ```
@@ -228,30 +235,37 @@ Display log forwarding profile objects.
 ### Syntax
 
 ```bash
-scm show object log-forwarding-profile [OPTIONS]
+scm show object log-forwarding-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the log forwarding profile to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the log forwarding profile object | No\* |
-| `--snippet TEXT` | Snippet containing the log forwarding profile object | No\* |
-| `--device TEXT` | Device containing the log forwarding profile object | No\* |
-| `--name TEXT` | Name of the log forwarding profile object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Log Forwarding Profile
 
 ```bash
-$ scm show object log-forwarding-profile --folder Texas --name threat-logs
+$ scm show object log-forwarding-profile threat-logs --folder Texas
 ---> 100%
 Log Forwarding Profile: threat-logs
   Location: Folder 'Texas'

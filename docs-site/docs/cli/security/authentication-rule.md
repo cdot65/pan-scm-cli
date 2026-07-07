@@ -20,8 +20,14 @@ Create or update an authentication rule.
 ### Syntax
 
 ```bash
-scm set security authentication-rule [OPTIONS]
+scm set security authentication-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name | Yes |
 
 ### Options
 
@@ -30,7 +36,6 @@ scm set security authentication-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name | Yes |
 | `--rulebase TEXT` | Rulebase (pre, post, default) | No |
 | `--description TEXT` | Description | No |
 | `--source-zones TEXT` | Source zones | No |
@@ -48,9 +53,8 @@ scm set security authentication-rule [OPTIONS]
 #### Create Basic Authentication Rule
 
 ```bash
-$ scm set security authentication-rule \
+$ scm set security authentication-rule auth-web \
     --folder Texas \
-    --name auth-web \
     --source-zones trust \
     --destination-zones untrust \
     --authentication-enforcement my-auth-profile
@@ -61,9 +65,8 @@ Created authentication rule: auth-web in folder Texas
 #### Create Rule with Service and Category
 
 ```bash
-$ scm set security authentication-rule \
+$ scm set security authentication-rule auth-sensitive \
     --folder Texas \
-    --name auth-sensitive \
     --source-zones trust \
     --destination-zones dmz \
     --service "service-https" \
@@ -81,33 +84,38 @@ Change the position of an authentication rule. Rules are processed in order from
 ### Syntax
 
 ```bash
-scm set security authentication-rule --move [OPTIONS]
+scm move security authentication-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the rule to move | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the rules | No\* |
-| `--snippet TEXT` | Snippet containing the rules | No\* |
-| `--device TEXT` | Device containing the rules | No\* |
-| `--name TEXT` | Name of the rule to move | Yes |
-| `--location TEXT` | Where to move the rule (top, bottom, before, after) | Yes |
-| `--reference TEXT` | Reference rule name (required with before/after) | No\*\* |
+| `--folder TEXT` | Folder containing the rule | No\* |
+| `--snippet TEXT` | Snippet containing the rule | No\* |
+| `--device TEXT` | Device containing the rule | No\* |
+| `--destination TEXT` | Where to move (top, bottom, before, after) | Yes |
+| `--destination-rule TEXT` | UUID of the reference rule (required with before/after) | No\*\* |
+| `--rulebase TEXT` | Rulebase (pre or post; default: pre) | No |
 
 \* One of --folder, --snippet, or --device is required.
 
-\*\* Required when `--location` is `before` or `after`.
+\*\* Required when `--destination` is `before` or `after`.
 
 ### Examples
 
 #### Move Rule to Top
 
 ```bash
-$ scm set security authentication-rule --move \
+$ scm move security authentication-rule auth-sensitive \
     --folder Texas \
-    --name auth-sensitive \
-    --location top
+    --destination top
 ---> 100%
 Moved authentication rule: auth-sensitive to top in folder Texas
 ```
@@ -115,13 +123,12 @@ Moved authentication rule: auth-sensitive to top in folder Texas
 #### Move Rule Before Another Rule
 
 ```bash
-$ scm set security authentication-rule --move \
+$ scm move security authentication-rule auth-web \
     --folder Texas \
-    --name auth-web \
-    --location before \
-    --reference auth-sensitive
+    --destination before \
+    --destination-rule 123e4567-e89b-12d3-a456-426614174000
 ---> 100%
-Moved authentication rule: auth-web before auth-sensitive in folder Texas
+Moved authentication rule: auth-web before rule 123e4567-e89b-12d3-a456-426614174000 in folder Texas
 ```
 
 ## Delete Authentication Rule
@@ -131,8 +138,14 @@ Delete an authentication rule from SCM.
 ### Syntax
 
 ```bash
-scm delete security authentication-rule [OPTIONS]
+scm delete security authentication-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name to delete | Yes |
 
 ### Options
 
@@ -141,7 +154,7 @@ scm delete security authentication-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name to delete | Yes |
+| `--rulebase TEXT` | Rulebase to use (pre, post, or default; default: pre) | No |
 | `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
@@ -149,9 +162,8 @@ scm delete security authentication-rule [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete security authentication-rule \
+$ scm delete security authentication-rule auth-web \
     --folder Texas \
-    --name auth-web \
     --force
 ---> 100%
 Deleted authentication rule: auth-web from folder Texas
@@ -245,8 +257,14 @@ Display authentication rule objects.
 ### Syntax
 
 ```bash
-scm show security authentication-rule [OPTIONS]
+scm show security authentication-rule [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name to display; omit to list all | No |
 
 ### Options
 
@@ -255,12 +273,14 @@ scm show security authentication-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name to display | No |
+| `--rulebase TEXT` | Rulebase to use (pre, post, or default; default: pre) | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -268,9 +288,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Rule
 
 ```bash
-$ scm show security authentication-rule \
-    --folder Texas \
-    --name auth-web
+$ scm show security authentication-rule auth-web \
+    --folder Texas
 ---> 100%
 Authentication Rule: auth-web
   Location: Folder 'Texas'

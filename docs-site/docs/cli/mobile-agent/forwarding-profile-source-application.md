@@ -23,24 +23,28 @@ Create or update a forwarding profile source application.
 ### Syntax
 
 ```bash
-scm set mobile-agent forwarding-profile-source-application [OPTIONS]
+scm set mobile-agent forwarding-profile-source-application NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the source application | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the source application | Yes |
 | `--application TEXT` | Application name (repeatable) | Yes |
 | `--description TEXT` | Description | No |
 
 ### Examples
 
 ```bash
-$ scm set mobile-agent forwarding-profile-source-application \
+$ scm set mobile-agent forwarding-profile-source-application "office-apps" \
     --folder "Mobile Users" \
-    --name "office-apps" \
     --application slack \
     --application zoom \
     --description "Collaboration applications"
@@ -54,15 +58,22 @@ Display forwarding profile source applications.
 ### Syntax
 
 ```bash
-scm show mobile-agent forwarding-profile-source-application [OPTIONS]
+scm show mobile-agent forwarding-profile-source-application [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the source application to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the source application to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 ### Examples
 
@@ -71,7 +82,7 @@ scm show mobile-agent forwarding-profile-source-application [OPTIONS]
 $ scm show mobile-agent forwarding-profile-source-application --folder "Mobile Users"
 
 # Show a specific source application by name
-$ scm show mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps"
+$ scm show mobile-agent forwarding-profile-source-application "office-apps" --folder "Mobile Users"
 ```
 
 ## Delete Forwarding Profile Source Application
@@ -81,21 +92,26 @@ Remove a forwarding profile source application.
 ### Syntax
 
 ```bash
-scm delete mobile-agent forwarding-profile-source-application [OPTIONS]
+scm delete mobile-agent forwarding-profile-source-application NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the source application | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the source application | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Examples
 
 ```bash
-$ scm delete mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps" --force
+$ scm delete mobile-agent forwarding-profile-source-application "office-apps" --folder "Mobile Users" --force
 Deleted forwarding profile source application: office-apps from folder Mobile Users
 ```
 

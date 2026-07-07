@@ -103,7 +103,6 @@ class TestSecurityRuleCommands:
             [
                 "--folder",
                 "test-folder",
-                "--name",
                 "test-rule",
                 "--source-zones",
                 "trust",
@@ -154,7 +153,6 @@ class TestSecurityRuleCommands:
             [
                 "--folder",
                 "test-folder",
-                "--name",
                 "test-rule",
                 "--source-zones",
                 "trust",
@@ -189,7 +187,6 @@ class TestSecurityRuleCommands:
             [
                 "--folder",
                 "test-folder",
-                "--name",
                 "test-rule",
                 "--force",
             ],
@@ -220,7 +217,6 @@ class TestSecurityRuleCommands:
             [
                 "--folder",
                 "test-folder",
-                "--name",
                 "test-rule",
                 "--force",
             ],
@@ -311,7 +307,7 @@ class TestSecurityRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "test-folder", "--name", "test-rule", "--source-zones", "trust", "--destination-zones", "untrust", "--action", "allow"],
+            ["--folder", "test-folder", "test-rule", "--source-zones", "trust", "--destination-zones", "untrust", "--action", "allow"],
         )
 
         assert result.exit_code == 0
@@ -335,7 +331,7 @@ class TestSecurityRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "test-folder", "--name", "test-rule", "--source-zones", "trust", "--destination-zones", "untrust", "--action", "allow"],
+            ["--folder", "test-folder", "test-rule", "--source-zones", "trust", "--destination-zones", "untrust", "--action", "allow"],
         )
 
         assert result.exit_code == 0
@@ -373,7 +369,6 @@ class TestWildfireAntivirusProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "wf-test",
                 "--description",
                 "Test WildFire profile",
@@ -403,7 +398,6 @@ class TestWildfireAntivirusProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "wf-custom",
                 "--rules",
                 rules,
@@ -426,7 +420,6 @@ class TestWildfireAntivirusProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "wf-test",
             ],
         )
@@ -447,7 +440,6 @@ class TestWildfireAntivirusProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "wf-test",
                 "--force",
             ],
@@ -508,7 +500,7 @@ class TestWildfireAntivirusProfileCommands:
         test_app = typer.Typer()
         test_app.command()(show_wildfire_antivirus_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "WF Test"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "WF Test"])
 
         assert result.exit_code == 0
         assert "WF Test" in result.stdout
@@ -647,7 +639,7 @@ wildfire_antivirus_profiles:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "wf-test", "--description", "Test"],
+            ["--folder", "Texas", "wf-test", "--description", "Test"],
         )
 
         assert result.exit_code == 0
@@ -667,7 +659,7 @@ wildfire_antivirus_profiles:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "wf-test", "--description", "Test"],
+            ["--folder", "Texas", "wf-test", "--description", "Test"],
         )
 
         assert result.exit_code == 0
@@ -706,7 +698,6 @@ class TestDNSSecurityProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "dns-sec-test",
                 "--description",
                 "Test DNS security profile",
@@ -732,7 +723,6 @@ class TestDNSSecurityProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "dns-sec-test",
             ],
         )
@@ -753,7 +743,6 @@ class TestDNSSecurityProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "dns-sec-test",
                 "--force",
             ],
@@ -822,7 +811,6 @@ class TestVulnerabilityProtectionProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-vuln-profile",
                 "--description",
                 "Test vulnerability protection",
@@ -858,7 +846,6 @@ class TestVulnerabilityProtectionProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "strict-vuln",
                 "--block-critical-high",
             ],
@@ -887,7 +874,6 @@ class TestVulnerabilityProtectionProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-vuln",
             ],
         )
@@ -912,7 +898,6 @@ class TestVulnerabilityProtectionProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-vuln",
                 "--force",
             ],
@@ -939,7 +924,6 @@ class TestVulnerabilityProtectionProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-vuln",
                 "--force",
             ],
@@ -980,7 +964,6 @@ class TestVulnerabilityProtectionProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-vuln",
             ],
         )
@@ -1123,7 +1106,7 @@ vulnerability_protection_profiles:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-vuln-profile", "--description", "Test"],
+            ["--folder", "Texas", "test-vuln-profile", "--description", "Test"],
         )
 
         assert result.exit_code == 0
@@ -1147,7 +1130,7 @@ vulnerability_protection_profiles:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-vuln-profile", "--description", "Test"],
+            ["--folder", "Texas", "test-vuln-profile", "--description", "Test"],
         )
 
         assert result.exit_code == 0
@@ -1180,7 +1163,7 @@ class TestAntiSpywareProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "strict-security"],
+            ["--folder", "Texas", "strict-security"],
         )
 
         assert result.exit_code == 0
@@ -1200,7 +1183,7 @@ class TestAntiSpywareProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "strict-security"],
+            ["--folder", "Texas", "strict-security"],
         )
 
         assert result.exit_code == 0
@@ -1233,7 +1216,7 @@ class TestDecryptionProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "ssl-forward", "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
+            ["--folder", "Texas", "ssl-forward", "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
         )
 
         assert result.exit_code == 0
@@ -1253,7 +1236,7 @@ class TestDecryptionProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "ssl-forward", "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
+            ["--folder", "Texas", "ssl-forward", "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
         )
 
         assert result.exit_code == 0
@@ -1287,7 +1270,6 @@ class TestURLCategoryCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "custom-block",
                 "--url",
                 "malware.example.com",
@@ -1317,7 +1299,6 @@ class TestURLCategoryCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-category",
             ],
         )
@@ -1342,7 +1323,6 @@ class TestURLCategoryCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "custom-block",
                 "--force",
             ],
@@ -1407,7 +1387,6 @@ class TestURLCategoryCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "Custom-Block-List",
             ],
         )
@@ -1451,7 +1430,6 @@ class TestAppOverrideRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "override-https",
                 "--application",
                 "ssl",
@@ -1479,7 +1457,6 @@ class TestAppOverrideRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test",
                 "--application",
                 "ssl",
@@ -1500,7 +1477,7 @@ class TestAppOverrideRuleCommands:
         test_app = typer.Typer()
         test_app.command()(delete_app_override_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "override-https", "--force"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "override-https", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted app override rule" in result.stdout
@@ -1535,7 +1512,7 @@ class TestAppOverrideRuleCommands:
         test_app = typer.Typer()
         test_app.command()(show_app_override_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "override-https"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "override-https"])
 
         assert result.exit_code == 0
         assert "App Override Rule" in result.stdout
@@ -1556,7 +1533,7 @@ class TestAppOverrideRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "override-https", "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
+            ["--folder", "Texas", "override-https", "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
         )
 
         assert result.exit_code == 0
@@ -1576,7 +1553,7 @@ class TestAppOverrideRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "override-https", "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
+            ["--folder", "Texas", "override-https", "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
         )
 
         assert result.exit_code == 0
@@ -1608,7 +1585,7 @@ class TestAuthenticationRuleCommands:
         test_app = typer.Typer()
         test_app.command()(set_authentication_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "auth-web"])
 
         assert result.exit_code == 0
         assert "Created authentication rule" in result.stdout
@@ -1621,7 +1598,7 @@ class TestAuthenticationRuleCommands:
         test_app = typer.Typer()
         test_app.command()(set_authentication_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "test"])
 
         assert result.exit_code == 1
 
@@ -1633,7 +1610,7 @@ class TestAuthenticationRuleCommands:
         test_app = typer.Typer()
         test_app.command()(delete_authentication_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web", "--force"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "auth-web", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted authentication rule" in result.stdout
@@ -1668,7 +1645,7 @@ class TestAuthenticationRuleCommands:
         test_app = typer.Typer()
         test_app.command()(show_authentication_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "auth-web"])
 
         assert result.exit_code == 0
         assert "Authentication Rule: auth-web" in result.stdout
@@ -1685,7 +1662,7 @@ class TestAuthenticationRuleCommands:
         test_app = typer.Typer()
         test_app.command()(set_authentication_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "auth-web"])
 
         assert result.exit_code == 0
         assert "Updated authentication rule" in result.stdout
@@ -1702,7 +1679,7 @@ class TestAuthenticationRuleCommands:
         test_app = typer.Typer()
         test_app.command()(set_authentication_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "auth-web"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "auth-web"])
 
         assert result.exit_code == 0
         assert "No changes needed" in result.stdout
@@ -1739,7 +1716,6 @@ class TestDecryptionRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "no-decrypt-internal",
                 "--action",
                 "no-decrypt",
@@ -1762,7 +1738,6 @@ class TestDecryptionRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test",
                 "--action",
                 "decrypt",
@@ -1779,7 +1754,7 @@ class TestDecryptionRuleCommands:
         test_app = typer.Typer()
         test_app.command()(delete_decryption_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "decrypt-web", "--force"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "decrypt-web", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted decryption rule" in result.stdout
@@ -1814,7 +1789,7 @@ class TestDecryptionRuleCommands:
         test_app = typer.Typer()
         test_app.command()(show_decryption_rule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "decrypt-outbound"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "decrypt-outbound"])
 
         assert result.exit_code == 0
         assert "Decryption Rule" in result.stdout
@@ -1834,7 +1809,7 @@ class TestDecryptionRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "no-decrypt-internal", "--action", "no-decrypt"],
+            ["--folder", "Texas", "no-decrypt-internal", "--action", "no-decrypt"],
         )
 
         assert result.exit_code == 0
@@ -1854,7 +1829,7 @@ class TestDecryptionRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "no-decrypt-internal", "--action", "no-decrypt"],
+            ["--folder", "Texas", "no-decrypt-internal", "--action", "no-decrypt"],
         )
 
         assert result.exit_code == 0
@@ -1891,7 +1866,6 @@ class TestURLAccessProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "strict-url",
                 "--block",
                 "adult",
@@ -1911,7 +1885,7 @@ class TestURLAccessProfileCommands:
         test_app = typer.Typer()
         test_app.command()(set_url_access_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "test"])
 
         assert result.exit_code == 1
 
@@ -1923,7 +1897,7 @@ class TestURLAccessProfileCommands:
         test_app = typer.Typer()
         test_app.command()(delete_url_access_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "strict-url", "--force"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "strict-url", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted URL access profile" in result.stdout
@@ -1957,7 +1931,7 @@ class TestURLAccessProfileCommands:
         test_app = typer.Typer()
         test_app.command()(show_url_access_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "strict-url"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "strict-url"])
 
         assert result.exit_code == 0
         assert "URL Access Profile" in result.stdout
@@ -1977,7 +1951,7 @@ class TestURLAccessProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "strict-url", "--block", "adult", "--block", "malware"],
+            ["--folder", "Texas", "strict-url", "--block", "adult", "--block", "malware"],
         )
 
         assert result.exit_code == 0
@@ -1997,7 +1971,7 @@ class TestURLAccessProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "strict-url", "--block", "adult", "--block", "malware"],
+            ["--folder", "Texas", "strict-url", "--block", "adult", "--block", "malware"],
         )
 
         assert result.exit_code == 0
@@ -2036,7 +2010,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "Allow Web", "--destination", "top"],
+            ["--folder", "Texas", "Allow Web", "--destination", "top"],
         )
 
         assert result.exit_code == 0
@@ -2058,7 +2032,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "Allow Web", "--destination", "bottom"],
+            ["--folder", "Texas", "Allow Web", "--destination", "bottom"],
         )
 
         assert result.exit_code == 0
@@ -2084,7 +2058,6 @@ class TestMoveCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "Allow Web",
                 "--destination",
                 "before",
@@ -2116,7 +2089,6 @@ class TestMoveCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "Allow Web",
                 "--destination",
                 "after",
@@ -2136,7 +2108,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "Allow Web", "--destination", "before"],
+            ["--folder", "Texas", "Allow Web", "--destination", "before"],
         )
 
         assert result.exit_code == 1
@@ -2149,7 +2121,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "Allow Web", "--destination", "after"],
+            ["--folder", "Texas", "Allow Web", "--destination", "after"],
         )
 
         assert result.exit_code == 1
@@ -2169,7 +2141,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "Nonexistent", "--destination", "top"],
+            ["--folder", "Texas", "Nonexistent", "--destination", "top"],
         )
 
         assert result.exit_code == 1
@@ -2194,7 +2166,6 @@ class TestMoveCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "Allow Web",
                 "--destination",
                 "top",
@@ -2224,7 +2195,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "override-https", "--destination", "top"],
+            ["--folder", "Texas", "override-https", "--destination", "top"],
         )
 
         assert result.exit_code == 0
@@ -2238,7 +2209,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "override-https", "--destination", "before"],
+            ["--folder", "Texas", "override-https", "--destination", "before"],
         )
 
         assert result.exit_code == 1
@@ -2258,7 +2229,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "Nonexistent", "--destination", "top"],
+            ["--folder", "Texas", "Nonexistent", "--destination", "top"],
         )
 
         assert result.exit_code == 1
@@ -2282,7 +2253,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "auth-rule", "--destination", "bottom"],
+            ["--folder", "Texas", "auth-rule", "--destination", "bottom"],
         )
 
         assert result.exit_code == 0
@@ -2296,7 +2267,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "auth-rule", "--destination", "after"],
+            ["--folder", "Texas", "auth-rule", "--destination", "after"],
         )
 
         assert result.exit_code == 1
@@ -2316,7 +2287,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "Nonexistent", "--destination", "top"],
+            ["--folder", "Texas", "Nonexistent", "--destination", "top"],
         )
 
         assert result.exit_code == 1
@@ -2340,7 +2311,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "decrypt-rule", "--destination", "top"],
+            ["--folder", "Texas", "decrypt-rule", "--destination", "top"],
         )
 
         assert result.exit_code == 0
@@ -2366,7 +2337,6 @@ class TestMoveCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "decrypt-rule",
                 "--destination",
                 "before",
@@ -2386,7 +2356,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "decrypt-rule", "--destination", "before"],
+            ["--folder", "Texas", "decrypt-rule", "--destination", "before"],
         )
 
         assert result.exit_code == 1
@@ -2406,7 +2376,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "Nonexistent", "--destination", "top"],
+            ["--folder", "Texas", "Nonexistent", "--destination", "top"],
         )
 
         assert result.exit_code == 1
@@ -2421,7 +2391,7 @@ class TestMoveCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "Allow Web", "--destination", "top"],
+            ["Allow Web", "--destination", "top"],
         )
 
         assert result.exit_code == 1
@@ -2489,7 +2459,7 @@ class TestShowOutputJson:
         test_app = typer.Typer()
         test_app.command()(show_wildfire_antivirus_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "wf-test", "--output", "json"])
+        result = runner.invoke(test_app, ["--folder", "Texas", "wf-test", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == sample
@@ -2506,3 +2476,83 @@ class TestShowOutputJson:
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == []
+
+
+class TestV2GrammarSecurity:
+    """v2 grammar behaviors: container enforcement, --max-results, snippet passthrough."""
+
+    def _mock_scm_client(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    def test_set_requires_exactly_one_container_none(self, runner, monkeypatch):
+        """A set command with no container exits non-zero with a clear error."""
+        self._mock_scm_client(monkeypatch)
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_category)
+
+        result = runner.invoke(test_app, ["custom-block", "--url", "bad.example.com"])
+
+        assert result.exit_code != 0
+        assert "One of --folder, --snippet, or --device must be specified" in result.output
+
+    def test_set_requires_exactly_one_container_two(self, runner, monkeypatch):
+        """A set command with two containers exits non-zero."""
+        self._mock_scm_client(monkeypatch)
+
+        test_app = typer.Typer()
+        test_app.command()(set_url_category)
+
+        result = runner.invoke(
+            test_app,
+            ["custom-block", "--folder", "Texas", "--snippet", "Best-Practice", "--url", "bad.example.com"],
+        )
+
+        assert result.exit_code != 0
+        assert "Only one of --folder, --snippet, or --device can be specified" in result.output
+
+    def test_show_max_results_slices_list(self, runner, monkeypatch):
+        """--max-results slices the list output client-side."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_url_categories.return_value = [{"name": f"cat-{i}", "folder": "Texas", "type": "URL List"} for i in range(5)]
+
+        test_app = typer.Typer()
+        test_app.command()(show_url_category)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--output", "json", "--max-results", "2"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert len(data) == 2
+        assert [item["name"] for item in data] == ["cat-0", "cat-1"]
+
+    def test_set_security_rule_snippet_reaches_client(self, runner, monkeypatch):
+        """--snippet on the previously folder-only security rule set reaches scm_client."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.create_security_rule.return_value = {
+            "id": "sr-1",
+            "name": "snippet-rule",
+            "snippet": "Best-Practice",
+            "__action__": "created",
+        }
+
+        test_app = typer.Typer()
+        test_app.command()(set_security_rule)
+
+        result = runner.invoke(
+            test_app,
+            ["snippet-rule", "--snippet", "Best-Practice", "--source-zones", "trust", "--destination-zones", "untrust", "--action", "allow"],
+        )
+
+        assert result.exit_code == 0
+        assert "Created security rule" in result.stdout
+        kwargs = mock_client.create_security_rule.call_args.kwargs
+        assert kwargs["snippet"] == "Best-Practice"
+        assert "folder" not in kwargs
+        assert kwargs["name"] == "snippet-rule"

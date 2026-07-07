@@ -1,6 +1,6 @@
 # Advanced Topics
 
-The `scm` CLI supports advanced workflows including multi-folder operations, bulk loading, mock mode testing, verbose output, environment variable configuration, and script integration. This guide covers techniques for power users and automation scenarios.
+The `scm` CLI supports advanced workflows including multi-folder operations, bulk loading, mock mode testing, debug output, environment variable configuration, and script integration. This guide covers techniques for power users and automation scenarios.
 
 ## Overview
 
@@ -9,7 +9,7 @@ This guide covers advanced CLI capabilities:
 - Work with objects across multiple configuration folders
 - Perform bulk operations using YAML files
 - Test commands safely with mock mode
-- Enable verbose output for troubleshooting
+- Enable debug output for troubleshooting
 - Configure the CLI with environment variables
 - Integrate the CLI into scripts and automation pipelines
 
@@ -25,15 +25,15 @@ Before using these advanced features, ensure you have:
 
 ### Folder-Based Organization
 
-All object-related commands require the `--folder` parameter to specify where objects should be created, updated, or retrieved from. SCM uses folders to organize configurations hierarchically.
+Object-related commands require exactly one container option — `--folder`, `--snippet`, or `--device` — to specify where objects should be created, updated, or retrieved from. SCM uses folders to organize configurations hierarchically; snippets and devices hold shared and device-level configuration.
 
 ### Mock Mode
 
-The `--mock` flag allows you to run any command without making actual API calls. This is useful for validating syntax, testing YAML files, and developing scripts.
+Setting the `SCM_MOCK=1` environment variable allows you to run any command without making actual API calls. This is useful for validating syntax, testing YAML files, and developing scripts.
 
-### Verbose Output
+### Debug Output
 
-The `--verbose` flag provides detailed information about API requests, responses, timing, and errors. Use it when troubleshooting unexpected behavior.
+The global `--debug` flag (or `SCM_LOG_LEVEL=DEBUG`) provides detailed information about API requests, responses, timing, and errors. Use it when troubleshooting unexpected behavior.
 
 ## Examples
 
@@ -42,9 +42,8 @@ The `--verbose` flag provides detailed information about API requests, responses
 #### Specifying Folders
 
 ```bash
-$ scm set object address \
+$ scm set object address web-server \
     --folder Shared \
-    --name web-server \
     --ip-netmask 10.1.1.10/32
 ---> 100%
 Created address: web-server in folder Shared
@@ -79,7 +78,7 @@ Name: branch-server
 Load multiple objects of the same type from a YAML file:
 
 ```bash
-$ scm load object address --folder Shared --file addresses.yaml
+$ scm load object address --file addresses.yaml --folder Shared
 ---> 100%
 ✓ Loaded address: web-server-1
 ✓ Loaded address: web-server-2
@@ -118,13 +117,11 @@ version control to track changes over time.
 
 #### Testing Commands Safely
 
-Add the `--mock` flag to any command to run it without API calls:
+Set `SCM_MOCK=1` to run any command without API calls:
 
 ```bash
-$ scm set object address \
-    --mock \
+$ SCM_MOCK=1 scm set object address test-server \
     --folder Shared \
-    --name test-server \
     --ip-netmask 10.1.1.10/32
 ---> 100%
 Created address: test-server in folder Shared (mock mode)
@@ -136,21 +133,19 @@ Mock mode is useful for:
 - Validating YAML files before bulk loading
 - Script development and testing
 
-### Verbose Output
+### Debug Output
 
-#### Troubleshooting with Verbose Mode
+#### Troubleshooting with Debug Mode
 
-Add the `--verbose` flag to see detailed operation information:
+Add the global `--debug` flag to see detailed operation information:
 
 ```bash
-$ scm set object address \
-    --verbose \
+$ scm --debug set object address test-server \
     --folder Shared \
-    --name test-server \
     --ip-netmask 10.1.1.10/32
 ```
 
-Verbose output includes:
+Debug output includes:
 
 - API request details
 - Response data
@@ -167,6 +162,7 @@ Verbose output includes:
 | `SCM_CLIENT_SECRET` | Client secret for authentication | `export SCM_CLIENT_SECRET=client-secret-value` |
 | `SCM_TSG_ID` | Tenant Service Group ID | `export SCM_TSG_ID=tsg-id-value` |
 | `SCM_LOG_LEVEL` | Logging level (DEBUG, INFO, etc.) | `export SCM_LOG_LEVEL=DEBUG` |
+| `SCM_MOCK` | Run in mock mode without API calls | `export SCM_MOCK=1` |
 
 :::info
 For full details on configuration sources and precedence, see
@@ -195,9 +191,8 @@ This separation allows clean output parsing in scripts.
 ```bash
 #!/bin/bash
 # Create an address and check if successful
-scm set object address \
+scm set object address test-server \
     --folder Shared \
-    --name test-server \
     --ip-netmask 10.1.1.10/32 2>error.log
 
 if [ $? -eq 0 ]; then
@@ -220,10 +215,10 @@ ADDRESSES=$(scm show object address \
 
 ## Best Practices
 
-1. **Use mock mode for development**: Always test new scripts and YAML files with `--mock` before running against production.
+1. **Use mock mode for development**: Always test new scripts and YAML files with `SCM_MOCK=1` before running against production.
 2. **Organize objects by folder**: Use SCM folders to logically separate configurations by environment or location.
 3. **Store YAML files in version control**: Track configuration changes alongside your infrastructure code.
-4. **Use verbose mode for debugging**: Enable `--verbose` when troubleshooting unexpected behavior.
+4. **Use debug mode for troubleshooting**: Enable `--debug` (or `SCM_LOG_LEVEL=DEBUG`) when troubleshooting unexpected behavior.
 5. **Handle exit codes in scripts**: Always check return codes when integrating the CLI into automation pipelines.
 6. **Use environment variables for CI/CD**: Set credentials via environment variables in automated workflows rather than hardcoding them.
 

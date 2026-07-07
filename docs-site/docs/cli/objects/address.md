@@ -33,32 +33,40 @@ Create or update an address object.
 ### Syntax
 
 ```bash
-scm set object address [OPTIONS]
+scm set object address NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the address object | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the address object | Yes |
-| `--name TEXT` | Name of the address object | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--description TEXT` | Description for the address | No |
-| `--tags LIST` | List of tags to apply to the address | No |
-| `--ip-netmask TEXT` | Address in CIDR notation | No\* |
-| `--ip-range TEXT` | Address range | No\* |
-| `--ip-wildcard TEXT` | Address with wildcard mask | No\* |
-| `--fqdn TEXT` | Fully qualified domain name | No\* |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
+| `--ip-netmask TEXT` | Address in CIDR notation | No\*\* |
+| `--ip-range TEXT` | Address range | No\*\* |
+| `--ip-wildcard TEXT` | Address with wildcard mask | No\*\* |
+| `--fqdn TEXT` | Fully qualified domain name | No\*\* |
 
-\* You must specify exactly one of the address type options.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
+
+\*\* You must specify exactly one of the address type options.
 
 ### Examples
 
 #### Create an IP Netmask Address
 
 ```bash
-$ scm set object address \
+$ scm set object address webserver \
     --folder Texas \
-    --name webserver \
     --ip-netmask 192.168.1.100/32 \
     --description "Web server" \
     --tags server --tags web
@@ -69,9 +77,8 @@ Created address: webserver in folder Texas
 #### Create an FQDN Address
 
 ```bash
-$ scm set object address \
+$ scm set object address company-website \
     --folder Texas \
-    --name company-website \
     --fqdn example.com \
     --description "Company website"
 ---> 100%
@@ -81,9 +88,8 @@ Created address: company-website in folder Texas
 #### Create an IP Range Address
 
 ```bash
-$ scm set object address \
+$ scm set object address dhcp-pool \
     --folder Texas \
-    --name dhcp-pool \
     --ip-range 192.168.1.100-192.168.1.200 \
     --description "DHCP address pool"
 ---> 100%
@@ -97,21 +103,30 @@ Delete an address object from SCM.
 ### Syntax
 
 ```bash
-scm delete object address [OPTIONS]
+scm delete object address NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the address object to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the address object | Yes |
-| `--name TEXT` | Name of the address object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object address --folder Texas --name webserver --force
+$ scm delete object address webserver --folder Texas --force
 ---> 100%
 Deleted address: webserver from folder Texas
 ```
@@ -205,18 +220,29 @@ Display address objects.
 ### Syntax
 
 ```bash
-scm show object address [OPTIONS]
+scm show object address [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the address object to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the address object | Yes |
-| `--name TEXT` | Name of the address object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -224,7 +250,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Address
 
 ```bash
-$ scm show object address --folder Texas --name webserver
+$ scm show object address webserver --folder Texas
 ---> 100%
 Address: webserver
   Location: Folder 'Texas'

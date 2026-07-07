@@ -17,6 +17,8 @@ scm show sase network-location [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--value TEXT` | System value of the location (e.g., us-west-1) | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 ### Examples
 

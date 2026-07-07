@@ -18,7 +18,9 @@ The `zone` commands allow you to:
 | --- | --- |
 | `layer3` | Standard routed mode with IP addressing |
 | `layer2` | Switched mode for bridging traffic |
+| `external` | Zone for traffic between virtual systems |
 | `virtual-wire` | Transparent inline mode between two interfaces |
+| `tunnel` | Zone for tunnel interfaces |
 | `tap` | Passive monitoring mode for traffic analysis |
 
 ## Set Security Zone
@@ -28,33 +30,37 @@ Create or update a security zone.
 ### Syntax
 
 ```bash
-scm set network zone [OPTIONS]
+scm set network zone NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the security zone | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the security zone | Yes |
-| `--folder TEXT` | Folder location | Yes |
-| `--mode TEXT` | Zone protection mode (layer3, layer2, virtual-wire, tap) | Yes |
-| `--description TEXT` | Description for the security zone | No |
-| `--tags LIST` | List of tags to apply | No |
-| `--enable-user-id BOOLEAN` | Enable User-ID for this zone | No |
-| `--exclude-local-pan BOOLEAN` | Exclude local Panorama from User-ID distribution | No |
-| `--log-setting TEXT` | Log forwarding profile | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--mode TEXT` | Zone mode (layer2, layer3, external, virtual-wire, tunnel, tap) | Yes |
+| `--interfaces TEXT` | List of interfaces | No |
+| `--enable-user-id` | Enable user identification | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create a Layer3 Security Zone
 
 ```bash
-$ scm set network zone \
+$ scm set network zone Trust \
     --folder Shared \
-    --name Trust \
     --mode layer3 \
-    --enable-user-id true \
-    --description "Internal trusted network zone"
+    --enable-user-id
 ---> 100%
 Created security zone: Trust in folder Shared
 ```
@@ -62,11 +68,9 @@ Created security zone: Trust in folder Shared
 #### Create a Virtual-Wire Security Zone
 
 ```bash
-$ scm set network zone \
+$ scm set network zone DMZ \
     --folder Shared \
-    --name DMZ \
-    --mode virtual-wire \
-    --description "DMZ between trusted and untrusted networks"
+    --mode virtual-wire
 ---> 100%
 Created security zone: DMZ in folder Shared
 ```
@@ -78,21 +82,30 @@ Delete a security zone from SCM.
 ### Syntax
 
 ```bash
-scm delete network zone [OPTIONS]
+scm delete network zone NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the security zone to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the security zone to delete | Yes |
-| `--folder TEXT` | Folder location | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete network zone --folder Shared --name DMZ --force
+$ scm delete network zone DMZ --folder Shared --force
 ---> 100%
 Deleted security zone: DMZ from folder Shared
 ```
@@ -112,12 +125,7 @@ scm load network zone [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file containing security zone definitions | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
 | `--dry-run` | Preview changes without applying | No |
-
-\* One of --folder, --snippet, or --device is required.
 
 ### YAML File Format
 
@@ -153,7 +161,7 @@ security_zones:
 
 ### Examples
 
-#### Load with Original Locations
+#### Load Security Zones
 
 ```bash
 $ scm load network zone --file security-zones.yml
@@ -165,22 +173,9 @@ $ scm load network zone --file security-zones.yml
 Successfully loaded 3 out of 3 security zones from 'security-zones.yml'
 ```
 
-#### Load with Folder Override
-
-```bash
-$ scm load network zone --file security-zones.yml --folder Austin
----> 100%
-✓ Loaded security zone: Trust
-✓ Loaded security zone: Untrust
-✓ Loaded security zone: DMZ
-
-Successfully loaded 3 out of 3 security zones from 'security-zones.yml'
-```
-
 :::note
-When using container override options (--folder, --snippet, --device), all security zones
-will be loaded into the specified container, ignoring the container specified in the
-YAML file.
+Each security zone is loaded into the container (folder, snippet, or device) specified
+in the YAML file.
 :::
 
 ## Show Security Zone
@@ -190,22 +185,29 @@ Display security zone objects.
 ### Syntax
 
 ```bash
-scm show network zone [OPTIONS]
+scm show network zone [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the security zone to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific security zone | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -213,7 +215,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Security Zone
 
 ```bash
-$ scm show network zone --folder Shared --name Trust
+$ scm show network zone Trust --folder Shared
 ---> 100%
 Security Zone: Trust
   Location: Folder 'Shared'

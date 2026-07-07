@@ -19,17 +19,24 @@ Create or update a NAT rule.
 ### Syntax
 
 ```bash
-scm set network nat-rule [OPTIONS]
+scm set network nat-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the NAT rule | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Rule name | Yes |
-| `--folder TEXT` | Folder location | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--description TEXT` | Rule description | No |
-| `--tag TEXT` | Tags | No |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
 | `--disabled` | Disable the rule | No |
 | `--nat-type TEXT` | NAT type (ipv4, nat64, nptv6) | No |
 | `--from-zone TEXT` | Source zones | No |
@@ -41,14 +48,15 @@ scm set network nat-rule [OPTIONS]
 | `--source-translation TEXT` | Source translation config as JSON | No |
 | `--destination-translation TEXT` | Destination translation config as JSON | No |
 
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
+
 ### Examples
 
 #### Create an Outbound NAT Rule
 
 ```bash
-$ scm set network nat-rule \
+$ scm set network nat-rule outbound-nat \
     --folder Texas \
-    --name outbound-nat \
     --from-zone trust \
     --to-zone untrust \
     --source any \
@@ -61,9 +69,8 @@ Created NAT rule: outbound-nat in folder Texas
 #### Create a Destination NAT Rule
 
 ```bash
-$ scm set network nat-rule \
+$ scm set network nat-rule inbound-web \
     --folder Texas \
-    --name inbound-web \
     --from-zone untrust \
     --to-zone dmz \
     --destination 203.0.113.10 \
@@ -79,21 +86,30 @@ Delete a NAT rule from SCM.
 ### Syntax
 
 ```bash
-scm delete network nat-rule [OPTIONS]
+scm delete network nat-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the NAT rule to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Rule name | Yes |
-| `--folder TEXT` | Folder location | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete network nat-rule --folder Texas --name outbound-nat --force
+$ scm delete network nat-rule outbound-nat --folder Texas --force
 ---> 100%
 Deleted NAT rule: outbound-nat from folder Texas
 ```
@@ -113,12 +129,10 @@ scm load network nat-rule [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
 | `--dry-run` | Preview changes without applying | No |
-
-\* One of --folder, --snippet, or --device is required.
 
 ### YAML File Format
 
@@ -191,22 +205,29 @@ Display NAT rule objects.
 ### Syntax
 
 ```bash
-scm show network nat-rule [OPTIONS]
+scm show network nat-rule [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the NAT rule to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific rule | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -214,7 +235,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific NAT Rule
 
 ```bash
-$ scm show network nat-rule --folder Texas --name outbound-nat
+$ scm show network nat-rule outbound-nat --folder Texas
 ---> 100%
 NAT Rule: outbound-nat
   Location: Folder 'Texas'

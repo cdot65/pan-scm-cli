@@ -10,7 +10,7 @@ The `global-setting` commands allow you to:
 - Update the agent version and manual gateway configuration
 
 :::note[Singleton semantics]
-Global settings always exist for the tenant and are updated in place. There are no `delete`, `backup`, or `load` commands, and no `--folder` or `--name` options.
+Global settings always exist for the tenant and are updated in place. There are no `delete`, `backup`, or `load` commands, no `--folder` option, and no `NAME` argument.
 :::
 
 ## Show Global Setting

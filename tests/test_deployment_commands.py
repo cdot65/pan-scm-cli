@@ -51,7 +51,10 @@ class TestBandwidthAllocationCommands:
         # Mock the SCM client method to avoid actual API calls
         from scm_cli.utils.sdk_client import scm_client
 
+        captured = {}
+
         def mock_create(*args, **kwargs):
+            captured.update(kwargs)
             return {
                 "id": "ba-12345",
                 "name": kwargs.get("name"),
@@ -71,7 +74,6 @@ class TestBandwidthAllocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name",
                 "test-allocation",
                 "--bandwidth",
                 "1000",
@@ -80,7 +82,9 @@ class TestBandwidthAllocationCommands:
                 "--description",
                 "Test allocation",
                 "--tags",
-                "test,example",
+                "test",
+                "--tags",
+                "example",
             ],
         )
 
@@ -88,6 +92,8 @@ class TestBandwidthAllocationCommands:
         assert "Created bandwidth allocation" in result.stdout
         assert "test-allocation" in result.stdout
         assert "1000" in result.stdout
+        # --tags is repeatable and reaches the client as a list
+        assert captured["tags"] == ["test", "example"]
 
     def test_set_bandwidth_allocation_error(self, runner, monkeypatch):
         """Test the set bandwidth allocation command with an error."""
@@ -107,7 +113,6 @@ class TestBandwidthAllocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name",
                 "test-allocation",
                 "--bandwidth",
                 "1000",
@@ -138,7 +143,6 @@ class TestBandwidthAllocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name",
                 "test-allocation",
                 "--spn-name-list",
                 "spn1",
@@ -168,7 +172,6 @@ class TestBandwidthAllocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name",
                 "test-allocation",
                 "--spn-name-list",
                 "spn1",
@@ -288,7 +291,7 @@ class TestBandwidthAllocationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "test-allocation", "--bandwidth", "1000", "--spn-name-list", "spn1,spn2", "--description", "Test"],
+            ["test-allocation", "--bandwidth", "1000", "--spn-name-list", "spn1,spn2", "--description", "Test"],
         )
 
         assert result.exit_code == 0
@@ -312,7 +315,7 @@ class TestBandwidthAllocationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "test-allocation", "--bandwidth", "1000", "--spn-name-list", "spn1,spn2", "--description", "Test"],
+            ["test-allocation", "--bandwidth", "1000", "--spn-name-list", "spn1,spn2", "--description", "Test"],
         )
 
         assert result.exit_code == 0
@@ -453,7 +456,6 @@ class TestInternalDNSServerCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name",
                 "corp-dns",
                 "--domain-name",
                 "corp.example.com",
@@ -483,7 +485,6 @@ class TestInternalDNSServerCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name",
                 "corp-dns",
                 "--domain-name",
                 "corp.example.com",
@@ -513,7 +514,7 @@ class TestInternalDNSServerCommands:
         test_app = typer.Typer()
         test_app.command()(show_internal_dns_server)
 
-        result = runner.invoke(test_app, ["--name", "corp-dns"])
+        result = runner.invoke(test_app, ["corp-dns"])
 
         assert result.exit_code == 0
         assert "corp-dns" in result.stdout
@@ -564,7 +565,7 @@ class TestInternalDNSServerCommands:
         test_app = typer.Typer()
         test_app.command()(delete_internal_dns_server)
 
-        result = runner.invoke(test_app, ["--name", "corp-dns", "--force"])
+        result = runner.invoke(test_app, ["corp-dns", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted internal DNS server" in result.stdout
@@ -729,7 +730,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_service_connection)
 
-        result = runner.invoke(test_app, ["--name", "primary-connection", "--output", "json"])
+        result = runner.invoke(test_app, ["primary-connection", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == connection
@@ -799,7 +800,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_internal_dns_server)
 
-        result = runner.invoke(test_app, ["--name", "corp-dns", "--output", "json"])
+        result = runner.invoke(test_app, ["corp-dns", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == server
@@ -876,3 +877,82 @@ class TestDeploymentBulkLoadConcurrency:
         assert active["max"] > 1, "create calls never overlapped"
         assert sorted(created) == [f"dns-{i}" for i in range(4)]
         assert "Loaded 4 internal DNS server(s)" in result.output
+
+
+class TestMaxResults:
+    """--max-results slices list output client-side before emit."""
+
+    def test_show_bandwidth_allocation_max_results(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        allocations = [{"id": f"ba-{i}", "name": f"alloc-{i}", "allocated_bandwidth": 100 * i, "spn_name_list": [], "description": ""} for i in range(3)]
+        monkeypatch.setattr(scm_client, "list_bandwidth_allocations", lambda: allocations)
+
+        test_app = typer.Typer()
+        test_app.command()(show_bandwidth_allocation)
+
+        result = runner.invoke(test_app, ["--max-results", "2", "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == allocations[:2]
+
+    def test_show_internal_dns_server_max_results(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        servers = [{"id": f"dns-{i}", "name": f"dns-{i}", "domain_name": ["example.com"], "primary": f"10.0.0.{i}"} for i in range(5)]
+        monkeypatch.setattr(scm_client, "list_internal_dns_servers", lambda: servers)
+
+        test_app = typer.Typer()
+        test_app.command()(show_internal_dns_server)
+
+        result = runner.invoke(test_app, ["--max-results", "1", "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == servers[:1]
+
+
+class TestBackupFileOption:
+    """Every backup command accepts --file to override the default filename."""
+
+    def test_backup_bandwidth_allocation_custom_file(self, runner, monkeypatch, tmp_path):
+        import yaml
+
+        from scm_cli.commands.deployment import backup_bandwidth_allocation
+        from scm_cli.utils.sdk_client import scm_client
+
+        allocations = [{"id": "ba-1", "name": "primary", "allocated_bandwidth": 1000, "spn_name_list": ["spn1"]}]
+        monkeypatch.setattr(scm_client, "list_bandwidth_allocations", lambda: allocations)
+
+        out_file = tmp_path / "custom-allocations.yaml"
+        test_app = typer.Typer()
+        test_app.command()(backup_bandwidth_allocation)
+
+        result = runner.invoke(test_app, ["--file", str(out_file)])
+
+        assert result.exit_code == 0, result.output
+        assert out_file.exists()
+        data = yaml.safe_load(out_file.read_text())
+        assert data["bandwidth_allocations"][0]["name"] == "primary"
+        # SDK field mapped back to CLI field and id stripped
+        assert data["bandwidth_allocations"][0]["bandwidth"] == 1000
+        assert "id" not in data["bandwidth_allocations"][0]
+
+    def test_backup_internal_dns_server_custom_file(self, runner, monkeypatch, tmp_path):
+        import yaml
+
+        from scm_cli.commands.deployment import backup_internal_dns_server
+        from scm_cli.utils.sdk_client import scm_client
+
+        servers = [{"id": "dns-1", "name": "corp-dns", "domain_name": ["corp.example.com"], "primary": "10.0.0.1"}]
+        monkeypatch.setattr(scm_client, "list_internal_dns_servers", lambda: servers)
+
+        out_file = tmp_path / "custom-dns.yaml"
+        test_app = typer.Typer()
+        test_app.command()(backup_internal_dns_server)
+
+        result = runner.invoke(test_app, ["--file", str(out_file)])
+
+        assert result.exit_code == 0, result.output
+        assert out_file.exists()
+        data = yaml.safe_load(out_file.read_text())
+        assert data["internal_dns_servers"][0]["name"] == "corp-dns"

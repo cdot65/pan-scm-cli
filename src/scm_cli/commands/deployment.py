@@ -33,11 +33,13 @@ backup_app = typer.Typer(help="Backup SASE configurations to YAML files")
 # =============================================================================================================================================================================================
 
 # Define typer option constants
-NAME_OPTION = typer.Option(..., "--name", help="Name of the bandwidth allocation")
 BANDWIDTH_OPTION = typer.Option(..., "--bandwidth", help="Bandwidth value in Mbps")
 DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of the bandwidth allocation")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
+BACKUP_FILE_OPTION = typer.Option(None, "--file", help="Output file path for the backup (defaults to <object-type>.yaml)")
+MAX_RESULTS_OPTION = typer.Option(None, "--max-results", help="Maximum number of results to display")
+TAGS_OPTION = typer.Option(None, "--tags", help="Tags (repeat for multiple)")
 
 # List options for multiline definitions
 SUBNETS_SC_OPTION = typer.Option(
@@ -58,14 +60,16 @@ SUBNETS_RN_OPTION = typer.Option(
 
 @backup_app.command("bandwidth-allocation")
 @handle_command_errors("backing up bandwidth allocations")
-def backup_bandwidth_allocation():
+def backup_bandwidth_allocation(
+    file: Path | None = BACKUP_FILE_OPTION,
+):
     """Back up all bandwidth allocations to a YAML file.
 
-    The backup file will be named 'bandwidth-allocations.yaml' in the current directory.
+    Defaults to 'bandwidth-allocations.yaml' in the current directory.
 
     Example:
     -------
-    scm backup sase bandwidth
+    scm backup sase bandwidth-allocation --file my-allocations.yaml
 
     Note: Bandwidth allocations are global and do not have a folder parameter.
 
@@ -95,7 +99,7 @@ def backup_bandwidth_allocation():
     yaml_data = {"bandwidth_allocations": backup_data}
 
     # Generate filename (no folder parameter for bandwidth allocations)
-    filename = "bandwidth-allocations.yaml"
+    filename = str(file) if file else "bandwidth-allocations.yaml"
 
     # Write to YAML file
     with open(filename, "w") as f:
@@ -108,7 +112,7 @@ def backup_bandwidth_allocation():
 @delete_app.command("bandwidth-allocation")
 @handle_command_errors("deleting bandwidth allocation")
 def delete_bandwidth_allocation(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the bandwidth allocation"),
     spn_name_list: str = typer.Option(..., "--spn-name-list", help="SPN names (comma-separated if multiple)"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
@@ -116,9 +120,8 @@ def delete_bandwidth_allocation(
 
     Example:
     -------
-    scm delete sase bandwidth-allocation \
-        --name primary \
-        --spn-name-list ["spn1", "spn2"]
+    scm delete sase bandwidth-allocation primary \
+        --spn-name-list spn1,spn2
 
     Note: Bandwidth allocations are global resources and do not require a folder parameter.
 
@@ -199,37 +202,34 @@ def load_bandwidth_allocation(
 @set_app.command("bandwidth-allocation")
 @handle_command_errors("creating bandwidth allocation")
 def set_bandwidth_allocation(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the bandwidth allocation"),
     bandwidth: int = BANDWIDTH_OPTION,
     spn_name_list: str = typer.Option(..., "--spn-name-list", help="SPN names (comma-separated if multiple)"),
     description: str | None = DESCRIPTION_OPTION,
-    tags: str | None = typer.Option(None, "--tags", help="Tags (comma-separated if multiple)"),
+    tags: list[str] | None = TAGS_OPTION,
 ):
     """Create or update a bandwidth allocation.
 
     Example:
     -------
-    scm set sase bandwidth-allocation \
-        --name primary \
+    scm set sase bandwidth-allocation primary \
         --bandwidth 1000 \
-        --spn-name-list ["spn1", "spn2"] \
+        --spn-name-list spn1,spn2 \
         --description "Primary allocation" \
-        --tags ["production"]
+        --tags production
 
     Note: Bandwidth allocations are global resources and do not require a folder parameter.
 
     """
-    # Convert comma-separated strings to lists
+    # Convert comma-separated SPN string to a list
     spn_list = ([spn.strip() for spn in spn_name_list.split(",")] if "," in spn_name_list else [spn_name_list.strip()]) if isinstance(spn_name_list, str) else spn_name_list
-
-    tag_list = ([tag.strip() for tag in tags.split(",")] if tags and "," in tags else [tags.strip()] if tags else []) if isinstance(tags, str) else tags or []
 
     # Validate input using Pydantic model
     allocation = BandwidthAllocation(
         name=name,
         bandwidth=bandwidth,
         spn_name_list=spn_list,
-        tags=tag_list,
+        tags=list(tags) if tags else [],
     )
 
     # Call the SDK client to create the bandwidth allocation
@@ -256,8 +256,9 @@ def set_bandwidth_allocation(
 @show_app.command("bandwidth-allocation")
 @handle_command_errors("showing bandwidth allocation")
 def show_bandwidth_allocation(
-    name: str | None = typer.Option(None, "--name", help="Name of the bandwidth allocation to show"),
+    name: str | None = typer.Argument(None, help="Name of the bandwidth allocation to show; omit to list all"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display bandwidth allocations.
 
@@ -267,7 +268,7 @@ def show_bandwidth_allocation(
         scm show sase bandwidth-allocation
 
         # Show a specific bandwidth allocation by name
-        scm show sase bandwidth-allocation --name primary
+        scm show sase bandwidth-allocation primary
 
     Note: Bandwidth allocations do not have a folder parameter.
 
@@ -280,6 +281,8 @@ def show_bandwidth_allocation(
 
     # List all bandwidth allocations (default behavior)
     allocations = scm_client.list_bandwidth_allocations()
+    if max_results is not None:
+        allocations = allocations[:max_results]
 
     if not allocations:
         emit([], output)
@@ -301,14 +304,16 @@ def show_bandwidth_allocation(
 
 @backup_app.command("service-connection")
 @handle_command_errors("backing up service connections")
-def backup_service_connection():
+def backup_service_connection(
+    file: Path | None = BACKUP_FILE_OPTION,
+):
     """Back up all service connections to a YAML file.
 
-    The backup file will be named 'service-connections.yaml' in the current directory.
+    Defaults to 'service-connections.yaml' in the current directory.
 
     Example:
     -------
-    scm backup sase service-connection
+    scm backup sase service-connection --file my-connections.yaml
 
     """
     # List all service connections
@@ -355,7 +360,7 @@ def backup_service_connection():
     yaml_data = {"service_connections": backup_data}
 
     # Generate filename
-    filename = "service-connections.yaml"
+    filename = str(file) if file else "service-connections.yaml"
 
     # Write to YAML file
     with open(filename, "w") as f:
@@ -368,14 +373,14 @@ def backup_service_connection():
 @delete_app.command("service-connection")
 @handle_command_errors("deleting service connection")
 def delete_service_connection(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the service connection"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a service connection.
 
     Example:
     -------
-    scm delete sase service-connection --name primary-connection
+    scm delete sase service-connection primary-connection
 
     """
     if not force:
@@ -438,7 +443,7 @@ def load_service_connection(
 @set_app.command("service-connection")
 @handle_command_errors("creating service connection")
 def set_service_connection(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the service connection"),
     ipsec_tunnel: str = typer.Option(..., "--ipsec-tunnel", help="IPsec tunnel for the service connection"),
     region: str = typer.Option(..., "--region", help="Region for the service connection"),
     onboarding_type: str = typer.Option("classic", "--onboarding-type", help="Onboarding type"),
@@ -458,8 +463,7 @@ def set_service_connection(
 
     Example:
     -------
-    scm set sase service-connection \
-        --name primary-connection \
+    scm set sase service-connection primary-connection \
         --ipsec-tunnel ipsec-tunnel-1 \
         --region us-east-1 \
         --subnets ["10.0.0.0/24", "10.0.1.0/24"] \
@@ -529,8 +533,9 @@ def set_service_connection(
 @show_app.command("service-connection")
 @handle_command_errors("showing service connection")
 def show_service_connection(
-    name: str | None = typer.Option(None, "--name", help="Name of the service connection to show"),
+    name: str | None = typer.Argument(None, help="Name of the service connection to show; omit to list all"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display service connections.
 
@@ -540,7 +545,7 @@ def show_service_connection(
         scm show sase service-connection
 
         # Show a specific service connection by name
-        scm show sase service-connection --name primary-connection
+        scm show sase service-connection primary-connection
 
     """
     if name:
@@ -549,8 +554,10 @@ def show_service_connection(
         emit(connection, output, title=f"Service Connection: {name}")
         return connection
 
-    # List all service connections in the folder
+    # List all service connections
     connections = scm_client.list_service_connections()
+    if max_results is not None:
+        connections = connections[:max_results]
 
     if not connections:
         emit([], output)
@@ -572,14 +579,16 @@ def show_service_connection(
 
 @backup_app.command("remote-network")
 @handle_command_errors("backing up remote networks")
-def backup_remote_network():
+def backup_remote_network(
+    file: Path | None = BACKUP_FILE_OPTION,
+):
     """Back up all remote networks to a YAML file.
 
-    The backup file will be named 'remote-networks.yaml' in the current directory.
+    Defaults to 'remote-networks.yaml' in the current directory.
 
     Example:
     -------
-    scm backup sase remote-network
+    scm backup sase remote-network --file my-networks.yaml
 
     """
     # List all remote networks
@@ -611,7 +620,7 @@ def backup_remote_network():
     yaml_data = {"remote_networks": backup_data}
 
     # Generate filename
-    filename = "remote-networks.yaml"
+    filename = str(file) if file else "remote-networks.yaml"
 
     # Write to YAML file
     with open(filename, "w") as f:
@@ -624,14 +633,14 @@ def backup_remote_network():
 @delete_app.command("remote-network")
 @handle_command_errors("deleting remote network")
 def delete_remote_network(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the remote network"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a remote network.
 
     Example:
     -------
-    scm delete sase remote-network --name branch-network
+    scm delete sase remote-network branch-network
 
     """
     if not force:
@@ -696,7 +705,7 @@ def load_remote_network(
 @set_app.command("remote-network")
 @handle_command_errors("creating remote network")
 def set_remote_network(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the remote network"),
     region: str = typer.Option(..., "--region", help="Region for the remote network"),
     license_type: str = typer.Option("FWAAS-AGGREGATE", "--license-type", help="License type"),
     description: str | None = DESCRIPTION_OPTION,
@@ -715,8 +724,7 @@ def set_remote_network(
 
     Example:
     -------
-    scm set sase remote-network \
-        --name branch-network \
+    scm set sase remote-network branch-network \
         --region us-west-1 \
         --license-type FWAAS-AGGREGATE \
         --spn-name spn-west \
@@ -784,8 +792,9 @@ def set_remote_network(
 @show_app.command("remote-network")
 @handle_command_errors("showing remote network")
 def show_remote_network(
-    name: str | None = typer.Option(None, "--name", help="Name of the remote network to show"),
+    name: str | None = typer.Argument(None, help="Name of the remote network to show; omit to list all"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display remote networks.
 
@@ -795,7 +804,7 @@ def show_remote_network(
         scm show sase remote-network
 
         # Show a specific remote network by name
-        scm show sase remote-network --name branch-network
+        scm show sase remote-network branch-network
 
     """
     if name:
@@ -808,6 +817,8 @@ def show_remote_network(
 
     # List all remote networks
     networks = scm_client.list_remote_networks()
+    if max_results is not None:
+        networks = networks[:max_results]
 
     if not networks:
         emit([], output)
@@ -919,6 +930,7 @@ def set_bgp_routing(
 @handle_command_errors("showing BGP routing")
 def show_bgp_routing(
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,  # noqa: ARG001 - singleton config, no list mode
 ):
     """Display BGP routing configuration.
 
@@ -939,7 +951,6 @@ def show_bgp_routing(
 # =============================================================================================================================================================================================
 
 # Internal DNS Server option constants
-DNS_NAME_OPTION = typer.Option(..., "--name", help="Name of the internal DNS server")
 DNS_DOMAIN_OPTION = typer.Option(..., "--domain-name", help="DNS domain name(s) (comma-separated if multiple)")
 DNS_PRIMARY_OPTION = typer.Option(..., "--primary", help="Primary DNS server IP address")
 DNS_SECONDARY_OPTION = typer.Option(None, "--secondary", help="Secondary DNS server IP address")
@@ -949,14 +960,16 @@ DNS_DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution w
 
 @backup_app.command("internal-dns-server")
 @handle_command_errors("backing up internal DNS servers")
-def backup_internal_dns_server():
+def backup_internal_dns_server(
+    file: Path | None = BACKUP_FILE_OPTION,
+):
     """Back up all internal DNS servers to a YAML file.
 
-    The backup file will be named 'internal-dns-servers.yaml' in the current directory.
+    Defaults to 'internal-dns-servers.yaml' in the current directory.
 
     Example:
     -------
-    scm backup sase internal-dns-server
+    scm backup sase internal-dns-server --file my-dns-servers.yaml
 
     """
     servers = scm_client.list_internal_dns_servers()
@@ -972,7 +985,7 @@ def backup_internal_dns_server():
         backup_data.append(server_dict)
 
     yaml_data = {"internal_dns_servers": backup_data}
-    filename = "internal-dns-servers.yaml"
+    filename = str(file) if file else "internal-dns-servers.yaml"
 
     with open(filename, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
@@ -984,14 +997,14 @@ def backup_internal_dns_server():
 @delete_app.command("internal-dns-server")
 @handle_command_errors("deleting internal DNS server")
 def delete_internal_dns_server(
-    name: str = DNS_NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the internal DNS server"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an internal DNS server.
 
     Example:
     -------
-    scm delete sase internal-dns-server --name my-dns-server
+    scm delete sase internal-dns-server my-dns-server
 
     """
     if not force:
@@ -1049,7 +1062,7 @@ def load_internal_dns_server(
 @set_app.command("internal-dns-server")
 @handle_command_errors("creating internal DNS server")
 def set_internal_dns_server(
-    name: str = DNS_NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the internal DNS server"),
     domain_name: str = DNS_DOMAIN_OPTION,
     primary: str = DNS_PRIMARY_OPTION,
     secondary: str | None = DNS_SECONDARY_OPTION,
@@ -1058,8 +1071,7 @@ def set_internal_dns_server(
 
     Example:
     -------
-    scm set sase internal-dns-server \
-        --name corp-dns \
+    scm set sase internal-dns-server corp-dns \
         --domain-name corp.example.com \
         --primary 10.0.0.1 \
         --secondary 10.0.0.2
@@ -1096,8 +1108,9 @@ def set_internal_dns_server(
 @show_app.command("internal-dns-server")
 @handle_command_errors("showing internal DNS server")
 def show_internal_dns_server(
-    name: str | None = typer.Option(None, "--name", help="Name of the internal DNS server to show"),
+    name: str | None = typer.Argument(None, help="Name of the internal DNS server to show; omit to list all"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display internal DNS servers.
 
@@ -1107,7 +1120,7 @@ def show_internal_dns_server(
         scm show sase internal-dns-server
 
         # Show a specific internal DNS server by name
-        scm show sase internal-dns-server --name corp-dns
+        scm show sase internal-dns-server corp-dns
 
     """
     if name:
@@ -1116,6 +1129,8 @@ def show_internal_dns_server(
         return server
 
     servers = scm_client.list_internal_dns_servers()
+    if max_results is not None:
+        servers = servers[:max_results]
 
     if not servers:
         emit([], output)
@@ -1140,6 +1155,7 @@ def show_internal_dns_server(
 def show_network_location(
     value: str | None = typer.Option(None, "--value", help="System value of the network location (e.g., us-west-1)"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display network locations (read-only).
 
@@ -1158,6 +1174,8 @@ def show_network_location(
         return location
 
     locations = scm_client.list_network_locations()
+    if max_results is not None:
+        locations = locations[:max_results]
 
     if not locations:
         emit([], output)

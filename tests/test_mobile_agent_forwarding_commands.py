@@ -168,7 +168,7 @@ class TestForwardingProfileCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "ztna-profile",
+                "ztna-profile",
                 "--profile-type", "ztna-agent",
             ],
         )
@@ -196,7 +196,7 @@ class TestForwardingProfileCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "proxy-profile",
+                "proxy-profile",
                 "--profile-type", "global-protect-proxy",
                 "--pac-upload",
             ],
@@ -219,7 +219,7 @@ class TestForwardingProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "ztna-profile"],
+            ["--folder", "Mobile Users", "ztna-profile"],
         )
 
         assert result.exit_code == 0
@@ -239,7 +239,7 @@ class TestForwardingProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "ztna-profile"],
+            ["--folder", "Mobile Users", "ztna-profile"],
         )
 
         assert result.exit_code == 0
@@ -250,7 +250,7 @@ class TestForwardingProfileCommands:
         test_app = typer.Typer()
         test_app.command()(set_forwarding_profile)
 
-        result = runner.invoke(test_app, ["--name", "ztna-profile"])
+        result = runner.invoke(test_app, ["ztna-profile"])
 
         assert result.exit_code == 1
 
@@ -268,7 +268,7 @@ class TestForwardingProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "fail-profile"],
+            ["--folder", "Mobile Users", "fail-profile"],
         )
 
         assert result.exit_code == 1
@@ -322,7 +322,7 @@ class TestForwardingProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "ztna-profile"],
+            ["--folder", "Mobile Users", "ztna-profile"],
         )
 
         assert result.exit_code == 0
@@ -403,11 +403,41 @@ class TestForwardingProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "ztna-profile", "--force"],
+            ["--folder", "Mobile Users", "ztna-profile", "--force"],
         )
 
         assert result.exit_code == 0
         assert "Deleted forwarding profile" in result.stdout
+
+    def test_delete_forwarding_profile_requires_name_or_id(self, runner, monkeypatch):
+        """Delete without NAME or --id fails with a clear error."""
+        test_app = typer.Typer()
+        test_app.command()(delete_forwarding_profile)
+
+        result = runner.invoke(
+            test_app,
+            ["--folder", "Mobile Users", "--force"],
+        )
+
+        assert result.exit_code == 1
+        assert "provide NAME or --id" in result.output
+
+    def test_show_forwarding_profile_max_results(self, runner, monkeypatch):
+        """--max-results slices the profile list client-side."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        profiles = [{"id": f"fp-{i}", "folder": "Mobile Users", "name": f"profile-{i}", "definition_method": "rules"} for i in range(4)]
+        monkeypatch.setattr(scm_client, "list_forwarding_profiles", lambda *a, **k: profiles)
+
+        test_app = typer.Typer()
+        test_app.command()(show_forwarding_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--max-results", "3", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == profiles[:3]
 
     def test_delete_forwarding_profile_error(self, runner, monkeypatch):
         """Test deleting a forwarding profile with an error."""
@@ -423,7 +453,7 @@ class TestForwardingProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
+            ["--folder", "Mobile Users", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -545,7 +575,7 @@ class TestForwardingProfileDestinationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "internal-apps",
+                "internal-apps",
                 "--fqdn", "*.example.com:8080",
                 "--fqdn", "app.internal",
                 "--ip-address", "10.0.0.0/8",
@@ -565,7 +595,7 @@ class TestForwardingProfileDestinationCommands:
         test_app = typer.Typer()
         test_app.command()(set_forwarding_profile_destination)
 
-        result = runner.invoke(test_app, ["--name", "internal-apps"])
+        result = runner.invoke(test_app, ["internal-apps"])
 
         assert result.exit_code == 1
 
@@ -583,7 +613,7 @@ class TestForwardingProfileDestinationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "fail-dest"],
+            ["--folder", "Mobile Users", "fail-dest"],
         )
 
         assert result.exit_code == 1
@@ -636,7 +666,7 @@ class TestForwardingProfileDestinationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "internal-apps"],
+            ["--folder", "Mobile Users", "internal-apps"],
         )
 
         assert result.exit_code == 0
@@ -700,7 +730,7 @@ class TestForwardingProfileDestinationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "internal-apps", "--force"],
+            ["--folder", "Mobile Users", "internal-apps", "--force"],
         )
 
         assert result.exit_code == 0
@@ -720,7 +750,7 @@ class TestForwardingProfileDestinationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
+            ["--folder", "Mobile Users", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -843,7 +873,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_forwarding_profile_destination)
 
-        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "internal-apps", "--output", "json"])
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "internal-apps", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == destination

@@ -7,18 +7,19 @@ The `pan-scm-cli` command-line interface provides a structured set of commands f
 All commands follow this pattern:
 
 ```bash
-scm <action> <category> <resource> [options]
+scm <action> <category> <resource> [name] [options]
 ```
 
 | Component | Description | Examples |
 | --- | --- | --- |
-| `<action>` | Operation to perform | `set`, `delete`, `load`, `show`, `backup` |
+| `<action>` | Operation to perform | `set`, `delete`, `load`, `show`, `backup`, `move` |
 | `<category>` | Category of resource | `object`, `network`, `security`, `sase` |
-| `<resource>` | Specific resource type | `address`, `security-zone`, `rule` |
-| `[options]` | Resource-specific parameters | `--folder`, `--name`, `--file` |
+| `<resource>` | Specific resource type | `address`, `zone`, `rule` |
+| `[name]` | Positional resource name (required for `set`/`delete`/`move`; optional for `show`) | `web-server`, `Allow-Web` |
+| `[options]` | Resource-specific parameters | `--folder`, `--file` |
 
 :::note
-All `show` commands default to listing all items when no `--name` parameter
+All `show` commands default to listing all items when no `NAME` argument
 is provided.
 :::
 

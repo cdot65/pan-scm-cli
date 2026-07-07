@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `pan-scm-cli` is a CLI tool for managing Palo Alto Networks Strata Cloud Manager (SCM) configurations. It manages objects, network configs, security policy, identity profiles, mobile agent settings, setup containers, and SASE/deployment resources through a consistent verb-based interface, plus monitoring (insights, incidents), device operations, local config retrieval, jobs, and firewall posture (BPA) assessment.
 
-- **Package:** `pan-scm-cli` (version `1.5.0`), console script `scm`.
+- **Package:** `pan-scm-cli` (version `2.0.0`), console script `scm`.
 - **Runtime:** Python `>=3.10,<3.14`, built with Typer + Click, validated with Pydantic v2.
 - **SDK dependency:** `pan-scm-sdk ^0.15.0` (i.e. `>=0.15.0,<0.16.0`) — verify compatibility when bumping.
 - **Packaging/build:** Poetry (`pyproject.toml`).
@@ -65,12 +65,14 @@ The command reference under `docs-site/docs/cli/` is the source of truth for the
 For configuration verbs the CLI follows:
 
 ```
-scm <action> <category> <object-type> [options]
+scm <action> <category> <object-type> [NAME] [options]
 ```
 
 **Actions:** `set`, `delete`, `show`, `load`, `backup`, `move`
 **Categories:** `object`, `network`, `security`, `identity`, `mobile-agent`, `setup`, `sase`
 **Standalone top-level commands:** `commit`, `context`, `jobs`, `insights`, `incidents`, `local`, `operations`, `posture`
+
+The object name is a positional `NAME` argument (required for `set`/`delete`/`move`, optional for `show` — omit it to list all). Exceptions: quarantined-device uses `--host-id`, network-location uses `--value`, and singletons (sase bgp-routing, mobile-agent global-setting) take no name.
 
 ### Command Modules (`src/scm_cli/commands/`)
 
@@ -159,14 +161,16 @@ Lint config: ruff `line-length = 192`, `target-version = py310`, rules `E,F,I,B,
 ## Quick Reference
 
 ```
-scm <action> <category> <object-type> [options]
+scm <action> <category> <object-type> [NAME] [options]
 ```
 
 **Actions:** `set`, `delete`, `show`, `load`, `backup`, `move`
 **Categories:** `object`, `network`, `security`, `identity`, `mobile-agent`, `setup`, `sase`
 **Standalone:** `scm commit`, `scm context`, `scm jobs`, `scm insights`, `scm incidents`, `scm local`, `scm operations`, `scm posture`
 
-Global options: `--version`/`-V`, `--region <region>` (override SCM API region for the invocation).
+The object name is a positional `NAME` argument: required for `set`/`delete`/`move`, optional for `show` (omit it to list all — there is no `--list` flag). Every `show` supports `--output table|json|yaml` and `--max-results N`; every `load` supports `--dry-run`; every `backup` supports `--file`. Multi-value flags are repeatable (e.g. `--tags a --tags b`, `--members m1 --members m2`), not comma-separated.
+
+Global options: `--version`/`-V`, `--region <region>` (override SCM API region for the invocation), `--debug`.
 
 ---
 
@@ -196,7 +200,7 @@ scm context current
 
 **Environment variable overrides:** `SCM_CLIENT_ID`, `SCM_CLIENT_SECRET`, `SCM_TSG_ID` (useful for CI/CD).
 
-**Mock mode:** Set `SCM_MOCK=1` (or use `--mock` where available) to test without API credentials. Missing credentials without explicit mock mode fail with exit code 1 — there is no silent fallback.
+**Mock mode:** Set `SCM_MOCK=1` to test without API credentials (`scm context test` also accepts `--mock`; other commands have no `--mock` flag). Missing credentials without explicit mock mode fail with exit code 1 — there is no silent fallback.
 
 **Note:** Legacy config files (`~/.scm-cli/config.yaml`, `.secrets.yaml`) are no longer supported — use contexts.
 
@@ -204,13 +208,15 @@ scm context current
 
 ## Container Locations
 
-Most commands require exactly ONE container location:
+`set`/`delete`/`show` for object, network, security, and identity types require exactly ONE container location:
 
 | Flag | Description |
 |------|-------------|
 | `--folder <name>` | Folder in the hierarchy (most common) |
 | `--snippet <name>` | Shared configuration snippet |
 | `--device <name>` | Device-level configuration |
+
+Exceptions: `sase` types, `setup` folder/label/snippet/device, and quarantined-device take no container; `mobile-agent` is folder-only (SDK limitation).
 
 ---
 
@@ -220,19 +226,19 @@ Most commands require exactly ONE container location:
 
 ```bash
 # IP netmask
-scm set object address --folder Texas --name webserver --ip-netmask 10.1.1.10/32 --description "Web server" --tags web prod
+scm set object address webserver --folder Texas --ip-netmask 10.1.1.10/32 --description "Web server" --tags web --tags prod
 # IP range
-scm set object address --folder Texas --name dhcp-pool --ip-range 10.1.3.1-10.1.3.10
+scm set object address dhcp-pool --folder Texas --ip-range 10.1.3.1-10.1.3.10
 # FQDN
-scm set object address --folder Texas --name google-dns --fqdn dns.google.com
+scm set object address google-dns --folder Texas --fqdn dns.google.com
 # IP wildcard
-scm set object address --folder Texas --name wildcard --ip-wildcard 10.20.0.0/0.0.255.255
+scm set object address wildcard --folder Texas --ip-wildcard 10.20.0.0/0.0.255.255
 ```
 
 ```bash
-scm show object address --folder Texas                    # list all
-scm show object address --folder Texas --name webserver   # show one
-scm delete object address --folder Texas --name webserver [--force]
+scm show object address --folder Texas             # list all
+scm show object address webserver --folder Texas   # show one
+scm delete object address webserver --folder Texas [--force]
 ```
 
 **Constraints:** Name 1-63 chars. Exactly ONE address type required.
@@ -240,8 +246,8 @@ scm delete object address --folder Texas --name webserver [--force]
 ### Address Groups
 
 ```bash
-scm set object address-group --folder Texas --name web-servers --type static --members webserver1 webserver2
-scm set object address-group --folder Texas --name tagged-web --type dynamic --filter "'web' and 'prod'"
+scm set object address-group web-servers --folder Texas --type static --members webserver1 --members webserver2
+scm set object address-group tagged-web --folder Texas --type dynamic --filter "'web' and 'prod'"
 ```
 
 **Constraints:** Static requires `--members` (min 1). Dynamic uses tag-based filter expressions.
@@ -249,9 +255,9 @@ scm set object address-group --folder Texas --name tagged-web --type dynamic --f
 ### Applications
 
 ```bash
-scm set object application --folder Texas --name custom-app \
+scm set object application custom-app --folder Texas \
   --category business-systems --subcategory erp --technology client-server --risk 3 \
-  --ports tcp/8080 tcp/8443 --transfers-files --has-known-vulnerabilities
+  --ports tcp/8080 --ports tcp/8443 --transfers-files --has-known-vulnerabilities
 ```
 
 **Risk levels:** 1-5. Boolean flags: `--evasive`, `--pervasive`, `--excessive-bandwidth-use`, `--used-by-malware`, `--transfers-files`, `--has-known-vulnerabilities`, `--tunnels-other-apps`, `--prone-to-misuse`, `--no-certifications`.
@@ -259,20 +265,20 @@ scm set object application --folder Texas --name custom-app \
 ### Application Groups
 
 ```bash
-scm set object application-group --folder Texas --name web-apps --members web-browsing ssl http
+scm set object application-group web-apps --folder Texas --members web-browsing --members ssl --members http
 ```
 
 ### Application Filters
 
 ```bash
-scm set object application-filter --folder Texas --name high-risk \
-  --category business-systems --subcategory erp --technology client-server --risk 4 5
+scm set object application-filter high-risk --folder Texas \
+  --category business-systems --subcategory erp --technology client-server --risk 4 --risk 5
 ```
 
 ### Tags
 
 ```bash
-scm set object tag --folder Texas --name production --color Red --comments "Production environment"
+scm set object tag production --folder Texas --color Red --comments "Production environment"
 ```
 
 **42 valid colors:** Red, Green, Blue, Yellow, Copper, Orange, Purple, Gray, Light Green, Cyan, Light Gray, Blue Gray, Lime, Black, Gold, Brown, Olive, Maroon, Red-Orange, Yellow-Orange, Forest Green, Turquoise Blue, Azure Blue, Cerulean Blue, Midnight Blue, Medium Blue, Cobalt Blue, Violet Blue, Blue Violet, Medium Violet, Medium Rose, Lavender, Orchid, Thistle, Peach, Salmon, Magenta, Red Violet, Mahogany, Burnt Sienna, Chestnut. Color names are case-insensitive in the CLI validator but case-sensitive in the API.
@@ -280,10 +286,10 @@ scm set object tag --folder Texas --name production --color Red --comments "Prod
 ### Services
 
 ```bash
-scm set object service --folder Texas --name web-http --protocol tcp --port 80
-scm set object service --folder Texas --name web-https --protocol tcp --port 443 --timeout 3600
-scm set object service --folder Texas --name multi-port --protocol tcp --port 80,443,8080
-scm set object service --folder Texas --name port-range --protocol tcp --port 8000-8999
+scm set object service web-http --folder Texas --protocol tcp --port 80
+scm set object service web-https --folder Texas --protocol tcp --port 443 --timeout 3600
+scm set object service multi-port --folder Texas --protocol tcp --port 80,443,8080
+scm set object service port-range --folder Texas --protocol tcp --port 8000-8999
 ```
 
 **Constraints:** Protocol `tcp` or `udp`. Port: single, range (80-443), or comma-separated (80,443,8080). Service tags must reference existing tag objects.
@@ -291,7 +297,7 @@ scm set object service --folder Texas --name port-range --protocol tcp --port 80
 ### Service Groups
 
 ```bash
-scm set object service-group --folder Texas --name web-services --members web-http web-https
+scm set object service-group web-services --folder Texas --members web-http --members web-https
 ```
 
 **Constraints:** Members must be unique; can reference services or other service groups (nested allowed).
@@ -299,7 +305,7 @@ scm set object service-group --folder Texas --name web-services --members web-ht
 ### Dynamic User Groups
 
 ```bash
-scm set object dynamic-user-group --folder Texas --name risky-users \
+scm set object dynamic-user-group risky-users --folder Texas \
   --filter "'high-risk' and 'external'" --description "High risk external users"
 ```
 
@@ -308,11 +314,11 @@ scm set object dynamic-user-group --folder Texas --name risky-users \
 ### External Dynamic Lists
 
 ```bash
-scm set object external-dynamic-list --folder Texas --name bulletproof-ips \
+scm set object external-dynamic-list bulletproof-ips --folder Texas \
   --type predefined_ip --url panw-bulletproof-ip-list
-scm set object external-dynamic-list --folder Texas --name threat-ips \
+scm set object external-dynamic-list threat-ips --folder Texas \
   --type ip --url https://example.com/threats.txt --recurring daily --hour 03
-scm set object external-dynamic-list --folder Texas --name blocked-domains \
+scm set object external-dynamic-list blocked-domains --folder Texas \
   --type domain --url https://example.com/domains.txt --recurring hourly \
   --username api_user --password secret --expand-domain
 ```
@@ -324,9 +330,9 @@ Predefined EDLs use short names (e.g. `panw-bulletproof-ip-list`) not full URLs.
 ### HIP Objects
 
 ```bash
-scm set object hip-object --folder Texas --name corporate-host \
-  --host-info-os Microsoft --host-info-managed true \
-  --disk-encryption-enabled true
+scm set object hip-object corporate-host --folder Texas \
+  --host-info-os Microsoft --host-info-os-value All --host-info-managed \
+  --disk-encryption-enabled
 ```
 
 Criteria types: host info, network info, patch management, disk encryption, mobile device, certificate. HIP objects use a flattened field structure in validators (converted to nested SDK format). See `examples/hip-objects.yml`.
@@ -334,7 +340,7 @@ Criteria types: host info, network info, patch management, disk encryption, mobi
 ### HIP Profiles
 
 ```bash
-scm set object hip-profile --folder Texas --name corp-compliance --match "corporate-host is"
+scm set object hip-profile corp-compliance --folder Texas --match "corporate-host is"
 ```
 
 Reference HIP objects through match criteria with boolean operators (is/is-not).
@@ -342,9 +348,8 @@ Reference HIP objects through match criteria with boolean operators (is/is-not).
 ### HTTP Server Profiles
 
 ```bash
-scm set object http-server-profile --folder Texas --name webhook-profile \
-  --server-name srv1 --server-address 192.168.1.1 --server-protocol HTTP \
-  --server-port 8080 --server-http-method POST
+scm set object http-server-profile webhook-profile --folder Texas \
+  --servers '[{"name": "srv1", "address": "192.168.1.1", "protocol": "HTTP", "port": 8080, "http_method": "POST"}]'
 ```
 
 **Important:** `http_method` is required for all server configs. The `server` field is singular from the API but YAML uses plural `servers` for consistency.
@@ -352,7 +357,7 @@ scm set object http-server-profile --folder Texas --name webhook-profile \
 ### Log Forwarding Profiles
 
 ```bash
-scm set object log-forwarding-profile --folder Texas --name forward-all --enhanced-application-logging
+scm set object log-forwarding-profile forward-all --folder Texas --enhanced-application-logging
 ```
 
 **Important:** the `filter` field is required in match list entries despite SDK docs showing it optional. Match lists support traffic, threat, wildfire, url, data, tunnel, auth, decryption, dns-security log types.
@@ -360,9 +365,9 @@ scm set object log-forwarding-profile --folder Texas --name forward-all --enhanc
 ### Syslog Server Profiles
 
 ```bash
-scm set object syslog-server-profile --folder Texas --name syslog-central \
+scm set object syslog-server-profile syslog-central --folder Texas \
   --server-name syslog1 --server-address 192.168.1.100 \
-  --server-transport UDP --server-port 514 --server-format BSD --server-facility LOG_USER
+  --transport UDP --port 514 --format BSD --facility LOG_USER
 ```
 
 **Transport:** UDP, TCP (SSL not supported by SDK). **Format:** BSD, IETF. **Facilities:** LOG_USER, LOG_LOCAL0–LOG_LOCAL7. Uses `fetch()` (not `get()`) in the SDK client for retrieval.
@@ -370,29 +375,29 @@ scm set object syslog-server-profile --folder Texas --name syslog-central \
 ### Schedules
 
 ```bash
-scm set object schedule --folder Texas --name maintenance-window \
-  --saturday 02:00-06:00 --sunday 02:00-06:00
+scm set object schedule maintenance-window --folder Texas \
+  --schedule-type recurring-weekly --saturday 02:00-06:00 --sunday 02:00-06:00
 ```
 
 ### Regions
 
 ```bash
-scm set object region --folder Texas --name us-east --address 10.0.0.0/8 172.16.0.0/12
+scm set object region us-east --folder Texas --address 10.0.0.0/8 --address 172.16.0.0/12
 ```
 
 ### Auto Tag Actions
 
 ```bash
-scm set object auto-tag-action --folder Texas --name auto-tag-threats
+scm set object auto-tag-action auto-tag-threats --folder Texas
 ```
 
 ### Quarantined Devices
 
 ```bash
-scm show object quarantined-device --folder Texas
+scm show object quarantined-device [--host-id <id>] [--serial-number <sn>]
 ```
 
-Manage quarantined devices (list/set/delete) — see `docs-site/docs/cli/objects/quarantined-device.md`.
+Manage quarantined devices (list/set/delete) — identified by `--host-id`, no positional name and no container flags. See `docs-site/docs/cli/objects/quarantined-device.md`.
 
 ---
 
@@ -401,9 +406,9 @@ Manage quarantined devices (list/set/delete) — see `docs-site/docs/cli/objects
 ### Security Zones
 
 ```bash
-scm set network zone --folder Texas --name trust --interfaces ethernet1/1 ethernet1/2
+scm set network zone trust --folder Texas --mode layer3 --interfaces ethernet1/1 --interfaces ethernet1/2
 scm show network zone --folder Texas
-scm delete network zone --folder Texas --name trust [--force]
+scm delete network zone trust --folder Texas [--force]
 ```
 
 ### Other Network Objects
@@ -446,19 +451,20 @@ All follow `scm <action> network <type>`:
 ### Security Rules
 
 ```bash
-scm set security rule --folder Texas --name allow-web \
+scm set security rule allow-web --folder Texas \
   --source-zones trust --destination-zones untrust \
   --source-addresses any --destination-addresses web-servers \
-  --applications web-browsing ssl --services application-default \
+  --applications web-browsing --applications ssl --services application-default \
   --action allow --log-end --description "Allow web traffic" --rulebase pre
 
 scm show security rule --folder Texas
-scm show security rule --folder Texas --name allow-web
-scm delete security rule --folder Texas --name allow-web [--force]
+scm show security rule allow-web --folder Texas
+scm delete security rule allow-web --folder Texas [--force]
 
 # Move (reorder)
-scm move security rule --folder Texas --name allow-web --insert before --reference deny-all --rulebase pre
-scm move security rule --folder Texas --name allow-web --insert after --reference allow-dns --rulebase pre
+scm move security rule allow-web --folder Texas --destination top --rulebase pre
+scm move security rule allow-web --folder Texas --destination before --destination-rule <rule-uuid> --rulebase pre
+scm move security rule allow-web --folder Texas --destination after --destination-rule <rule-uuid> --rulebase pre
 ```
 
 **Options:** `--source-zones`/`--destination-zones` (names or `any`); `--source-addresses`/`--destination-addresses`; `--applications`; `--services` (names, `application-default`, or `any`); `--action` (`allow`/`deny`/`drop`); `--enabled`/`--disabled`; `--log-start`/`--log-end`; `--log-setting`; `--rulebase` (`pre` default, `post`, `default`); `--tags`.
@@ -500,10 +506,10 @@ scm move security rule --folder Texas --name allow-web --insert after --referenc
 | `agent-version` | Agent versions (show only, read-only) |
 | `auth-setting` | GlobalProtect auth settings |
 
-Also includes agent/forwarding/tunnel profiles and global/infrastructure settings — see `docs-site/docs/cli/mobile-agent/`.
+Also includes agent/forwarding/tunnel profiles and global/infrastructure settings — see `docs-site/docs/cli/mobile-agent/`. Mobile-agent commands are folder-only (no `--snippet`/`--device`, SDK limitation); global-setting is a singleton and takes no name.
 
 ```bash
-scm set mobile-agent auth-setting --folder Texas --name gp-auth \
+scm set mobile-agent auth-setting gp-auth --folder "Mobile Users" \
   --authentication-profile corp-auth --os Any
 ```
 
@@ -514,27 +520,27 @@ scm set mobile-agent auth-setting --folder Texas --name gp-auth \
 ### Folders
 
 ```bash
-scm set setup folder --name "Branch Office" --parent "All Firewalls" --description "Branch config"
+scm set setup folder "Branch Office" --parent "All Firewalls" --description "Branch config"
 scm show setup folder
-scm delete setup folder --name "Branch Office" [--force]
+scm delete setup folder "Branch Office" [--force]
 ```
 
 ### Labels
 
 ```bash
-scm set setup label --name production --description "Production environment"
+scm set setup label production --description "Production environment"
 ```
 
 ### Snippets
 
 ```bash
-scm set setup snippet --name shared-config --description "Shared configuration"
+scm set setup snippet shared-config --description "Shared configuration"
 ```
 
 ### Variables
 
 ```bash
-scm set setup variable --folder Texas --name '$dns-server' --type ip-netmask --value 8.8.8.8/32
+scm set setup variable '$dns-server' --folder Texas --type ip-netmask --value 8.8.8.8/32
 ```
 
 **Variable types:** `percent`, `count`, `ip-netmask`, `zone`, `ip-range`, `ip-wildcard`, `fqdn`, `port`, `egress-max`, and more.
@@ -560,9 +566,11 @@ Manage device records — see `docs-site/docs/cli/setup/device.md`.
 | `service-connection` | Service connections |
 
 ```bash
-scm set sase bandwidth-allocation --folder Texas --name site-bw --bandwidth 1000
-scm show sase bandwidth-allocation --folder Texas
+scm set sase bandwidth-allocation site-bw --bandwidth 1000 --spn-name-list spn1,spn2
+scm show sase bandwidth-allocation
 ```
+
+SASE resources are global — no `--folder`/`--snippet`/`--device` flags. `bgp-routing` is a singleton and takes no name.
 
 ---
 
@@ -729,7 +737,7 @@ scm insights service-connections --list [--health healthy] [--metrics]
 scm insights tunnels --list [--status up] [--stats]
 ```
 
-All insights commands support: `--export json|csv`, `--output <file>`, `--max-results <n>`, `--folder <name>`, `--mock`.
+All insights commands support: `--export json|csv`, `--output <file>`, `--max-results <n>`, `--folder <name>`. There is no `--mock` flag on insights commands — set `SCM_MOCK=1` to test without credentials.
 
 ---
 
@@ -771,7 +779,7 @@ scm operations interfaces --device 007951000123456
 scm operations device-rules --device 007951000123456
 scm operations bgp-export --device 007951000123456
 scm operations logging-status --device 007951000123456
-scm operations status --job-id abc-123               # check a dispatched async job
+scm operations status --id abc-123                   # check a dispatched async job
 ```
 
 ---
@@ -802,7 +810,7 @@ Env vars: `PANOS_HOST`, `PANOS_USER`, `PANOS_PASSWORD`.
 
 1. **Always commit after changes.** `set`, `delete`, and `load` stage changes; nothing applies until `scm commit`.
 2. **One address type per address object.** Exactly one of `--ip-netmask`, `--ip-range`, `--ip-wildcard`, `--fqdn`.
-3. **One container per command.** Exactly one of `--folder`, `--snippet`, `--device`.
+3. **One container per command.** Object, network, security, and identity commands require exactly one of `--folder`, `--snippet`, `--device`. Exceptions: sase, setup folder/label/snippet/device, and quarantined-device take no container; mobile-agent is folder-only.
 4. **Boolean fields:** omit false booleans from YAML/requests to avoid API validation errors.
 5. **Tag references must exist** before objects reference them.
 6. **SDK service names are singular** (e.g. `application_filter`, `external_dynamic_list`, `hip_object`, `service`, `tag`).
@@ -810,7 +818,7 @@ Env vars: `PANOS_HOST`, `PANOS_USER`, `PANOS_PASSWORD`.
 8. **HTTP server profiles require `http_method`.**
 9. **Log forwarding profile match lists require `filter`** despite SDK docs.
 10. **`--force` skips confirmation prompts** — use on `delete`/`commit` when non-interactive.
-11. **Mock mode is explicit:** set `SCM_MOCK=1` (or `--mock` where available) to test without credentials; missing credentials otherwise exit 1.
+11. **Mock mode is explicit:** set `SCM_MOCK=1` to test without credentials (only `scm context test` still has a `--mock` flag); missing credentials otherwise exit 1.
 12. **Security rule ordering matters** — use `scm move security rule` to reorder.
 13. **Rulebase options:** `pre` (before default), `post` (after), `default` (the default rulebase).
 14. **Color names are case-sensitive in the API** but case-insensitive in the CLI validator.

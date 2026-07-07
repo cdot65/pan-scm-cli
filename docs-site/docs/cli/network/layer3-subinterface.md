@@ -22,22 +22,27 @@ Create or update a layer3 subinterface.
 scm set network layer3-subinterface NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the layer3 subinterface | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Subinterface name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--tag INT` | VLAN tag (1-4096) | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--vlan-tag INTEGER` | VLAN tag (1-4096) | No |
 | `--parent-interface TEXT` | Parent interface name | No |
 | `--comment TEXT` | Interface description | No |
-| `--mtu INT` | MTU (576-9216) | No |
+| `--mtu INTEGER` | MTU (576-9216) | No |
 | `--ip-json TEXT` | Static IPs as JSON | No |
 | `--dhcp-client-json TEXT` | DHCP client config as JSON | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
@@ -46,7 +51,7 @@ scm set network layer3-subinterface NAME [OPTIONS]
 ```bash
 $ scm set network layer3-subinterface ethernet1/1.200 \
     --folder Texas \
-    --tag 200 \
+    --vlan-tag 200 \
     --parent-interface ethernet1/1 \
     --mtu 1500 \
     --ip-json '[{"name": "10.0.2.1/24"}]'
@@ -59,7 +64,7 @@ Created layer3 subinterface: ethernet1/1.200 in folder Texas
 ```bash
 $ scm set network layer3-subinterface ethernet1/2.300 \
     --folder Texas \
-    --tag 300 \
+    --vlan-tag 300 \
     --parent-interface ethernet1/2 \
     --dhcp-client-json '{"enable": true}' \
     --comment "DHCP-assigned VLAN"
@@ -77,17 +82,22 @@ Delete a layer3 subinterface from SCM.
 scm delete network layer3-subinterface NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the layer3 subinterface to delete | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Subinterface name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -112,12 +122,10 @@ scm load network layer3-subinterface [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
 | `--dry-run` | Preview changes without applying | No |
-
-\* One of --folder, --snippet, or --device is required.
 
 ### YAML File Format
 
@@ -178,22 +186,29 @@ Display layer3 subinterface objects.
 ### Syntax
 
 ```bash
-scm show network layer3-subinterface [OPTIONS]
+scm show network layer3-subinterface [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the layer3 subinterface to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific subinterface | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -201,7 +216,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Layer3 Subinterface
 
 ```bash
-$ scm show network layer3-subinterface --folder Texas --name ethernet1/1.200
+$ scm show network layer3-subinterface ethernet1/1.200 --folder Texas
 ---> 100%
 Layer3 Subinterface: ethernet1/1.200
   Location: Folder 'Texas'

@@ -18,20 +18,26 @@ Create a quarantined device entry.
 ### Syntax
 
 ```bash
-scm set object quarantined-device HOST_ID [OPTIONS]
+scm set object quarantined-device [OPTIONS]
 ```
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `HOST_ID` | Host ID of the device (positional) | Yes |
+| `--host-id TEXT` | Host ID of the device to quarantine | Yes |
 | `--serial-number TEXT` | Serial number of the device | No |
+
+:::note
+Quarantined devices are identified by `--host-id` rather than a positional name, and
+do not use a container location (`--folder`, `--snippet`, or `--device`).
+:::
 
 ### Example
 
 ```bash
-$ scm set object quarantined-device abc123 \
+$ scm set object quarantined-device \
+    --host-id abc123 \
     --serial-number SN12345
 ---> 100%
 Created quarantined device: abc123
@@ -44,20 +50,20 @@ Delete a quarantined device entry.
 ### Syntax
 
 ```bash
-scm delete object quarantined-device HOST_ID
+scm delete object quarantined-device [OPTIONS]
 ```
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `HOST_ID` | Host ID of the device (positional) | Yes |
+| `--host-id TEXT` | Host ID of the quarantined device to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete object quarantined-device abc123 --force
+$ scm delete object quarantined-device --host-id abc123 --force
 ---> 100%
 Deleted quarantined device: abc123
 ```
@@ -77,6 +83,7 @@ scm load object quarantined-device [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file containing quarantined device definitions | Yes |
+| `--dry-run` | Preview changes without applying them | No |
 
 ### YAML File Format
 
@@ -117,6 +124,8 @@ scm show object quarantined-device [OPTIONS]
 | --- | --- | --- |
 | `--host-id TEXT` | Filter by host ID | No |
 | `--serial-number TEXT` | Filter by serial number | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
 :::note
 When no filters are specified, all quarantined devices are listed by default.

@@ -19,14 +19,19 @@ Create or update a SAML server profile.
 ### Syntax
 
 ```bash
-scm set identity saml-server-profile [OPTIONS]
+scm set identity saml-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -46,9 +51,8 @@ scm set identity saml-server-profile [OPTIONS]
 #### Create Basic SAML Server Profile
 
 ```bash
-$ scm set identity saml-server-profile \
+$ scm set identity saml-server-profile corp-saml \
     --folder Texas \
-    --name corp-saml \
     --entity-id "https://idp.example.com" \
     --certificate idp-cert \
     --sso-url "https://idp.example.com/sso" \
@@ -60,9 +64,8 @@ Created saml-server-profile: corp-saml in folder Texas
 #### Create SAML Profile with SLO and Certificate Validation
 
 ```bash
-$ scm set identity saml-server-profile \
+$ scm set identity saml-server-profile secure-saml \
     --folder Texas \
-    --name secure-saml \
     --entity-id "https://idp.example.com" \
     --certificate idp-cert \
     --sso-url "https://idp.example.com/sso" \
@@ -78,9 +81,8 @@ Created saml-server-profile: secure-saml in folder Texas
 #### Create SAML Profile with Redirect Binding
 
 ```bash
-$ scm set identity saml-server-profile \
+$ scm set identity saml-server-profile redirect-saml \
     --folder Texas \
-    --name redirect-saml \
     --entity-id "https://idp.example.com/redirect" \
     --certificate idp-redirect-cert \
     --sso-url "https://idp.example.com/sso/redirect" \
@@ -96,14 +98,19 @@ Delete a SAML server profile from SCM.
 ### Syntax
 
 ```bash
-scm delete identity saml-server-profile [OPTIONS]
+scm delete identity saml-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -114,9 +121,8 @@ scm delete identity saml-server-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete identity saml-server-profile \
+$ scm delete identity saml-server-profile corp-saml \
     --folder Texas \
-    --name corp-saml \
     --force
 ---> 100%
 Deleted saml-server-profile: corp-saml from folder Texas
@@ -205,22 +211,29 @@ Display SAML server profile objects.
 ### Syntax
 
 ```bash
-scm show identity saml-server-profile [OPTIONS]
+scm show identity saml-server-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | No |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -228,9 +241,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific SAML Server Profile
 
 ```bash
-$ scm show identity saml-server-profile \
-    --folder Texas \
-    --name corp-saml
+$ scm show identity saml-server-profile corp-saml \
+    --folder Texas
 ---> 100%
 SAML Server Profile: corp-saml
   Location: Folder 'Texas'

@@ -49,7 +49,7 @@ class TestForwardingProfileSourceApplicationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "office-apps",
+                "office-apps",
                 "--application", "slack",
                 "--application", "zoom",
             ],
@@ -80,7 +80,7 @@ class TestForwardingProfileSourceApplicationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "office-apps",
+                "office-apps",
                 "--application", "slack",
             ],
         )
@@ -109,7 +109,7 @@ class TestForwardingProfileSourceApplicationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "office-apps",
+                "office-apps",
                 "--application", "slack",
             ],
         )
@@ -125,7 +125,7 @@ class TestForwardingProfileSourceApplicationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name", "office-apps",
+                "office-apps",
                 "--application", "slack",
             ],
         )
@@ -186,7 +186,7 @@ class TestForwardingProfileSourceApplicationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "office-apps"],
+            ["--folder", "Mobile Users", "office-apps"],
         )
 
         assert result.exit_code == 0
@@ -227,7 +227,7 @@ class TestForwardingProfileSourceApplicationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "office-apps", "--force"],
+            ["--folder", "Mobile Users", "office-apps", "--force"],
         )
 
         assert result.exit_code == 0
@@ -247,7 +247,7 @@ class TestForwardingProfileSourceApplicationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
+            ["--folder", "Mobile Users", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -360,7 +360,7 @@ forwarding_profile_source_applications:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "fail-apps",
+                "fail-apps",
                 "--application", "slack",
             ],
         )
@@ -393,7 +393,7 @@ class TestForwardingProfileUserLocationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "branch-network",
+                "branch-network",
                 "--ip-address", "10.1.0.0/16",
                 "--ip-address", "10.2.*.*",
             ],
@@ -425,7 +425,7 @@ class TestForwardingProfileUserLocationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "corp-office",
+                "corp-office",
                 "--internal-host-ip", "192.168.1.1",
                 "--internal-host-fqdn", "intranet.example.com",
             ],
@@ -455,7 +455,7 @@ class TestForwardingProfileUserLocationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "branch-network",
+                "branch-network",
                 "--ip-address", "10.1.0.0/16",
             ],
         )
@@ -472,7 +472,7 @@ class TestForwardingProfileUserLocationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "bad-location",
+                "bad-location",
                 "--ip-address", "10.1.0.0/16",
                 "--internal-host-fqdn", "intranet.example.com",
             ],
@@ -489,7 +489,7 @@ class TestForwardingProfileUserLocationCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "bad-location",
+                "bad-location",
             ],
         )
 
@@ -503,7 +503,7 @@ class TestForwardingProfileUserLocationCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name", "branch-network",
+                "branch-network",
                 "--ip-address", "10.1.0.0/16",
             ],
         )
@@ -564,7 +564,7 @@ class TestForwardingProfileUserLocationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "branch-network"],
+            ["--folder", "Mobile Users", "branch-network"],
         )
 
         assert result.exit_code == 0
@@ -605,7 +605,7 @@ class TestForwardingProfileUserLocationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "branch-network", "--force"],
+            ["--folder", "Mobile Users", "branch-network", "--force"],
         )
 
         assert result.exit_code == 0
@@ -625,7 +625,7 @@ class TestForwardingProfileUserLocationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
+            ["--folder", "Mobile Users", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -736,7 +736,7 @@ forwarding_profile_user_locations:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "fail-location",
+                "fail-location",
                 "--ip-address", "10.1.0.0/16",
             ],
         )
@@ -769,7 +769,7 @@ class TestForwardingProfileRegionalAndCustomProxyCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "emea-proxy",
+                "emea-proxy",
                 "--type", "gp-and-pac",
                 "--proxy-1-fqdn", "proxy1.example.com",
                 "--proxy-1-port", "8080",
@@ -802,7 +802,7 @@ class TestForwardingProfileRegionalAndCustomProxyCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "emea-proxy",
+                "emea-proxy",
                 "--proxy-1-fqdn", "proxy2.example.com",
             ],
         )
@@ -817,7 +817,7 @@ class TestForwardingProfileRegionalAndCustomProxyCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "emea-proxy"],
+            ["emea-proxy"],
         )
 
         assert result.exit_code == 1
@@ -879,7 +879,7 @@ class TestForwardingProfileRegionalAndCustomProxyCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "emea-proxy"],
+            ["--folder", "Mobile Users", "emea-proxy"],
         )
 
         assert result.exit_code == 0
@@ -920,7 +920,7 @@ class TestForwardingProfileRegionalAndCustomProxyCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "emea-proxy", "--force"],
+            ["--folder", "Mobile Users", "emea-proxy", "--force"],
         )
 
         assert result.exit_code == 0
@@ -940,7 +940,7 @@ class TestForwardingProfileRegionalAndCustomProxyCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
+            ["--folder", "Mobile Users", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -1064,7 +1064,7 @@ forwarding_profile_regional_and_custom_proxies:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "fail-proxy",
+                "fail-proxy",
             ],
         )
 
@@ -1111,7 +1111,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_forwarding_profile_user_location)
 
-        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "branch-network", "--output", "json"])
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "branch-network", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == location
@@ -1135,7 +1135,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_forwarding_profile_regional_and_custom_proxy)
 
-        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "emea-proxy", "--output", "json"])
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "emea-proxy", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == proxy

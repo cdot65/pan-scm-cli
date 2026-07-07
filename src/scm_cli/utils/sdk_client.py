@@ -1188,8 +1188,10 @@ class SCMClient:
 
     def create_address(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
         description: str = "",
         tags: list[str] | None = None,
         ip_netmask: str | None = None,
@@ -1201,6 +1203,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the address in
+            snippet: Snippet to create the address in
+            device: Device to create the address in
             name: Name of the address
             description: Optional description
             tags: Optional list of tags
@@ -1214,17 +1218,25 @@ class SCMClient:
 
         Note:
             Exactly one of ip_netmask, ip_range, ip_wildcard, or fqdn must be provided.
-            If an address with the same name already exists in the folder, it will be updated.
+            If an address with the same name already exists in the container, it will be updated.
 
         """
         tags = tags or []
-        self.logger.info(f"Creating or updating address: {name} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating address: {name} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"addr-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "description": description,
                 "tags": tags,
@@ -1238,10 +1250,10 @@ class SCMClient:
             # First, try to fetch the existing address
             existing_address = None
             try:
-                existing_address = self.client.address.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing address '{name}' in folder '{folder}', updating...")
+                existing_address = self.client.address.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing address '{name}' in '{container}', updating...")
             except NotFoundError:
-                self.logger.info(f"Address '{name}' not found in folder '{folder}', creating new...")
+                self.logger.info(f"Address '{name}' not found in '{container}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching address '{name}': {str(fetch_error)}")
@@ -1249,7 +1261,7 @@ class SCMClient:
             # Prepare address data
             address_data = {
                 "name": name,
-                "folder": folder,
+                **container_kwargs,
             }
 
             # Only include description if it's provided and not empty
@@ -1393,24 +1405,36 @@ class SCMClient:
                 response["__action__"] = "created"
                 return response
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_address(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete an address object.
 
         Args:
             folder: Folder containing the address
+            snippet: Snippet containing the address
+            device: Device containing the address
             name: Name of the address to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting address: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting address: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -1418,36 +1442,48 @@ class SCMClient:
 
         try:
             # Get the address first to retrieve its ID
-            address = self.client.address.fetch(name=name, folder=folder)
+            address = self.client.address.fetch(name=name, **container_kwargs)
 
             # Delete using the address's ID
             self.client.address.delete(object_id=str(address.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_address(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
-        """Get an address object by name and folder.
+        """Get an address object by name and container.
 
         Args:
             folder: Folder containing the address
+            snippet: Snippet containing the address
+            device: Device containing the address
             name: Name of the address to get
 
         Returns:
             dict[str, Any]: The address object
 
         """
-        self.logger.info(f"Getting address: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting address: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"addr-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "description": "Mock address object",
                 "tags": [],
@@ -1456,12 +1492,12 @@ class SCMClient:
 
         try:
             # Fetch the address using the SDK
-            result = self.client.address.fetch(name=name, folder=folder)
+            result = self.client.address.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_addresses(
         self,
@@ -1543,9 +1579,11 @@ class SCMClient:
 
     def create_address_group(
         self,
-        folder: str,
-        name: str,
-        type: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        type: str = "",
         members: list[str] | None = None,
         filter: str | None = None,
         description: str = "",
@@ -1555,6 +1593,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the address group in
+            snippet: Snippet to create the address group in
+            device: Device to create the address group in
             name: Name of the address group
             type: Type of address group ("static" or "dynamic")
             members: List of member addresses (for static groups)
@@ -1572,13 +1612,21 @@ class SCMClient:
         """
         members = members or []
         tags = tags or []
-        self.logger.info(f"Creating or updating address group: {name} of type {type} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating address group: {name} of type {type} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"ag-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "type": type,
                 "members": members,
@@ -1590,10 +1638,10 @@ class SCMClient:
             # First, try to fetch the existing address group
             existing_group = None
             try:
-                existing_group = self.client.address_group.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing address group '{name}' in folder '{folder}', updating...")
+                existing_group = self.client.address_group.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing address group '{name}' in '{container}', updating...")
             except NotFoundError:
-                self.logger.info(f"Address group '{name}' not found in folder '{folder}', creating new...")
+                self.logger.info(f"Address group '{name}' not found in '{container}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching address group '{name}': {str(fetch_error)}")
@@ -1601,7 +1649,7 @@ class SCMClient:
             # Prepare address group data
             group_data = {
                 "name": name,
-                "folder": folder,
+                **container_kwargs,
             }
             if description:
                 group_data["description"] = description
@@ -1672,24 +1720,36 @@ class SCMClient:
             result_dict["__action__"] = "updated" if existing_group else "created"
             return result_dict
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_address_group(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete an address group.
 
         Args:
             folder: Folder containing the address group
+            snippet: Snippet containing the address group
+            device: Device containing the address group
             name: Name of the address group to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting address group: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting address group: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -1697,36 +1757,48 @@ class SCMClient:
 
         try:
             # Get the address group first to retrieve its ID
-            address_group = self.client.address_group.fetch(name=name, folder=folder)
+            address_group = self.client.address_group.fetch(name=name, **container_kwargs)
 
             # Delete using the address group's ID
             self.client.address_group.delete(object_id=str(address_group.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_address_group(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get an address group by name and folder.
 
         Args:
             folder: Folder containing the address group
+            snippet: Snippet containing the address group
+            device: Device containing the address group
             name: Name of the address group to get
 
         Returns:
             dict[str, Any]: The address group object
 
         """
-        self.logger.info(f"Getting address group: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting address group: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"ag-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "description": "Mock address group",
                 "type": "static",
@@ -1736,12 +1808,12 @@ class SCMClient:
 
         try:
             # Fetch the address group using the SDK
-            result = self.client.address_group.fetch(name=name, folder=folder)
+            result = self.client.address_group.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_address_groups(
         self,
@@ -1810,12 +1882,14 @@ class SCMClient:
 
     def create_application(
         self,
-        folder: str,
-        name: str,
-        category: str,
-        subcategory: str,
-        technology: str,
-        risk: int,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        category: str = "",
+        subcategory: str = "",
+        technology: str = "",
+        risk: int = 0,
         description: str = "",
         ports: list[str] | None = None,
         evasive: bool = False,
@@ -1832,6 +1906,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the application in
+            snippet: Snippet to create the application in
+            device: Device to create the application in
             name: Name of the application
             category: High-level category
             subcategory: Specific subcategory
@@ -1857,13 +1933,21 @@ class SCMClient:
 
         """
         ports = ports or []
-        self.logger.info(f"Creating or updating application: {name} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating application: {name} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"app-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "category": category,
                 "subcategory": subcategory,
@@ -1877,10 +1961,10 @@ class SCMClient:
             # First, try to fetch the existing application
             existing_app = None
             try:
-                existing_app = self.client.application.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing application '{name}' in folder '{folder}', updating...")
+                existing_app = self.client.application.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing application '{name}' in '{container}', updating...")
             except NotFoundError:
-                self.logger.info(f"Application '{name}' not found in folder '{folder}', creating new...")
+                self.logger.info(f"Application '{name}' not found in '{container}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching application '{name}': {str(fetch_error)}")
@@ -1888,7 +1972,7 @@ class SCMClient:
             # Prepare application data
             app_data = {
                 "name": name,
-                "folder": folder,
+                **container_kwargs,
                 "category": category,
                 "subcategory": subcategory,
                 "technology": technology,
@@ -1955,24 +2039,36 @@ class SCMClient:
             result_dict["__action__"] = "updated" if existing_app else "created"
             return result_dict
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_application(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete an application.
 
         Args:
             folder: Folder containing the application
+            snippet: Snippet containing the application
+            device: Device containing the application
             name: Name of the application to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting application: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting application: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -1980,36 +2076,48 @@ class SCMClient:
 
         try:
             # Get the application first to retrieve its ID
-            app = self.client.application.fetch(name=name, folder=folder)
+            app = self.client.application.fetch(name=name, **container_kwargs)
 
             # Delete using the application's ID
             self.client.application.delete(object_id=str(app.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_application(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get an application by name and folder.
 
         Args:
             folder: Folder containing the application
+            snippet: Snippet containing the application
+            device: Device containing the application
             name: Name of the application to get
 
         Returns:
             dict[str, Any]: The application object
 
         """
-        self.logger.info(f"Getting application: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting application: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"app-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "category": "business-systems",
                 "subcategory": "database",
@@ -2021,12 +2129,12 @@ class SCMClient:
 
         try:
             # Fetch the application using the SDK
-            result = self.client.application.fetch(name=name, folder=folder)
+            result = self.client.application.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_applications(
         self,
@@ -2099,14 +2207,18 @@ class SCMClient:
 
     def create_application_group(
         self,
-        folder: str,
-        name: str,
-        members: list[str],
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        members: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create an application group.
 
         Args:
             folder: Folder to create the application group in
+            snippet: Snippet to create the application group in
+            device: Device to create the application group in
             name: Name of the application group
             members: List of application names
 
@@ -2117,13 +2229,21 @@ class SCMClient:
             If an application group with the same name already exists in the folder, it will be updated.
 
         """
-        self.logger.info(f"Creating or updating application group: {name} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating application group: {name} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"app-group-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "members": members,
             }
@@ -2132,10 +2252,10 @@ class SCMClient:
             # First, try to fetch the existing application group
             existing_group = None
             try:
-                existing_group = self.client.application_group.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing application group '{name}' in folder '{folder}', updating...")
+                existing_group = self.client.application_group.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing application group '{name}' in '{container}', updating...")
             except NotFoundError:
-                self.logger.info(f"Application group '{name}' not found in folder '{folder}', creating new...")
+                self.logger.info(f"Application group '{name}' not found in '{container}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching application group '{name}': {str(fetch_error)}")
@@ -2143,7 +2263,7 @@ class SCMClient:
             # Prepare application group data
             group_data = {
                 "name": name,
-                "folder": folder,
+                **container_kwargs,
                 "members": members,
             }
 
@@ -2165,24 +2285,36 @@ class SCMClient:
             result_dict["__action__"] = "updated" if existing_group else "created"
             return result_dict
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_application_group(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete an application group.
 
         Args:
             folder: Folder containing the application group
+            snippet: Snippet containing the application group
+            device: Device containing the application group
             name: Name of the application group to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting application group: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting application group: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -2190,48 +2322,60 @@ class SCMClient:
 
         try:
             # Get the application group first to retrieve its ID
-            group = self.client.application_group.fetch(name=name, folder=folder)
+            group = self.client.application_group.fetch(name=name, **container_kwargs)
 
             # Delete using the application group's ID
             self.client.application_group.delete(object_id=str(group.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_application_group(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get an application group by name and folder.
 
         Args:
             folder: Folder containing the application group
+            snippet: Snippet containing the application group
+            device: Device containing the application group
             name: Name of the application group to get
 
         Returns:
             dict[str, Any]: The application group object
 
         """
-        self.logger.info(f"Getting application group: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting application group: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"app-group-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "members": ["ssl", "web-browsing"],
             }
 
         try:
             # Fetch the application group using the SDK
-            result = self.client.application_group.fetch(name=name, folder=folder)
+            result = self.client.application_group.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_application_groups(
         self,
@@ -2294,12 +2438,14 @@ class SCMClient:
 
     def create_application_filter(
         self,
-        folder: str,
-        name: str,
-        category: list[str],
-        subcategory: list[str],
-        technology: list[str],
-        risk: list[int],
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        category: list[str] | None = None,
+        subcategory: list[str] | None = None,
+        technology: list[str] | None = None,
+        risk: list[int] | None = None,
         evasive: bool = False,
         pervasive: bool = False,
         excessive_bandwidth_use: bool = False,
@@ -2314,6 +2460,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the application filter in
+            snippet: Snippet to create the application filter in
+            device: Device to create the application filter in
             name: Name of the application filter
             category: List of category strings
             subcategory: List of subcategory strings
@@ -2336,13 +2484,21 @@ class SCMClient:
             If an application filter with the same name already exists in the folder, it will be updated.
 
         """
-        self.logger.info(f"Creating or updating application filter: {name} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating application filter: {name} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"app-filter-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "category": category,
                 "sub_category": subcategory,
@@ -2363,10 +2519,10 @@ class SCMClient:
             # First, try to fetch the existing application filter
             existing_filter = None
             try:
-                existing_filter = self.client.application_filter.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing application filter '{name}' in folder '{folder}', updating...")
+                existing_filter = self.client.application_filter.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing application filter '{name}' in '{container}', updating...")
             except NotFoundError:
-                self.logger.info(f"Application filter '{name}' not found in folder '{folder}', creating new...")
+                self.logger.info(f"Application filter '{name}' not found in '{container}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching application filter '{name}': {str(fetch_error)}")
@@ -2374,7 +2530,7 @@ class SCMClient:
             # Prepare application filter data
             filter_data = {
                 "name": name,
-                "folder": folder,
+                **container_kwargs,
                 "category": category,
                 "sub_category": subcategory,
                 "technology": technology,
@@ -2429,24 +2585,36 @@ class SCMClient:
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_application_filter(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete an application filter.
 
         Args:
             folder: Folder containing the application filter
+            snippet: Snippet containing the application filter
+            device: Device containing the application filter
             name: Name of the application filter to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting application filter: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting application filter: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -2454,36 +2622,48 @@ class SCMClient:
 
         try:
             # Get the application filter first to retrieve its ID
-            filter_obj = self.client.application_filter.fetch(name=name, folder=folder)
+            filter_obj = self.client.application_filter.fetch(name=name, **container_kwargs)
 
             # Delete using the application filter's ID
             self.client.application_filter.delete(object_id=str(filter_obj.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_application_filter(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get an application filter by name and folder.
 
         Args:
             folder: Folder containing the application filter
+            snippet: Snippet containing the application filter
+            device: Device containing the application filter
             name: Name of the application filter to get
 
         Returns:
             dict[str, Any]: The application filter object
 
         """
-        self.logger.info(f"Getting application filter: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting application filter: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"app-filter-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "category": ["business-systems", "networking"],
                 "sub_category": ["database", "routing"],
@@ -2502,12 +2682,12 @@ class SCMClient:
 
         try:
             # Fetch the application filter using the SDK
-            result = self.client.application_filter.fetch(name=name, folder=folder)
+            result = self.client.application_filter.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_application_filters(
         self,
@@ -2594,9 +2774,11 @@ class SCMClient:
 
     def create_dynamic_user_group(
         self,
-        folder: str,
-        name: str,
-        filter: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        filter: str = "",
         description: str = "",
         tags: list[str] | None = None,
     ) -> dict[str, Any]:
@@ -2604,6 +2786,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the dynamic user group in
+            snippet: Snippet to create the dynamic user group in
+            device: Device to create the dynamic user group in
             name: Name of the dynamic user group
             filter: Tag-based filter expression
             description: Optional description
@@ -2617,13 +2801,21 @@ class SCMClient:
 
         """
         tags = tags or []
-        self.logger.info(f"Creating or updating dynamic user group: {name} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating dynamic user group: {name} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"dug-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "filter": filter,
                 "description": description,
@@ -2634,10 +2826,10 @@ class SCMClient:
             # First, try to fetch the existing dynamic user group
             existing_group = None
             try:
-                existing_group = self.client.dynamic_user_group.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing dynamic user group '{name}' in folder '{folder}', updating...")
+                existing_group = self.client.dynamic_user_group.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing dynamic user group '{name}' in '{container}', updating...")
             except NotFoundError:
-                self.logger.info(f"Dynamic user group '{name}' not found in folder '{folder}', creating new...")
+                self.logger.info(f"Dynamic user group '{name}' not found in '{container}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching dynamic user group '{name}': {str(fetch_error)}")
@@ -2645,7 +2837,7 @@ class SCMClient:
             # Prepare dynamic user group data
             group_data = {
                 "name": name,
-                "folder": folder,
+                **container_kwargs,
                 "filter": filter,
             }
             if description:
@@ -2676,24 +2868,36 @@ class SCMClient:
             result_dict["__action__"] = "updated" if existing_group else "created"
             return result_dict
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_dynamic_user_group(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete a dynamic user group.
 
         Args:
             folder: Folder containing the dynamic user group
+            snippet: Snippet containing the dynamic user group
+            device: Device containing the dynamic user group
             name: Name of the dynamic user group to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting dynamic user group: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting dynamic user group: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -2701,36 +2905,48 @@ class SCMClient:
 
         try:
             # Get the dynamic user group first to retrieve its ID
-            group = self.client.dynamic_user_group.fetch(name=name, folder=folder)
+            group = self.client.dynamic_user_group.fetch(name=name, **container_kwargs)
 
             # Delete using the dynamic user group's ID
             self.client.dynamic_user_group.delete(object_id=str(group.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_dynamic_user_group(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get a dynamic user group by name and folder.
 
         Args:
             folder: Folder containing the dynamic user group
+            snippet: Snippet containing the dynamic user group
+            device: Device containing the dynamic user group
             name: Name of the dynamic user group to get
 
         Returns:
             dict[str, Any]: The dynamic user group object
 
         """
-        self.logger.info(f"Getting dynamic user group: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting dynamic user group: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"dug-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "filter": "tag.Department='IT' and tag.Environment='Production'",
                 "description": "Mock dynamic user group",
@@ -2739,12 +2955,12 @@ class SCMClient:
 
         try:
             # Fetch the dynamic user group using the SDK
-            result = self.client.dynamic_user_group.fetch(name=name, folder=folder)
+            result = self.client.dynamic_user_group.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_dynamic_user_groups(
         self,
@@ -2815,14 +3031,18 @@ class SCMClient:
 
     def create_external_dynamic_list(
         self,
-        folder: str,
-        name: str,
-        type_config: dict[str, Any],
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        type_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create an external dynamic list.
 
         Args:
             folder: Folder to create the EDL in
+            snippet: Snippet to create the EDL in
+            device: Device to create the EDL in
             name: Name of the EDL
             type_config: Type configuration with EDL type and settings
 
@@ -2833,13 +3053,21 @@ class SCMClient:
             This uses smart upsert logic - if an EDL with the same name already exists, it will be updated.
 
         """
-        self.logger.info(f"Creating or updating external dynamic list: {name} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating external dynamic list: {name} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"edl-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "type": type_config,
             }
@@ -2848,10 +3076,10 @@ class SCMClient:
             # First, try to fetch the existing EDL
             existing_edl = None
             try:
-                existing_edl = self.client.external_dynamic_list.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing EDL '{name}' in folder '{folder}', updating...")
+                existing_edl = self.client.external_dynamic_list.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing EDL '{name}' in '{container}', updating...")
             except NotFoundError:
-                self.logger.info(f"EDL '{name}' not found in folder '{folder}', creating new...")
+                self.logger.info(f"EDL '{name}' not found in '{container}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching EDL '{name}': {str(fetch_error)}")
@@ -2866,7 +3094,7 @@ class SCMClient:
             else:
                 # Create a new EDL
                 edl_data = {
-                    "folder": folder,
+                    **container_kwargs,
                     "name": name,
                     "type": type_config,
                 }
@@ -2875,24 +3103,36 @@ class SCMClient:
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_external_dynamic_list(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete an external dynamic list.
 
         Args:
             folder: Folder containing the EDL
+            snippet: Snippet containing the EDL
+            device: Device containing the EDL
             name: Name of the EDL to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting external dynamic list: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting external dynamic list: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -2900,36 +3140,48 @@ class SCMClient:
 
         try:
             # Get the EDL first to retrieve its ID
-            edl = self.client.external_dynamic_list.fetch(name=name, folder=folder)
+            edl = self.client.external_dynamic_list.fetch(name=name, **container_kwargs)
 
             # Delete using the EDL's ID
             self.client.external_dynamic_list.delete(edl_id=str(edl.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_external_dynamic_list(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get an external dynamic list by name and folder.
 
         Args:
             folder: Folder containing the EDL
+            snippet: Snippet containing the EDL
+            device: Device containing the EDL
             name: Name of the EDL to get
 
         Returns:
             dict[str, Any]: The EDL object
 
         """
-        self.logger.info(f"Getting external dynamic list: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting external dynamic list: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"edl-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "type": {
                     "predefined_ip": {
@@ -2942,12 +3194,12 @@ class SCMClient:
 
         try:
             # Fetch the EDL using the SDK
-            result = self.client.external_dynamic_list.fetch(name=name, folder=folder)
+            result = self.client.external_dynamic_list.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_external_dynamic_lists(
         self,
@@ -3035,8 +3287,10 @@ class SCMClient:
 
     def create_hip_object(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
         description: str | None = None,
         host_info: dict[str, Any] | None = None,
         network_info: dict[str, Any] | None = None,
@@ -3049,6 +3303,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the HIP object in
+            snippet: Snippet to create the HIP object in
+            device: Device to create the HIP object in
             name: Name of the HIP object
             description: Description of the HIP object
             host_info: Host information criteria
@@ -3065,13 +3321,21 @@ class SCMClient:
             This uses smart upsert logic - if a HIP object with the same name already exists, it will be updated.
 
         """
-        self.logger.info(f"Creating or updating HIP object: {name} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating HIP object: {name} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"hip-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "description": description or "Mock HIP object",
                 "host_info": host_info,
@@ -3085,7 +3349,7 @@ class SCMClient:
         try:
             # Prepare the HIP object data
             hip_data = {
-                "folder": folder,
+                **container_kwargs,
                 "name": name,
             }
 
@@ -3107,7 +3371,7 @@ class SCMClient:
 
             # First, try to fetch the existing HIP object
             try:
-                existing_hip = self.client.hip_object.fetch(name=name, folder=folder)
+                existing_hip = self.client.hip_object.fetch(name=name, **container_kwargs)
                 # Update and return an existing HIP object
                 hip_data["id"] = str(existing_hip.id)
                 result = self.client.hip_object.update(hip_data)
@@ -3120,24 +3384,36 @@ class SCMClient:
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_hip_object(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete a HIP object.
 
         Args:
             folder: Folder containing the HIP object
+            snippet: Snippet containing the HIP object
+            device: Device containing the HIP object
             name: Name of the HIP object to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting HIP object: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting HIP object: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -3145,36 +3421,48 @@ class SCMClient:
 
         try:
             # Get the HIP object first to retrieve its ID
-            hip_obj = self.client.hip_object.fetch(name=name, folder=folder)
+            hip_obj = self.client.hip_object.fetch(name=name, **container_kwargs)
 
             # Delete using the HIP object's ID
             self.client.hip_object.delete(object_id=str(hip_obj.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_hip_object(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get a HIP object by name and folder.
 
         Args:
             folder: Folder containing the HIP object
+            snippet: Snippet containing the HIP object
+            device: Device containing the HIP object
             name: Name of the HIP object to get
 
         Returns:
             dict[str, Any]: The HIP object
 
         """
-        self.logger.info(f"Getting HIP object: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting HIP object: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"hip-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "description": "Mock Windows workstation policy",
                 "host_info": {
@@ -3199,12 +3487,12 @@ class SCMClient:
 
         try:
             # Fetch the HIP object using the SDK
-            result = self.client.hip_object.fetch(name=name, folder=folder)
+            result = self.client.hip_object.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_hip_objects(
         self,
@@ -3301,15 +3589,19 @@ class SCMClient:
 
     def create_hip_profile(
         self,
-        folder: str,
-        name: str,
-        match: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        match: str = "",
         description: str | None = None,
     ) -> dict[str, Any]:
         """Create or update a HIP profile.
 
         Args:
             folder: Folder where the HIP profile will be created
+            snippet: Snippet where the HIP profile will be created
+            device: Device where the HIP profile will be created
             name: Name of the HIP profile
             match: Match criteria for the HIP profile
             description: Optional description of the HIP profile
@@ -3318,13 +3610,21 @@ class SCMClient:
             dict[str, Any]: Created HIP profile object
 
         """
-        self.logger.info(f"Creating/updating HIP profile '{name}' in folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating/updating HIP profile '{name}' in {container}")
 
         if not self.client:
             # Return a mock response if no client is available
             return {
                 "id": f"hip-profile-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "match": match,
                 "description": description or f"Mock HIP profile for {name}",
@@ -3333,7 +3633,7 @@ class SCMClient:
         try:
             # Check if a HIP profile already exists
             try:
-                existing = self.client.hip_profile.fetch(name=name, folder=folder)
+                existing = self.client.hip_profile.fetch(name=name, **container_kwargs)
                 if existing:
                     # Update existing HIP profile
                     self.logger.info(f"HIP profile '{name}' already exists, updating...")
@@ -3347,7 +3647,7 @@ class SCMClient:
 
             # Prepare the profile data
             profile_data = {
-                "folder": folder,
+                **container_kwargs,
                 "name": name,
                 "match": match,
             }
@@ -3362,18 +3662,28 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creating/updating", "HIP profile", name, e)
 
-    def delete_hip_profile(self, folder: str, name: str) -> bool:
+    def delete_hip_profile(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> bool:
         """Delete a HIP profile.
 
         Args:
             folder: Folder containing the HIP profile
+            snippet: Snippet containing the HIP profile
+            device: Device containing the HIP profile
             name: Name of the HIP profile to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting HIP profile '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting HIP profile '{name}' from {container}")
 
         if not self.client:
             self.logger.info(f"Mock mode: Would delete HIP profile '{name}'")
@@ -3381,31 +3691,41 @@ class SCMClient:
 
         try:
             # First, fetch the HIP profile to get its ID
-            hip_profile = self.client.hip_profile.fetch(name=name, folder=folder)
+            hip_profile = self.client.hip_profile.fetch(name=name, **container_kwargs)
             self.client.hip_profile.delete(str(hip_profile.id))
             self.logger.info(f"Successfully deleted HIP profile '{name}'")
             return True
         except Exception as e:
             self._handle_api_exception("deleting", "HIP profile", name, e)
 
-    def get_hip_profile(self, folder: str, name: str) -> dict[str, Any]:
+    def get_hip_profile(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> dict[str, Any]:
         """Get a specific HIP profile by name.
 
         Args:
             folder: Folder containing the HIP profile
+            snippet: Snippet containing the HIP profile
+            device: Device containing the HIP profile
             name: Name of the HIP profile
 
         Returns:
             dict[str, Any]: HIP profile object
 
         """
-        self.logger.info(f"Getting HIP profile '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting HIP profile '{name}' from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"hip-profile-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "match": "'custom-check' and 'endpoint-management'",
                 "description": f"Mock HIP profile for {name}",
@@ -3413,7 +3733,7 @@ class SCMClient:
 
         try:
             # Fetch the HIP profile by name and folder
-            result = self.client.hip_profile.fetch(name=name, folder=folder)
+            result = self.client.hip_profile.fetch(name=name, **container_kwargs)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("fetching", "HIP profile", name, e)
@@ -3481,9 +3801,11 @@ class SCMClient:
 
     def create_http_server_profile(
         self,
-        folder: str,
-        name: str,
-        servers: list[dict[str, Any]],
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        servers: list[dict[str, Any]] | None = None,
         description: str | None = None,
         tag_registration: bool = False,
         format_config: dict[str, dict[str, Any]] | None = None,
@@ -3492,6 +3814,8 @@ class SCMClient:
 
         Args:
             folder: Folder where the HTTP server profile will be created
+            snippet: Snippet where the HTTP server profile will be created
+            device: Device where the HTTP server profile will be created
             name: Name of the HTTP server profile
             servers: List of server configurations
             description: Optional description of the HTTP server profile
@@ -3502,13 +3826,21 @@ class SCMClient:
             dict[str, Any]: Created an HTTP server profile object
 
         """
-        self.logger.info(f"Creating/updating HTTP server profile '{name}' in folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating/updating HTTP server profile '{name}' in {container}")
 
         if not self.client:
             # Return a mock response if no client is available
             return {
                 "id": f"http-server-profile-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "server": servers,
                 "description": description or f"Mock HTTP server profile for {name}",
@@ -3518,7 +3850,7 @@ class SCMClient:
         try:
             # Check if an HTTP server profile already exists
             try:
-                existing = self.client.http_server_profile.fetch(name=name, folder=folder)
+                existing = self.client.http_server_profile.fetch(name=name, **container_kwargs)
                 if existing:
                     # Update an existing HTTP server profile
                     self.logger.info(f"HTTP server profile '{name}' already exists, updating...")
@@ -3535,7 +3867,7 @@ class SCMClient:
 
             # Prepare the profile data
             profile_data = {
-                "folder": folder,
+                **container_kwargs,
                 "name": name,
                 "server": servers,
             }
@@ -3556,18 +3888,28 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creating/updating", "HTTP server profile", name, e)
 
-    def delete_http_server_profile(self, folder: str, name: str) -> bool:
+    def delete_http_server_profile(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> bool:
         """Delete an HTTP server profile.
 
         Args:
             folder: Folder containing the HTTP server profile
+            snippet: Snippet containing the HTTP server profile
+            device: Device containing the HTTP server profile
             name: Name of the HTTP server profile to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting HTTP server profile '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting HTTP server profile '{name}' from {container}")
 
         if not self.client:
             self.logger.info(f"Mock mode: Would delete HTTP server profile '{name}'")
@@ -3575,31 +3917,41 @@ class SCMClient:
 
         try:
             # First, fetch the HTTP server profile to get its ID
-            http_server_profile = self.client.http_server_profile.fetch(name=name, folder=folder)
+            http_server_profile = self.client.http_server_profile.fetch(name=name, **container_kwargs)
             self.client.http_server_profile.delete(str(http_server_profile.id))
             self.logger.info(f"Successfully deleted HTTP server profile '{name}'")
             return True
         except Exception as e:
             self._handle_api_exception("deleting", "HTTP server profile", name, e)
 
-    def get_http_server_profile(self, folder: str, name: str) -> dict[str, Any]:
+    def get_http_server_profile(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> dict[str, Any]:
         """Get a specific HTTP server profile by name.
 
         Args:
             folder: Folder containing the HTTP server profile
+            snippet: Snippet containing the HTTP server profile
+            device: Device containing the HTTP server profile
             name: Name of the HTTP server profile
 
         Returns:
             dict[str, Any]: HTTP server profile object
 
         """
-        self.logger.info(f"Getting HTTP server profile '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting HTTP server profile '{name}' from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"http-server-profile-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "server": [
                     {
@@ -3616,7 +3968,7 @@ class SCMClient:
 
         try:
             # Fetch the HTTP server profile by name and folder
-            result = self.client.http_server_profile.fetch(name=name, folder=folder)
+            result = self.client.http_server_profile.fetch(name=name, **container_kwargs)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("fetching", "HTTP server profile", name, e)
@@ -3702,8 +4054,10 @@ class SCMClient:
 
     def create_log_forwarding_profile(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
         match_list: list[dict[str, Any]] | None = None,
         description: str | None = None,
         enhanced_application_logging: bool = False,
@@ -3712,6 +4066,8 @@ class SCMClient:
 
         Args:
             folder: Folder where the log-forwarding profile will be created
+            snippet: Snippet where the log-forwarding profile will be created
+            device: Device where the log-forwarding profile will be created
             name: Name of the log-forwarding profile
             match_list: List of match profile configurations
             description: Optional description of the log-forwarding profile
@@ -3721,13 +4077,21 @@ class SCMClient:
             dict[str, Any]: Created a log-forwarding profile object
 
         """
-        self.logger.info(f"Creating/updating log-forwarding profile '{name}' in folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating/updating log-forwarding profile '{name}' in {container}")
 
         if not self.client:
             # Return a mock response if no client is available
             return {
                 "id": f"log-forwarding-profile-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "match_list": match_list
                 or [
@@ -3744,7 +4108,7 @@ class SCMClient:
         try:
             # Check if a log-forwarding profile already exists
             try:
-                existing = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
+                existing = self.client.log_forwarding_profile.fetch(name=name, **container_kwargs)
                 if existing:
                     # Update the existing log-forwarding profile
                     self.logger.info(f"log-forwarding profile '{name}' already exists, updating...")
@@ -3760,7 +4124,7 @@ class SCMClient:
 
             # Prepare the profile data
             profile_data = {
-                "folder": folder,
+                **container_kwargs,
                 "name": name,
             }
 
@@ -3784,56 +4148,76 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creating/updating", "log-forwarding profile", name, e)
 
-    def delete_log_forwarding_profile(self, folder: str, name: str) -> bool:
+    def delete_log_forwarding_profile(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> bool:
         """Delete a log-forwarding profile.
 
         Args:
             folder: Folder containing the log-forwarding profile
+            snippet: Snippet containing the log-forwarding profile
+            device: Device containing the log-forwarding profile
             name: Name of the log-forwarding profile to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting log-forwarding profile '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting log-forwarding profile '{name}' from {container}")
 
         if not self.client:
             # Mock deletion
-            self.logger.info(f"Mock mode: Would delete log-forwarding profile '{name}' from folder '{folder}'")
+            self.logger.info(f"Mock mode: Would delete log-forwarding profile '{name}' from '{container}'")
             return True
 
         try:
             # First, fetch the log-forwarding profile to get its ID
-            profile = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
+            profile = self.client.log_forwarding_profile.fetch(name=name, **container_kwargs)
             if profile:
                 # Delete using the ID
                 self.client.log_forwarding_profile.delete(str(profile.id))
                 self.logger.info(f"Successfully deleted log-forwarding profile '{name}'")
                 return True
             else:
-                self.logger.warning(f"log-forwarding profile '{name}' not found in folder '{folder}'")
+                self.logger.warning(f"log-forwarding profile '{name}' not found in '{container}'")
                 return False
         except Exception as e:
             self._handle_api_exception("deleting", "log-forwarding profile", name, e)
 
-    def get_log_forwarding_profile(self, folder: str, name: str) -> dict[str, Any] | None:
+    def get_log_forwarding_profile(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> dict[str, Any] | None:
         """Get a specific log-forwarding profile by name.
 
         Args:
             folder: Folder containing the log-forwarding profile
+            snippet: Snippet containing the log-forwarding profile
+            device: Device containing the log-forwarding profile
             name: Name of the log-forwarding profile
 
         Returns:
             dict[str, Any] | None: Log a forwarding profile object if found, None otherwise
 
         """
-        self.logger.info(f"Getting log-forwarding profile '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting log-forwarding profile '{name}' from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"log-forwarding-profile-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "match_list": [
                     {
@@ -3849,7 +4233,7 @@ class SCMClient:
 
         try:
             # Fetch the log-forwarding profile
-            profile = self.client.log_forwarding_profile.fetch(name=name, folder=folder)
+            profile = self.client.log_forwarding_profile.fetch(name=name, **container_kwargs)
             return json.loads(profile.model_dump_json(exclude_unset=True)) if profile else None
         except Exception as e:
             self.logger.error(f"Failed to get log-forwarding profile '{name}': {str(e)}")
@@ -4280,9 +4664,11 @@ class SCMClient:
 
     def create_service(
         self,
-        folder: str,
-        name: str,
-        protocol: dict[str, Any],
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        protocol: dict[str, Any] | None = None,
         description: str | None = None,
         tag: list[str] | None = None,
     ) -> dict[str, Any]:
@@ -4290,6 +4676,8 @@ class SCMClient:
 
         Args:
             folder: Folder where the service will be created
+            snippet: Snippet where the service will be created
+            device: Device where the service will be created
             name: Name of the service
             protocol: Protocol configuration (tcp or udp with port)
             description: Optional description
@@ -4299,11 +4687,19 @@ class SCMClient:
             dict[str, Any]: Created/updated service object
 
         """
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
         if not self.client:
             # Return a mock response if no client is available
             return {
                 "id": f"service-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "protocol": protocol,
                 "description": description or f"Mock service for {name}",
@@ -4314,10 +4710,10 @@ class SCMClient:
             # Step 1: Try to fetch the existing service
             existing_service = None
             try:
-                existing_service = self.client.service.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing service '{name}' in folder '{folder}'")
+                existing_service = self.client.service.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing service '{name}' in '{container}'")
             except NotFoundError:
-                self.logger.info(f"Service '{name}' not found in folder '{folder}', will create new")
+                self.logger.info(f"Service '{name}' not found in '{container}', will create new")
             except Exception as e:
                 self.logger.warning(f"Error fetching service '{name}': {str(e)}")
 
@@ -4355,7 +4751,7 @@ class SCMClient:
                 if needs_update:
                     self.logger.info(f"Updating service fields: {', '.join(update_fields)}")
                     updated = self.client.service.update(existing_service)
-                    self.logger.info(f"Successfully updated service '{name}' in folder '{folder}'")
+                    self.logger.info(f"Successfully updated service '{name}' in '{container}'")
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
                     result["__action__"] = "updated"
                     return result
@@ -4367,7 +4763,7 @@ class SCMClient:
             else:
                 # Step 4: Create new service
                 service_data = {
-                    "folder": folder,
+                    **container_kwargs,
                     "name": name,
                     "protocol": protocol,
                 }
@@ -4379,26 +4775,36 @@ class SCMClient:
                     service_data["tag"] = tag
 
                 result = self.client.service.create(service_data)
-                self.logger.info(f"Successfully created service '{name}' in folder '{folder}'")
+                self.logger.info(f"Successfully created service '{name}' in '{container}'")
                 response = json.loads(result.model_dump_json(exclude_unset=True))
                 response["__action__"] = "created"
                 return response
 
         except Exception as e:
-            self._handle_api_exception("create/update", folder, name, e)
+            self._handle_api_exception("create/update", container, name, e)
 
-    def delete_service(self, folder: str, name: str) -> bool:
+    def delete_service(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> bool:
         """Delete a service.
 
         Args:
             folder: Folder containing the service
+            snippet: Snippet containing the service
+            device: Device containing the service
             name: Name of the service to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting service '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting service '{name}' from {container}")
 
         if not self.client:
             self.logger.info(f"Mock mode: Would delete service '{name}'")
@@ -4406,31 +4812,41 @@ class SCMClient:
 
         try:
             # First, fetch the service to get its ID
-            service = self.client.service.fetch(name=name, folder=folder)
+            service = self.client.service.fetch(name=name, **container_kwargs)
             self.client.service.delete(str(service.id))
             self.logger.info(f"Successfully deleted service '{name}'")
             return True
         except Exception as e:
             self._handle_api_exception("deleting", "service", name, e)
 
-    def get_service(self, folder: str, name: str) -> dict[str, Any]:
+    def get_service(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> dict[str, Any]:
         """Get a specific service by name.
 
         Args:
             folder: Folder containing the service
+            snippet: Snippet containing the service
+            device: Device containing the service
             name: Name of the service
 
         Returns:
             dict[str, Any]: Service object
 
         """
-        self.logger.info(f"Getting service '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting service '{name}' from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"service-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "protocol": {
                     "tcp": {
@@ -4448,7 +4864,7 @@ class SCMClient:
 
         try:
             # Fetch the service by name and folder
-            result = self.client.service.fetch(name=name, folder=folder)
+            result = self.client.service.fetch(name=name, **container_kwargs)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("fetching", "service", name, e)
@@ -4541,15 +4957,19 @@ class SCMClient:
 
     def create_service_group(
         self,
-        folder: str,
-        name: str,
-        members: list[str],
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        members: list[str] | None = None,
         tag: list[str] | None = None,
     ) -> dict[str, Any]:
         """Create or update a service group.
 
         Args:
             folder: Folder where the service group will be created
+            snippet: Snippet where the service group will be created
+            device: Device where the service group will be created
             name: Name of the service group
             members: List of service or service group names
             tag: Optional list of tags
@@ -4558,13 +4978,21 @@ class SCMClient:
             dict[str, Any]: The created service group object
 
         """
-        self.logger.info(f"Creating/updating service group '{name}' in folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating/updating service group '{name}' in {container}")
 
         if not self.client:
             # Return a mock response if no client is available
             return {
                 "id": f"service-group-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "members": members,
                 "tag": tag or [],
@@ -4573,7 +5001,7 @@ class SCMClient:
         try:
             # Check if the service group already exists
             try:
-                existing = self.client.service_group.fetch(name=name, folder=folder)
+                existing = self.client.service_group.fetch(name=name, **container_kwargs)
                 if existing:
                     # Update the existing service group
                     self.logger.info(f"Service group '{name}' already exists, updating...")
@@ -4588,7 +5016,7 @@ class SCMClient:
 
             # Prepare the service group data
             service_group_data = {
-                "folder": folder,
+                **container_kwargs,
                 "name": name,
                 "members": members,
             }
@@ -4603,18 +5031,28 @@ class SCMClient:
         except Exception as e:
             self._handle_api_exception("creating/updating", "service group", name, e)
 
-    def delete_service_group(self, folder: str, name: str) -> bool:
+    def delete_service_group(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> bool:
         """Delete a service group.
 
         Args:
             folder: Folder containing the service group
+            snippet: Snippet containing the service group
+            device: Device containing the service group
             name: Name of the service group to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting service group '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting service group '{name}' from {container}")
 
         if not self.client:
             self.logger.info(f"Mock mode: Would delete service group '{name}'")
@@ -4622,31 +5060,41 @@ class SCMClient:
 
         try:
             # First, fetch the service group to get its ID
-            service_group = self.client.service_group.fetch(name=name, folder=folder)
+            service_group = self.client.service_group.fetch(name=name, **container_kwargs)
             self.client.service_group.delete(str(service_group.id))
             self.logger.info(f"Successfully deleted service group '{name}'")
             return True
         except Exception as e:
             self._handle_api_exception("deleting", "service group", name, e)
 
-    def get_service_group(self, folder: str, name: str) -> dict[str, Any]:
+    def get_service_group(self, folder: str | None = None, snippet: str | None = None, device: str | None = None, name: str = "") -> dict[str, Any]:
         """Get a specific service group by name.
 
         Args:
             folder: Folder containing the service group
+            snippet: Snippet containing the service group
+            device: Device containing the service group
             name: Name of the service group
 
         Returns:
             dict[str, Any]: Service group object
 
         """
-        self.logger.info(f"Getting service group '{name}' from folder: {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting service group '{name}' from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"service-group-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "members": ["web-browsing", "ssl", "custom-web"],
                 "tag": ["production", "web"],
@@ -4654,7 +5102,7 @@ class SCMClient:
 
         try:
             # Fetch the service group by name and folder
-            result = self.client.service_group.fetch(name=name, folder=folder)
+            result = self.client.service_group.fetch(name=name, **container_kwargs)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
             self._handle_api_exception("fetching", "service group", name, e)
@@ -6581,9 +7029,11 @@ class SCMClient:
 
     def create_zone(
         self,
-        folder: str,
-        name: str,
-        mode: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        mode: str = "",
         interfaces: list[str] | None = None,
         enable_user_identification: bool | None = None,
         enable_device_identification: bool | None = None,
@@ -6592,6 +7042,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the zone in
+            snippet: Snippet to create the zone in
+            device: Device to create the zone in
             name: Name of the zone
             mode: Zone mode (L2, L3, external, virtual-wire, tunnel)
             interfaces: List of interfaces
@@ -6608,13 +7060,21 @@ class SCMClient:
 
         """
         interfaces = interfaces or []
-        self.logger.info(f"Creating or updating zone: {name} with mode {mode} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating zone: {name} with mode {mode} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"zone-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "mode": mode,
                 "interfaces": interfaces,
@@ -6624,10 +7084,10 @@ class SCMClient:
             # First, try to fetch the existing zone
             existing_zone = None
             try:
-                existing_zone = self.client.security_zone.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing security zone '{name}' in folder '{folder}', updating...")
+                existing_zone = self.client.security_zone.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing security zone '{name}' in '{container}', updating...")
             except NotFoundError:
-                self.logger.info(f"Security zone '{name}' not found in folder '{folder}', creating new...")
+                self.logger.info(f"Security zone '{name}' not found in '{container}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching security zone '{name}': {str(fetch_error)}")
@@ -6635,7 +7095,7 @@ class SCMClient:
             # Prepare zone data
             zone_data = {
                 "name": name,
-                "folder": folder,
+                **container_kwargs,
             }
 
             # Note: The zone mode is typically stored within the network configuration
@@ -6688,24 +7148,36 @@ class SCMClient:
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_zone(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete a security zone.
 
         Args:
             folder: Folder containing the zone
+            snippet: Snippet containing the zone
+            device: Device containing the zone
             name: Name of the zone to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting zone: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting zone: {name} from {container}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -6713,35 +7185,47 @@ class SCMClient:
 
         try:
             # First, fetch the security zone to get its ID
-            zone = self.client.security_zone.fetch(name=name, folder=folder)
+            zone = self.client.security_zone.fetch(name=name, **container_kwargs)
             self.client.security_zone.delete(str(zone.id))
             self.logger.info(f"Successfully deleted security zone '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_security_zone(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get a security zone by name and folder.
 
         Args:
             folder: Folder containing the security zone
+            snippet: Snippet containing the security zone
+            device: Device containing the security zone
             name: Name of the security zone to get
 
         Returns:
             dict[str, Any]: The security zone object
 
         """
-        self.logger.info(f"Getting security zone: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting security zone: {name} from {container}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"zone-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "network": {
                     "layer3": ["ethernet1/1", "ethernet1/2"],
@@ -6755,12 +7239,12 @@ class SCMClient:
 
         try:
             # Fetch the security zone using the SDK
-            result = self.client.security_zone.fetch(name=name, folder=folder)
+            result = self.client.security_zone.fetch(name=name, **container_kwargs)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_security_zones(
         self,
@@ -6855,8 +7339,10 @@ class SCMClient:
 
     def create_ipsec_crypto_profile(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
         esp_encryption: list[str] | None = None,
         esp_authentication: list[str] | None = None,
         dh_group: str = "group14",
@@ -6867,6 +7353,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the profile in
+            snippet: Snippet to create the profile in
+            device: Device to create the profile in
             name: Name of the IPsec crypto profile
             esp_encryption: List of ESP encryption algorithms
             esp_authentication: List of ESP authentication algorithms
@@ -6882,13 +7370,21 @@ class SCMClient:
         esp_authentication = esp_authentication or ["sha256"]
         lifetime = lifetime or {"hours": 1}
 
-        self.logger.info(f"Creating or updating IPsec crypto profile: {name} in folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating IPsec crypto profile: {name} in {container}")
 
         if not self.client:
             # Return mock data if no client is available
             result = {
                 "id": f"ipsec-crypto-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "esp": {
                     "encryption": esp_encryption,
@@ -6905,7 +7401,7 @@ class SCMClient:
         try:
             # Prepare the profile data
             profile_data: dict[str, Any] = {
-                "folder": folder,
+                **container_kwargs,
                 "name": name,
                 "esp": {
                     "encryption": esp_encryption,
@@ -6920,10 +7416,10 @@ class SCMClient:
             # Try to fetch existing profile for smart upsert
             existing_profile = None
             try:
-                existing_profile = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
-                self.logger.info(f"Found existing IPsec crypto profile '{name}' in folder '{folder}'")
+                existing_profile = self.client.ipsec_crypto_profile.fetch(name=name, **container_kwargs)
+                self.logger.info(f"Found existing IPsec crypto profile '{name}' in '{container}'")
             except NotFoundError:
-                self.logger.info(f"IPsec crypto profile '{name}' not found in folder '{folder}', will create new")
+                self.logger.info(f"IPsec crypto profile '{name}' not found in '{container}', will create new")
             except Exception as fetch_error:
                 self.logger.warning(f"Error fetching IPsec crypto profile '{name}': {str(fetch_error)}")
 
@@ -6972,57 +7468,81 @@ class SCMClient:
                 return response
 
         except Exception as e:
-            self._handle_api_exception("create/update", folder, name, e)
+            self._handle_api_exception("create/update", container, name, e)
 
     def delete_ipsec_crypto_profile(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> bool:
         """Delete an IPsec crypto profile.
 
         Args:
             folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
             name: Name of the profile to delete
 
         Returns:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting IPsec crypto profile: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting IPsec crypto profile: {name} from {container}")
 
         if not self.client:
             return True
 
         try:
-            profile = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
+            profile = self.client.ipsec_crypto_profile.fetch(name=name, **container_kwargs)
             self.client.ipsec_crypto_profile.delete(str(profile.id))
             self.logger.info(f"Successfully deleted IPsec crypto profile '{name}'")
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_ipsec_crypto_profile(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
     ) -> dict[str, Any]:
         """Get an IPsec crypto profile by name and folder.
 
         Args:
             folder: Folder containing the profile
+            snippet: Snippet containing the profile
+            device: Device containing the profile
             name: Name of the profile to get
 
         Returns:
             dict[str, Any]: The IPsec crypto profile
 
         """
-        self.logger.info(f"Getting IPsec crypto profile: {name} from folder {folder}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting IPsec crypto profile: {name} from {container}")
 
         if not self.client:
             return {
                 "id": f"ipsec-crypto-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "esp": {
                     "encryption": ["aes-256-cbc"],
@@ -7033,10 +7553,10 @@ class SCMClient:
             }
 
         try:
-            result = self.client.ipsec_crypto_profile.fetch(name=name, folder=folder)
+            result = self.client.ipsec_crypto_profile.fetch(name=name, **container_kwargs)
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_ipsec_crypto_profiles(
         self,
@@ -7120,10 +7640,12 @@ class SCMClient:
 
     def create_security_rule(
         self,
-        folder: str,
-        name: str,
-        source_zones: list[str],
-        destination_zones: list[str],
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
+        source_zones: list[str] | None = None,
+        destination_zones: list[str] | None = None,
         source_addresses: list[str] | None = None,
         destination_addresses: list[str] | None = None,
         applications: list[str] | None = None,
@@ -7141,6 +7663,8 @@ class SCMClient:
 
         Args:
             folder: Folder to create the rule in
+            snippet: Snippet to create the rule in
+            device: Device to create the rule in
             name: Name of the rule
             source_zones: List of source zones
             destination_zones: List of destination zones
@@ -7170,13 +7694,21 @@ class SCMClient:
         applications = applications or ["any"]
         services = services or ["any"]
         tags = tags or []
-        self.logger.info(f"Creating or updating security rule: {name} with action {action} in folder {folder}, rulebase {rulebase}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Creating or updating security rule: {name} with action {action} in {container}, rulebase {rulebase}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"sr-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "source_zones": source_zones,
                 "destination_zones": destination_zones,
@@ -7198,10 +7730,10 @@ class SCMClient:
             # First, try to fetch the existing security rule
             existing_rule = None
             try:
-                existing_rule = self.client.security_rule.fetch(name=name, folder=folder, rulebase=rulebase)
-                self.logger.info(f"Found existing security rule '{name}' in folder '{folder}', rulebase '{rulebase}', updating...")
+                existing_rule = self.client.security_rule.fetch(name=name, **container_kwargs, rulebase=rulebase)
+                self.logger.info(f"Found existing security rule '{name}' in '{container}', rulebase '{rulebase}', updating...")
             except NotFoundError:
-                self.logger.info(f"Security rule '{name}' not found in folder '{folder}', rulebase '{rulebase}', creating new...")
+                self.logger.info(f"Security rule '{name}' not found in '{container}', rulebase '{rulebase}', creating new...")
             except Exception as fetch_error:
                 # Log but continue - we'll try to create if fetch failed for other reasons
                 self.logger.warning(f"Error fetching security rule '{name}': {str(fetch_error)}")
@@ -7209,7 +7741,7 @@ class SCMClient:
             # Prepare rule data - SDK uses different field names (from_, to_, etc.)
             rule_data = {
                 "name": name,
-                "folder": folder,
+                **container_kwargs,
                 "from_": source_zones,  # SDK uses from_ instead of source_zones
                 "to_": destination_zones,  # SDK uses to_ instead of destination_zones
                 "source": source_addresses,  # SDK uses `source` for the source instead of source_addresses
@@ -7272,18 +7804,22 @@ class SCMClient:
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("creation/update", folder, name, e)
+            self._handle_api_exception("creation/update", container, name, e)
 
     def delete_security_rule(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
         rulebase: str = "pre",
     ) -> bool:
         """Delete a security rule.
 
         Args:
             folder: Folder containing the security rule
+            snippet: Snippet containing the security rule
+            device: Device containing the security rule
             name: Name of the security rule to delete
             rulebase: Rulebase containing the rule (pre, post, or default)
 
@@ -7291,7 +7827,15 @@ class SCMClient:
             bool: True if deletion was successful
 
         """
-        self.logger.info(f"Deleting security rule: {name} from folder {folder}, rulebase {rulebase}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Deleting security rule: {name} from {container}, rulebase {rulebase}")
 
         if not self.client:
             # Return a mock result if no client is available
@@ -7299,24 +7843,28 @@ class SCMClient:
 
         try:
             # First, fetch the rule to get its ID
-            rule = self.client.security_rule.fetch(name=name, folder=folder, rulebase=rulebase)
+            rule = self.client.security_rule.fetch(name=name, **container_kwargs, rulebase=rulebase)
 
             # Delete using the rule's ID
             self.client.security_rule.delete(str(rule.id))
             return True
         except Exception as e:
-            self._handle_api_exception("deletion", folder, name, e)
+            self._handle_api_exception("deletion", container, name, e)
 
     def get_security_rule(
         self,
-        folder: str,
-        name: str,
+        folder: str | None = None,
+        snippet: str | None = None,
+        device: str | None = None,
+        name: str = "",
         rulebase: str = "pre",
     ) -> dict[str, Any]:
         """Get a security rule by name and folder.
 
         Args:
             folder: Folder containing the security rule
+            snippet: Snippet containing the security rule
+            device: Device containing the security rule
             name: Name of the security rule to get
             rulebase: Rulebase to use (pre, post, or default)
 
@@ -7324,13 +7872,21 @@ class SCMClient:
             dict[str, Any]: The security rule object
 
         """
-        self.logger.info(f"Getting security rule: {name} from folder {folder} in rulebase {rulebase}")
+        container = folder or snippet or device or ""
+        container_kwargs: dict[str, str] = {}
+        if folder:
+            container_kwargs["folder"] = folder
+        elif snippet:
+            container_kwargs["snippet"] = snippet
+        elif device:
+            container_kwargs["device"] = device
+        self.logger.info(f"Getting security rule: {name} from {container} in rulebase {rulebase}")
 
         if not self.client:
             # Return mock data if no client is available
             return {
                 "id": f"sr-{name}",
-                "folder": folder,
+                "folder": folder or snippet or device or "shared",
                 "name": name,
                 "from_": ["trust"],
                 "to_": ["untrust"],
@@ -7347,12 +7903,12 @@ class SCMClient:
 
         try:
             # Fetch the security rule using the SDK
-            result = self.client.security_rule.fetch(name=name, folder=folder, rulebase=rulebase)
+            result = self.client.security_rule.fetch(name=name, **container_kwargs, rulebase=rulebase)
 
             # Convert SDK response to dict for compatibility
             return json.loads(result.model_dump_json(exclude_unset=True))
         except Exception as e:
-            self._handle_api_exception("retrieval", folder, name, e)
+            self._handle_api_exception("retrieval", container, name, e)
 
     def list_security_rules(
         self,

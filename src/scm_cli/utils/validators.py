@@ -269,10 +269,24 @@ class RemoteNetwork(BaseModel):
 # =============================================================================================================================================================================================
 
 
-class AddressGroup(BaseModel):
-    """Model for address group configurations with folder path."""
+class ContainerModel(BaseModel):
+    """Base model providing folder/snippet/device container fields with exactly-one validation."""
 
-    folder: str = Field(..., description="Folder path for the address group")
+    folder: str | None = Field(None, description="Folder location")
+    snippet: str | None = Field(None, description="Snippet location")
+    device: str | None = Field(None, description="Device location")
+
+    @model_validator(mode="after")
+    def validate_container_location(self) -> "ContainerModel":
+        """Ensure exactly one of folder, snippet, or device is set."""
+        if sum(1 for container in (self.folder, self.snippet, self.device) if container is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
+
+class AddressGroup(ContainerModel):
+    """Model for address group configurations with container location."""
+
     name: str = Field(..., description="Name of the address group")
     type: str = Field(..., description="Type of address group (static or dynamic)")
     members: list[str] = Field(default_factory=list, description="List of addresses in the group (for static groups)")
@@ -299,12 +313,14 @@ class AddressGroup(BaseModel):
         return model_data
 
 
-class Address(BaseModel):
+class Address(ContainerModel):
     """Model for address objects with container information.
 
     Attributes
     ----------
-        folder (str): The folder where the address object is located
+        folder (Optional[str]): The folder where the address object is located
+        snippet (Optional[str]): The snippet where the address object is located
+        device (Optional[str]): The device where the address object is located
         name (str): The name of the address object
         description (str): Description of the address object
         tags (List[str]): Tags associated with the address object
@@ -315,7 +331,6 @@ class Address(BaseModel):
 
     """
 
-    folder: str = Field(..., description="Folder containing the address object")
     name: str = Field(..., min_length=1, max_length=63, description="Name of the address object")
     description: str = Field("", description="Description of the address object")
     tags: list[str] = Field(default_factory=list, description="Tags associated with the address object")
@@ -398,10 +413,9 @@ class AutoTagAction(BaseModel):
         return data
 
 
-class Application(BaseModel):
-    """Model for application configurations with folder path."""
+class Application(ContainerModel):
+    """Model for application configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the application")
     name: str = Field(..., min_length=1, max_length=63, description="Name of the application")
     category: str = Field(..., max_length=50, description="High-level category")
     subcategory: str = Field(..., max_length=50, description="Specific sub-category")
@@ -455,10 +469,9 @@ class Application(BaseModel):
         return model_data
 
 
-class ApplicationGroup(BaseModel):
-    """Model for application group configurations with folder path."""
+class ApplicationGroup(ContainerModel):
+    """Model for application group configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the application group")
     name: str = Field(..., min_length=1, max_length=63, description="Name of the application group")
     members: list[str] = Field(..., min_length=1, description="List of application names")
 
@@ -470,10 +483,9 @@ class ApplicationGroup(BaseModel):
         }
 
 
-class ApplicationFilter(BaseModel):
-    """Model for application filter configurations with folder path."""
+class ApplicationFilter(ContainerModel):
+    """Model for application filter configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the application filter")
     name: str = Field(..., min_length=1, max_length=63, description="Name of the application filter")
     category: list[str] = Field(..., min_length=1, description="List of category strings")
     subcategory: list[str] = Field(..., min_length=1, description="List of subcategory strings")
@@ -538,10 +550,9 @@ class ApplicationFilter(BaseModel):
         return model_data
 
 
-class DynamicUserGroup(BaseModel):
-    """Model for dynamic user group configurations with folder path."""
+class DynamicUserGroup(ContainerModel):
+    """Model for dynamic user group configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the dynamic user group")
     name: str = Field(..., min_length=1, max_length=63, description="Name of the dynamic user group")
     filter: str = Field(..., max_length=2047, description="Tag-based filter expression")
     description: str = Field("", max_length=1023, description="Description of the dynamic user group")
@@ -561,10 +572,9 @@ class DynamicUserGroup(BaseModel):
         return model_data
 
 
-class ExternalDynamicList(BaseModel):
-    """Model for external dynamic list configurations with folder path."""
+class ExternalDynamicList(ContainerModel):
+    """Model for external dynamic list configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the external dynamic list")
     name: str = Field(
         ...,
         min_length=1,
@@ -692,10 +702,9 @@ class ExternalDynamicList(BaseModel):
         return model_data
 
 
-class HIPObject(BaseModel):
-    """Model for HIP object configurations with folder path."""
+class HIPObject(ContainerModel):
+    """Model for HIP object configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the HIP object")
     name: str = Field(
         ...,
         min_length=1,
@@ -940,10 +949,9 @@ class HIPObject(BaseModel):
         return model_data
 
 
-class HIPProfile(BaseModel):
-    """Model for HIP profile configurations with folder path."""
+class HIPProfile(ContainerModel):
+    """Model for HIP profile configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the HIP profile")
     name: str = Field(
         ...,
         min_length=1,
@@ -957,10 +965,13 @@ class HIPProfile(BaseModel):
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert CLI model to SDK model format."""
         model_data = {
-            "folder": self.folder,
             "name": self.name,
             "match": self.match,
         }
+
+        for container in ("folder", "snippet", "device"):
+            if getattr(self, container) is not None:
+                model_data[container] = getattr(self, container)
 
         if self.description:
             model_data["description"] = self.description
@@ -968,10 +979,9 @@ class HIPProfile(BaseModel):
         return model_data
 
 
-class HTTPServerProfile(BaseModel):
-    """Model for HTTP server profile configurations with folder path."""
+class HTTPServerProfile(ContainerModel):
+    """Model for HTTP server profile configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the HTTP server profile")
     name: str = Field(
         ...,
         min_length=1,
@@ -1038,10 +1048,13 @@ class HTTPServerProfile(BaseModel):
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert CLI model to SDK model format."""
         model_data = {
-            "folder": self.folder,
             "name": self.name,
             "server": self.servers,
         }
+
+        for container in ("folder", "snippet", "device"):
+            if getattr(self, container) is not None:
+                model_data[container] = getattr(self, container)
 
         if self.description:
             model_data["description"] = self.description
@@ -1055,10 +1068,9 @@ class HTTPServerProfile(BaseModel):
         return model_data
 
 
-class LogForwardingProfile(BaseModel):
-    """Model for log forwarding profile configurations with folder path."""
+class LogForwardingProfile(ContainerModel):
+    """Model for log forwarding profile configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the log forwarding profile")
     name: str = Field(
         ...,
         min_length=1,
@@ -1110,9 +1122,12 @@ class LogForwardingProfile(BaseModel):
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert CLI model to SDK model format."""
         model_data = {
-            "folder": self.folder,
             "name": self.name,
         }
+
+        for container in ("folder", "snippet", "device"):
+            if getattr(self, container) is not None:
+                model_data[container] = getattr(self, container)
 
         if self.description:
             model_data["description"] = self.description
@@ -1129,7 +1144,7 @@ class LogForwardingProfile(BaseModel):
 class Region(BaseModel):
     """Model for region configurations with folder path."""
 
-    folder: str = Field(..., description="Folder path for the region")
+    folder: str | None = Field(None, description="Folder path for the region")
     name: str = Field(
         ...,
         description="Name of the region",
@@ -1216,10 +1231,9 @@ class QuarantinedDevice(BaseModel):
         return model_data
 
 
-class Service(BaseModel):
-    """Model for service configurations with folder path."""
+class Service(ContainerModel):
+    """Model for service configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the service")
     name: str = Field(
         ...,
         min_length=1,
@@ -1337,10 +1351,9 @@ class Service(BaseModel):
         return model_data
 
 
-class ServiceGroup(BaseModel):
-    """Model for service group configurations with folder path."""
+class ServiceGroup(ContainerModel):
+    """Model for service group configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the service group")
     name: str = Field(
         ...,
         min_length=1,
@@ -1374,10 +1387,13 @@ class ServiceGroup(BaseModel):
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert to SDK model format."""
         model_data = {
-            "folder": self.folder,
             "name": self.name,
             "members": self.members,
         }
+
+        for container in ("folder", "snippet", "device"):
+            if getattr(self, container) is not None:
+                model_data[container] = getattr(self, container)
 
         if self.tag:
             model_data["tag"] = self.tag
@@ -1388,7 +1404,7 @@ class ServiceGroup(BaseModel):
 class SyslogServerProfile(BaseModel):
     """Model for syslog server profile configurations with folder path."""
 
-    folder: str = Field(..., description="Folder path for the syslog server profile")
+    folder: str | None = Field(None, description="Folder path for the syslog server profile")
     name: str = Field(..., description="Name of the syslog server profile")
     description: str | None = Field(None, description="Description of the profile")
     server: list[dict[str, Any]] = Field(..., description="List of syslog servers")
@@ -1512,7 +1528,7 @@ class Schedule(BaseModel):
     - non-recurring: One-time date/time ranges
     """
 
-    folder: str = Field(..., description="Folder path for the schedule")
+    folder: str | None = Field(None, description="Folder path for the schedule")
     name: str = Field(
         ...,
         description="Name of the schedule",
@@ -1623,7 +1639,7 @@ class Schedule(BaseModel):
 class Tag(BaseModel):
     """Model for tag configurations with folder path."""
 
-    folder: str = Field(..., description="Folder path for the tag")
+    folder: str | None = Field(None, description="Folder path for the tag")
     name: str = Field(
         ...,
         description="Name of the tag",
@@ -2718,9 +2734,9 @@ class IKEGateway(BaseModel):
 
 
 class Zone(BaseModel):
-    """Model for security zone configurations with folder path."""
+    """Model for security zone configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the zone")
+    folder: str | None = Field(None, description="Folder path for the zone")
     name: str = Field(..., description="Name of the zone")
     network: dict[str, Any] = Field(default_factory=dict, description="Network configuration")
     description: str | None = Field(None, description="Description of the zone")
@@ -2729,6 +2745,14 @@ class Zone(BaseModel):
     enable_user_identification: bool | None = Field(None, description="Enable user identification")
     enable_device_identification: bool | None = Field(None, description="Enable device identification")
     tags: list[str] | None = Field(None, description="List of tags")
+
+    @model_validator(mode="after")
+    def validate_container(self) -> "Zone":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
 
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert CLI model to SDK model format."""
@@ -3394,9 +3418,11 @@ class QosRule(BaseModel):
 
 
 class SecurityRule(BaseModel):
-    """Model for security rule configurations with folder path."""
+    """Model for security rule configurations with container location."""
 
-    folder: str = Field(..., description="Folder path for the security rule")
+    folder: str | None = Field(None, description="Folder path for the security rule")
+    snippet: str | None = Field(None, description="Snippet path for the security rule")
+    device: str | None = Field(None, description="Device path for the security rule")
     name: str = Field(..., description="Name of the security rule")
     rulebase: str = Field("pre", description="Rulebase (pre, post, or default)")
     source_zones: list[str] = Field(default_factory=lambda: ["any"], description="List of source zones")
@@ -3420,13 +3446,29 @@ class SecurityRule(BaseModel):
     log_end: bool | None = Field(None, description="Log at session end")
     log_setting: str | None = Field(None, description="Log forwarding profile")
 
+    @model_validator(mode="after")
+    def validate_container(self) -> "SecurityRule":
+        """Validate that exactly one container is specified."""
+        containers = [self.folder, self.snippet, self.device]
+        if sum(1 for c in containers if c is not None) != 1:
+            raise ValueError("Exactly one of 'folder', 'snippet', or 'device' must be set")
+        return self
+
     def to_sdk_model(self) -> dict[str, Any]:
         """Convert CLI model to SDK model format."""
         # Use tag field if tags is not provided
         tags_list = self.tags if self.tags is not None else (self.tag or [])
 
+        container = {}
+        if self.folder:
+            container["folder"] = self.folder
+        elif self.snippet:
+            container["snippet"] = self.snippet
+        elif self.device:
+            container["device"] = self.device
+
         return {
-            "folder": self.folder,
+            **container,
             "name": self.name,
             "source_zones": self.source_zones,
             "destination_zones": self.destination_zones,

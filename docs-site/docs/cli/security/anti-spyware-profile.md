@@ -19,8 +19,14 @@ Create or update an anti-spyware profile.
 ### Syntax
 
 ```bash
-scm set security anti-spyware-profile [OPTIONS]
+scm set security anti-spyware-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
@@ -29,7 +35,6 @@ scm set security anti-spyware-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name | Yes |
 | `--description TEXT` | Profile description | No |
 | `--cloud-inline-analysis / --no-cloud-inline-analysis` | Enable cloud inline analysis | No |
 | `--block-critical-high` | Add default rule to block critical and high severity threats | No |
@@ -41,9 +46,8 @@ scm set security anti-spyware-profile [OPTIONS]
 #### Create Basic Profile
 
 ```bash
-$ scm set security anti-spyware-profile \
+$ scm set security anti-spyware-profile strict-security \
     --folder Texas \
-    --name strict-security \
     --description "Block critical threats"
 ---> 100%
 Created anti-spyware profile: strict-security in folder Texas
@@ -52,9 +56,8 @@ Created anti-spyware profile: strict-security in folder Texas
 #### Create Profile Blocking Critical and High Severity
 
 ```bash
-$ scm set security anti-spyware-profile \
+$ scm set security anti-spyware-profile block-threats \
     --folder Texas \
-    --name block-threats \
     --block-critical-high \
     --cloud-inline-analysis
 ---> 100%
@@ -64,9 +67,8 @@ Created anti-spyware profile: block-threats in folder Texas
 #### Create Profile in Snippet
 
 ```bash
-$ scm set security anti-spyware-profile \
-    --snippet Security-Best-Practice \
-    --name standard-protection
+$ scm set security anti-spyware-profile standard-protection \
+    --snippet Security-Best-Practice
 ---> 100%
 Created anti-spyware profile: standard-protection in snippet Security-Best-Practice
 ```
@@ -78,8 +80,14 @@ Delete an anti-spyware profile from SCM.
 ### Syntax
 
 ```bash
-scm delete security anti-spyware-profile [OPTIONS]
+scm delete security anti-spyware-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name to delete | Yes |
 
 ### Options
 
@@ -88,7 +96,6 @@ scm delete security anti-spyware-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
@@ -96,9 +103,8 @@ scm delete security anti-spyware-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete security anti-spyware-profile \
+$ scm delete security anti-spyware-profile strict-security \
     --folder Texas \
-    --name strict-security \
     --force
 ---> 100%
 Deleted anti-spyware profile: strict-security from folder Texas
@@ -179,8 +185,14 @@ Display anti-spyware profile objects.
 ### Syntax
 
 ```bash
-scm show security anti-spyware-profile [OPTIONS]
+scm show security anti-spyware-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name to display; omit to list all | No |
 
 ### Options
 
@@ -189,12 +201,13 @@ scm show security anti-spyware-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name to display | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -202,9 +215,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Profile
 
 ```bash
-$ scm show security anti-spyware-profile \
-    --folder Texas \
-    --name strict-security
+$ scm show security anti-spyware-profile strict-security \
+    --folder Texas
 ---> 100%
 Anti-Spyware Profile: strict-security
   Location: Folder 'Texas'

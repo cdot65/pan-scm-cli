@@ -19,14 +19,19 @@ Create or update an internal DNS server configuration.
 ### Syntax
 
 ```bash
-scm set sase internal-dns-server [OPTIONS]
+scm set sase internal-dns-server NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the DNS server entry | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the DNS server entry | Yes |
 | `--domain-name TEXT` | Domain name(s), comma-separated | Yes |
 | `--primary TEXT` | Primary DNS server IP address | Yes |
 | `--secondary TEXT` | Secondary DNS server IP address | No |
@@ -36,8 +41,7 @@ scm set sase internal-dns-server [OPTIONS]
 #### Create a DNS Server with Primary and Secondary
 
 ```bash
-$ scm set sase internal-dns-server \
-    --name corp-dns \
+$ scm set sase internal-dns-server corp-dns \
     --domain-name corp.example.com \
     --primary 10.0.0.1 \
     --secondary 10.0.0.2
@@ -48,8 +52,7 @@ Created internal DNS server: corp-dns
 #### Create a DNS Server for Multiple Domains
 
 ```bash
-$ scm set sase internal-dns-server \
-    --name multi-domain-dns \
+$ scm set sase internal-dns-server multi-domain-dns \
     --domain-name "internal.example.com,dev.example.com" \
     --primary 10.0.1.1
 ---> 100%
@@ -63,20 +66,25 @@ Delete an internal DNS server configuration from SCM.
 ### Syntax
 
 ```bash
-scm delete sase internal-dns-server [OPTIONS]
+scm delete sase internal-dns-server NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the DNS server entry to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the DNS server entry to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase internal-dns-server --name corp-dns --force
+$ scm delete sase internal-dns-server corp-dns --force
 ---> 100%
 Deleted internal DNS server: corp-dns
 ```
@@ -136,17 +144,24 @@ Display internal DNS server configurations.
 ### Syntax
 
 ```bash
-scm show sase internal-dns-server [OPTIONS]
+scm show sase internal-dns-server [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the DNS server entry to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the DNS server entry to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -154,7 +169,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Internal DNS Server
 
 ```bash
-$ scm show sase internal-dns-server --name corp-dns
+$ scm show sase internal-dns-server corp-dns
 ---> 100%
 Internal DNS Server: corp-dns
   Domain: corp.example.com

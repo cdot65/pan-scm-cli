@@ -40,30 +40,34 @@ Create or update a tag object.
 ### Syntax
 
 ```bash
-scm set object tag [OPTIONS]
+scm set object tag NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the tag | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the tag object | No\* |
-| `--snippet TEXT` | Snippet for the tag object | No\* |
-| `--device TEXT` | Device for the tag object | No\* |
-| `--name TEXT` | Name of the tag | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--color TEXT` | Color for visual identification | No |
 | `--comments TEXT` | Descriptive comments about the tag | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create a Tag with Color
 
 ```bash
-$ scm set object tag \
+$ scm set object tag production \
     --folder Texas \
-    --name production \
     --color "Red" \
     --comments "Production environment resources"
 ---> 100%
@@ -73,18 +77,16 @@ Created tag: production in folder Texas
 #### Create Multiple Environment Tags
 
 ```bash
-$ scm set object tag \
+$ scm set object tag critical \
     --folder Texas \
-    --name critical \
     --color "Orange"
 ---> 100%
 Created tag: critical in folder Texas
 ```
 
 ```bash
-$ scm set object tag \
+$ scm set object tag database \
     --folder Texas \
-    --name database \
     --color "Blue"
 ---> 100%
 Created tag: database in folder Texas
@@ -97,25 +99,30 @@ Delete a tag object from SCM.
 ### Syntax
 
 ```bash
-scm delete object tag [OPTIONS]
+scm delete object tag NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the tag to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the tag object | No\* |
-| `--snippet TEXT` | Snippet containing the tag object | No\* |
-| `--device TEXT` | Device containing the tag object | No\* |
-| `--name TEXT` | Name of the tag to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object tag --folder Texas --name production --force
+$ scm delete object tag production --folder Texas --force
 ---> 100%
 Deleted tag: production from folder Texas
 ```
@@ -221,30 +228,37 @@ Display tag objects.
 ### Syntax
 
 ```bash
-scm show object tag [OPTIONS]
+scm show object tag [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the tag to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the tag object | No\* |
-| `--snippet TEXT` | Snippet containing the tag object | No\* |
-| `--device TEXT` | Device containing the tag object | No\* |
-| `--name TEXT` | Name of the tag to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Tag
 
 ```bash
-$ scm show object tag --folder Texas --name production
+$ scm show object tag production --folder Texas
 ---> 100%
 Tag: production
   Location: Folder 'Texas'

@@ -23,21 +23,26 @@ Create or update a QoS profile.
 ### Syntax
 
 ```bash
-scm set network qos-profile [OPTIONS] NAME
+scm set network qos-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the QoS profile | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Name of the QoS profile | Yes |
-| `--folder TEXT` | Folder location (must be "Remote Networks" or "Service Connections") | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location (must be "Remote Networks" or "Service Connections") | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--aggregate-bandwidth-json TEXT` | Aggregate bandwidth config as JSON | No |
 | `--class-bandwidth-type-json TEXT` | Class bandwidth type config as JSON | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
@@ -68,20 +73,25 @@ Delete a QoS profile from SCM.
 ### Syntax
 
 ```bash
-scm delete network qos-profile [OPTIONS] NAME
+scm delete network qos-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the QoS profile to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Name of the QoS profile to delete | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -106,9 +116,9 @@ scm load network qos-profile [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file containing QoS profile definitions | Yes |
-| `--folder TEXT` | Override folder location | No |
-| `--snippet TEXT` | Override snippet location | No |
-| `--device TEXT` | Override device location | No |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
 | `--dry-run` | Preview changes without applying | No |
 
 ### YAML File Format
@@ -163,22 +173,29 @@ Display QoS profile details.
 ### Syntax
 
 ```bash
-scm show network qos-profile [OPTIONS]
+scm show network qos-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the QoS profile to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific QoS profile | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -186,7 +203,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific QoS Profile
 
 ```bash
-$ scm show network qos-profile --folder "Remote Networks" --name my-qos
+$ scm show network qos-profile my-qos --folder "Remote Networks"
 ---> 100%
 QoS Profile: my-qos
 ============================================================

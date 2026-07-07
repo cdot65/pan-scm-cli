@@ -33,7 +33,7 @@ scm context create myenv \
 scm show object address --folder Texas
 
 # create an address
-scm set object address --folder Texas --name webserver --ip-netmask 10.1.1.100/32
+scm set object address webserver --folder Texas --ip-netmask 10.1.1.100/32
 
 # backup to YAML
 scm backup object address --folder Texas

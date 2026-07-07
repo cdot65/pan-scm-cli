@@ -98,10 +98,10 @@ FOLDER_OPTION = typer.Option(
     "--folder",
     help="Folder path for the resource",
 )
-NAME_OPTION = typer.Option(
+MAX_RESULTS_OPTION = typer.Option(
     None,
-    "--name",
-    help="Name of the resource",
+    "--max-results",
+    help="Maximum number of results to display",
 )
 DESCRIPTION_OPTION = typer.Option(
     None,
@@ -184,9 +184,10 @@ USER_CREDENTIAL_OR_CLIENT_CERT_REQUIRED_OPTION = typer.Option(
 @show_app.command("agent-version")
 @handle_command_errors("showing agent version")
 def show_agent_version(
+    name: str | None = typer.Argument(None, help="Name of the agent version to show; omit to list all"),
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the agent version to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display agent versions.
 
@@ -196,7 +197,7 @@ def show_agent_version(
         scm show mobile-agent agent-version --folder "Mobile Users"
 
         # Show a specific agent version by name
-        scm show mobile-agent agent-version --folder "Mobile Users" --name "5.2.0"
+        scm show mobile-agent agent-version "5.2.0" --folder "Mobile Users"
 
     """
     if name:
@@ -207,6 +208,8 @@ def show_agent_version(
 
     # Default: list all agent versions
     versions = scm_client.list_agent_versions(folder=folder)
+    if max_results is not None:
+        versions = versions[:max_results]
     emit(
         versions,
         output,
@@ -277,15 +280,15 @@ def backup_auth_setting(
 @delete_app.command("auth-setting")
 @handle_command_errors("deleting auth setting")
 def delete_auth_setting(
+    name: str = typer.Argument(..., help="Name of the auth setting to delete"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an auth setting.
 
     Examples
     --------
-        scm delete mobile-agent auth-setting --folder "Mobile Users" --name "saml-auth"
+        scm delete mobile-agent auth-setting "saml-auth" --folder "Mobile Users"
 
     """
     if not force:
@@ -356,8 +359,8 @@ def load_auth_setting(
 @set_app.command("auth-setting")
 @handle_command_errors("creating/updating auth setting")
 def set_auth_setting(
+    name: str = typer.Argument(..., help="Name of the auth setting"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     authentication_profile: str | None = AUTHENTICATION_PROFILE_OPTION,
     os: str | None = OS_OPTION,
@@ -367,9 +370,8 @@ def set_auth_setting(
 
     Examples
     --------
-        scm set mobile-agent auth-setting \
+        scm set mobile-agent auth-setting "saml-auth" \
         --folder "Mobile Users" \
-        --name "saml-auth" \
         --authentication-profile "best-practice" \
         --os Any
 
@@ -417,9 +419,10 @@ def set_auth_setting(
 @show_app.command("auth-setting")
 @handle_command_errors("showing auth setting")
 def show_auth_setting(
+    name: str | None = typer.Argument(None, help="Name of the auth setting to show; omit to list all"),
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the auth setting to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display auth settings.
 
@@ -429,7 +432,7 @@ def show_auth_setting(
         scm show mobile-agent auth-setting --folder "Mobile Users"
 
         # Show a specific auth setting by name
-        scm show mobile-agent auth-setting --folder "Mobile Users" --name "saml-auth"
+        scm show mobile-agent auth-setting "saml-auth" --folder "Mobile Users"
 
     """
     if name:
@@ -440,6 +443,8 @@ def show_auth_setting(
 
     # Default: list all auth settings
     settings_list = scm_client.list_auth_settings(folder=folder)
+    if max_results is not None:
+        settings_list = settings_list[:max_results]
     emit(
         settings_list,
         output,
@@ -472,7 +477,7 @@ PAC_UPLOAD_OPTION = typer.Option(
 PROFILE_ID_OPTION = typer.Option(
     None,
     "--id",
-    help="UUID of the resource (alternative to --name)",
+    help="UUID of the resource (alternative to the NAME argument)",
 )
 
 _PROFILE_TYPE_KEY_MAP = {
@@ -525,8 +530,8 @@ def backup_forwarding_profile(
 @delete_app.command("forwarding-profile")
 @handle_command_errors("deleting forwarding profile")
 def delete_forwarding_profile(
+    name: str | None = typer.Argument(None, help="Name of the forwarding profile to delete (omit when using --id)"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     profile_id: str | None = PROFILE_ID_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
@@ -534,11 +539,14 @@ def delete_forwarding_profile(
 
     Examples
     --------
-        scm delete mobile-agent forwarding-profile --folder "Mobile Users" --name "ztna-profile"
+        scm delete mobile-agent forwarding-profile "ztna-profile" --folder "Mobile Users"
 
         scm delete mobile-agent forwarding-profile --id "123e4567-e89b-12d3-a456-426655440000"
 
     """
+    if not profile_id and not name:
+        error("Error: provide NAME or --id")
+        raise typer.Exit(code=1)
     identifier = profile_id or name
     if not force:
         typer.confirm(f"Delete forwarding profile '{identifier}'?", abort=True)
@@ -594,8 +602,8 @@ def load_forwarding_profile(
 @set_app.command("forwarding-profile")
 @handle_command_errors("creating/updating forwarding profile")
 def set_forwarding_profile(
+    name: str = typer.Argument(..., help="Name of the forwarding profile"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     definition_method: str | None = DEFINITION_METHOD_OPTION,
     profile_type: str | None = PROFILE_TYPE_OPTION,
@@ -609,9 +617,8 @@ def set_forwarding_profile(
 
     Examples
     --------
-        scm set mobile-agent forwarding-profile \
+        scm set mobile-agent forwarding-profile "ztna-profile" \
         --folder "Mobile Users" \
-        --name "ztna-profile" \
         --profile-type ztna-agent
 
     """
@@ -659,10 +666,11 @@ def set_forwarding_profile(
 @show_app.command("forwarding-profile")
 @handle_command_errors("showing forwarding profile")
 def show_forwarding_profile(
+    name: str | None = typer.Argument(None, help="Name of the forwarding profile to show; omit to list all"),
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the forwarding profile to show"),
     profile_id: str | None = PROFILE_ID_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display forwarding profiles.
 
@@ -672,7 +680,7 @@ def show_forwarding_profile(
         scm show mobile-agent forwarding-profile --folder "Mobile Users"
 
         # Show a specific forwarding profile by name
-        scm show mobile-agent forwarding-profile --folder "Mobile Users" --name "ztna-profile"
+        scm show mobile-agent forwarding-profile "ztna-profile" --folder "Mobile Users"
 
         # Show a specific forwarding profile by UUID
         scm show mobile-agent forwarding-profile --id "123e4567-e89b-12d3-a456-426655440000"
@@ -684,6 +692,8 @@ def show_forwarding_profile(
         return profile
 
     profiles = scm_client.list_forwarding_profiles(folder=folder)
+    if max_results is not None:
+        profiles = profiles[:max_results]
     emit(
         profiles,
         output,
@@ -753,8 +763,8 @@ def backup_forwarding_profile_destination(
 @delete_app.command("forwarding-profile-destination")
 @handle_command_errors("deleting forwarding profile destination")
 def delete_forwarding_profile_destination(
+    name: str | None = typer.Argument(None, help="Name of the forwarding profile destination to delete (omit when using --id)"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     destination_id: str | None = PROFILE_ID_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
@@ -762,9 +772,12 @@ def delete_forwarding_profile_destination(
 
     Examples
     --------
-        scm delete mobile-agent forwarding-profile-destination --folder "Mobile Users" --name "internal-apps"
+        scm delete mobile-agent forwarding-profile-destination "internal-apps" --folder "Mobile Users"
 
     """
+    if not destination_id and not name:
+        error("Error: provide NAME or --id")
+        raise typer.Exit(code=1)
     identifier = destination_id or name
     if not force:
         typer.confirm(f"Delete forwarding profile destination '{identifier}'?", abort=True)
@@ -817,8 +830,8 @@ def load_forwarding_profile_destination(
 @set_app.command("forwarding-profile-destination")
 @handle_command_errors("creating/updating forwarding profile destination")
 def set_forwarding_profile_destination(
+    name: str = typer.Argument(..., help="Name of the forwarding profile destination"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     fqdn: list[str] | None = FQDN_OPTION,
     ip_address: list[str] | None = IP_ADDRESS_OPTION,
@@ -830,9 +843,8 @@ def set_forwarding_profile_destination(
 
     Examples
     --------
-        scm set mobile-agent forwarding-profile-destination \
+        scm set mobile-agent forwarding-profile-destination "internal-apps" \
         --folder "Mobile Users" \
-        --name "internal-apps" \
         --fqdn "*.example.com:8080" \
         --ip-address "10.0.0.0/8"
 
@@ -874,10 +886,11 @@ def set_forwarding_profile_destination(
 @show_app.command("forwarding-profile-destination")
 @handle_command_errors("showing forwarding profile destination")
 def show_forwarding_profile_destination(
+    name: str | None = typer.Argument(None, help="Name of the forwarding profile destination to show; omit to list all"),
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the forwarding profile destination to show"),
     destination_id: str | None = PROFILE_ID_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display forwarding profile destinations.
 
@@ -887,7 +900,7 @@ def show_forwarding_profile_destination(
         scm show mobile-agent forwarding-profile-destination --folder "Mobile Users"
 
         # Show a specific destination by name
-        scm show mobile-agent forwarding-profile-destination --folder "Mobile Users" --name "internal-apps"
+        scm show mobile-agent forwarding-profile-destination "internal-apps" --folder "Mobile Users"
 
         # Show a specific destination by UUID
         scm show mobile-agent forwarding-profile-destination --id "123e4567-e89b-12d3-a456-426655440000"
@@ -899,6 +912,8 @@ def show_forwarding_profile_destination(
         return destination
 
     destinations = scm_client.list_forwarding_profile_destinations(folder=folder)
+    if max_results is not None:
+        destinations = destinations[:max_results]
     emit(
         destinations,
         output,
@@ -1001,15 +1016,15 @@ def backup_agent_profile(
 @delete_app.command("agent-profile")
 @handle_command_errors("deleting agent profile")
 def delete_agent_profile(
+    name: str = typer.Argument(..., help="Name of the agent profile to delete"),
     folder: str = GP_FOLDER_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an agent profile.
 
     Examples
     --------
-        scm delete mobile-agent agent-profile --folder "Mobile Users" --name "corp-app-settings"
+        scm delete mobile-agent agent-profile "corp-app-settings" --folder "Mobile Users"
 
     """
     if not force:
@@ -1067,8 +1082,8 @@ def load_agent_profile(
 @set_app.command("agent-profile")
 @handle_command_errors("creating/updating agent profile")
 def set_agent_profile(
+    name: str = typer.Argument(..., help="Name of the agent profile"),
     folder: str = GP_FOLDER_OPTION,
-    name: str = NAME_OPTION,
     os: list[str] | None = GP_OS_OPTION,
     connect_method: str | None = typer.Option(None, "--connect-method", help="Connect method (user-logon, pre-logon, on-demand, pre-logon-then-on-demand)"),
     tunnel_mtu: int | None = typer.Option(None, "--tunnel-mtu", help="GlobalProtect connection MTU in bytes (1000-1420)"),
@@ -1083,9 +1098,8 @@ def set_agent_profile(
 
     Examples
     --------
-        scm set mobile-agent agent-profile \
+        scm set mobile-agent agent-profile "corp-app-settings" \
         --folder "Mobile Users" \
-        --name "corp-app-settings" \
         --connect-method user-logon \
         --tunnel-mtu 1400 \
         --os Windows --os Mac
@@ -1133,9 +1147,10 @@ def set_agent_profile(
 @show_app.command("agent-profile")
 @handle_command_errors("showing agent profile")
 def show_agent_profile(
+    name: str | None = typer.Argument(None, help="Name of the agent profile to show; omit to list all"),
     folder: str = GP_FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the agent profile to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display agent profiles (GlobalProtect app settings).
 
@@ -1145,7 +1160,7 @@ def show_agent_profile(
         scm show mobile-agent agent-profile --folder "Mobile Users"
 
         # Show a specific agent profile by name
-        scm show mobile-agent agent-profile --folder "Mobile Users" --name "corp-app-settings"
+        scm show mobile-agent agent-profile "corp-app-settings" --folder "Mobile Users"
 
     """
     if name:
@@ -1154,6 +1169,8 @@ def show_agent_profile(
         return profile
 
     profiles = scm_client.list_agent_profiles(folder=folder)
+    if max_results is not None:
+        profiles = profiles[:max_results]
     emit(
         profiles,
         output,
@@ -1212,15 +1229,15 @@ def backup_tunnel_profile(
 @delete_app.command("tunnel-profile")
 @handle_command_errors("deleting tunnel profile")
 def delete_tunnel_profile(
+    name: str = typer.Argument(..., help="Name of the tunnel profile to delete"),
     folder: str = GP_FOLDER_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a tunnel profile.
 
     Examples
     --------
-        scm delete mobile-agent tunnel-profile --folder "Mobile Users" --name "corp-tunnel"
+        scm delete mobile-agent tunnel-profile "corp-tunnel" --folder "Mobile Users"
 
     """
     if not force:
@@ -1278,8 +1295,8 @@ def load_tunnel_profile(
 @set_app.command("tunnel-profile")
 @handle_command_errors("creating/updating tunnel profile")
 def set_tunnel_profile(
+    name: str = typer.Argument(..., help="Name of the tunnel profile"),
     folder: str = GP_FOLDER_OPTION,
-    name: str = NAME_OPTION,
     no_direct_access_to_local_network: bool | None = typer.Option(
         None,
         "--no-direct-access-to-local-network/--allow-direct-access-to-local-network",
@@ -1304,9 +1321,8 @@ def set_tunnel_profile(
 
     Examples
     --------
-        scm set mobile-agent tunnel-profile \
+        scm set mobile-agent tunnel-profile "corp-tunnel" \
         --folder "Mobile Users" \
-        --name "corp-tunnel" \
         --access-route 10.0.0.0/8 \
         --no-direct-access-to-local-network
 
@@ -1357,9 +1373,10 @@ def set_tunnel_profile(
 @show_app.command("tunnel-profile")
 @handle_command_errors("showing tunnel profile")
 def show_tunnel_profile(
+    name: str | None = typer.Argument(None, help="Name of the tunnel profile to show; omit to list all"),
     folder: str = GP_FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the tunnel profile to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display tunnel profiles (GlobalProtect tunnel settings).
 
@@ -1369,7 +1386,7 @@ def show_tunnel_profile(
         scm show mobile-agent tunnel-profile --folder "Mobile Users"
 
         # Show a specific tunnel profile by name
-        scm show mobile-agent tunnel-profile --folder "Mobile Users" --name "corp-tunnel"
+        scm show mobile-agent tunnel-profile "corp-tunnel" --folder "Mobile Users"
 
     """
     if name:
@@ -1378,6 +1395,8 @@ def show_tunnel_profile(
         return profile
 
     profiles = scm_client.list_tunnel_profiles(folder=folder)
+    if max_results is not None:
+        profiles = profiles[:max_results]
     emit(
         profiles,
         output,
@@ -1392,7 +1411,7 @@ def show_tunnel_profile(
 # =============================================================================================================================================================================================
 
 # Infrastructure settings live only in the 'Mobile Users' folder, and the SCM
-# API addresses them by name everywhere (including list), so show/backup need --name.
+# API addresses them by name everywhere (including list), so backup needs --name.
 INFRA_FOLDER_OPTION = typer.Option(
     "Mobile Users",
     "--folder",
@@ -1408,8 +1427,8 @@ INFRA_NAME_OPTION = typer.Option(
 @set_app.command("infrastructure-setting")
 @handle_command_errors("creating/updating infrastructure setting")
 def set_infrastructure_setting(
+    name: str = typer.Argument(..., help="Name of the infrastructure setting"),
     folder: str = INFRA_FOLDER_OPTION,
-    name: str = INFRA_NAME_OPTION,
     dns_servers: str = typer.Option(..., "--dns-servers", help="DNS server entries as JSON list"),
     ip_pools: str = typer.Option(..., "--ip-pools", help="IP pools as JSON list"),
     portal_hostname: str = typer.Option(..., "--portal-hostname", help="Portal hostname configuration as JSON"),
@@ -1422,8 +1441,7 @@ def set_infrastructure_setting(
 
     Examples
     --------
-        scm set mobile-agent infrastructure-setting \
-        --name "gp-infra" \
+        scm set mobile-agent infrastructure-setting "gp-infra" \
         --dns-servers '[{"name": "dns-1", "dns_suffix": ["example.com"]}]' \
         --ip-pools '[{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}]' \
         --portal-hostname '{"default_domain": {"hostname": "acme"}}'
@@ -1473,17 +1491,19 @@ def set_infrastructure_setting(
 @show_app.command("infrastructure-setting")
 @handle_command_errors("showing infrastructure setting")
 def show_infrastructure_setting(
+    name: str = typer.Argument(..., help="Name of the infrastructure setting"),
     folder: str = INFRA_FOLDER_OPTION,
-    name: str = INFRA_NAME_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display an infrastructure setting.
 
-    The SCM API requires a name for this endpoint; there is no list-all mode.
+    The SCM API requires a name for this endpoint; there is no list-all mode
+    (--max-results is accepted for grammar consistency but has no effect).
 
     Examples
     --------
-        scm show mobile-agent infrastructure-setting --name "gp-infra"
+        scm show mobile-agent infrastructure-setting "gp-infra"
 
     """
     setting = scm_client.get_infrastructure_setting(folder=folder, name=name)
@@ -1494,15 +1514,15 @@ def show_infrastructure_setting(
 @delete_app.command("infrastructure-setting")
 @handle_command_errors("deleting infrastructure setting")
 def delete_infrastructure_setting(
+    name: str = typer.Argument(..., help="Name of the infrastructure setting to delete"),
     folder: str = INFRA_FOLDER_OPTION,
-    name: str = INFRA_NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an infrastructure setting.
 
     Examples
     --------
-        scm delete mobile-agent infrastructure-setting --name "gp-infra"
+        scm delete mobile-agent infrastructure-setting "gp-infra"
 
     """
     if not force:
@@ -1605,10 +1625,12 @@ def load_infrastructure_setting(
 @handle_command_errors("showing global settings")
 def show_global_setting(
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display the GlobalProtect global settings.
 
-    Global settings are a tenant-wide singleton; there is nothing to filter by.
+    Global settings are a tenant-wide singleton; there is nothing to filter by
+    (--max-results is accepted for grammar consistency but has no effect).
 
     Examples
     --------
@@ -1723,15 +1745,15 @@ def backup_forwarding_profile_source_application(
 @delete_app.command("forwarding-profile-source-application")
 @handle_command_errors("deleting forwarding profile source application")
 def delete_forwarding_profile_source_application(
+    name: str = typer.Argument(..., help="Name of the forwarding profile source application to delete"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a forwarding profile source application.
 
     Examples
     --------
-        scm delete mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps"
+        scm delete mobile-agent forwarding-profile-source-application "office-apps" --folder "Mobile Users"
 
     """
     if not force:
@@ -1790,8 +1812,8 @@ def load_forwarding_profile_source_application(
 @set_app.command("forwarding-profile-source-application")
 @handle_command_errors("creating/updating forwarding profile source application")
 def set_forwarding_profile_source_application(
+    name: str = typer.Argument(..., help="Name of the forwarding profile source application"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     application: list[str] | None = APPLICATION_OPTION,
 ):
@@ -1799,9 +1821,8 @@ def set_forwarding_profile_source_application(
 
     Examples
     --------
-        scm set mobile-agent forwarding-profile-source-application \
+        scm set mobile-agent forwarding-profile-source-application "office-apps" \
         --folder "Mobile Users" \
-        --name "office-apps" \
         --application slack \
         --application zoom
 
@@ -1845,9 +1866,10 @@ def set_forwarding_profile_source_application(
 @show_app.command("forwarding-profile-source-application")
 @handle_command_errors("showing forwarding profile source application")
 def show_forwarding_profile_source_application(
+    name: str | None = typer.Argument(None, help="Name of the source application to show; omit to list all"),
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the source application to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display forwarding profile source applications.
 
@@ -1857,7 +1879,7 @@ def show_forwarding_profile_source_application(
         scm show mobile-agent forwarding-profile-source-application --folder "Mobile Users"
 
         # Show a specific source application by name
-        scm show mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps"
+        scm show mobile-agent forwarding-profile-source-application "office-apps" --folder "Mobile Users"
 
     """
     if name:
@@ -1868,6 +1890,8 @@ def show_forwarding_profile_source_application(
 
     # Default: list all source applications
     apps_list = scm_client.list_forwarding_profile_source_applications(folder=folder)
+    if max_results is not None:
+        apps_list = apps_list[:max_results]
     emit(
         apps_list,
         output,
@@ -1955,15 +1979,15 @@ def backup_forwarding_profile_user_location(
 @delete_app.command("forwarding-profile-user-location")
 @handle_command_errors("deleting forwarding profile user location")
 def delete_forwarding_profile_user_location(
+    name: str = typer.Argument(..., help="Name of the forwarding profile user location to delete"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a forwarding profile user location.
 
     Examples
     --------
-        scm delete mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network"
+        scm delete mobile-agent forwarding-profile-user-location "branch-network" --folder "Mobile Users"
 
     """
     if not force:
@@ -2022,8 +2046,8 @@ def load_forwarding_profile_user_location(
 @set_app.command("forwarding-profile-user-location")
 @handle_command_errors("creating/updating forwarding profile user location")
 def set_forwarding_profile_user_location(
+    name: str = typer.Argument(..., help="Name of the forwarding profile user location"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     internal_host_ip: str | None = INTERNAL_HOST_IP_OPTION,
     internal_host_fqdn: str | None = INTERNAL_HOST_FQDN_OPTION,
@@ -2037,15 +2061,13 @@ def set_forwarding_profile_user_location(
     Examples
     --------
         # IP address based location
-        scm set mobile-agent forwarding-profile-user-location \
+        scm set mobile-agent forwarding-profile-user-location "branch-network" \
         --folder "Mobile Users" \
-        --name "branch-network" \
         --ip-address "10.1.0.0/16"
 
         # Internal host detection based location
-        scm set mobile-agent forwarding-profile-user-location \
+        scm set mobile-agent forwarding-profile-user-location "corp-office" \
         --folder "Mobile Users" \
-        --name "corp-office" \
         --internal-host-fqdn "intranet.example.com"
 
     """
@@ -2092,9 +2114,10 @@ def set_forwarding_profile_user_location(
 @show_app.command("forwarding-profile-user-location")
 @handle_command_errors("showing forwarding profile user location")
 def show_forwarding_profile_user_location(
+    name: str | None = typer.Argument(None, help="Name of the user location to show; omit to list all"),
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the user location to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display forwarding profile user locations.
 
@@ -2104,7 +2127,7 @@ def show_forwarding_profile_user_location(
         scm show mobile-agent forwarding-profile-user-location --folder "Mobile Users"
 
         # Show a specific user location by name
-        scm show mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network"
+        scm show mobile-agent forwarding-profile-user-location "branch-network" --folder "Mobile Users"
 
     """
     if name:
@@ -2115,6 +2138,8 @@ def show_forwarding_profile_user_location(
 
     # Default: list all user locations
     locations_list = scm_client.list_forwarding_profile_user_locations(folder=folder)
+    if max_results is not None:
+        locations_list = locations_list[:max_results]
     emit(
         locations_list,
         output,
@@ -2223,15 +2248,15 @@ def backup_forwarding_profile_regional_and_custom_proxy(
 @delete_app.command("forwarding-profile-regional-and-custom-proxy")
 @handle_command_errors("deleting forwarding profile regional and custom proxy")
 def delete_forwarding_profile_regional_and_custom_proxy(
+    name: str = typer.Argument(..., help="Name of the forwarding profile regional and custom proxy to delete"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a forwarding profile regional and custom proxy.
 
     Examples
     --------
-        scm delete mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy"
+        scm delete mobile-agent forwarding-profile-regional-and-custom-proxy "emea-proxy" --folder "Mobile Users"
 
     """
     if not force:
@@ -2293,8 +2318,8 @@ def load_forwarding_profile_regional_and_custom_proxy(
 @set_app.command("forwarding-profile-regional-and-custom-proxy")
 @handle_command_errors("creating/updating forwarding profile regional and custom proxy")
 def set_forwarding_profile_regional_and_custom_proxy(
+    name: str = typer.Argument(..., help="Name of the forwarding profile regional and custom proxy"),
     folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     type: str | None = PROXY_TYPE_OPTION,
     proxy_1_fqdn: str | None = PROXY_1_FQDN_OPTION,
@@ -2313,9 +2338,8 @@ def set_forwarding_profile_regional_and_custom_proxy(
 
     Examples
     --------
-        scm set mobile-agent forwarding-profile-regional-and-custom-proxy \
+        scm set mobile-agent forwarding-profile-regional-and-custom-proxy "emea-proxy" \
         --folder "Mobile Users" \
-        --name "emea-proxy" \
         --type gp-and-pac \
         --proxy-1-fqdn "proxy1.example.com" \
         --proxy-1-port 8080 \
@@ -2386,9 +2410,10 @@ def set_forwarding_profile_regional_and_custom_proxy(
 @show_app.command("forwarding-profile-regional-and-custom-proxy")
 @handle_command_errors("showing forwarding profile regional and custom proxy")
 def show_forwarding_profile_regional_and_custom_proxy(
+    name: str | None = typer.Argument(None, help="Name of the regional and custom proxy to show; omit to list all"),
     folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the regional and custom proxy to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display forwarding profile regional and custom proxies.
 
@@ -2398,7 +2423,7 @@ def show_forwarding_profile_regional_and_custom_proxy(
         scm show mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users"
 
         # Show a specific regional and custom proxy by name
-        scm show mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy"
+        scm show mobile-agent forwarding-profile-regional-and-custom-proxy "emea-proxy" --folder "Mobile Users"
 
     """
     if name:
@@ -2409,6 +2434,8 @@ def show_forwarding_profile_regional_and_custom_proxy(
 
     # Default: list all regional and custom proxies
     proxies_list = scm_client.list_forwarding_profile_regional_and_custom_proxies(folder=folder)
+    if max_results is not None:
+        proxies_list = proxies_list[:max_results]
     emit(
         proxies_list,
         output,

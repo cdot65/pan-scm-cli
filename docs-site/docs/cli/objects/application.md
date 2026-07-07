@@ -19,54 +19,53 @@ Create or update an application object.
 ### Syntax
 
 ```bash
-scm set object application [OPTIONS]
+scm set object application NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the application object | No\* |
-| `--snippet TEXT` | Snippet for the application object | No\* |
-| `--device TEXT` | Device for the application object | No\* |
-| `--name TEXT` | Name of the application | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--category TEXT` | Primary category | Yes |
 | `--subcategory TEXT` | Subcategory within the main category | Yes |
 | `--technology TEXT` | Technology type | Yes |
-| `--risk INT` | Risk level (1-5) | Yes |
-| `--ports LIST` | Protocol and port combinations | Yes |
+| `--risk INTEGER` | Risk level (1-5) | Yes |
+| `--ports TEXT` | Protocol/port combination, e.g. `tcp/8080` (repeat for multiple) | No |
 | `--description TEXT` | Description of the application | No |
-| `--able-to-transfer-files` | Can transfer files | No |
-| `--has-known-vulnerabilities` | Has known security vulnerabilities | No |
-| `--tunnels-other-applications` | Can tunnel other applications | No |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
 | `--evasive` | Uses evasive techniques | No |
-| `--pervasive` | Pervasive use | No |
+| `--pervasive` | Widely used | No |
 | `--excessive-bandwidth-use` | Consumes excessive bandwidth | No |
 | `--used-by-malware` | Known to be used by malware | No |
-| `--no-app-id-caching` | Disable app-id caching | No |
-| `--parent-app TEXT` | Parent application name | No |
-| `--timeout INT` | Session timeout in seconds | No |
-| `--tcp-timeout INT` | TCP session timeout | No |
-| `--udp-timeout INT` | UDP session timeout | No |
-| `--tcp-half-closed-timeout INT` | TCP half-closed timeout | No |
-| `--tcp-time-wait-timeout INT` | TCP time-wait timeout | No |
-| `--tag LIST` | Tags for categorization | No |
+| `--transfers-files` | Can transfer files | No |
+| `--has-known-vulnerabilities` | Has known security vulnerabilities | No |
+| `--tunnels-other-apps` | Can tunnel other applications | No |
+| `--prone-to-misuse` | Prone to misuse | No |
+| `--no-certifications` | Lacks certifications | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create a Basic Application
 
 ```bash
-$ scm set object application \
+$ scm set object application custom-crm \
     --folder Texas \
-    --name custom-crm \
     --category business-systems \
     --subcategory database \
     --technology client-server \
     --risk 3 \
-    --ports "tcp/8080,tcp/8443" \
+    --ports tcp/8080 --ports tcp/8443 \
     --description "Custom CRM application"
 ---> 100%
 Created application: custom-crm in folder Texas
@@ -75,35 +74,32 @@ Created application: custom-crm in folder Texas
 #### Create an Application with Security Attributes
 
 ```bash
-$ scm set object application \
+$ scm set object application file-transfer-app \
     --folder Texas \
-    --name file-transfer-app \
     --category collaboration \
     --subcategory file-sharing \
     --technology peer-to-peer \
     --risk 4 \
-    --ports "tcp/2121,udp/2121" \
-    --able-to-transfer-files \
+    --ports tcp/2121 --ports udp/2121 \
+    --transfers-files \
     --has-known-vulnerabilities \
     --description "P2P file transfer application"
 ---> 100%
 Created application: file-transfer-app in folder Texas
 ```
 
-#### Create an Application with Timeouts
+#### Create an Application with Tags
 
 ```bash
-$ scm set object application \
+$ scm set object application database-app \
     --folder Shared \
-    --name database-app \
     --category business-systems \
     --subcategory database \
     --technology client-server \
     --risk 1 \
-    --ports "tcp/1433" \
-    --timeout 7200 \
-    --tcp-timeout 1800 \
-    --description "SQL Server application with extended timeouts"
+    --ports tcp/1433 \
+    --tags database --tags internal \
+    --description "SQL Server application"
 ---> 100%
 Created application: database-app in folder Shared
 ```
@@ -115,25 +111,30 @@ Delete an application object from SCM.
 ### Syntax
 
 ```bash
-scm delete object application [OPTIONS]
+scm delete object application NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application object to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the application object | No\* |
-| `--snippet TEXT` | Snippet containing the application object | No\* |
-| `--device TEXT` | Device containing the application object | No\* |
-| `--name TEXT` | Name of the application object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object application --folder Texas --name custom-crm --force
+$ scm delete object application custom-crm --folder Texas --force
 ---> 100%
 Deleted application: custom-crm from folder Texas
 ```
@@ -225,30 +226,37 @@ Display application objects.
 ### Syntax
 
 ```bash
-scm show object application [OPTIONS]
+scm show object application [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application object to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the application object | No\* |
-| `--snippet TEXT` | Snippet containing the application object | No\* |
-| `--device TEXT` | Device containing the application object | No\* |
-| `--name TEXT` | Name of the application object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Application
 
 ```bash
-$ scm show object application --folder Texas --name custom-crm
+$ scm show object application custom-crm --folder Texas
 ---> 100%
 Application: custom-crm
   Location: Folder 'Texas'

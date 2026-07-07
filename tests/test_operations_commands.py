@@ -95,7 +95,7 @@ class TestOperationsStatus:
     """Test operations status command."""
 
     def test_status_check(self, runner, mock_ops_env):
-        result = runner.invoke(app, ["operations", "status", "--job-id", "job-abc"])
+        result = runner.invoke(app, ["operations", "status", "--id", "job-abc"])
         if result.exit_code != 0:
             print(f"Output: {result.output}")
             print(f"Exception: {result.exception}")
@@ -105,7 +105,7 @@ class TestOperationsStatus:
 
     def test_status_output_json(self, mock_ops_env):
         """operations status --output json emits machine-readable data on stdout."""
-        result = CliRunner(mix_stderr=False).invoke(app, ["operations", "status", "--job-id", "job-abc", "--output", "json"])
+        result = CliRunner(mix_stderr=False).invoke(app, ["operations", "status", "--id", "job-abc", "--output", "json"])
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert data["job_id"] == "job-abc"

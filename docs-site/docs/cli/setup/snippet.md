@@ -19,14 +19,19 @@ Create or update a snippet.
 ### Syntax
 
 ```bash
-scm set setup snippet [OPTIONS]
+scm set setup snippet NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Snippet name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Snippet name | Yes |
 | `--description TEXT` | Description | No |
 | `--labels TEXT` | Labels to apply | No |
 | `--enable-prefix` | Enable prefix for the snippet | No |
@@ -36,7 +41,7 @@ scm set setup snippet [OPTIONS]
 #### Create a Simple Snippet
 
 ```bash
-$ scm set setup snippet --name "DNS-Best-Practice"
+$ scm set setup snippet "DNS-Best-Practice"
 ---> 100%
 Created snippet: DNS-Best-Practice
 ```
@@ -44,8 +49,7 @@ Created snippet: DNS-Best-Practice
 #### Create a Snippet with Description and Labels
 
 ```bash
-$ scm set setup snippet \
-    --name "Web-Security" \
+$ scm set setup snippet "Web-Security" \
     --description "Web security config" \
     --labels prod
 ---> 100%
@@ -55,8 +59,7 @@ Created snippet: Web-Security
 #### Create a Snippet with Prefix Enabled
 
 ```bash
-$ scm set setup snippet \
-    --name "Branch-Template" \
+$ scm set setup snippet "Branch-Template" \
     --description "Standard branch config" \
     --enable-prefix
 ---> 100%
@@ -70,20 +73,25 @@ Delete a snippet from SCM.
 ### Syntax
 
 ```bash
-scm delete setup snippet [OPTIONS]
+scm delete setup snippet NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the snippet to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the snippet to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete setup snippet --name "DNS-Best-Practice" --force
+$ scm delete setup snippet "DNS-Best-Practice" --force
 ---> 100%
 Deleted snippet: DNS-Best-Practice
 ```
@@ -155,17 +163,24 @@ Display snippet objects.
 ### Syntax
 
 ```bash
-scm show setup snippet [OPTIONS]
+scm show setup snippet [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the snippet to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the snippet to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all snippets are listed by default.
+When no `NAME` is specified, all snippets are listed by default.
 :::
 
 ### Examples
@@ -173,7 +188,7 @@ When no `--name` is specified, all snippets are listed by default.
 #### Show Specific Snippet
 
 ```bash
-$ scm show setup snippet --name "DNS-Best-Practice"
+$ scm show setup snippet "DNS-Best-Practice"
 ---> 100%
 Snippet: DNS-Best-Practice
 ================================================================================

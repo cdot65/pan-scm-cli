@@ -42,7 +42,7 @@ class TestInfrastructureSettingCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name", "gp-infra",
+                "gp-infra",
                 "--dns-servers", DNS_SERVERS_JSON,
                 "--ip-pools", IP_POOLS_JSON,
                 "--portal-hostname", PORTAL_HOSTNAME_JSON,
@@ -73,7 +73,7 @@ class TestInfrastructureSettingCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name", "gp-infra",
+                "gp-infra",
                 "--dns-servers", DNS_SERVERS_JSON,
                 "--ip-pools", IP_POOLS_JSON,
                 "--portal-hostname", PORTAL_HOSTNAME_JSON,
@@ -104,7 +104,7 @@ class TestInfrastructureSettingCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name", "gp-infra",
+                "gp-infra",
                 "--dns-servers", DNS_SERVERS_JSON,
                 "--ip-pools", IP_POOLS_JSON,
                 "--portal-hostname", PORTAL_HOSTNAME_JSON,
@@ -122,7 +122,7 @@ class TestInfrastructureSettingCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name", "gp-infra",
+                "gp-infra",
                 "--dns-servers", "not-json",
                 "--ip-pools", IP_POOLS_JSON,
                 "--portal-hostname", PORTAL_HOSTNAME_JSON,
@@ -140,7 +140,7 @@ class TestInfrastructureSettingCommands:
             test_app,
             [
                 "--folder", "Texas",
-                "--name", "gp-infra",
+                "gp-infra",
                 "--dns-servers", DNS_SERVERS_JSON,
                 "--ip-pools", IP_POOLS_JSON,
                 "--portal-hostname", PORTAL_HOSTNAME_JSON,
@@ -164,7 +164,7 @@ class TestInfrastructureSettingCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name", "gp-infra",
+                "gp-infra",
                 "--dns-servers", DNS_SERVERS_JSON,
                 "--ip-pools", IP_POOLS_JSON,
                 "--portal-hostname", PORTAL_HOSTNAME_JSON,
@@ -195,7 +195,7 @@ class TestInfrastructureSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "gp-infra"],
+            ["gp-infra"],
         )
 
         assert result.exit_code == 0
@@ -217,7 +217,7 @@ class TestInfrastructureSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "nonexistent"],
+            ["nonexistent"],
         )
 
         assert result.exit_code == 1
@@ -236,7 +236,7 @@ class TestInfrastructureSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "gp-infra", "--force"],
+            ["gp-infra", "--force"],
         )
 
         assert result.exit_code == 0
@@ -256,7 +256,7 @@ class TestInfrastructureSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "nonexistent", "--force"],
+            ["nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -532,7 +532,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_infrastructure_setting)
 
-        result = runner.invoke(test_app, ["--name", "gp-infra", "--output", "json"])
+        result = runner.invoke(test_app, ["gp-infra", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == setting

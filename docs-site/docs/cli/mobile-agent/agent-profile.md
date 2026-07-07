@@ -23,15 +23,20 @@ Create or update an agent profile.
 ### Syntax
 
 ```bash
-scm set mobile-agent agent-profile [OPTIONS]
+scm set mobile-agent agent-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the agent profile | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (defaults to `Mobile Users`) | No |
-| `--name TEXT` | Name of the agent profile | Yes |
 | `--connect-method TEXT` | Connect method (`user-logon`, `pre-logon`, `on-demand`, `pre-logon-then-on-demand`) | No |
 | `--tunnel-mtu INT` | GlobalProtect connection MTU in bytes (1000-1420) | No |
 | `--os TEXT` | Operating system, repeatable (`Android`, `Chrome`, `IoT`, `Linux`, `Mac`, `Windows`, `WindowsUWP`, `iOS`) | No |
@@ -46,9 +51,8 @@ Nested settings (agent UI, gateways, HIP collection, authentication override, ce
 #### Create Agent Profile
 
 ```bash
-$ scm set mobile-agent agent-profile \
+$ scm set mobile-agent agent-profile "corp-app-settings" \
     --folder "Mobile Users" \
-    --name "corp-app-settings" \
     --connect-method user-logon \
     --tunnel-mtu 1400 \
     --os Windows --os Mac
@@ -58,8 +62,7 @@ Created agent profile: corp-app-settings in folder Mobile Users
 #### Update Save Credentials Behavior
 
 ```bash
-$ scm set mobile-agent agent-profile \
-    --name "corp-app-settings" \
+$ scm set mobile-agent agent-profile "corp-app-settings" \
     --save-user-credentials 3
 Updated agent profile: corp-app-settings in folder Mobile Users
 ```
@@ -71,15 +74,22 @@ Display one or all agent profiles.
 ### Syntax
 
 ```bash
-scm show mobile-agent agent-profile [OPTIONS]
+scm show mobile-agent agent-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the agent profile to show (lists all when omitted); omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (defaults to `Mobile Users`) | No |
-| `--name TEXT` | Name of the agent profile to show (lists all when omitted) | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 ### Examples
 
@@ -88,7 +98,7 @@ scm show mobile-agent agent-profile [OPTIONS]
 $ scm show mobile-agent agent-profile
 
 # Show a specific agent profile
-$ scm show mobile-agent agent-profile --name "corp-app-settings"
+$ scm show mobile-agent agent-profile "corp-app-settings"
 ```
 
 ## Delete Agent Profile
@@ -98,21 +108,26 @@ Remove an agent profile.
 ### Syntax
 
 ```bash
-scm delete mobile-agent agent-profile [OPTIONS]
+scm delete mobile-agent agent-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the agent profile to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (defaults to `Mobile Users`) | No |
-| `--name TEXT` | Name of the agent profile to delete | Yes |
 | `--force` | Skip the confirmation prompt | No |
 
 ### Examples
 
 ```bash
-$ scm delete mobile-agent agent-profile --name "corp-app-settings" --force
+$ scm delete mobile-agent agent-profile "corp-app-settings" --force
 Deleted agent profile: corp-app-settings from folder Mobile Users
 ```
 

@@ -14,7 +14,7 @@ import yaml
 from ..utils import parse_comma_separated_list, validate_location_params
 from ..utils.bulk import run_bulk
 from ..utils.decorators import handle_command_errors
-from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, redact, success, warning
+from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, redact, success
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     Address,
@@ -39,14 +39,6 @@ from ..utils.validators import (
 )
 
 # =============================================================================================================================================================================================
-# HELPER FUNCTIONS
-# =============================================================================================================================================================================================
-
-# Sentinel returned by bulk-load workers for items skipped due to unsupported container overrides
-_SKIPPED = object()
-
-
-# =============================================================================================================================================================================================
 # TYPER APP CONFIGURATION
 # =============================================================================================================================================================================================
 
@@ -65,12 +57,12 @@ backup_app = typer.Typer(help="Backup object configurations to YAML files")
 FOLDER_OPTION = typer.Option(
     None,
     "--folder",
-    help="Folder path for the address group",
+    help="Folder location",
 )
-NAME_OPTION = typer.Option(
+MAX_RESULTS_OPTION = typer.Option(
     None,
-    "--name",
-    help="Name of the address group",
+    "--max-results",
+    help="Maximum number of results to display",
 )
 TYPE_OPTION = typer.Option(
     None,
@@ -95,7 +87,7 @@ DESCRIPTION_OPTION = typer.Option(
 TAGS_OPTION = typer.Option(
     None,
     "--tags",
-    help="List of tags",
+    help="Tags (repeat for multiple)",
 )
 FILE_OPTION = typer.Option(
     None,
@@ -151,11 +143,6 @@ HIP_PROFILE_FILE_OPTION = typer.Option(
     "--file",
     help="YAML file containing HIP profiles",
 )
-HIP_PROFILE_FOLDER_OPTION = typer.Option(
-    None,
-    "--folder",
-    help="Override folder path for all HIP profiles",
-)
 HIP_PROFILE_DRY_RUN_OPTION = typer.Option(
     False,
     "--dry-run",
@@ -168,18 +155,13 @@ HTTP_SERVER_PROFILE_FILE_OPTION = typer.Option(
     "--file",
     help="YAML file containing HTTP server profiles",
 )
-HTTP_SERVER_PROFILE_FOLDER_OPTION = typer.Option(
-    None,
-    "--folder",
-    help="Override folder path for all HTTP server profiles",
-)
 HTTP_SERVER_PROFILE_DRY_RUN_OPTION = typer.Option(
     False,
     "--dry-run",
     help="Preview changes without applying them",
 )
 
-# Misc profile options for syslog, etc.
+# Container location options
 SNIPPET_OPTION = typer.Option(
     None,
     "--snippet",
@@ -189,11 +171,6 @@ DEVICE_OPTION = typer.Option(
     None,
     "--device",
     help="Device location",
-)
-TAG_OPTION = typer.Option(
-    None,
-    "--tag",
-    help="Tags to apply",
 )
 
 # External Dynamic List options
@@ -490,24 +467,27 @@ def backup_address_group(
 @delete_app.command("address-group")
 @handle_command_errors("deleting address group")
 def delete_address_group(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the address group"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an address group.
 
     Examples
     --------
-        scm delete object address-group --folder Texas --name test123
+        scm delete object address-group test123 --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete address group '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete address group '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
-    result = scm_client.delete_address_group(folder=folder, name=name)
+    result = scm_client.delete_address_group(folder=folder, snippet=snippet, device=device, name=name)
     if result:
-        success(f"Deleted address group: {name} from folder {folder}")
+        success(f"Deleted address group: {name} from {location_type} {location_value}")
     return result
 
 
@@ -569,8 +549,14 @@ def load_address_group(
             ag_data["folder"] = folder
             ag_data.pop("snippet", None)
             ag_data.pop("device", None)
-        elif snippet or device:
-            return _SKIPPED
+        elif snippet:
+            ag_data["snippet"] = snippet
+            ag_data.pop("folder", None)
+            ag_data.pop("device", None)
+        elif device:
+            ag_data["device"] = device
+            ag_data.pop("folder", None)
+            ag_data.pop("snippet", None)
 
         # Validate using the Pydantic model
         address_group = AddressGroup(**ag_data)
@@ -578,6 +564,8 @@ def load_address_group(
         # Call the SDK client to create the address group
         return scm_client.create_address_group(
             folder=address_group.folder,
+            snippet=address_group.snippet,
+            device=address_group.device,
             name=address_group.name,
             type=address_group.type,
             members=address_group.members,
@@ -595,13 +583,6 @@ def load_address_group(
         if exc is not None:
             error(f"Error processing address group '{ag_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other objects
-            continue
-
-        if result is _SKIPPED:
-            if snippet:
-                warning(f"Warning: Address groups do not support snippets. Skipping group '{ag_data.get('name', 'unknown')}'")
-            else:
-                warning(f"Warning: Address groups do not support devices. Skipping group '{ag_data.get('name', 'unknown')}'")
             continue
 
         results.append(result)
@@ -623,8 +604,10 @@ def load_address_group(
 @set_app.command("address-group")
 @handle_command_errors("creating address group")
 def set_address_group(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the address group"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     type: str = TYPE_OPTION,
     members: list[str] | None = MEMBERS_OPTION,
     filter: str | None = FILTER_OPTION,
@@ -636,22 +619,22 @@ def set_address_group(
     Example:
     -------
         # Static address group
-        scm set object address-group \
+        scm set object address-group test-static \
         --folder Texas \
-        --name test-static \
         --type static \
-        --members ["addr1", "addr2"] \
+        --members addr1 --members addr2 \
         --description "test static group"
 
         # Dynamic address group
-        scm set object address-group \
+        scm set object address-group test-dynamic \
         --folder Texas \
-        --name test-dynamic \
         --type dynamic \
         --filter "'web' and 'production'" \
         --description "test dynamic group"
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Parse comma-separated list options
     parsed_members = parse_comma_separated_list(members) if members else []
     parsed_tags = parse_comma_separated_list(tags) if tags else []
@@ -659,6 +642,8 @@ def set_address_group(
     # Validate inputs using the Pydantic model
     address_group = AddressGroup(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         type=type,
         members=parsed_members,
@@ -670,6 +655,8 @@ def set_address_group(
     # Call the SDK client to create the address group
     result = scm_client.create_address_group(
         folder=address_group.folder,
+        snippet=address_group.snippet,
+        device=address_group.device,
         name=address_group.name,
         type=address_group.type,
         members=address_group.members,
@@ -680,17 +667,20 @@ def set_address_group(
 
     action = result.pop("__action__", "created")
     if action == "updated":
-        success(f"Updated address group: {result['name']} in folder {result['folder']}")
+        success(f"Updated address group: {result['name']} in {location_type} {location_value}")
     else:
-        success(f"Created address group: {result['name']} in folder {result['folder']}")
+        success(f"Created address group: {result['name']} in {location_type} {location_value}")
     return result
 
 
 @show_app.command("address-group")
 @handle_command_errors("showing address group")
 def show_address_group(
-    folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the address group to show"),
+    name: str | None = typer.Argument(None, help="Name of the address group to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display address group objects.
@@ -701,22 +691,26 @@ def show_address_group(
         scm show object address-group --folder Texas
 
         # Show a specific address group by name
-        scm show object address-group --folder Texas --name web-servers
+        scm show object address-group web-servers --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Get a specific address group by name
-        group = scm_client.get_address_group(folder=folder, name=name)
+        group = scm_client.get_address_group(folder=folder, snippet=snippet, device=device, name=name)
         emit(group, output, title=f"Address Group: {group.get('name', name)}")
         return group
 
-    # Default behavior: list all address groups in the folder
-    groups = scm_client.list_address_groups(folder=folder)
+    # Default behavior: list all address groups in the container
+    groups = scm_client.list_address_groups(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        groups = groups[:max_results]
     emit(
         groups,
         output,
         columns=["name", "folder", "static", "dynamic", "description", "tag"],
-        title=f"Address Groups in folder '{folder}'",
+        title=f"Address Groups in {location_type} '{location_value}'",
     )
     return groups or None
 
@@ -786,24 +780,27 @@ def backup_address(
 @delete_app.command("address")
 @handle_command_errors("deleting address")
 def delete_address(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the address"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an address object.
 
     Examples
     --------
-        scm delete object address --folder Texas --name webserver
+        scm delete object address webserver --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete address '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete address '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
-    result = scm_client.delete_address(folder=folder, name=name)
+    result = scm_client.delete_address(folder=folder, snippet=snippet, device=device, name=name)
     if result:
-        success(f"Deleted address: {name} from folder {folder}")
+        success(f"Deleted address: {name} from {location_type} {location_value}")
     return result
 
 
@@ -886,6 +883,8 @@ def load_address(
         # Call the SDK client to create the address
         return scm_client.create_address(
             folder=address.folder,
+            snippet=address.snippet,
+            device=address.device,
             name=address.name,
             description=address.description,
             tags=address.tags,
@@ -926,8 +925,10 @@ def load_address(
 @set_app.command("address")
 @handle_command_errors("creating address")
 def set_address(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the address"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     tags: list[str] | None = TAGS_OPTION,
     ip_netmask: str | None = IP_NETMASK_OPTION,
@@ -939,19 +940,22 @@ def set_address(
 
     Example:
     -------
-        scm set object address \
+        scm set object address webserver \
         --folder Texas \
-        --name webserver \
         --ip-netmask 192.168.1.100/32 \
         --description "Web server" \
-        --tags ["server", "web"]
+        --tags server --tags web
 
     Note: Exactly one of ip-netmask, ip-range, ip-wildcard, or fqdn must be provided.
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Validate inputs using the Pydantic model
     address_data: dict[str, Any] = {
         "folder": folder,
+        "snippet": snippet,
+        "device": device,
         "name": name,
         "tags": tags or [],
         "ip_netmask": ip_netmask,
@@ -969,6 +973,8 @@ def set_address(
     # Call the SDK client to create the address
     result = scm_client.create_address(
         folder=address.folder,
+        snippet=address.snippet,
+        device=address.device,
         name=address.name,
         description=description,  # Pass None if not provided, not empty string
         tags=address.tags,
@@ -982,11 +988,11 @@ def set_address(
     action = result.pop("__action__", "created")
 
     if action == "created":
-        success(f"Created address: {result['name']} in folder {result['folder']}")
+        success(f"Created address: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated address: {result['name']} in folder {result['folder']}")
+        success(f"Updated address: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for address: {result['name']} in folder {result['folder']}")
+        info(f"No changes needed for address: {result['name']} in {location_type} {location_value}")
 
     return result
 
@@ -994,11 +1000,14 @@ def set_address(
 @show_app.command("address")
 @handle_command_errors("showing address")
 def show_address(
-    folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the address to show"),
+    name: str | None = typer.Argument(None, help="Name of the address to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     exclude_folder: list[str] | None = EXCLUDE_FOLDER_OPTION,
     exclude_snippet: list[str] | None = EXCLUDE_SNIPPET_OPTION,
     exclude_device: list[str] | None = EXCLUDE_DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display address objects.
@@ -1009,31 +1018,36 @@ def show_address(
         scm show object address --folder Texas
 
         # Show a specific address by name
-        scm show object address --folder Texas --name webserver
+        scm show object address webserver --folder Texas
 
         # List addresses excluding specific folders
         scm show object address --folder Texas --exclude-folder "All"
 
     """
-    # Show context info if log level is INFO
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Get a specific address by name
-        address = scm_client.get_address(folder=folder, name=name)
+        address = scm_client.get_address(folder=folder, snippet=snippet, device=device, name=name)
         emit(address, output, title=f"Address: {address.get('name', name)}")
         return address
 
-    # Default behavior: list all addresses in the folder
+    # Default behavior: list all addresses in the container
     addresses = scm_client.list_addresses(
         folder=folder,
+        snippet=snippet,
+        device=device,
         exclude_folders=exclude_folder or None,
         exclude_snippets=exclude_snippet or None,
         exclude_devices=exclude_device or None,
     )
+    if max_results is not None:
+        addresses = addresses[:max_results]
     emit(
         addresses,
         output,
         columns=["name", "folder", "ip_netmask", "ip_range", "ip_wildcard", "fqdn", "description", "tag"],
-        title=f"Addresses in folder '{folder}'",
+        title=f"Addresses in {location_type} '{location_value}'",
     )
     return addresses or None
 
@@ -1100,24 +1114,27 @@ def backup_application(
 @delete_app.command("application")
 @handle_command_errors("deleting application")
 def delete_application(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the application"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an application.
 
     Example:
     -------
-    scm delete object application --folder Texas --name custom-app
+    scm delete object application custom-app --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete application '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete application '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
-    result = scm_client.delete_application(folder=folder, name=name)
+    result = scm_client.delete_application(folder=folder, snippet=snippet, device=device, name=name)
     if result:
-        success(f"Deleted application: {name} from folder {folder}")
+        success(f"Deleted application: {name} from {location_type} {location_value}")
     return result
 
 
@@ -1179,8 +1196,14 @@ def load_application(
             app_data["folder"] = folder
             app_data.pop("snippet", None)
             app_data.pop("device", None)
-        elif snippet or device:
-            return _SKIPPED
+        elif snippet:
+            app_data["snippet"] = snippet
+            app_data.pop("folder", None)
+            app_data.pop("device", None)
+        elif device:
+            app_data["device"] = device
+            app_data.pop("folder", None)
+            app_data.pop("snippet", None)
 
         # Validate using the Pydantic model
         application = Application(**app_data)
@@ -1188,6 +1211,8 @@ def load_application(
         # Call the SDK client to create the application
         return scm_client.create_application(
             folder=application.folder,
+            snippet=application.snippet,
+            device=application.device,
             name=application.name,
             category=application.category,
             subcategory=application.subcategory,
@@ -1218,13 +1243,6 @@ def load_application(
             # Continue processing other objects
             continue
 
-        if result is _SKIPPED:
-            if snippet:
-                warning(f"Warning: Applications do not support snippets. Skipping application '{app_data.get('name', 'unknown')}'")
-            else:
-                warning(f"Warning: Applications do not support devices. Skipping application '{app_data.get('name', 'unknown')}'")
-            continue
-
         results.append(result)
 
         # Track if created or updated based on response
@@ -1244,8 +1262,10 @@ def load_application(
 @set_app.command("application")
 @handle_command_errors("creating application")
 def set_application(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the application"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     category: str = CATEGORY_OPTION,
     subcategory: str = SUBCATEGORY_OPTION,
     technology: str = TECHNOLOGY_OPTION,
@@ -1267,21 +1287,24 @@ def set_application(
 
     Example:
     -------
-        scm set object application \
+        scm set object application custom-database \
         --folder Texas \
-        --name custom-database \
         --category business-systems \
         --subcategory database \
         --technology client-server \
         --risk 3 \
         --description "Custom database application" \
-        --ports ["tcp/1521", "tcp/1522"] \
+        --ports tcp/1521 --ports tcp/1522 \
         --transfers-files
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Validate inputs using the Pydantic model
     application = Application(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         category=category,
         subcategory=subcategory,
@@ -1303,6 +1326,8 @@ def set_application(
     # Call the SDK client to create the application
     result = scm_client.create_application(
         folder=application.folder,
+        snippet=application.snippet,
+        device=application.device,
         name=application.name,
         category=application.category,
         subcategory=application.subcategory,
@@ -1323,17 +1348,20 @@ def set_application(
 
     action = result.pop("__action__", "created")
     if action == "updated":
-        success(f"Updated application: {result['name']} in folder {result['folder']}")
+        success(f"Updated application: {result['name']} in {location_type} {location_value}")
     else:
-        success(f"Created application: {result['name']} in folder {result['folder']}")
+        success(f"Created application: {result['name']} in {location_type} {location_value}")
     return result
 
 
 @show_app.command("application")
 @handle_command_errors("showing application")
 def show_application(
-    folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the application to show"),
+    name: str | None = typer.Argument(None, help="Name of the application to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display application objects.
@@ -1344,22 +1372,26 @@ def show_application(
         scm show object application --folder Texas
 
         # Show a specific application by name
-        scm show object application --folder Texas --name custom-database
+        scm show object application custom-database --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Get a specific application by name
-        application = scm_client.get_application(folder=folder, name=name)
+        application = scm_client.get_application(folder=folder, snippet=snippet, device=device, name=name)
         emit(application, output, title=f"Application: {application.get('name', name)}")
         return application
 
-    # List all applications in the folder (default behavior)
-    applications = scm_client.list_applications(folder=folder)
+    # List all applications in the container (default behavior)
+    applications = scm_client.list_applications(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        applications = applications[:max_results]
     emit(
         applications,
         output,
         columns=["name", "folder", "category", "subcategory", "technology", "risk", "description"],
-        title=f"Applications in folder '{folder}'",
+        title=f"Applications in {location_type} '{location_value}'",
     )
     return applications or None
 
@@ -1426,24 +1458,27 @@ def backup_application_group(
 @delete_app.command("application-group")
 @handle_command_errors("deleting application group")
 def delete_application_group(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the application group"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an application group.
 
     Example:
     -------
-    scm delete object application-group --folder Texas --name web-apps
+    scm delete object application-group web-apps --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete application group '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete application group '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
-    result = scm_client.delete_application_group(folder=folder, name=name)
+    result = scm_client.delete_application_group(folder=folder, snippet=snippet, device=device, name=name)
     if result:
-        success(f"Deleted application group: {name} from folder {folder}")
+        success(f"Deleted application group: {name} from {location_type} {location_value}")
     return result
 
 
@@ -1512,6 +1547,8 @@ def load_application_group(
         # Call the SDK client to create the application group
         return scm_client.create_application_group(
             folder=app_group.folder,
+            snippet=app_group.snippet,
+            device=app_group.device,
             name=app_group.name,
             members=app_group.members,
         )
@@ -1541,26 +1578,31 @@ def load_application_group(
 @set_app.command("application-group")
 @handle_command_errors("creating application group")
 def set_application_group(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the application group"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     members: list[str] = APP_GROUP_MEMBERS_OPTION,
 ):
     r"""Create or update an application group.
 
     Example:
     -------
-        scm set object application-group \
+        scm set object application-group web-apps \
         --folder Texas \
-        --name web-apps \
-        --members ["ssl", "web-browsing", "http", "https"]
+        --members ssl --members web-browsing --members http --members https
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Parse comma-separated members
     parsed_members = parse_comma_separated_list(members)
 
     # Validate inputs using the Pydantic model
     app_group = ApplicationGroup(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         members=parsed_members,
     )
@@ -1568,23 +1610,28 @@ def set_application_group(
     # Call the SDK client to create the application group
     result = scm_client.create_application_group(
         folder=app_group.folder,
+        snippet=app_group.snippet,
+        device=app_group.device,
         name=app_group.name,
         members=app_group.members,
     )
 
     action = result.pop("__action__", "created")
     if action == "updated":
-        success(f"Updated application group: {result['name']} in folder {result['folder']}")
+        success(f"Updated application group: {result['name']} in {location_type} {location_value}")
     else:
-        success(f"Created application group: {result['name']} in folder {result['folder']}")
+        success(f"Created application group: {result['name']} in {location_type} {location_value}")
     return result
 
 
 @show_app.command("application-group")
 @handle_command_errors("showing application group")
 def show_application_group(
-    folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the application group to show"),
+    name: str | None = typer.Argument(None, help="Name of the application group to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display application group objects.
@@ -1595,22 +1642,26 @@ def show_application_group(
         scm show object application-group --folder Texas
 
         # Show a specific application group by name
-        scm show object application-group --folder Texas --name web-apps
+        scm show object application-group web-apps --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Get a specific application group by name
-        group = scm_client.get_application_group(folder=folder, name=name)
+        group = scm_client.get_application_group(folder=folder, snippet=snippet, device=device, name=name)
         emit(group, output, title=f"Application Group: {group.get('name', name)}")
         return group
 
-    # List all application groups in the folder (default behavior)
-    groups = scm_client.list_application_groups(folder=folder)
+    # List all application groups in the container (default behavior)
+    groups = scm_client.list_application_groups(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        groups = groups[:max_results]
     emit(
         groups,
         output,
         columns=["name", "folder", "members"],
-        title=f"Application Groups in folder '{folder}'",
+        title=f"Application Groups in {location_type} '{location_value}'",
     )
     return groups or None
 
@@ -1677,24 +1728,27 @@ def backup_application_filter(
 @delete_app.command("application-filter")
 @handle_command_errors("deleting application filter")
 def delete_application_filter(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the application filter"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an application filter.
 
     Example:
     -------
-    scm delete object application-filter --folder Texas --name high-risk-apps
+    scm delete object application-filter high-risk-apps --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete application filter '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete application filter '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
-    result = scm_client.delete_application_filter(folder=folder, name=name)
+    result = scm_client.delete_application_filter(folder=folder, snippet=snippet, device=device, name=name)
     if result:
-        success(f"Deleted application filter: {name} from folder {folder}")
+        success(f"Deleted application filter: {name} from {location_type} {location_value}")
     return result
 
 
@@ -1763,6 +1817,8 @@ def load_application_filter(
         # Call the SDK client to create the application filter
         return scm_client.create_application_filter(
             folder=app_filter.folder,
+            snippet=app_filter.snippet,
+            device=app_filter.device,
             name=app_filter.name,
             category=app_filter.category,
             subcategory=app_filter.subcategory,
@@ -1804,8 +1860,10 @@ def load_application_filter(
 @set_app.command("application-filter")
 @handle_command_errors("creating application filter")
 def set_application_filter(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the application filter"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     category: list[str] = FILTER_CATEGORY_OPTION,
     subcategory: list[str] = FILTER_SUBCATEGORY_OPTION,
     technology: list[str] = FILTER_TECHNOLOGY_OPTION,
@@ -1824,20 +1882,23 @@ def set_application_filter(
 
     Example:
     -------
-        scm set object application-filter \
+        scm set object application-filter high-risk-apps \
         --folder Texas \
-        --name high-risk-apps \
-        --category ["business-systems"] \
-        --subcategory ["database"] \
-        --technology ["client-server"] \
-        --risk [4, 5] \
+        --category business-systems \
+        --subcategory database \
+        --technology client-server \
+        --risk 4 --risk 5 \
         --has-known-vulnerabilities \
         --used-by-malware
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Validate inputs using the Pydantic model
     app_filter = ApplicationFilter(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         category=category,
         subcategory=subcategory,
@@ -1857,6 +1918,8 @@ def set_application_filter(
     # Call the SDK client to create the application filter
     result = scm_client.create_application_filter(
         folder=app_filter.folder,
+        snippet=app_filter.snippet,
+        device=app_filter.device,
         name=app_filter.name,
         category=app_filter.category,
         subcategory=app_filter.subcategory,
@@ -1877,11 +1940,11 @@ def set_application_filter(
     action = result.pop("__action__", "created")
 
     if action == "created":
-        success(f"Created application filter: {result['name']} in folder {result['folder']}")
+        success(f"Created application filter: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated application filter: {result['name']} in folder {result['folder']}")
+        success(f"Updated application filter: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for application filter: {result['name']} in folder {result['folder']}")
+        info(f"No changes needed for application filter: {result['name']} in {location_type} {location_value}")
 
     return result
 
@@ -1889,8 +1952,11 @@ def set_application_filter(
 @show_app.command("application-filter")
 @handle_command_errors("showing application filter")
 def show_application_filter(
-    folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the application filter to show"),
+    name: str | None = typer.Argument(None, help="Name of the application filter to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display application filter objects.
@@ -1901,22 +1967,26 @@ def show_application_filter(
         scm show object application-filter --folder Texas
 
         # Show a specific application filter by name
-        scm show object application-filter --folder Texas --name high-risk-apps
+        scm show object application-filter high-risk-apps --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Get a specific application filter by name
-        filter_obj = scm_client.get_application_filter(folder=folder, name=name)
+        filter_obj = scm_client.get_application_filter(folder=folder, snippet=snippet, device=device, name=name)
         emit(filter_obj, output, title=f"Application Filter: {filter_obj.get('name', name)}")
         return filter_obj
 
-    # List all application filters in the folder (default behavior)
-    filters = scm_client.list_application_filters(folder=folder)
+    # List all application filters in the container (default behavior)
+    filters = scm_client.list_application_filters(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        filters = filters[:max_results]
     emit(
         filters,
         output,
         columns=["name", "folder", "category", "sub_category", "technology", "risk"],
-        title=f"Application Filters in folder '{folder}'",
+        title=f"Application Filters in {location_type} '{location_value}'",
     )
     return filters or None
 
@@ -1988,24 +2058,27 @@ def backup_dynamic_user_group(
 @delete_app.command("dynamic-user-group")
 @handle_command_errors("deleting dynamic user group")
 def delete_dynamic_user_group(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the dynamic user group"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a dynamic user group.
 
     Example:
     -------
-    scm delete object dynamic-user-group --folder Texas --name it-admins
+    scm delete object dynamic-user-group it-admins --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete dynamic user group '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete dynamic user group '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
-    result = scm_client.delete_dynamic_user_group(folder=folder, name=name)
+    result = scm_client.delete_dynamic_user_group(folder=folder, snippet=snippet, device=device, name=name)
     if result:
-        success(f"Deleted dynamic user group: {name} from folder {folder}")
+        success(f"Deleted dynamic user group: {name} from {location_type} {location_value}")
     return result
 
 
@@ -2074,6 +2147,8 @@ def load_dynamic_user_group(
         # Call the SDK client to create the dynamic user group
         return scm_client.create_dynamic_user_group(
             folder=dug.folder,
+            snippet=dug.snippet,
+            device=dug.device,
             name=dug.name,
             filter=dug.filter,
             description=dug.description,
@@ -2105,8 +2180,10 @@ def load_dynamic_user_group(
 @set_app.command("dynamic-user-group")
 @handle_command_errors("creating dynamic user group")
 def set_dynamic_user_group(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the dynamic user group"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     filter: str = FILTER_EXPRESSION_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     tags: list[str] | None = TAGS_OPTION,
@@ -2115,17 +2192,20 @@ def set_dynamic_user_group(
 
     Example:
     -------
-        scm set object dynamic-user-group \\
+        scm set object dynamic-user-group it-admins \\
         --folder Texas \\
-        --name it-admins \\
         --filter "tag.Department='IT' and tag.Role='Admin'" \\
         --description "IT administrators" \\
-        --tags ["automation", "admin"]
+        --tags automation --tags admin
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Validate inputs using the Pydantic model
     dug = DynamicUserGroup(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         filter=filter,
         description=description or "",
@@ -2135,6 +2215,8 @@ def set_dynamic_user_group(
     # Call the SDK client to create the dynamic user group
     result = scm_client.create_dynamic_user_group(
         folder=dug.folder,
+        snippet=dug.snippet,
+        device=dug.device,
         name=dug.name,
         filter=dug.filter,
         description=dug.description,
@@ -2143,17 +2225,20 @@ def set_dynamic_user_group(
 
     action = result.pop("__action__", "created")
     if action == "updated":
-        success(f"Updated dynamic user group: {result['name']} in folder {result['folder']}")
+        success(f"Updated dynamic user group: {result['name']} in {location_type} {location_value}")
     else:
-        success(f"Created dynamic user group: {result['name']} in folder {result['folder']}")
+        success(f"Created dynamic user group: {result['name']} in {location_type} {location_value}")
     return result
 
 
 @show_app.command("dynamic-user-group")
 @handle_command_errors("showing dynamic user group")
 def show_dynamic_user_group(
-    folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the dynamic user group to show"),
+    name: str | None = typer.Argument(None, help="Name of the dynamic user group to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display dynamic user group objects.
@@ -2164,22 +2249,26 @@ def show_dynamic_user_group(
         scm show object dynamic-user-group --folder Texas
 
         # Show a specific dynamic user group by name
-        scm show object dynamic-user-group --folder Texas --name it-admins
+        scm show object dynamic-user-group it-admins --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Get a specific dynamic user group by name
-        group = scm_client.get_dynamic_user_group(folder=folder, name=name)
+        group = scm_client.get_dynamic_user_group(folder=folder, snippet=snippet, device=device, name=name)
         emit(group, output, title=f"Dynamic User Group: {group.get('name', name)}")
         return group
 
-    # List all dynamic user groups in the folder (default behavior)
-    groups = scm_client.list_dynamic_user_groups(folder=folder)
+    # List all dynamic user groups in the container (default behavior)
+    groups = scm_client.list_dynamic_user_groups(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        groups = groups[:max_results]
     emit(
         groups,
         output,
         columns=["name", "folder", "filter", "description", "tag"],
-        title=f"Dynamic User Groups in folder '{folder}'",
+        title=f"Dynamic User Groups in {location_type} '{location_value}'",
     )
     return groups or None
 
@@ -2276,24 +2365,27 @@ def backup_external_dynamic_list(
 @delete_app.command("external-dynamic-list")
 @handle_command_errors("deleting external dynamic list")
 def delete_external_dynamic_list(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the external dynamic list"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an external dynamic list.
 
     Example:
     -------
-    scm delete object external-dynamic-list --folder Texas --name malicious-ips
+    scm delete object external-dynamic-list malicious-ips --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete external dynamic list '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete external dynamic list '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
-    result = scm_client.delete_external_dynamic_list(folder=folder, name=name)
+    result = scm_client.delete_external_dynamic_list(folder=folder, snippet=snippet, device=device, name=name)
     if result:
-        success(f"Deleted external dynamic list: {name} from folder {folder}")
+        success(f"Deleted external dynamic list: {name} from {location_type} {location_value}")
     return result
 
 
@@ -2439,8 +2531,10 @@ def load_external_dynamic_list(
 @set_app.command("external-dynamic-list")
 @handle_command_errors("creating/updating external dynamic list")
 def set_external_dynamic_list(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the external dynamic list"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     type: str = typer.Option(
         ...,
         help="Type of EDL (predefined_ip, predefined_url, ip, domain, url, imsi, imei)",
@@ -2461,23 +2555,25 @@ def set_external_dynamic_list(
     Example:
     -------
         # Create a predefined IP list
-        scm set object external-dynamic-list --folder Texas --name paloalto-bulletproof \\
+        scm set object external-dynamic-list paloalto-bulletproof --folder Texas \\
             --type predefined_ip --url "https://saasedl.paloaltonetworks.com/feeds/BulletproofIPList"
 
         # Create a custom IP blocklist with hourly updates
-        scm set object external-dynamic-list --folder Texas --name custom-blocklist \\
+        scm set object external-dynamic-list custom-blocklist --folder Texas \\
             --type ip --url "https://example.com/blocklist.txt" --recurring hourly
 
         # Create a domain list with daily updates at 3 AM
-        scm set object external-dynamic-list --folder Texas --name malicious-domains \\
+        scm set object external-dynamic-list malicious-domains --folder Texas \\
             --type domain --url "https://example.com/domains.txt" --recurring daily --hour 03 \\
             --expand-domain
 
     """
-    # Validate the configuration
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
     edl_config: dict[str, Any] = {
         "folder": folder,
+        "snippet": snippet,
+        "device": device,
         "name": name,
         "type": type,
         "url": url,
@@ -2504,6 +2600,8 @@ def set_external_dynamic_list(
     # Create/update the external dynamic list
     result = scm_client.create_external_dynamic_list(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         type_config=edl_data["type"],
     )
@@ -2512,11 +2610,11 @@ def set_external_dynamic_list(
     action = result.pop("__action__", "created")
 
     if action == "created":
-        success(f"Created external dynamic list: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        success(f"Created external dynamic list: {result.get('name', name)} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated external dynamic list: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        success(f"Updated external dynamic list: {result.get('name', name)} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for external dynamic list: {result.get('name', name)} in folder {result.get('folder', folder)}")
+        info(f"No changes needed for external dynamic list: {result.get('name', name)} in {location_type} {location_value}")
 
     return result
 
@@ -2524,11 +2622,14 @@ def set_external_dynamic_list(
 @show_app.command("external-dynamic-list")
 @handle_command_errors("showing external dynamic list")
 def show_external_dynamic_list(
-    folder: str = FOLDER_OPTION,
-    name: str = typer.Option(None, help="Name of the external dynamic list to show"),
+    name: str | None = typer.Argument(None, help="Name of the external dynamic list to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ):
-    """Show external dynamic list details or list all external dynamic lists in a folder.
+    """Show external dynamic list details or list all external dynamic lists in a container.
 
     Examples
     --------
@@ -2536,22 +2637,26 @@ def show_external_dynamic_list(
         scm show object external-dynamic-list --folder Texas
 
         # Show a specific external dynamic list by name
-        scm show object external-dynamic-list --folder Texas --name malicious-ips
+        scm show object external-dynamic-list malicious-ips --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Get a specific external dynamic list by name
-        edl = scm_client.get_external_dynamic_list(folder=folder, name=name)
+        edl = scm_client.get_external_dynamic_list(folder=folder, snippet=snippet, device=device, name=name)
         emit(edl, output, title=f"External Dynamic List: {edl.get('name', name)}")
         return edl
 
-    # List all external dynamic lists in the folder (default behavior)
-    edls = scm_client.list_external_dynamic_lists(folder=folder)
+    # List all external dynamic lists in the container (default behavior)
+    edls = scm_client.list_external_dynamic_lists(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        edls = edls[:max_results]
     emit(
         edls,
         output,
         columns=["name", "folder", "type"],
-        title=f"External Dynamic Lists in folder '{folder}'",
+        title=f"External Dynamic Lists in {location_type} '{location_value}'",
     )
     return edls or None
 
@@ -2748,24 +2853,27 @@ def backup_hip_object(
 @delete_app.command("hip-object")
 @handle_command_errors("deleting HIP object")
 def delete_hip_object(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the HIP object"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a HIP object.
 
     Example:
     -------
-    scm delete object hip-object --folder Texas --name windows-compliance
+    scm delete object hip-object windows-compliance --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete HIP object '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete HIP object '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
-    result = scm_client.delete_hip_object(folder=folder, name=name)
+    result = scm_client.delete_hip_object(folder=folder, snippet=snippet, device=device, name=name)
     if result:
-        success(f"Deleted HIP object: {name} from folder {folder}")
+        success(f"Deleted HIP object: {name} from {location_type} {location_value}")
     return result
 
 
@@ -2900,8 +3008,10 @@ def load_hip_object(
 @set_app.command("hip-object")
 @handle_command_errors("creating HIP object")
 def set_hip_object(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the HIP object"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     description: str = typer.Option("", help="Description of the HIP object"),
     # Host info options
     host_info_domain: str = typer.Option(None, help="Domain criteria (is, is_not, contains)"),
@@ -2930,9 +3040,8 @@ def set_hip_object(
     Example:
     -------
         # Create a Windows workstation compliance policy
-        scm set object hip-object \\
+        scm set object hip-object windows-compliance \\
         --folder Texas \\
-        --name windows-compliance \\
         --description "Windows workstation compliance" \\
         --host-info-os Microsoft \\
         --host-info-os-value All \\
@@ -2941,26 +3050,28 @@ def set_hip_object(
         --patch-management-enabled
 
         # Create a mobile device policy
-        scm set object hip-object \\
+        scm set object hip-object mobile-policy \\
         --folder Texas \\
-        --name mobile-policy \\
         --description "Mobile device compliance" \\
         --mobile-device-jailbroken false \\
         --mobile-device-disk-encrypted \\
         --mobile-device-passcode-set
 
         # Create a network-based policy
-        scm set object hip-object \\
+        scm set object hip-object wifi-only \\
         --folder Texas \\
-        --name wifi-only \\
         --description "WiFi network only" \\
         --network-info-type is \\
         --network-info-value wifi
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Build the HIP object data from options
     hip_data: dict[str, Any] = {
         "folder": folder,
+        "snippet": snippet,
+        "device": device,
         "name": name,
         "description": description,
     }
@@ -3015,6 +3126,8 @@ def set_hip_object(
     # Call the SDK client to create the HIP object
     result = scm_client.create_hip_object(
         folder=hip_obj.folder,
+        snippet=hip_obj.snippet,
+        device=hip_obj.device,
         name=hip_obj.name,
         description=sdk_data.get("description"),
         host_info=sdk_data.get("host_info"),
@@ -3029,11 +3142,11 @@ def set_hip_object(
     action = result.pop("__action__", "created")
 
     if action == "created":
-        success(f"Created HIP object: {result['name']} in folder {result['folder']}")
+        success(f"Created HIP object: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated HIP object: {result['name']} in folder {result['folder']}")
+        success(f"Updated HIP object: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for HIP object: {result['name']} in folder {result['folder']}")
+        info(f"No changes needed for HIP object: {result['name']} in {location_type} {location_value}")
 
     return result
 
@@ -3041,8 +3154,11 @@ def set_hip_object(
 @show_app.command("hip-object")
 @handle_command_errors("showing HIP object")
 def show_hip_object(
-    folder: str = FOLDER_OPTION,
-    name: str = typer.Option(None, help="Name of the HIP object to show"),
+    name: str | None = typer.Argument(None, help="Name of the HIP object to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display HIP object configurations.
@@ -3053,22 +3169,26 @@ def show_hip_object(
         scm show object hip-object --folder Texas
 
         # Show a specific HIP object by name
-        scm show object hip-object --folder Texas --name windows-compliance
+        scm show object hip-object windows-compliance --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Get a specific HIP object by name
-        hip_obj = scm_client.get_hip_object(folder=folder, name=name)
+        hip_obj = scm_client.get_hip_object(folder=folder, snippet=snippet, device=device, name=name)
         emit(hip_obj, output, title=f"HIP Object: {hip_obj.get('name', name)}")
         return hip_obj
 
-    # List all HIP objects in the folder (default behavior)
-    hip_objects = scm_client.list_hip_objects(folder=folder)
+    # List all HIP objects in the container (default behavior)
+    hip_objects = scm_client.list_hip_objects(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        hip_objects = hip_objects[:max_results]
     emit(
         hip_objects,
         output,
         columns=["name", "folder", "description"],
-        title=f"HIP Objects in folder '{folder}'",
+        title=f"HIP Objects in {location_type} '{location_value}'",
     )
     return hip_objects or None
 
@@ -3142,25 +3262,28 @@ def backup_hip_profile(
 @delete_app.command("hip-profile")
 @handle_command_errors("deleting HIP profile")
 def delete_hip_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder containing the HIP profile"),
-    name: str = typer.Option(..., "--name", help="Name of the HIP profile to delete"),
+    name: str = typer.Argument(..., help="Name of the HIP profile"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a HIP profile.
 
     Examples
     --------
-        scm delete object hip-profile --folder Texas --name my-hip-profile
+        scm delete object hip-profile my-hip-profile --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete HIP profile '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete HIP profile '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
     # Delete the HIP profile
-    info(f"Deleting HIP profile '{name}' from folder '{folder}'...")
-    scm_client.delete_hip_profile(folder=folder, name=name)
-    success(f"Deleted HIP profile: {name} from folder {folder}")
+    info(f"Deleting HIP profile '{name}' from {location_type} '{location_value}'...")
+    scm_client.delete_hip_profile(folder=folder, snippet=snippet, device=device, name=name)
+    success(f"Deleted HIP profile: {name} from {location_type} {location_value}")
 
 
 @load_app.command("hip-profile", help="Load HIP profiles from a YAML file.")
@@ -3291,15 +3414,21 @@ def load_hip_profile(
 @set_app.command("hip-profile")
 @handle_command_errors("creating/updating HIP profile")
 def set_hip_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the HIP profile"),
-    name: str = typer.Option(..., "--name", help="Name of the HIP profile"),
+    name: str = typer.Argument(..., help="Name of the HIP profile"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     match: str = typer.Option(..., "--match", help="Match criteria for the HIP profile"),
     description: str = typer.Option(None, "--description", help="Description of the HIP profile"),
 ):
     """Create or update a HIP profile."""
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Create the HIP profile object
     hip_profile = HIPProfile(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         match=match,
         description=description,
@@ -3310,7 +3439,9 @@ def set_hip_profile(
 
     # Create or update the HIP profile
     result = scm_client.create_hip_profile(
-        folder=profile_data["folder"],
+        folder=hip_profile.folder,
+        snippet=hip_profile.snippet,
+        device=hip_profile.device,
         name=profile_data["name"],
         match=profile_data["match"],
         description=profile_data.get("description"),
@@ -3320,11 +3451,11 @@ def set_hip_profile(
     action = result.pop("__action__", "created")
 
     if action == "created":
-        success(f"Created HIP profile: {result['name']} in folder {result['folder']}")
+        success(f"Created HIP profile: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated HIP profile: {result['name']} in folder {result['folder']}")
+        success(f"Updated HIP profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for HIP profile: {result['name']} in folder {result['folder']}")
+        info(f"No changes needed for HIP profile: {result['name']} in {location_type} {location_value}")
 
     return result
 
@@ -3332,11 +3463,14 @@ def set_hip_profile(
 @show_app.command("hip-profile")
 @handle_command_errors("showing HIP profile")
 def show_hip_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the HIP profile"),
-    name: str = typer.Option(None, "--name", help="Name of specific HIP profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the HIP profile to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
-) -> dict[str, Any] | None:
-    """Show HIP profile details or list all HIP profiles in a folder.
+) -> dict[str, Any] | list[dict[str, Any]] | None:
+    """Show HIP profile details or list all HIP profiles in a container.
 
     Examples
     --------
@@ -3344,24 +3478,28 @@ def show_hip_profile(
         scm show object hip-profile --folder Texas
 
         # Show a specific HIP profile by name
-        scm show object hip-profile --folder Texas --name windows-compliance
+        scm show object hip-profile windows-compliance --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Show specific HIP profile
-        hip_profile = scm_client.get_hip_profile(folder=folder, name=name)
+        hip_profile = scm_client.get_hip_profile(folder=folder, snippet=snippet, device=device, name=name)
         emit(hip_profile, output, title=f"HIP Profile: {hip_profile.get('name', name)}")
         return hip_profile
 
-    # Default behavior: list all HIP profiles in the folder
-    hip_profiles = scm_client.list_hip_profiles(folder=folder)
+    # Default behavior: list all HIP profiles in the container
+    hip_profiles = scm_client.list_hip_profiles(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        hip_profiles = hip_profiles[:max_results]
     emit(
         hip_profiles,
         output,
         columns=["name", "folder", "match", "description"],
-        title=f"HIP profiles in folder '{folder}'",
+        title=f"HIP profiles in {location_type} '{location_value}'",
     )
-    return None
+    return hip_profiles or None
 
 
 # =============================================================================================================================================================================================
@@ -3439,19 +3577,22 @@ def backup_http_server_profile(
 @delete_app.command("http-server-profile")
 @handle_command_errors("deleting HTTP server profile")
 def delete_http_server_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder containing the HTTP server profile"),
-    name: str = typer.Option(..., "--name", help="Name of the HTTP server profile to delete"),
+    name: str = typer.Argument(..., help="Name of the HTTP server profile"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
-    """Delete an HTTP server profile from a specific folder."""
+    """Delete an HTTP server profile from a specific container."""
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete HTTP server profile '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete HTTP server profile '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
     # Delete the HTTP server profile
-    info(f"Deleting HTTP server profile '{name}' from folder '{folder}'...")
-    scm_client.delete_http_server_profile(folder=folder, name=name)
-    success(f"Deleted HTTP server profile: {name} from folder {folder}")
+    info(f"Deleting HTTP server profile '{name}' from {location_type} '{location_value}'...")
+    scm_client.delete_http_server_profile(folder=folder, snippet=snippet, device=device, name=name)
+    success(f"Deleted HTTP server profile: {name} from {location_type} {location_value}")
 
 
 @load_app.command("http-server-profile", help="Load HTTP server profiles from a YAML file.")
@@ -3584,8 +3725,10 @@ def load_http_server_profile(
 @set_app.command("http-server-profile")
 @handle_command_errors("creating/updating HTTP server profile")
 def set_http_server_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the HTTP server profile"),
-    name: str = typer.Option(..., "--name", help="Name of the HTTP server profile"),
+    name: str = typer.Argument(..., help="Name of the HTTP server profile"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     servers: str = typer.Option(..., "--servers", help="JSON string of server configurations"),
     description: str = typer.Option(None, "--description", help="Description of the HTTP server profile"),
     tag_registration: bool = typer.Option(False, "--tag-registration", help="Register tags on match"),
@@ -3595,6 +3738,8 @@ def set_http_server_profile(
     Server configuration must be provided as a JSON string, e.g.:
     --servers '[{"name": "server1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443}]'
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Parse servers JSON
     import json as json_lib
 
@@ -3608,6 +3753,8 @@ def set_http_server_profile(
     # Create the HTTP server profile object
     http_server_profile = HTTPServerProfile(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         servers=servers_list,
         description=description,
@@ -3620,7 +3767,9 @@ def set_http_server_profile(
 
     # Create or update the HTTP server profile
     result = scm_client.create_http_server_profile(
-        folder=profile_data["folder"],
+        folder=http_server_profile.folder,
+        snippet=http_server_profile.snippet,
+        device=http_server_profile.device,
         name=profile_data["name"],
         servers=profile_data["server"],
         description=profile_data.get("description"),
@@ -3632,11 +3781,11 @@ def set_http_server_profile(
     action = result.pop("__action__", "created")
 
     if action == "created":
-        success(f"Created HTTP server profile: {result['name']} in folder {result['folder']}")
+        success(f"Created HTTP server profile: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated HTTP server profile: {result['name']} in folder {result['folder']}")
+        success(f"Updated HTTP server profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for HTTP server profile: {result['name']} in folder {result['folder']}")
+        info(f"No changes needed for HTTP server profile: {result['name']} in {location_type} {location_value}")
 
     return result
 
@@ -3644,12 +3793,14 @@ def set_http_server_profile(
 @show_app.command("http-server-profile")
 @handle_command_errors("showing HTTP server profile")
 def show_http_server_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the HTTP server profile"),
-    name: str = typer.Option(None, "--name", help="Name of specific HTTP server profile to show"),
-    list: bool = typer.Option(False, "--list", help="List all HTTP server profiles in the folder"),
+    name: str | None = typer.Argument(None, help="Name of the HTTP server profile to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
-) -> dict[str, Any] | None:
-    """Show HTTP server profile details or list all HTTP server profiles in a folder.
+) -> dict[str, Any] | list[dict[str, Any]] | None:
+    """Show HTTP server profile details or list all HTTP server profiles in a container.
 
     Examples
     --------
@@ -3657,24 +3808,28 @@ def show_http_server_profile(
         scm show object http-server-profile --folder Texas
 
         # Show a specific HTTP server profile by name
-        scm show object http-server-profile --folder Texas --name syslog-collector
+        scm show object http-server-profile syslog-collector --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Show specific HTTP server profile (server configs may carry passwords)
-        http_server_profile = scm_client.get_http_server_profile(folder=folder, name=name)
+        http_server_profile = scm_client.get_http_server_profile(folder=folder, snippet=snippet, device=device, name=name)
         emit(redact(http_server_profile), output, title=f"HTTP Server Profile: {http_server_profile.get('name', name)}")
         return http_server_profile
 
-    # List all HTTP server profiles in the folder (default behavior)
-    http_server_profiles = scm_client.list_http_server_profiles(folder=folder)
+    # List all HTTP server profiles in the container (default behavior)
+    http_server_profiles = scm_client.list_http_server_profiles(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        http_server_profiles = http_server_profiles[:max_results]
     emit(
         redact(http_server_profiles),
         output,
         columns=["name", "folder", "tag_registration", "server", "description"],
-        title=f"HTTP server profiles in folder '{folder}'",
+        title=f"HTTP server profiles in {location_type} '{location_value}'",
     )
-    return None
+    return http_server_profiles or None
 
 
 @backup_app.command("log-forwarding-profile")
@@ -3747,28 +3902,31 @@ def backup_log_forwarding_profile(
 @delete_app.command("log-forwarding-profile")
 @handle_command_errors("deleting log forwarding profile")
 def delete_log_forwarding_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
-    name: str = typer.Option(..., "--name", help="Name of the log forwarding profile to delete"),
+    name: str = typer.Argument(..., help="Name of the log forwarding profile"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a log forwarding profile.
 
     Examples
     --------
-        scm delete object log-forwarding-profile --folder Texas --name my-lfp
+        scm delete object log-forwarding-profile my-lfp --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete log forwarding profile '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete log forwarding profile '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
     # Delete the log forwarding profile
-    deleted = scm_client.delete_log_forwarding_profile(folder=folder, name=name)
+    deleted = scm_client.delete_log_forwarding_profile(folder=folder, snippet=snippet, device=device, name=name)
 
     if deleted:
-        success(f"Deleted log forwarding profile: {name} from folder {folder}")
+        success(f"Deleted log forwarding profile: {name} from {location_type} {location_value}")
     else:
-        error(f"Failed to delete log forwarding profile '{name}' from folder '{folder}'")
+        error(f"Failed to delete log forwarding profile '{name}' from {location_type} '{location_value}'")
         raise typer.Exit(code=1)
 
 
@@ -3903,8 +4061,10 @@ def load_log_forwarding_profile(
 @set_app.command("log-forwarding-profile")
 @handle_command_errors("creating/updating log forwarding profile")
 def set_log_forwarding_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
-    name: str = typer.Option(..., "--name", help="Name of the log forwarding profile"),
+    name: str = typer.Argument(..., help="Name of the log forwarding profile"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     match_list: str = typer.Option(None, "--match-list", help="Match list configuration as JSON string"),
     description: str = typer.Option(None, "--description", help="Description of the log forwarding profile"),
     enhanced_application_logging: bool = typer.Option(
@@ -3915,6 +4075,8 @@ def set_log_forwarding_profile(
 ) -> None:
     """Create or update a log forwarding profile."""
     import json
+
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
     # Parse match list if provided
     match_list_data = None
@@ -3931,6 +4093,8 @@ def set_log_forwarding_profile(
     # Validate using Pydantic model
     profile_data: dict[str, Any] = {
         "folder": folder,
+        "snippet": snippet,
+        "device": device,
         "name": name,
     }
 
@@ -3946,6 +4110,8 @@ def set_log_forwarding_profile(
     # Create the log forwarding profile using SDK
     result = scm_client.create_log_forwarding_profile(
         folder=profile.folder,
+        snippet=profile.snippet,
+        device=profile.device,
         name=profile.name,
         description=profile.description,
         enhanced_application_logging=profile.enhanced_application_logging,
@@ -3957,11 +4123,11 @@ def set_log_forwarding_profile(
         action = result.pop("__action__", "created")
 
         if action == "created":
-            success(f"Created log forwarding profile: {name} in folder {folder}")
+            success(f"Created log forwarding profile: {name} in {location_type} {location_value}")
         elif action == "updated":
-            success(f"Updated log forwarding profile: {name} in folder {folder}")
+            success(f"Updated log forwarding profile: {name} in {location_type} {location_value}")
         elif action == "no_change":
-            info(f"No changes needed for log forwarding profile: {name} in folder {folder}")
+            info(f"No changes needed for log forwarding profile: {name} in {location_type} {location_value}")
     else:
         error(f"Failed to create/update log forwarding profile '{name}'")
         raise typer.Exit(code=1)
@@ -3970,12 +4136,14 @@ def set_log_forwarding_profile(
 @show_app.command("log-forwarding-profile")
 @handle_command_errors("showing log forwarding profile")
 def show_log_forwarding_profile(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the log forwarding profile"),
-    name: str = typer.Option(None, "--name", help="Name of specific log forwarding profile to show"),
-    list: bool = typer.Option(False, "--list", help="List all log forwarding profiles in the folder"),
+    name: str | None = typer.Argument(None, help="Name of the log forwarding profile to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
-) -> dict[str, Any] | None:
-    """Show log forwarding profile details or list all log forwarding profiles in a folder.
+) -> dict[str, Any] | list[dict[str, Any]] | None:
+    """Show log forwarding profile details or list all log forwarding profiles in a container.
 
     Examples
     --------
@@ -3983,24 +4151,28 @@ def show_log_forwarding_profile(
         scm show object log-forwarding-profile --folder Texas
 
         # Show a specific log forwarding profile by name
-        scm show object log-forwarding-profile --folder Texas --name security-logs
+        scm show object log-forwarding-profile security-logs --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Show specific log forwarding profile
-        log_forwarding_profile = scm_client.get_log_forwarding_profile(folder=folder, name=name)
+        log_forwarding_profile = scm_client.get_log_forwarding_profile(folder=folder, snippet=snippet, device=device, name=name)
         emit(log_forwarding_profile, output, title=f"Log Forwarding Profile: {log_forwarding_profile.get('name', name)}")
         return log_forwarding_profile
 
-    # List all log forwarding profiles in the folder (default behavior)
-    log_forwarding_profiles = scm_client.list_log_forwarding_profiles(folder=folder)
+    # List all log forwarding profiles in the container (default behavior)
+    log_forwarding_profiles = scm_client.list_log_forwarding_profiles(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        log_forwarding_profiles = log_forwarding_profiles[:max_results]
     emit(
         log_forwarding_profiles,
         output,
         columns=["name", "folder", "enhanced_application_logging", "match_list", "description"],
-        title=f"Log forwarding profiles in folder '{folder}'",
+        title=f"Log forwarding profiles in {location_type} '{location_value}'",
     )
-    return None
+    return log_forwarding_profiles or None
 
 
 @backup_app.command("region", help="Export regions to a YAML file.")
@@ -4054,9 +4226,9 @@ def backup_region(
 @handle_command_errors("deleting region")
 def delete_region(
     name: str = typer.Argument(..., help="Name of the region to delete"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a region.
@@ -4066,9 +4238,7 @@ def delete_region(
         scm delete object region us-east --folder Texas
 
     """
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     # Retrieve the region first to confirm it exists
     region = scm_client.get_region(
@@ -4108,6 +4278,7 @@ def load_region(
     folder: str = typer.Option(None, "--folder", help="Override folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
     device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
 ) -> None:
     """Load regions from a YAML file."""
     # Validate file exists
@@ -4126,6 +4297,13 @@ def load_region(
     regions = data["regions"]
     if not isinstance(regions, list):
         regions = [regions]
+
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        if folder or snippet or device:
+            info(f"Container override: {folder or snippet or device}")
+        typer.echo(yaml.dump(regions))
+        return
 
     # Process each region
     def _apply(region_data: dict):
@@ -4170,14 +4348,14 @@ def load_region(
 @delete_app.command("quarantined-device", help="Delete a quarantined device.")
 @handle_command_errors("deleting quarantined device")
 def delete_quarantined_device(
-    host_id: str = typer.Argument(..., help="Host ID of the quarantined device to delete"),
+    host_id: str = typer.Option(..., "--host-id", help="Host ID of the quarantined device to delete"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a quarantined device by host ID.
 
     Examples
     --------
-        scm delete object quarantined-device 01abcdef-2345-6789-abcd-ef0123456789
+        scm delete object quarantined-device --host-id 01abcdef-2345-6789-abcd-ef0123456789
 
     """
     if not force:
@@ -4193,6 +4371,7 @@ def delete_quarantined_device(
 @handle_command_errors("loading quarantined devices")
 def load_quarantined_device(
     file: str = typer.Option(..., "--file", "-f", help="Input YAML file path"),
+    dry_run: bool = DRY_RUN_OPTION,
 ) -> None:
     """Load quarantined devices from a YAML file."""
     # Validate file exists
@@ -4211,6 +4390,11 @@ def load_quarantined_device(
     devices = data["quarantined_devices"]
     if not isinstance(devices, list):
         devices = [devices]
+
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        typer.echo(yaml.dump(devices))
+        return
 
     # Process each device
     def _apply(device_data: dict):
@@ -4243,14 +4427,12 @@ def set_region(
     latitude: float = typer.Option(None, "--latitude", help="Latitude of the region (-90 to 90)"),
     longitude: float = typer.Option(None, "--longitude", help="Longitude of the region (-180 to 180)"),
     addresses: list[str] | None = REGION_ADDRESSES_OPTION,
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
 ) -> None:
     """Create or update a region."""
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     # Build region data
     region_data: dict[str, Any] = {
@@ -4297,26 +4479,25 @@ def set_region(
 @show_app.command("region", help="Show region details.")
 @handle_command_errors("showing region")
 def show_region(
-    name: str = typer.Option(None, "--name", help="Name of specific region to show"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    name: str | None = typer.Argument(None, help="Name of the region to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Show region details.
 
     Examples
     --------
-        # List all regions (default behavior)
-        scm show object region
+        # List all regions in a folder (default behavior)
+        scm show object region --folder Texas
 
         # Show a specific region by name
-        scm show object region --name US-South
+        scm show object region US-South --folder Texas
 
     """
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     if name:
         # Show specific region
@@ -4340,6 +4521,8 @@ def show_region(
         snippet=snippet,
         device=device,
     )
+    if max_results is not None:
+        regions = regions[:max_results]
     emit(
         regions,
         output,
@@ -4352,7 +4535,7 @@ def show_region(
 @set_app.command("quarantined-device", help="Create a quarantined device entry.")
 @handle_command_errors("creating quarantined device")
 def set_quarantined_device(
-    host_id: str = typer.Argument(..., help="Host ID of the device to quarantine"),
+    host_id: str = typer.Option(..., "--host-id", help="Host ID of the device to quarantine"),
     serial_number: str = typer.Option(None, "--serial-number", help="Serial number of the device"),
 ) -> None:
     """Create a quarantined device entry."""
@@ -4381,6 +4564,7 @@ def set_quarantined_device(
 def show_quarantined_device(
     host_id: str = typer.Option(None, "--host-id", help="Filter by host ID"),
     serial_number: str = typer.Option(None, "--serial-number", help="Filter by serial number"),
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Show quarantined devices.
@@ -4398,6 +4582,8 @@ def show_quarantined_device(
         host_id=host_id,
         serial_number=serial_number,
     )
+    if max_results is not None:
+        devices = devices[:max_results]
     emit(
         devices,
         output,
@@ -4472,28 +4658,31 @@ def backup_service(
 @delete_app.command("service")
 @handle_command_errors("deleting service")
 def delete_service(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the service"),
-    name: str = typer.Option(..., "--name", help="Name of the service to delete"),
+    name: str = typer.Argument(..., help="Name of the service"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a service.
 
     Examples
     --------
-        scm delete object service --folder Texas --name web-service
+        scm delete object service web-service --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete service '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete service '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
     # Delete the service
-    deleted = scm_client.delete_service(folder=folder, name=name)
+    deleted = scm_client.delete_service(folder=folder, snippet=snippet, device=device, name=name)
 
     if deleted:
-        success(f"Deleted service: {name} from folder {folder}")
+        success(f"Deleted service: {name} from {location_type} {location_value}")
     else:
-        error(f"Failed to delete service '{name}' from folder '{folder}'")
+        error(f"Failed to delete service '{name}' from {location_type} '{location_value}'")
         raise typer.Exit(code=1)
 
 
@@ -4638,8 +4827,10 @@ def load_service(
 @set_app.command("service")
 @handle_command_errors("creating/updating service")
 def set_service(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the service"),
-    name: str = typer.Option(..., "--name", help="Name of the service"),
+    name: str = typer.Argument(..., help="Name of the service"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     protocol: str = typer.Option(..., "--protocol", help="Protocol type (tcp or udp)"),
     port: str = typer.Option(
         ...,
@@ -4647,7 +4838,7 @@ def set_service(
         help="Port number, range (e.g., 80-443), or comma-separated list (e.g., 80,443,8080)",
     ),
     description: str = typer.Option(None, "--description", help="Description of the service"),
-    tag: str = typer.Option(None, "--tag", help="Comma-separated list of tags"),
+    tags: list[str] | None = TAGS_OPTION,
     timeout: int = typer.Option(None, "--timeout", help="Timeout override in seconds (TCP only)"),
     halfclose_timeout: int = typer.Option(
         None,
@@ -4661,6 +4852,8 @@ def set_service(
     ),
 ) -> None:
     """Create or update a service."""
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Build protocol configuration
     protocol_config = {protocol.lower(): {"port": port}}
 
@@ -4676,13 +4869,13 @@ def set_service(
         protocol_config["tcp"]["override"] = override
 
     # Parse tags if provided
-    tag_list = None
-    if tag:
-        tag_list = parse_comma_separated_list([tag])
+    tag_list = parse_comma_separated_list(tags) if tags else None
 
     # Validate using Pydantic model
     service_data: dict[str, Any] = {
         "folder": folder,
+        "snippet": snippet,
+        "device": device,
         "name": name,
         "protocol": protocol_config,
     }
@@ -4697,6 +4890,8 @@ def set_service(
     # Create the service using SDK
     result = scm_client.create_service(
         folder=service.folder,
+        snippet=service.snippet,
+        device=service.device,
         name=service.name,
         protocol=service.protocol,
         description=service.description,
@@ -4708,11 +4903,11 @@ def set_service(
         action = result.pop("__action__", "created")
 
         if action == "created":
-            success(f"Created service: {name} in folder {folder}")
+            success(f"Created service: {name} in {location_type} {location_value}")
         elif action == "updated":
-            success(f"Updated service: {name} in folder {folder}")
+            success(f"Updated service: {name} in {location_type} {location_value}")
         elif action == "no_change":
-            info(f"No changes needed for service: {name} in folder {folder}")
+            info(f"No changes needed for service: {name} in {location_type} {location_value}")
     else:
         error(f"Failed to create/update service '{name}'")
         raise typer.Exit(code=1)
@@ -4721,12 +4916,14 @@ def set_service(
 @show_app.command("service")
 @handle_command_errors("showing service")
 def show_service(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the service"),
-    name: str = typer.Option(None, "--name", help="Name of specific service to show"),
-    list: bool = typer.Option(False, "--list", help="List all services in the folder"),
+    name: str | None = typer.Argument(None, help="Name of the service to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
-) -> dict[str, Any] | None:
-    """Show service details or list all services in a folder.
+) -> dict[str, Any] | list[dict[str, Any]] | None:
+    """Show service details or list all services in a container.
 
     Examples
     --------
@@ -4734,24 +4931,28 @@ def show_service(
         scm show object service --folder Texas
 
         # Show a specific service by name
-        scm show object service --folder Texas --name web-server
+        scm show object service web-server --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Show specific service
-        service = scm_client.get_service(folder=folder, name=name)
+        service = scm_client.get_service(folder=folder, snippet=snippet, device=device, name=name)
         emit(service, output, title=f"Service: {service.get('name', name)}")
         return service
 
-    # List all services in the folder (default behavior)
-    services = scm_client.list_services(folder=folder)
+    # List all services in the container (default behavior)
+    services = scm_client.list_services(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        services = services[:max_results]
     emit(
         services,
         output,
         columns=["name", "folder", "protocol", "description", "tag"],
-        title=f"Services in folder '{folder}'",
+        title=f"Services in {location_type} '{location_value}'",
     )
-    return None
+    return services or None
 
 
 @backup_app.command("service-group")
@@ -4816,28 +5017,31 @@ def backup_service_group(
 @delete_app.command("service-group")
 @handle_command_errors("deleting service group")
 def delete_service_group(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
-    name: str = typer.Option(..., "--name", help="Name of the service group to delete"),
+    name: str = typer.Argument(..., help="Name of the service group"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a service group.
 
     Examples
     --------
-        scm delete object service-group --folder Texas --name web-services
+        scm delete object service-group web-services --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        confirm = typer.confirm(f"Delete service group '{name}' from folder '{folder}'?")
+        confirm = typer.confirm(f"Delete service group '{name}' from {location_type} '{location_value}'?")
         if not confirm:
             raise typer.Abort()
     # Delete the service group
-    deleted = scm_client.delete_service_group(folder=folder, name=name)
+    deleted = scm_client.delete_service_group(folder=folder, snippet=snippet, device=device, name=name)
 
     if deleted:
-        success(f"Deleted service group: {name} from folder {folder}")
+        success(f"Deleted service group: {name} from {location_type} {location_value}")
     else:
-        error(f"Failed to delete service group '{name}' from folder '{folder}'")
+        error(f"Failed to delete service group '{name}' from {location_type} '{location_value}'")
         raise typer.Exit(code=1)
 
 
@@ -4966,12 +5170,16 @@ def load_service_group(
 @set_app.command("service-group")
 @handle_command_errors("creating/updating service group")
 def set_service_group(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
-    name: str = typer.Option(..., "--name", help="Name of the service group"),
+    name: str = typer.Argument(..., help="Name of the service group"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     members: str = typer.Option(..., "--members", help="Comma-separated list of service or service group names"),
-    tag: str = typer.Option(None, "--tag", help="Comma-separated list of tags"),
+    tags: list[str] | None = TAGS_OPTION,
 ) -> None:
     """Create or update a service group."""
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     # Parse members
     member_list = parse_comma_separated_list([members])
     if not member_list:
@@ -4979,13 +5187,13 @@ def set_service_group(
         raise typer.Exit(code=1)
 
     # Parse tags if provided
-    tag_list = None
-    if tag:
-        tag_list = parse_comma_separated_list([tag])
+    tag_list = parse_comma_separated_list(tags) if tags else None
 
     # Validate using Pydantic model
     service_group_data: dict[str, Any] = {
         "folder": folder,
+        "snippet": snippet,
+        "device": device,
         "name": name,
         "members": member_list,
     }
@@ -4998,6 +5206,8 @@ def set_service_group(
     # Create the service group using SDK
     result = scm_client.create_service_group(
         folder=service_group.folder,
+        snippet=service_group.snippet,
+        device=service_group.device,
         name=service_group.name,
         members=service_group.members,
         tag=service_group.tag,
@@ -5008,11 +5218,11 @@ def set_service_group(
         action = result.pop("__action__", "created")
 
         if action == "created":
-            success(f"Created service group: {name} in folder {folder}")
+            success(f"Created service group: {name} in {location_type} {location_value}")
         elif action == "updated":
-            success(f"Updated service group: {name} in folder {folder}")
+            success(f"Updated service group: {name} in {location_type} {location_value}")
         elif action == "no_change":
-            info(f"No changes needed for service group: {name} in folder {folder}")
+            info(f"No changes needed for service group: {name} in {location_type} {location_value}")
     else:
         error(f"Failed to create/update service group '{name}'")
         raise typer.Exit(code=1)
@@ -5021,12 +5231,14 @@ def set_service_group(
 @show_app.command("service-group")
 @handle_command_errors("showing service group")
 def show_service_group(
-    folder: str = typer.Option(..., "--folder", help="Folder path for the service group"),
-    name: str = typer.Option(None, "--name", help="Name of specific service group to show"),
-    list: bool = typer.Option(False, "--list", help="List all service groups in the folder"),
+    name: str | None = typer.Argument(None, help="Name of the service group to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
-) -> dict[str, Any] | None:
-    """Show service group details or list all service groups in a folder.
+) -> dict[str, Any] | list[dict[str, Any]] | None:
+    """Show service group details or list all service groups in a container.
 
     Examples
     --------
@@ -5034,24 +5246,28 @@ def show_service_group(
         scm show object service-group --folder Texas
 
         # Show a specific service group by name
-        scm show object service-group --folder Texas --name web-services
+        scm show object service-group web-services --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         # Show specific service group
-        service_group = scm_client.get_service_group(folder=folder, name=name)
+        service_group = scm_client.get_service_group(folder=folder, snippet=snippet, device=device, name=name)
         emit(service_group, output, title=f"Service Group: {service_group.get('name', name)}")
         return service_group
 
-    # List all service groups in the folder (default behavior)
-    service_groups = scm_client.list_service_groups(folder=folder)
+    # List all service groups in the container (default behavior)
+    service_groups = scm_client.list_service_groups(folder=folder, snippet=snippet, device=device)
+    if max_results is not None:
+        service_groups = service_groups[:max_results]
     emit(
         service_groups,
         output,
         columns=["name", "folder", "members", "tag"],
-        title=f"Service groups in folder '{folder}'",
+        title=f"Service groups in {location_type} '{location_value}'",
     )
-    return None
+    return service_groups or None
 
 
 # =============================================================================================================================================================================================
@@ -5110,9 +5326,9 @@ def backup_syslog_server_profile(
 @handle_command_errors("deleting syslog server profile")
 def delete_syslog_server_profile(
     name: str = typer.Argument(..., help="Name of the syslog server profile to delete"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a syslog server profile.
@@ -5122,11 +5338,7 @@ def delete_syslog_server_profile(
         scm delete object syslog-server-profile my-syslog --folder Texas
 
     """
-    # Use the imported scm_client
-
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     # Retrieve the profile first to confirm it exists
     profile = scm_client.get_syslog_server_profile(
@@ -5296,17 +5508,13 @@ def set_syslog_server_profile(
     format: str = typer.Option(..., "--format", help="Log format (BSD, IETF)"),
     facility: str = typer.Option(..., "--facility", help="Syslog facility (LOG_USER, LOG_LOCAL0-7)"),
     description: str = DESCRIPTION_OPTION,
-    folder: str = FOLDER_OPTION,
-    snippet: str = SNIPPET_OPTION,
-    device: str = DEVICE_OPTION,
-    tag: list[str] = TAG_OPTION,
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    tags: list[str] | None = TAGS_OPTION,
 ) -> None:
     """Create or update a syslog server profile."""
-    # Use the imported scm_client
-
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     # Build syslog server profile data
     profile_data: dict[str, Any] = {
@@ -5334,8 +5542,8 @@ def set_syslog_server_profile(
     # Add optional fields
     if description:
         profile_data["description"] = description
-    if tag:
-        profile_data["tag"] = tag
+    if tags:
+        profile_data["tag"] = parse_comma_separated_list(tags)
 
     # Validate with Pydantic model
     validated_profile = SyslogServerProfile(**profile_data)
@@ -5362,28 +5570,25 @@ def set_syslog_server_profile(
 @show_app.command("syslog-server-profile", help="Show syslog server profile details.")
 @handle_command_errors("showing syslog server profile")
 def show_syslog_server_profile(
-    name: str = typer.Option(None, "--name", help="Name of specific syslog server profile to show"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    name: str | None = typer.Argument(None, help="Name of the syslog server profile to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Show syslog server profile details.
 
     Examples
     --------
-        # List all syslog server profiles (default behavior)
-        scm show object syslog-server-profile
+        # List all syslog server profiles in a folder (default behavior)
+        scm show object syslog-server-profile --folder Texas
 
         # Show a specific syslog server profile by name
-        scm show object syslog-server-profile --name primary-syslog
+        scm show object syslog-server-profile primary-syslog --folder Texas
 
     """
-    # Use the imported scm_client
-
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     if name:
         # Show specific syslog server profile
@@ -5407,6 +5612,8 @@ def show_syslog_server_profile(
         snippet=snippet,
         device=device,
     )
+    if max_results is not None:
+        profiles = profiles[:max_results]
     emit(
         profiles,
         output,
@@ -5472,9 +5679,9 @@ def backup_schedule(
 @handle_command_errors("deleting schedule")
 def delete_schedule(
     name: str = typer.Argument(..., help="Name of the schedule to delete"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a schedule.
@@ -5484,9 +5691,7 @@ def delete_schedule(
         scm delete object schedule business-hours --folder Texas
 
     """
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     # Retrieve the schedule first to confirm it exists
     schedule = scm_client.get_schedule(
@@ -5526,6 +5731,7 @@ def load_schedule(
     folder: str = typer.Option(None, "--folder", help="Override folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
     device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
 ) -> None:
     """Load schedules from a YAML file."""
     # Validate file exists
@@ -5544,6 +5750,13 @@ def load_schedule(
     schedules = data["schedules"]
     if not isinstance(schedules, list):
         schedules = [schedules]
+
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        if folder or snippet or device:
+            info(f"Container override: {folder or snippet or device}")
+        typer.echo(yaml.dump(schedules))
+        return
 
     # Process each schedule
     def _apply(schedule_data: dict):
@@ -5580,14 +5793,12 @@ def set_schedule(
     days_friday: list[str] | None = SCHEDULE_FRIDAY_OPTION,
     days_saturday: list[str] | None = SCHEDULE_SATURDAY_OPTION,
     days_sunday: list[str] | None = SCHEDULE_SUNDAY_OPTION,
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
 ) -> None:
     """Create or update a schedule."""
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     # Build days mapping for weekly schedules
     days = None
@@ -5652,26 +5863,25 @@ def set_schedule(
 @show_app.command("schedule", help="Show schedule details.")
 @handle_command_errors("showing schedule")
 def show_schedule(
-    name: str = typer.Option(None, "--name", help="Name of specific schedule to show"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    name: str | None = typer.Argument(None, help="Name of the schedule to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Show schedule details.
 
     Examples
     --------
-        # List all schedules (default behavior)
-        scm show object schedule
+        # List all schedules in a folder (default behavior)
+        scm show object schedule --folder Texas
 
         # Show a specific schedule by name
-        scm show object schedule --name BusinessHours
+        scm show object schedule BusinessHours --folder Texas
 
     """
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     if name:
         # Show specific schedule
@@ -5695,6 +5905,8 @@ def show_schedule(
         snippet=snippet,
         device=device,
     )
+    if max_results is not None:
+        schedules = schedules[:max_results]
     emit(
         schedules,
         output,
@@ -5759,22 +5971,20 @@ def backup_tag(
 @delete_app.command("tag", help="Delete a tag.")
 @handle_command_errors("deleting tag")
 def delete_tag(
-    name: str = typer.Option(..., "--name", help="Name of the tag to delete"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    name: str = typer.Argument(..., help="Name of the tag to delete"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete a tag.
 
     Examples
     --------
-        scm delete object tag --name production --folder Texas
+        scm delete object tag production --folder Texas
 
     """
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     # Retrieve the tag first to confirm it exists
     tag = scm_client.get_tag(
@@ -5814,6 +6024,7 @@ def load_tag(
     folder: str = typer.Option(None, "--folder", help="Override folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
     device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
 ) -> None:
     """Load tags from a YAML file."""
     # Validate file exists
@@ -5832,6 +6043,13 @@ def load_tag(
     tags = data["tags"]
     if not isinstance(tags, list):
         tags = [tags]
+
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        if folder or snippet or device:
+            info(f"Container override: {folder or snippet or device}")
+        typer.echo(yaml.dump(tags))
+        return
 
     # Process each tag
     def _apply(tag_data: dict):
@@ -5876,17 +6094,15 @@ def load_tag(
 @set_app.command("tag", help="Create or update a tag.")
 @handle_command_errors("creating/updating tag")
 def set_tag(
-    name: str = typer.Option(..., "--name", help="Name of the tag"),
+    name: str = typer.Argument(..., help="Name of the tag"),
     color: str = typer.Option(None, "--color", help="Color for the tag (e.g., Red, Blue, Green)"),
     comments: str = typer.Option(None, "--comments", help="Comments for the tag"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
 ) -> None:
     """Create or update a tag."""
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     # Build tag data
     tag_data = {
@@ -5931,26 +6147,25 @@ def set_tag(
 @show_app.command("tag", help="Show tag details.")
 @handle_command_errors("showing tag")
 def show_tag(
-    name: str = typer.Option(None, "--name", help="Name of specific tag to show"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    name: str | None = typer.Argument(None, help="Name of the tag to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Show tag details.
 
     Examples
     --------
-        # List all tags (default behavior)
-        scm show object tag
+        # List all tags in a folder (default behavior)
+        scm show object tag --folder Texas
 
         # Show a specific tag by name
-        scm show object tag --name Production
+        scm show object tag Production --folder Texas
 
     """
-    # Determine container location
-    if not any([folder, snippet, device]):
-        folder = "Texas"  # Default to Texas folder
+    validate_location_params(folder, snippet, device)
 
     if name:
         # Show specific tag
@@ -5974,6 +6189,8 @@ def show_tag(
         snippet=snippet,
         device=device,
     )
+    if max_results is not None:
+        tags = tags[:max_results]
     emit(
         tags,
         output,
@@ -5992,9 +6209,9 @@ def show_tag(
 @handle_command_errors("creating/updating auto tag action")
 def set_auto_tag_action(
     name: str = typer.Argument(..., help="Name of the auto tag action"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     description: str = typer.Option(None, "--description", help="Description"),
     log_type: str = typer.Option(None, "--log-type", help="Log type (traffic, threat, etc.)"),
     filter_expr: str = typer.Option(None, "--filter", help="Filter expression"),
@@ -6003,8 +6220,7 @@ def set_auto_tag_action(
     quarantine: bool = typer.Option(None, "--quarantine", help="Enable quarantine"),
 ) -> None:
     """Create or update an auto tag action."""
-    if not any([folder, snippet, device]):
-        folder = "Texas"
+    validate_location_params(folder, snippet, device)
 
     tag_data: dict[str, Any] = {"name": name}
     if folder:
@@ -6045,17 +6261,13 @@ def set_auto_tag_action(
 @handle_command_errors("deleting auto tag action")
 def delete_auto_tag_action(
     name: str = typer.Argument(..., help="Name of the auto tag action to delete"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Delete an auto tag action."""
-    if not any([folder, snippet, device]):
-        folder = "Texas"
-
-    location_type = "folder" if folder else ("snippet" if snippet else "device")
-    location_value = folder or snippet or device
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
     if not force:
         confirm = typer.confirm(f"Delete auto tag action '{name}' from {location_type} '{location_value}'?")
@@ -6132,10 +6344,11 @@ def load_auto_tag_action(
 @show_app.command("auto-tag-action", help="Show auto tag action details.")
 @handle_command_errors("showing auto tag action")
 def show_auto_tag_action(
-    name: str = typer.Option(None, "--name", help="Name of specific auto tag action to show"),
-    folder: str = typer.Option(None, "--folder", help="Folder location"),
-    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
-    device: str = typer.Option(None, "--device", help="Device location"),
+    name: str | None = typer.Argument(None, help="Name of the auto tag action to show; omit to list all"),
+    folder: str | None = FOLDER_OPTION,
+    snippet: str | None = SNIPPET_OPTION,
+    device: str | None = DEVICE_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
 ) -> list[dict[str, Any]] | dict[str, Any] | None:
     """Show auto tag action details.
@@ -6143,11 +6356,10 @@ def show_auto_tag_action(
     Examples
     --------
         scm show object auto-tag-action --folder Texas
-        scm show object auto-tag-action --folder Texas --name my-action
+        scm show object auto-tag-action my-action --folder Texas
 
     """
-    if not any([folder, snippet, device]):
-        folder = "Texas"
+    validate_location_params(folder, snippet, device)
 
     if name:
         action = scm_client.get_auto_tag_action(
@@ -6169,6 +6381,8 @@ def show_auto_tag_action(
         snippet=snippet,
         device=device,
     )
+    if max_results is not None:
+        actions = actions[:max_results]
     emit(
         actions,
         output,
@@ -6187,8 +6401,7 @@ def backup_auto_tag_action(
     file: str = typer.Option(None, "--file", help="Output file path"),
 ) -> None:
     """Backup auto tag actions to a YAML file."""
-    if not any([folder, snippet, device]):
-        folder = "Texas"
+    validate_location_params(folder, snippet, device)
 
     actions = scm_client.list_auto_tag_actions(
         folder=folder,

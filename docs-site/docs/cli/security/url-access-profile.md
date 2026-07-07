@@ -19,8 +19,14 @@ Create or update a URL access profile.
 ### Syntax
 
 ```bash
-scm set security url-access-profile [OPTIONS]
+scm set security url-access-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
@@ -29,7 +35,6 @@ scm set security url-access-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name | Yes |
 | `--description TEXT` | Description | No |
 | `--block TEXT` | URL categories to block (can specify multiple) | No |
 | `--alert TEXT` | URL categories to alert (can specify multiple) | No |
@@ -45,9 +50,8 @@ scm set security url-access-profile [OPTIONS]
 #### Create Profile with Blocked Categories
 
 ```bash
-$ scm set security url-access-profile \
+$ scm set security url-access-profile strict-url \
     --folder Texas \
-    --name strict-url \
     --block adult \
     --block malware \
     --alert hacking
@@ -58,9 +62,8 @@ Created URL access profile: strict-url in folder Texas
 #### Create Profile with Safe Search
 
 ```bash
-$ scm set security url-access-profile \
+$ scm set security url-access-profile safe-browsing \
     --folder Texas \
-    --name safe-browsing \
     --block adult \
     --block gambling \
     --safe-search \
@@ -76,8 +79,14 @@ Delete a URL access profile from SCM.
 ### Syntax
 
 ```bash
-scm delete security url-access-profile [OPTIONS]
+scm delete security url-access-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name to delete | Yes |
 
 ### Options
 
@@ -86,7 +95,6 @@ scm delete security url-access-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
@@ -94,9 +102,8 @@ scm delete security url-access-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete security url-access-profile \
+$ scm delete security url-access-profile strict-url \
     --folder Texas \
-    --name strict-url \
     --force
 ---> 100%
 Deleted URL access profile: strict-url from folder Texas
@@ -186,8 +193,14 @@ Display URL access profile objects.
 ### Syntax
 
 ```bash
-scm show security url-access-profile [OPTIONS]
+scm show security url-access-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name to display; omit to list all | No |
 
 ### Options
 
@@ -196,12 +209,13 @@ scm show security url-access-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name to display | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -209,9 +223,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Profile
 
 ```bash
-$ scm show security url-access-profile \
-    --folder Texas \
-    --name strict-url
+$ scm show security url-access-profile strict-url \
+    --folder Texas
 ---> 100%
 URL Access Profile: strict-url
   Location: Folder 'Texas'

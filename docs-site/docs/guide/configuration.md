@@ -87,7 +87,7 @@ To fix this issue:
 ### Mock Mode
 
 To test commands without credentials or API calls, opt in explicitly with the
-`SCM_MOCK` environment variable (or the `--mock` flag where available):
+`SCM_MOCK` environment variable (or the `--mock` flag on `scm context test`):
 
 ```bash
 $ SCM_MOCK=1 scm show object address --folder Shared
@@ -480,7 +480,7 @@ def get_auth_config():
 2. **Reserve environment variables for CI/CD**: Use environment variables only for automation pipelines.
 3. **Never commit secrets to version control**: Keep credentials in contexts or environment variables, never in code.
 4. **Set appropriate log levels**: Use `INFO` for general use, `WARNING` for production, `DEBUG` for troubleshooting.
-5. **Test with mock mode first**: Use `--mock` to validate commands before using real credentials.
+5. **Test with mock mode first**: Use `SCM_MOCK=1` (or `scm context test --mock`) to validate commands before using real credentials.
 6. **Use `context test` to verify authentication**: Test connectivity without switching contexts by specifying the context name.
 7. **Name contexts meaningfully**: Use descriptive names like `production`, `staging`, or `dev-tenant1`.
 

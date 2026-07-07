@@ -22,14 +22,19 @@ Create or update an IKE gateway.
 scm set network ike-gateway NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IKE gateway | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Gateway name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--pre-shared-key TEXT` | Pre-shared key for authentication | No\*\* |
 | `--peer-address-ip TEXT` | Peer IP address | No\*\*\* |
 | `--peer-address-fqdn TEXT` | Peer FQDN | No\*\*\* |
@@ -49,7 +54,7 @@ scm set network ike-gateway NAME [OPTIONS]
 | `--protocol-json TEXT` | Full protocol config as JSON | No |
 | `--protocol-common-json TEXT` | Full protocol_common config as JSON | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 \*\* Either --pre-shared-key or --authentication-json is required.
 \*\*\* One of --peer-address-ip, --peer-address-fqdn, --peer-address-dynamic, or --peer-address-json is required.
 
@@ -92,17 +97,22 @@ Delete an IKE gateway from SCM.
 scm delete network ike-gateway NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IKE gateway to delete | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Gateway name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -127,12 +137,10 @@ scm load network ike-gateway [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
 | `--dry-run` | Preview changes without applying | No |
-
-\* One of --folder, --snippet, or --device is required.
 
 ### YAML File Format
 
@@ -202,22 +210,29 @@ Display IKE gateway objects.
 ### Syntax
 
 ```bash
-scm show network ike-gateway [OPTIONS]
+scm show network ike-gateway [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IKE gateway to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific gateway | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -225,7 +240,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific IKE Gateway
 
 ```bash
-$ scm show network ike-gateway --folder Texas --name my-gateway
+$ scm show network ike-gateway my-gateway --folder Texas
 ---> 100%
 IKE Gateway: my-gateway
   Location: Folder 'Texas'

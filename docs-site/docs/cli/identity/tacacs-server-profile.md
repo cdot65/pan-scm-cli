@@ -19,14 +19,19 @@ Create or update a TACACS+ server profile.
 ### Syntax
 
 ```bash
-scm set identity tacacs-server-profile [OPTIONS]
+scm set identity tacacs-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -42,9 +47,8 @@ scm set identity tacacs-server-profile [OPTIONS]
 #### Create TACACS+ Server Profile
 
 ```bash
-$ scm set identity tacacs-server-profile \
+$ scm set identity tacacs-server-profile corp-tacacs \
     --folder Texas \
-    --name corp-tacacs \
     --servers '[{"name": "tac1", "address": "10.0.0.1", "port": 49, "secret": "s3cret"}]' \
     --protocol CHAP \
     --timeout 5
@@ -55,9 +59,8 @@ Created tacacs-server-profile: corp-tacacs in folder Texas
 #### Create Profile with Multiple Servers and Single Connection
 
 ```bash
-$ scm set identity tacacs-server-profile \
+$ scm set identity tacacs-server-profile corp-tacacs-ha \
     --folder Texas \
-    --name corp-tacacs-ha \
     --servers '[{"name": "tac1", "address": "10.0.0.1", "port": 49, "secret": "s3cret"}, {"name": "tac2", "address": "10.0.0.2", "port": 49, "secret": "s3cret"}]' \
     --protocol CHAP \
     --timeout 3 \
@@ -69,9 +72,8 @@ Created tacacs-server-profile: corp-tacacs-ha in folder Texas
 #### Create Profile with PAP Protocol
 
 ```bash
-$ scm set identity tacacs-server-profile \
+$ scm set identity tacacs-server-profile legacy-tacacs \
     --folder Texas \
-    --name legacy-tacacs \
     --servers '[{"name": "tac-legacy", "address": "10.0.1.1", "port": 49, "secret": "legacy-s3cret"}]' \
     --protocol PAP \
     --timeout 10
@@ -86,14 +88,19 @@ Delete a TACACS+ server profile from SCM.
 ### Syntax
 
 ```bash
-scm delete identity tacacs-server-profile [OPTIONS]
+scm delete identity tacacs-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -104,9 +111,8 @@ scm delete identity tacacs-server-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete identity tacacs-server-profile \
+$ scm delete identity tacacs-server-profile corp-tacacs \
     --folder Texas \
-    --name corp-tacacs \
     --force
 ---> 100%
 Deleted tacacs-server-profile: corp-tacacs from folder Texas
@@ -197,22 +203,29 @@ Display TACACS+ server profile objects.
 ### Syntax
 
 ```bash
-scm show identity tacacs-server-profile [OPTIONS]
+scm show identity tacacs-server-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | No |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -220,9 +233,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific TACACS+ Server Profile
 
 ```bash
-$ scm show identity tacacs-server-profile \
-    --folder Texas \
-    --name corp-tacacs
+$ scm show identity tacacs-server-profile corp-tacacs \
+    --folder Texas
 ---> 100%
 TACACS+ Server Profile: corp-tacacs
   Location: Folder 'Texas'

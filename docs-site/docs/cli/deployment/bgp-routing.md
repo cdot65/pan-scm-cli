@@ -25,7 +25,7 @@ scm set sase bgp-routing [OPTIONS]
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--backbone-routing TEXT` | Backbone routing mode (no-asymmetric-routing, asymmetric-routing) | Yes |
+| `--backbone-routing TEXT` | Backbone routing mode (no-asymmetric-routing, asymmetric-routing-only, asymmetric-routing-with-load-share) | Yes |
 | `--routing-preference TEXT` | Routing preference (default, hot_potato_routing) | No |
 | `--accept-route-over-sc` | Accept routes over service connections | No |
 | `--outbound-routes TEXT` | Comma-separated outbound routes for services | No |
@@ -60,7 +60,7 @@ Updated BGP routing configuration
 
 ```bash
 $ scm set sase bgp-routing \
-    --backbone-routing asymmetric-routing \
+    --backbone-routing asymmetric-routing-only \
     --outbound-routes "10.0.0.0/8,172.16.0.0/12" \
     --withdraw-static-route
 ---> 100%
@@ -98,8 +98,14 @@ Display the current BGP routing configuration.
 ### Syntax
 
 ```bash
-scm show sase bgp-routing
+scm show sase bgp-routing [OPTIONS]
 ```
+
+### Options
+
+| Option | Description | Required |
+| --- | --- | --- |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
 
 ### Example
 

@@ -74,10 +74,9 @@ class TestAuthenticationProfileCommands:
         result = runner.invoke(
             test_app,
             [
+                "test-auth",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-auth",
                 "--method",
                 '{"local_database": {}}',
             ],
@@ -99,7 +98,7 @@ class TestAuthenticationProfileCommands:
         test_app = typer.Typer()
         test_app.command()(show_authentication_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--list"])
+        result = runner.invoke(test_app, ["--folder", "Texas"])
         assert result.exit_code == 0
         assert "test-auth" in result.output
 
@@ -112,7 +111,7 @@ class TestAuthenticationProfileCommands:
         test_app = typer.Typer()
         test_app.command()(delete_authentication_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-auth", "--force"])
+        result = runner.invoke(test_app, ["test-auth", "--folder", "Texas", "--force"])
         assert result.exit_code == 0
         assert "Deleted authentication profile" in result.output
 
@@ -134,7 +133,7 @@ class TestKerberosServerProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-kerberos", "--servers", '[{"name": "kdc1", "host": "kdc.example.com", "port": 88}]'],
+            ["test-kerberos", "--folder", "Texas", "--servers", '[{"name": "kdc1", "host": "kdc.example.com", "port": 88}]'],
         )
         assert result.exit_code == 0
         assert "Created Kerberos server profile" in result.output
@@ -158,10 +157,9 @@ class TestLdapServerProfileCommands:
         result = runner.invoke(
             test_app,
             [
+                "test-ldap",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-ldap",
                 "--servers",
                 '[{"name": "ldap1", "address": "ldap.example.com", "port": 389}]',
                 "--base",
@@ -192,10 +190,9 @@ class TestRadiusServerProfileCommands:
         result = runner.invoke(
             test_app,
             [
+                "test-radius",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-radius",
                 "--servers",
                 '[{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812, "secret": "s3cret"}]',
                 "--protocol",
@@ -228,10 +225,9 @@ class TestSamlServerProfileCommands:
         result = runner.invoke(
             test_app,
             [
+                "test-saml",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-saml",
                 "--entity-id",
                 "https://idp.example.com",
                 "--certificate",
@@ -264,10 +260,9 @@ class TestTacacsServerProfileCommands:
         result = runner.invoke(
             test_app,
             [
+                "test-tacacs",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-tacacs",
                 "--servers",
                 '[{"name": "tac1", "address": "10.0.0.1", "port": 49, "secret": "s3cret"}]',
                 "--protocol",
@@ -326,7 +321,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_authentication_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-auth", "--output", "json"])
+        result = runner.invoke(test_app, ["test-auth", "--folder", "Texas", "--output", "json"])
 
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout) == record
@@ -380,3 +375,103 @@ class TestIdentityBulkLoadConcurrency:
         assert active["max"] > 1, "create calls never overlapped"
         assert sorted(created) == [f"auth-{i}" for i in range(4)]
         assert "Processed 4 authentication profiles" in result.output
+
+
+class TestContainerEnforcement:
+    """Exactly one of --folder/--snippet/--device is required."""
+
+    def test_set_with_no_container_fails(self, runner):
+        test_app = typer.Typer()
+        test_app.command()(set_authentication_profile)
+
+        result = runner.invoke(test_app, ["test-auth"])
+        assert result.exit_code != 0
+        assert "One of --folder, --snippet, or --device must be specified" in result.output
+
+    def test_set_with_two_containers_fails(self, runner):
+        test_app = typer.Typer()
+        test_app.command()(set_authentication_profile)
+
+        result = runner.invoke(test_app, ["test-auth", "--folder", "Texas", "--snippet", "shared"])
+        assert result.exit_code != 0
+        assert "Only one of --folder, --snippet, or --device can be specified" in result.output
+
+    def test_show_list_with_no_container_fails(self, runner):
+        test_app = typer.Typer()
+        test_app.command()(show_authentication_profile)
+
+        result = runner.invoke(test_app, [])
+        assert result.exit_code != 0
+        assert "One of --folder, --snippet, or --device must be specified" in result.output
+
+    def test_show_list_with_two_containers_fails(self, runner):
+        test_app = typer.Typer()
+        test_app.command()(show_authentication_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--device", "fw01"])
+        assert result.exit_code != 0
+        assert "Only one of --folder, --snippet, or --device can be specified" in result.output
+
+
+class TestMaxResults:
+    """--max-results slices list output client-side."""
+
+    def test_show_list_max_results_slices(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        records = [{"id": f"prof-{i}", "name": f"profile-{i}", "folder": "Texas"} for i in range(5)]
+        monkeypatch.setattr(scm_client, "list_authentication_profiles", lambda *a, **kw: records)
+
+        test_app = typer.Typer()
+        test_app.command()(show_authentication_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--output", "json", "--max-results", "2"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == records[:2]
+
+
+class TestSnippetContainer:
+    """--snippet flows end-to-end to the SDK client."""
+
+    def test_set_authentication_profile_with_snippet(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_create(**kwargs):
+            captured.update(kwargs)
+            return {"id": "auth-1", "name": kwargs.get("name"), "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_authentication_profile", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_authentication_profile)
+
+        result = runner.invoke(test_app, ["snippet-auth", "--snippet", "shared-config"])
+
+        assert result.exit_code == 0, result.output
+        assert captured["snippet"] == "shared-config"
+        assert "folder" not in captured
+        assert "Created authentication profile: snippet-auth in snippet shared-config" in result.output
+
+    def test_show_list_with_snippet_passes_snippet_kwarg(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_list(*args, **kwargs):
+            captured.update(kwargs)
+            return [{"name": "snippet-auth", "snippet": "shared-config"}]
+
+        monkeypatch.setattr(scm_client, "list_authentication_profiles", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_authentication_profile)
+
+        result = runner.invoke(test_app, ["--snippet", "shared-config"])
+
+        assert result.exit_code == 0, result.output
+        assert captured["snippet"] == "shared-config"
+        assert captured["folder"] is None
+        assert captured["device"] is None

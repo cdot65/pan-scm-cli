@@ -46,30 +46,35 @@ Create or update an external dynamic list object.
 ### Syntax
 
 ```bash
-scm set object external-dynamic-list [OPTIONS]
+scm set object external-dynamic-list NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the external dynamic list | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the external dynamic list object | No\* |
-| `--snippet TEXT` | Snippet for the external dynamic list object | No\* |
-| `--device TEXT` | Device for the external dynamic list object | No\* |
-| `--name TEXT` | Name of the external dynamic list | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--type TEXT` | EDL type (predefined_ip, predefined_url, ip, domain, url, imsi, imei) | Yes |
 | `--url TEXT` | Source URL for the list | Yes |
 | `--description TEXT` | Description of the EDL | No |
-| `--exception-list LIST` | Items to exclude from the list | No |
+| `--exception-list TEXT` | Item to exclude from the list (repeat for multiple) | No |
 | `--username TEXT` | Username for basic authentication | No |
 | `--password TEXT` | Password for basic authentication | No |
-| `--certificate-profile TEXT` | Certificate profile for mutual TLS | No |
+| `--certificate-profile TEXT` | Certificate profile for authentication | No |
 | `--recurring TEXT` | Update frequency (five_minute, hourly, daily, weekly, monthly) | No\*\* |
 | `--hour TEXT` | Hour for updates (00-23) | No\*\*\* |
 | `--day TEXT` | Day for updates | No\*\*\* |
-| `--expand-domain` | Expand to include subdomains (domain type only) | No |
+| `--expand-domain / --no-expand-domain` | Expand to include subdomains (domain type only) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 \*\* Required for custom EDL types (ip, domain, url, imsi, imei).
 
@@ -80,9 +85,8 @@ scm set object external-dynamic-list [OPTIONS]
 #### Create Predefined IP Blocklist
 
 ```bash
-$ scm set object external-dynamic-list \
+$ scm set object external-dynamic-list paloalto-bulletproof \
     --folder Texas \
-    --name paloalto-bulletproof \
     --type predefined_ip \
     --url "panw-bulletproof-ip-list" \
     --description "Palo Alto Networks Bulletproof IP list"
@@ -93,9 +97,8 @@ Created external dynamic list: paloalto-bulletproof in folder Texas
 #### Create Custom IP List with Hourly Updates
 
 ```bash
-$ scm set object external-dynamic-list \
+$ scm set object external-dynamic-list custom-threats \
     --folder Texas \
-    --name custom-threats \
     --type ip \
     --url "https://threats.example.com/ips.txt" \
     --recurring hourly \
@@ -107,9 +110,8 @@ Created external dynamic list: custom-threats in folder Texas
 #### Create Domain List with Authentication
 
 ```bash
-$ scm set object external-dynamic-list \
+$ scm set object external-dynamic-list malware-domains \
     --folder Texas \
-    --name malware-domains \
     --type domain \
     --url "https://secure.example.com/domains.txt" \
     --username "api_user" \
@@ -129,25 +131,30 @@ Delete an external dynamic list object from SCM.
 ### Syntax
 
 ```bash
-scm delete object external-dynamic-list [OPTIONS]
+scm delete object external-dynamic-list NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the external dynamic list object to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the external dynamic list object | No\* |
-| `--snippet TEXT` | Snippet containing the external dynamic list object | No\* |
-| `--device TEXT` | Device containing the external dynamic list object | No\* |
-| `--name TEXT` | Name of the external dynamic list object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object external-dynamic-list --folder Texas --name custom-threats --force
+$ scm delete object external-dynamic-list custom-threats --folder Texas --force
 ---> 100%
 Deleted external dynamic list: custom-threats from folder Texas
 ```
@@ -244,30 +251,37 @@ Display external dynamic list objects.
 ### Syntax
 
 ```bash
-scm show object external-dynamic-list [OPTIONS]
+scm show object external-dynamic-list [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the external dynamic list object to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the external dynamic list object | No\* |
-| `--snippet TEXT` | Snippet containing the external dynamic list object | No\* |
-| `--device TEXT` | Device containing the external dynamic list object | No\* |
-| `--name TEXT` | Name of the external dynamic list object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific External Dynamic List
 
 ```bash
-$ scm show object external-dynamic-list --folder Texas --name custom-threats
+$ scm show object external-dynamic-list custom-threats --folder Texas
 ---> 100%
 External Dynamic List: custom-threats
   Location: Folder 'Texas'

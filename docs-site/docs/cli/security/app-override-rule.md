@@ -20,8 +20,14 @@ Create or update an app override rule.
 ### Syntax
 
 ```bash
-scm set security app-override-rule [OPTIONS]
+scm set security app-override-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name | Yes |
 
 ### Options
 
@@ -30,7 +36,6 @@ scm set security app-override-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name | Yes |
 | `--application TEXT` | Application to override | Yes |
 | `--port TEXT` | Port(s) for the rule | Yes |
 | `--protocol TEXT` | Protocol (tcp or udp) | Yes |
@@ -48,9 +53,8 @@ scm set security app-override-rule [OPTIONS]
 #### Create Basic Override Rule
 
 ```bash
-$ scm set security app-override-rule \
+$ scm set security app-override-rule override-https \
     --folder Texas \
-    --name override-https \
     --application ssl \
     --port 8443 \
     --protocol tcp
@@ -61,9 +65,8 @@ Created app override rule: override-https in folder Texas
 #### Create Override with Zones
 
 ```bash
-$ scm set security app-override-rule \
+$ scm set security app-override-rule custom-app-override \
     --folder Texas \
-    --name custom-app-override \
     --application web-browsing \
     --port 9090 \
     --protocol tcp \
@@ -81,33 +84,38 @@ Change the position of an app override rule. Rules are processed in order from t
 ### Syntax
 
 ```bash
-scm set security app-override-rule --move [OPTIONS]
+scm move security app-override-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the rule to move | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the rules | No\* |
-| `--snippet TEXT` | Snippet containing the rules | No\* |
-| `--device TEXT` | Device containing the rules | No\* |
-| `--name TEXT` | Name of the rule to move | Yes |
-| `--location TEXT` | Where to move the rule (top, bottom, before, after) | Yes |
-| `--reference TEXT` | Reference rule name (required with before/after) | No\*\* |
+| `--folder TEXT` | Folder containing the rule | No\* |
+| `--snippet TEXT` | Snippet containing the rule | No\* |
+| `--device TEXT` | Device containing the rule | No\* |
+| `--destination TEXT` | Where to move (top, bottom, before, after) | Yes |
+| `--destination-rule TEXT` | UUID of the reference rule (required with before/after) | No\*\* |
+| `--rulebase TEXT` | Rulebase (pre or post; default: pre) | No |
 
 \* One of --folder, --snippet, or --device is required.
 
-\*\* Required when `--location` is `before` or `after`.
+\*\* Required when `--destination` is `before` or `after`.
 
 ### Examples
 
 #### Move Rule to Top
 
 ```bash
-$ scm set security app-override-rule --move \
+$ scm move security app-override-rule override-https \
     --folder Texas \
-    --name override-https \
-    --location top
+    --destination top
 ---> 100%
 Moved app override rule: override-https to top in folder Texas
 ```
@@ -115,13 +123,12 @@ Moved app override rule: override-https to top in folder Texas
 #### Move Rule After Another Rule
 
 ```bash
-$ scm set security app-override-rule --move \
+$ scm move security app-override-rule custom-app-override \
     --folder Texas \
-    --name custom-app-override \
-    --location after \
-    --reference override-https
+    --destination after \
+    --destination-rule 123e4567-e89b-12d3-a456-426614174000
 ---> 100%
-Moved app override rule: custom-app-override after override-https in folder Texas
+Moved app override rule: custom-app-override after rule 123e4567-e89b-12d3-a456-426614174000 in folder Texas
 ```
 
 ## Delete App Override Rule
@@ -131,8 +138,14 @@ Delete an app override rule from SCM.
 ### Syntax
 
 ```bash
-scm delete security app-override-rule [OPTIONS]
+scm delete security app-override-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name to delete | Yes |
 
 ### Options
 
@@ -141,7 +154,7 @@ scm delete security app-override-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name to delete | Yes |
+| `--rulebase TEXT` | Rulebase to use (pre, post, or default; default: pre) | No |
 | `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
@@ -149,9 +162,8 @@ scm delete security app-override-rule [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete security app-override-rule \
+$ scm delete security app-override-rule override-https \
     --folder Texas \
-    --name override-https \
     --force
 ---> 100%
 Deleted app override rule: override-https from folder Texas
@@ -240,8 +252,14 @@ Display app override rule objects.
 ### Syntax
 
 ```bash
-scm show security app-override-rule [OPTIONS]
+scm show security app-override-rule [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name to display; omit to list all | No |
 
 ### Options
 
@@ -250,12 +268,14 @@ scm show security app-override-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name to display | No |
+| `--rulebase TEXT` | Rulebase to use (pre, post, or default; default: pre) | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -263,9 +283,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Rule
 
 ```bash
-$ scm show security app-override-rule \
-    --folder Texas \
-    --name override-https
+$ scm show security app-override-rule override-https \
+    --folder Texas
 ---> 100%
 App Override Rule: override-https
   Location: Folder 'Texas'

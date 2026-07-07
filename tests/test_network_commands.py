@@ -164,7 +164,6 @@ class TestZoneCommands:
             [
                 "--folder",
                 "test-folder",
-                "--name",
                 "test-zone",
                 "--mode",
                 "layer3",
@@ -200,7 +199,6 @@ class TestZoneCommands:
             [
                 "--folder",
                 "test-folder",
-                "--name",
                 "test-zone",
                 "--mode",
                 "layer3",
@@ -231,7 +229,6 @@ class TestZoneCommands:
             [
                 "--folder",
                 "test-folder",
-                "--name",
                 "test-zone",
                 "--force",
             ],
@@ -262,7 +259,6 @@ class TestZoneCommands:
             [
                 "--folder",
                 "test-folder",
-                "--name",
                 "test-zone",
                 "--force",
             ],
@@ -348,7 +344,7 @@ class TestZoneCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "test-folder", "--name", "test-zone", "--mode", "layer3", "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
+            ["--folder", "test-folder", "test-zone", "--mode", "layer3", "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
         )
 
         assert result.exit_code == 0
@@ -372,7 +368,7 @@ class TestZoneCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "test-folder", "--name", "test-zone", "--mode", "layer3", "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
+            ["--folder", "test-folder", "test-zone", "--mode", "layer3", "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
         )
 
         assert result.exit_code == 0
@@ -458,7 +454,7 @@ class TestIKECryptoProfileCommands:
         monkeypatch.setattr(scm_client, "get_ike_crypto_profile", mock_get)
         test_app = typer.Typer()
         test_app.command()(show_ike_crypto_profile)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "profile-1"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "profile-1"])
         assert result.exit_code == 0
         assert "profile-1" in result.stdout
         assert "sha256" in result.stdout
@@ -644,7 +640,7 @@ class TestIKEGatewayCommands:
         monkeypatch.setattr(scm_client, "get_ike_gateway", mock_get)
         test_app = typer.Typer()
         test_app.command()(show_ike_gateway)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "gw-site-a"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "gw-site-a"])
         assert result.exit_code == 0
         assert "gw-site-a" in result.stdout
         assert "203.0.113.1" in result.stdout
@@ -771,7 +767,6 @@ class TestIPsecCryptoProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-profile",
                 "--esp-encryption",
                 "aes-256-cbc",
@@ -803,7 +798,6 @@ class TestIPsecCryptoProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-profile",
             ],
         )
@@ -828,7 +822,6 @@ class TestIPsecCryptoProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-profile",
                 "--force",
             ],
@@ -865,7 +858,6 @@ class TestIPsecCryptoProfileCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "test-profile",
             ],
         )
@@ -996,7 +988,7 @@ class TestIPsecCryptoProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"],
+            ["--folder", "Texas", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"],
         )
 
         assert result.exit_code == 0
@@ -1020,7 +1012,7 @@ class TestIPsecCryptoProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"],
+            ["--folder", "Texas", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"],
         )
 
         assert result.exit_code == 0
@@ -1057,7 +1049,6 @@ class TestNATRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "outbound-nat",
                 "--from-zone",
                 "trust",
@@ -1093,7 +1084,6 @@ class TestNATRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "outbound-nat",
                 "--source-translation",
                 '{"dynamic_ip_and_port": {"type": "dynamic_ip_and_port", "translated_address": ["10.0.0.1"]}}',
@@ -1120,7 +1110,6 @@ class TestNATRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "outbound-nat",
             ],
         )
@@ -1145,7 +1134,6 @@ class TestNATRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "outbound-nat",
                 "--force",
             ],
@@ -1172,7 +1160,6 @@ class TestNATRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "outbound-nat",
                 "--force",
             ],
@@ -1208,7 +1195,6 @@ class TestNATRuleCommands:
             [
                 "--folder",
                 "Texas",
-                "--name",
                 "outbound-nat",
             ],
         )
@@ -1402,7 +1388,7 @@ class TestAggregateInterfaceCommands:
         monkeypatch.setattr(scm_client, "get_aggregate_interface", mock_get)
         test_app = typer.Typer()
         test_app.command()(show_aggregate_interface)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "ae1"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "ae1"])
         assert result.exit_code == 0
         assert "ae1" in result.stdout
         assert "9000" in result.stdout
@@ -1541,7 +1527,7 @@ class TestDhcpInterfaceCommands:
         monkeypatch.setattr(scm_client, "get_dhcp_interface", lambda **kwargs: {"id": "dhcp-1", "name": "ethernet1/1", "folder": "test-folder", "server": {"mode": "auto"}})
         test_app = typer.Typer()
         test_app.command()(show_dhcp_interface)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "ethernet1/1"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "ethernet1/1"])
         assert result.exit_code == 0
         assert "ethernet1/1" in result.stdout
 
@@ -1635,7 +1621,7 @@ class TestEthernetInterfaceCommands:
         )
         test_app = typer.Typer()
         test_app.command()(show_ethernet_interface)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "$eth1"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "$eth1"])
         assert result.exit_code == 0
         assert "$eth1" in result.stdout
         assert "9000" in result.stdout
@@ -1730,7 +1716,7 @@ class TestLayer2SubinterfaceCommands:
         )
         test_app = typer.Typer()
         test_app.command()(show_layer2_subinterface)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "ethernet1/1.100"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "ethernet1/1.100"])
         assert result.exit_code == 0
         assert "ethernet1/1.100" in result.stdout
 
@@ -1790,7 +1776,7 @@ class TestLayer3SubinterfaceCommands:
         monkeypatch.setattr(scm_client, "create_layer3_subinterface", lambda d: {**d, "id": "l3sub-12345", "__action__": "created"})
         test_app = typer.Typer()
         test_app.command()(set_layer3_subinterface)
-        result = runner.invoke(test_app, ["ethernet1/1.100", "--folder", "test-folder", "--tag", "100", "--mtu", "1500"])
+        result = runner.invoke(test_app, ["ethernet1/1.100", "--folder", "test-folder", "--vlan-tag", "100", "--mtu", "1500"])
         assert result.exit_code == 0
         assert "Created layer3 subinterface" in result.stdout
 
@@ -1824,7 +1810,7 @@ class TestLayer3SubinterfaceCommands:
         )
         test_app = typer.Typer()
         test_app.command()(show_layer3_subinterface)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "ethernet1/1.100"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "ethernet1/1.100"])
         assert result.exit_code == 0
         assert "ethernet1/1.100" in result.stdout
         assert "9000" in result.stdout
@@ -1919,7 +1905,7 @@ class TestLoopbackInterfaceCommands:
         )
         test_app = typer.Typer()
         test_app.command()(show_loopback_interface)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "$lo1"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "$lo1"])
         assert result.exit_code == 0
         assert "$lo1" in result.stdout
 
@@ -2011,7 +1997,7 @@ class TestTunnelInterfaceCommands:
         monkeypatch.setattr(scm_client, "get_tunnel_interface", lambda **kwargs: {"id": "tun-1", "name": "tunnel1", "folder": "test-folder", "mtu": 1400, "ip": [{"name": "10.0.0.1/30"}]})
         test_app = typer.Typer()
         test_app.command()(show_tunnel_interface)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "tunnel1"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "tunnel1"])
         assert result.exit_code == 0
         assert "tunnel1" in result.stdout
         assert "1400" in result.stdout
@@ -2104,7 +2090,7 @@ class TestVlanInterfaceCommands:
         monkeypatch.setattr(scm_client, "get_vlan_interface", lambda **kwargs: {"id": "vlan-1", "name": "vlan1", "folder": "test-folder", "vlan_tag": "100", "ip": [{"name": "10.0.10.1/24"}]})
         test_app = typer.Typer()
         test_app.command()(show_vlan_interface)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "vlan1"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "vlan1"])
         assert result.exit_code == 0
         assert "vlan1" in result.stdout
         assert "100" in result.stdout
@@ -2973,7 +2959,7 @@ class TestDeleteConfirmations:
             calls = []
             test_app = self._make_app(command, client_method, monkeypatch, calls)
 
-            result = runner.invoke(test_app, ["--folder", "Texas", "--name", name], input="n\n")
+            result = runner.invoke(test_app, ["--folder", "Texas", name], input="n\n")
 
             assert result.exit_code != 0, f"{client_method}: declining must not exit 0"
             assert calls == [], f"{client_method}: delete must not be called on decline"
@@ -2983,7 +2969,7 @@ class TestDeleteConfirmations:
             calls = []
             test_app = self._make_app(command, client_method, monkeypatch, calls)
 
-            result = runner.invoke(test_app, ["--folder", "Texas", "--name", name], input="y\n")
+            result = runner.invoke(test_app, ["--folder", "Texas", name], input="y\n")
 
             assert result.exit_code == 0, f"{client_method}: accepting must delete"
             assert len(calls) == 1, f"{client_method}: delete must be called once"
@@ -2993,7 +2979,7 @@ class TestDeleteConfirmations:
             calls = []
             test_app = self._make_app(command, client_method, monkeypatch, calls)
 
-            result = runner.invoke(test_app, ["--folder", "Texas", "--name", name, "--force"])
+            result = runner.invoke(test_app, ["--folder", "Texas", name, "--force"])
 
             assert result.exit_code == 0, f"{client_method}: --force must delete"
             assert len(calls) == 1
@@ -3072,7 +3058,7 @@ class TestShowJsonOutput:
         monkeypatch.setattr(scm_client, "get_ike_crypto_profile", lambda **kw: dict(obj))
         test_app = typer.Typer()
         test_app.command()(show_ike_crypto_profile)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "profile-1", "--output", "json"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "profile-1", "--output", "json"])
         assert result.exit_code == 0
         assert json.loads(result.stdout) == obj
 
@@ -3108,7 +3094,7 @@ class TestShowJsonOutput:
         monkeypatch.setattr(scm_client, "get_ike_crypto_profile", lambda **kw: None)
         test_app = typer.Typer()
         test_app.command()(show_ike_crypto_profile)
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "missing"])
+        result = runner.invoke(test_app, ["--folder", "test-folder", "missing"])
         assert result.exit_code == 1
         assert "not found" in result.output
 
@@ -3154,3 +3140,106 @@ class TestNetworkLoadConcurrency:
         assert sorted(created) == ["$eth1", "$eth2", "$eth3", "$eth4"]
         assert result.stdout.count("Created ethernet interface") == 4
         assert "Summary: Processed 4 ethernet interfaces" in result.stdout
+
+
+class TestGrammarV2:
+    """2.0 grammar behaviors: container enforcement, --max-results, snippet end-to-end."""
+
+    def test_set_zone_no_container_errors(self, runner):
+        """Set with no container exits non-zero with a clear error."""
+        test_app = typer.Typer()
+        test_app.command()(set_zone)
+        result = runner.invoke(test_app, ["test-zone", "--mode", "layer3"])
+        assert result.exit_code != 0
+        assert "One of --folder, --snippet, or --device must be specified" in result.output
+
+    def test_set_zone_two_containers_errors(self, runner):
+        """Set with two containers exits non-zero with a clear error."""
+        test_app = typer.Typer()
+        test_app.command()(set_zone)
+        result = runner.invoke(test_app, ["test-zone", "--mode", "layer3", "--folder", "Texas", "--snippet", "shared"])
+        assert result.exit_code != 0
+        assert "Only one of --folder, --snippet, or --device can be specified" in result.output
+
+    def test_show_nat_rule_max_results_slices(self, runner, monkeypatch):
+        """--max-results limits list output client-side."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_list(**kwargs):
+            return [{"id": f"nat-{i}", "name": f"rule-{i}", "folder": "Texas"} for i in range(5)]
+
+        monkeypatch.setattr(scm_client, "list_nat_rules", mock_list)
+        test_app = typer.Typer()
+        test_app.command()(show_nat_rule)
+        result = runner.invoke(test_app, ["--folder", "Texas", "--max-results", "2", "--output", "json"])
+        assert result.exit_code == 0
+        items = json.loads(result.stdout)
+        assert len(items) == 2
+        assert [i["name"] for i in items] == ["rule-0", "rule-1"]
+
+    def test_set_zone_snippet_end_to_end(self, runner, monkeypatch):
+        """--snippet reaches the SDK client for a previously folder-only type."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_create(**kwargs):
+            captured.update(kwargs)
+            return {"id": "zone-1", "name": kwargs.get("name"), "snippet": kwargs.get("snippet"), "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_zone", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(set_zone)
+        result = runner.invoke(test_app, ["test-zone", "--snippet", "shared-snippet", "--mode", "layer3", "--interfaces", "ethernet1/1"])
+        assert result.exit_code == 0
+        assert captured["snippet"] == "shared-snippet"
+        assert captured["folder"] is None
+        assert captured["device"] is None
+        assert "Created zone" in result.stdout
+        assert "shared-snippet" in result.stdout
+
+    def test_delete_ipsec_crypto_profile_snippet_end_to_end(self, runner, monkeypatch):
+        """--snippet reaches the SDK client on delete for a previously folder-only type."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_delete(**kwargs):
+            captured.update(kwargs)
+            return True
+
+        monkeypatch.setattr(scm_client, "delete_ipsec_crypto_profile", mock_delete)
+        test_app = typer.Typer()
+        test_app.command()(delete_ipsec_crypto_profile)
+        result = runner.invoke(test_app, ["my-profile", "--snippet", "shared-snippet", "--force"])
+        assert result.exit_code == 0
+        assert captured["snippet"] == "shared-snippet"
+        assert captured["name"] == "my-profile"
+
+    def test_load_ike_crypto_profile_dry_run(self, runner, monkeypatch, tmp_path):
+        """load ike-crypto-profile --dry-run previews without SDK calls."""
+        import yaml
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_data = {
+            "ike_crypto_profiles": [{"name": "test-profile", "folder": "test-folder", "hash": ["sha256"], "dh_group": ["group14"], "encryption": ["aes-256-cbc"]}]
+        }
+        yaml_file = tmp_path / "ike-profiles.yaml"
+        with yaml_file.open("w") as f:
+            yaml.dump(yaml_data, f)
+
+        mock_called = False
+
+        def mock_create(profile_data):
+            nonlocal mock_called
+            mock_called = True
+            return {}
+
+        monkeypatch.setattr(scm_client, "create_ike_crypto_profile", mock_create)
+        test_app = typer.Typer()
+        test_app.command()(load_ike_crypto_profile)
+        result = runner.invoke(test_app, ["--file", str(yaml_file), "--dry-run"])
+        assert result.exit_code == 0
+        assert "Dry run mode" in result.stdout
+        assert not mock_called

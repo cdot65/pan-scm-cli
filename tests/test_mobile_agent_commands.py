@@ -103,7 +103,7 @@ class TestAgentVersionCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "5.2.13"],
+            ["--folder", "Mobile Users", "5.2.13"],
         )
 
         assert result.exit_code == 0
@@ -177,7 +177,6 @@ class TestAuthSettingCommands:
             [
                 "--folder",
                 "Mobile Users",
-                "--name",
                 "saml-auth",
                 "--authentication-profile",
                 "best-practice",
@@ -212,7 +211,6 @@ class TestAuthSettingCommands:
             [
                 "--folder",
                 "Mobile Users",
-                "--name",
                 "saml-auth",
                 "--authentication-profile",
                 "best-practice",
@@ -244,7 +242,6 @@ class TestAuthSettingCommands:
             [
                 "--folder",
                 "Mobile Users",
-                "--name",
                 "saml-auth",
             ],
         )
@@ -309,7 +306,7 @@ class TestAuthSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "saml-auth"],
+            ["--folder", "Mobile Users", "saml-auth"],
         )
 
         assert result.exit_code == 0
@@ -350,7 +347,7 @@ class TestAuthSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "saml-auth", "--force"],
+            ["--folder", "Mobile Users", "saml-auth", "--force"],
         )
 
         assert result.exit_code == 0
@@ -370,7 +367,7 @@ class TestAuthSettingCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
+            ["--folder", "Mobile Users", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -485,7 +482,6 @@ auth_settings:
             [
                 "--folder",
                 "Mobile Users",
-                "--name",
                 "fail-auth",
             ],
         )
@@ -534,10 +530,97 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_auth_setting)
 
-        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "saml-auth", "--output", "json"])
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "saml-auth", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == setting
+
+
+class TestV2Grammar:
+    """2.0 grammar behaviors: positional NAME and --max-results slicing."""
+
+    def test_show_auth_setting_max_results_slices_list(self, runner, monkeypatch):
+        """--max-results limits list output client-side."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        settings = [{"id": f"as-{i}", "folder": "Mobile Users", "name": f"auth-{i}", "authentication_profile": "p", "os": "Any"} for i in range(5)]
+        monkeypatch.setattr(scm_client, "list_auth_settings", lambda *a, **k: settings)
+
+        test_app = typer.Typer()
+        test_app.command()(show_auth_setting)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--max-results", "2", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == settings[:2]
+
+    def test_set_auth_setting_requires_positional_name(self, runner):
+        """Set without positional NAME fails."""
+        test_app = typer.Typer()
+        test_app.command()(set_auth_setting)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users"])
+
+        assert result.exit_code != 0
+
+    def test_set_auth_setting_rejects_name_option(self, runner):
+        """--name is gone; only positional NAME is accepted."""
+        test_app = typer.Typer()
+        test_app.command()(set_auth_setting)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "saml-auth"])
+
+        assert result.exit_code != 0
+
+    def test_delete_auth_setting_requires_positional_name(self, runner):
+        """Delete without positional NAME fails."""
+        test_app = typer.Typer()
+        test_app.command()(delete_auth_setting)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--force"])
+
+        assert result.exit_code != 0
+
+    def test_backup_auth_setting_requires_exactly_one_container(self, runner):
+        """Backup with no container or two containers fails."""
+        from scm_cli.commands.mobile_agent import backup_auth_setting
+
+        test_app = typer.Typer()
+        test_app.command()(backup_auth_setting)
+
+        result = runner.invoke(test_app, [])
+        assert result.exit_code != 0
+        assert "One of --folder, --snippet, or --device" in result.output
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--snippet", "gp-snippet"])
+        assert result.exit_code != 0
+        assert "Only one of --folder, --snippet, or --device" in result.output
+
+    def test_backup_auth_setting_snippet_reaches_client(self, runner, monkeypatch, tmp_path):
+        """--snippet is passed through to the SDK client."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_list(**kwargs):
+            captured.update(kwargs)
+            return [{"id": "as-1", "snippet": "gp-snippet", "name": "saml-auth", "authentication_profile": "p", "os": "Any"}]
+
+        monkeypatch.setattr(scm_client, "list_auth_settings", mock_list)
+        monkeypatch.chdir(tmp_path)
+
+        from scm_cli.commands.mobile_agent import backup_auth_setting
+
+        test_app = typer.Typer()
+        test_app.command()(backup_auth_setting)
+
+        result = runner.invoke(test_app, ["--snippet", "gp-snippet"])
+
+        assert result.exit_code == 0, result.output
+        assert captured.get("snippet") == "gp-snippet"
+        assert "Successfully backed up" in result.stdout
 
 
 class TestMobileAgentBulkLoadConcurrency:

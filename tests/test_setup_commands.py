@@ -71,7 +71,7 @@ class TestFolderCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "Texas", "--parent", "All", "--description", "Texas offices"],
+            ["Texas", "--parent", "All", "--description", "Texas offices"],
         )
 
         assert result.exit_code == 0
@@ -109,7 +109,7 @@ class TestFolderCommands:
         test_app = typer.Typer()
         test_app.command()(show_folder)
 
-        result = runner.invoke(test_app, ["--name", "Texas"])
+        result = runner.invoke(test_app, ["Texas"])
 
         assert result.exit_code == 0
         assert "Texas" in result.stdout
@@ -123,7 +123,7 @@ class TestFolderCommands:
         test_app = typer.Typer()
         test_app.command()(delete_folder)
 
-        result = runner.invoke(test_app, ["--name", "Texas", "--force"])
+        result = runner.invoke(test_app, ["Texas", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted folder" in result.stdout
@@ -146,7 +146,7 @@ class TestFolderCommands:
         test_app = typer.Typer()
         test_app.command()(delete_folder)
 
-        result = runner.invoke(test_app, ["--name", "Texas", "--force"])
+        result = runner.invoke(test_app, ["Texas", "--force"])
 
         assert result.exit_code == 1
         assert "Cannot delete folder 'Texas'" in result.output
@@ -174,7 +174,7 @@ class TestLabelCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "production", "--description", "Prod environment"],
+            ["production", "--description", "Prod environment"],
         )
 
         assert result.exit_code == 0
@@ -207,7 +207,7 @@ class TestLabelCommands:
         test_app = typer.Typer()
         test_app.command()(delete_label)
 
-        result = runner.invoke(test_app, ["--name", "staging", "--force"])
+        result = runner.invoke(test_app, ["staging", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted label" in result.stdout
@@ -234,7 +234,7 @@ class TestSnippetCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "DNS-Best-Practice", "--description", "DNS config"],
+            ["DNS-Best-Practice", "--description", "DNS config"],
         )
 
         assert result.exit_code == 0
@@ -267,7 +267,7 @@ class TestSnippetCommands:
         test_app = typer.Typer()
         test_app.command()(delete_snippet)
 
-        result = runner.invoke(test_app, ["--name", "Web-Security", "--force"])
+        result = runner.invoke(test_app, ["Web-Security", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted snippet" in result.stdout
@@ -296,7 +296,7 @@ class TestVariableCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "$egress-max", "--type", "egress-max", "--value", "1000", "--folder", "Texas"],
+            ["$egress-max", "--type", "egress-max", "--value", "1000", "--folder", "Texas"],
         )
 
         assert result.exit_code == 0
@@ -328,7 +328,7 @@ class TestVariableCommands:
         test_app = typer.Typer()
         test_app.command()(delete_variable)
 
-        result = runner.invoke(test_app, ["--name", "$egress-max", "--folder", "Texas", "--force"])
+        result = runner.invoke(test_app, ["$egress-max", "--folder", "Texas", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted variable" in result.stdout
@@ -343,11 +343,96 @@ class TestVariableCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "$test", "--type", "fqdn", "--value", "example.com"],
+            ["$test", "--type", "fqdn", "--value", "example.com"],
         )
 
         # Should fail because no container is specified
         assert result.exit_code != 0
+        assert "One of --folder, --snippet, or --device" in result.output
+
+    def test_variable_rejects_multiple_containers(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_create(*a, **kw):
+            pytest.fail("create_variable must not be called with two containers")
+
+        monkeypatch.setattr(scm_client, "create_variable", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_variable)
+
+        result = runner.invoke(
+            test_app,
+            ["$test", "--type", "fqdn", "--value", "example.com", "--folder", "Texas", "--snippet", "DNS-Config"],
+        )
+
+        # Should fail because two containers are specified
+        assert result.exit_code != 0
+        assert "Only one of --folder, --snippet, or --device" in result.output
+
+    def test_set_variable_snippet_container_reaches_client(self, runner, monkeypatch):
+        """--snippet flows end-to-end to the scm_client call."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_create(*args, **kwargs):
+            captured.update(kwargs)
+            return {
+                "id": "var-123",
+                "name": kwargs.get("name"),
+                "type": kwargs.get("type"),
+                "value": kwargs.get("value"),
+                "snippet": kwargs.get("snippet"),
+                "__action__": "created",
+            }
+
+        monkeypatch.setattr(scm_client, "create_variable", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_variable)
+
+        result = runner.invoke(
+            test_app,
+            ["$dns-server", "--type", "fqdn", "--value", "dns.example.com", "--snippet", "DNS-Config"],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Created variable" in result.stdout
+        assert captured["snippet"] == "DNS-Config"
+        assert captured.get("folder") is None
+
+    def test_show_variable_requires_container(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_variables", lambda *a, **kw: [])
+
+        test_app = typer.Typer()
+        test_app.command()(show_variable)
+
+        result = runner.invoke(test_app, [])
+
+        assert result.exit_code != 0
+
+    def test_show_variable_snippet_container_reaches_client(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_list(*args, **kwargs):
+            captured.update(kwargs)
+            return [{"id": "v1", "name": "$dns-server", "type": "fqdn", "value": "dns.example.com"}]
+
+        monkeypatch.setattr(scm_client, "list_variables", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_variable)
+
+        result = runner.invoke(test_app, ["--snippet", "DNS-Config"])
+
+        assert result.exit_code == 0, result.output
+        assert "$dns-server" in result.stdout
+        assert captured["snippet"] == "DNS-Config"
 
 
 class TestSetupValidators:
@@ -509,7 +594,7 @@ class TestDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(show_device)
 
-        result = runner.invoke(test_app, ["--name", "PA-VM-01"])
+        result = runner.invoke(test_app, ["PA-VM-01"])
 
         assert result.exit_code == 0
         assert "PA-VM-01" in result.stdout
@@ -536,7 +621,7 @@ class TestDeviceCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "PA-VM-01", "--labels", "production", "--labels", "west"],
+            ["PA-VM-01", "--labels", "production", "--labels", "west"],
         )
 
         assert result.exit_code == 0, result.stdout
@@ -561,7 +646,6 @@ class TestDeviceCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name",
                 "PA-VM-01",
                 "--display-name",
                 "Edge-FW",
@@ -594,7 +678,7 @@ class TestDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(set_device)
 
-        result = runner.invoke(test_app, ["--name", "PA-VM-01", "--labels", "production"])
+        result = runner.invoke(test_app, ["PA-VM-01", "--labels", "production"])
 
         assert result.exit_code == 0, result.stdout
         assert "No changes detected" in result.stdout
@@ -610,7 +694,7 @@ class TestDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(set_device)
 
-        result = runner.invoke(test_app, ["--name", "missing", "--labels", "x"])
+        result = runner.invoke(test_app, ["missing", "--labels", "x"])
 
         assert result.exit_code != 0
         assert "not found" in result.output
@@ -638,7 +722,7 @@ class TestDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(show_device)
 
-        result = runner.invoke(test_app, ["--name", "PA-VM-01", "--output", "json"])
+        result = runner.invoke(test_app, ["PA-VM-01", "--output", "json"])
 
         assert result.exit_code == 0, result.stdout
         data = json.loads(result.stdout)
@@ -819,7 +903,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_folder)
 
-        result = runner.invoke(test_app, ["--name", "Texas", "--output", "json"])
+        result = runner.invoke(test_app, ["Texas", "--output", "json"])
 
         assert result.exit_code == 0, result.output
         assert json.loads(result.stdout) == record
@@ -873,3 +957,35 @@ class TestSetupBulkLoadConcurrency:
         assert active["max"] > 1, "create calls never overlapped"
         assert sorted(created) == [f"label-{i}" for i in range(4)]
         assert "Processed 4 labels" in result.output
+
+
+class TestMaxResults:
+    """--max-results slices list output client-side before emit."""
+
+    def test_show_folder_max_results(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        folders = [{"id": f"f{i}", "name": f"folder-{i}", "parent": "All"} for i in range(5)]
+        monkeypatch.setattr(scm_client, "list_folders", lambda *a, **kw: folders)
+
+        test_app = typer.Typer()
+        test_app.command()(show_folder)
+
+        result = runner.invoke(test_app, ["--max-results", "2", "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == folders[:2]
+
+    def test_show_variable_max_results(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        variables = [{"id": f"v{i}", "name": f"$var-{i}", "type": "fqdn", "value": f"host{i}.example.com"} for i in range(4)]
+        monkeypatch.setattr(scm_client, "list_variables", lambda *a, **kw: variables)
+
+        test_app = typer.Typer()
+        test_app.command()(show_variable)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--max-results", "3", "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == variables[:3]

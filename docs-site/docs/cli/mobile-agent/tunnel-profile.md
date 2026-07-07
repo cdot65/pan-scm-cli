@@ -23,15 +23,20 @@ Create or update a tunnel profile.
 ### Syntax
 
 ```bash
-scm set mobile-agent tunnel-profile [OPTIONS]
+scm set mobile-agent tunnel-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the tunnel profile (max 31 chars) | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (defaults to `Mobile Users`) | No |
-| `--name TEXT` | Name of the tunnel profile (max 31 chars) | Yes |
 | `--no-direct-access-to-local-network / --allow-direct-access-to-local-network` | Disable/allow direct access to the local network | No |
 | `--retrieve-framed-ip-address / --no-retrieve-framed-ip-address` | Retrieve the framed IP address from the authentication server | No |
 | `--os TEXT` | Operating system, repeatable (`Android`, `Chrome`, `IoT`, `Linux`, `Mac`, `Windows`, `WindowsUWP`, `iOS`) | No |
@@ -48,9 +53,8 @@ Nested settings (authentication override cookies, source address, split tunnelin
 #### Create Tunnel Profile with Split Tunneling
 
 ```bash
-$ scm set mobile-agent tunnel-profile \
+$ scm set mobile-agent tunnel-profile "corp-tunnel" \
     --folder "Mobile Users" \
-    --name "corp-tunnel" \
     --access-route 10.0.0.0/8 \
     --exclude-access-route 192.168.1.0/24 \
     --no-direct-access-to-local-network
@@ -64,15 +68,22 @@ Display one or all tunnel profiles.
 ### Syntax
 
 ```bash
-scm show mobile-agent tunnel-profile [OPTIONS]
+scm show mobile-agent tunnel-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the tunnel profile to show (lists all when omitted); omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (defaults to `Mobile Users`) | No |
-| `--name TEXT` | Name of the tunnel profile to show (lists all when omitted) | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 ### Examples
 
@@ -81,7 +92,7 @@ scm show mobile-agent tunnel-profile [OPTIONS]
 $ scm show mobile-agent tunnel-profile
 
 # Show a specific tunnel profile
-$ scm show mobile-agent tunnel-profile --name "corp-tunnel"
+$ scm show mobile-agent tunnel-profile "corp-tunnel"
 ```
 
 ## Delete Tunnel Profile
@@ -91,21 +102,26 @@ Remove a tunnel profile.
 ### Syntax
 
 ```bash
-scm delete mobile-agent tunnel-profile [OPTIONS]
+scm delete mobile-agent tunnel-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the tunnel profile to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (defaults to `Mobile Users`) | No |
-| `--name TEXT` | Name of the tunnel profile to delete | Yes |
 | `--force` | Skip the confirmation prompt | No |
 
 ### Examples
 
 ```bash
-$ scm delete mobile-agent tunnel-profile --name "corp-tunnel" --force
+$ scm delete mobile-agent tunnel-profile "corp-tunnel" --force
 Deleted tunnel profile: corp-tunnel from folder Mobile Users
 ```
 

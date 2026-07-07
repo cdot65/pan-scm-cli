@@ -22,22 +22,27 @@ Create or update an auto tag action.
 scm set object auto-tag-action NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the auto tag action | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Name of the auto tag action (positional argument) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--description TEXT` | Description of the auto tag action | No |
 | `--log-type TEXT` | Log type (traffic, threat, etc.) | No |
 | `--filter TEXT` | Filter expression | No |
-| `--tags LIST` | Tags to apply | No |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
 | `--send-to-panorama` | Send to Panorama | No |
 | `--quarantine` | Enable quarantine | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
@@ -77,17 +82,22 @@ Delete an auto tag action from SCM.
 scm delete object auto-tag-action NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the auto tag action to delete | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Name of the auto tag action to delete (positional argument) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -168,22 +178,29 @@ Display auto tag action objects.
 ### Syntax
 
 ```bash
-scm show object auto-tag-action [OPTIONS]
+scm show object auto-tag-action [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the auto tag action to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific auto tag action | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -191,7 +208,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Auto Tag Action
 
 ```bash
-$ scm show object auto-tag-action --folder Texas --name threat-block
+$ scm show object auto-tag-action threat-block --folder Texas
 ---> 100%
 Auto Tag Action: threat-block
 ============================================================

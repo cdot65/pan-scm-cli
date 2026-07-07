@@ -20,33 +20,35 @@ Create or update a service group object.
 ### Syntax
 
 ```bash
-scm set object service-group [OPTIONS]
+scm set object service-group NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service group | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the service group object | No\* |
-| `--snippet TEXT` | Snippet for the service group object | No\* |
-| `--device TEXT` | Device for the service group object | No\* |
-| `--name TEXT` | Name of the service group | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--members TEXT` | Comma-separated list of service or service group names | Yes |
-| `--description TEXT` | Description of the group | No |
-| `--tag TEXT` | Tags for categorization (comma-separated) | No |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create a Basic Service Group
 
 ```bash
-$ scm set object service-group \
+$ scm set object service-group web-services \
     --folder Texas \
-    --name web-services \
-    --members "http,https,ssl,web-browsing" \
-    --description "Standard web services"
+    --members "http,https,ssl,web-browsing"
 ---> 100%
 Created service group: web-services in folder Texas
 ```
@@ -54,12 +56,10 @@ Created service group: web-services in folder Texas
 #### Create a Service Group with Tags
 
 ```bash
-$ scm set object service-group \
+$ scm set object service-group database-services \
     --folder Texas \
-    --name database-services \
     --members "mysql,ms-sql,oracle,postgresql,custom-db" \
-    --tag "database,backend" \
-    --description "Database service ports"
+    --tags database --tags backend
 ---> 100%
 Created service group: database-services in folder Texas
 ```
@@ -67,11 +67,9 @@ Created service group: database-services in folder Texas
 #### Create a Nested Service Group
 
 ```bash
-$ scm set object service-group \
+$ scm set object service-group all-services \
     --folder Texas \
-    --name all-services \
-    --members "web-services,database-services,mail-services" \
-    --description "All allowed services (nested groups)"
+    --members "web-services,database-services,mail-services"
 ---> 100%
 Created service group: all-services in folder Texas
 ```
@@ -83,25 +81,30 @@ Delete a service group object from SCM.
 ### Syntax
 
 ```bash
-scm delete object service-group [OPTIONS]
+scm delete object service-group NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service group to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the service group object | No\* |
-| `--snippet TEXT` | Snippet containing the service group object | No\* |
-| `--device TEXT` | Device containing the service group object | No\* |
-| `--name TEXT` | Name of the service group to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object service-group --folder Texas --name web-services --force
+$ scm delete object service-group web-services --folder Texas --force
 ---> 100%
 Deleted service group: web-services from folder Texas
 ```
@@ -216,30 +219,37 @@ Display service group objects.
 ### Syntax
 
 ```bash
-scm show object service-group [OPTIONS]
+scm show object service-group [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service group to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the service group object | No\* |
-| `--snippet TEXT` | Snippet containing the service group object | No\* |
-| `--device TEXT` | Device containing the service group object | No\* |
-| `--name TEXT` | Name of the service group to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Service Group
 
 ```bash
-$ scm show object service-group --folder Texas --name web-services
+$ scm show object service-group web-services --folder Texas
 ---> 100%
 Service Group: web-services
   Location: Folder 'Texas'

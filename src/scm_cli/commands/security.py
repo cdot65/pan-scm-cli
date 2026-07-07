@@ -15,7 +15,7 @@ import yaml
 from ..utils import parse_comma_separated_list, validate_location_params
 from ..utils.bulk import run_bulk
 from ..utils.decorators import handle_command_errors
-from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success, warning
+from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     AntiSpywareProfile,
@@ -63,10 +63,10 @@ DEVICE_OPTION = typer.Option(
     "--device",
     help="Device path for the security rule",
 )
-NAME_OPTION = typer.Option(
-    ...,
-    "--name",
-    help="Name of the security rule",
+MAX_RESULTS_OPTION = typer.Option(
+    None,
+    "--max-results",
+    help="Maximum number of results to display",
 )
 FILE_OPTION = typer.Option(
     ...,
@@ -337,10 +337,10 @@ def backup_security_rule(
 @delete_app.command("rule")
 @handle_command_errors("deleting security rule")
 def delete_security_rule(
+    name: str = typer.Argument(..., help="Name of the security rule to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the security rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the security rule"),
     device: str = typer.Option(None, "--device", help="Device containing the security rule"),
-    name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
@@ -348,13 +348,13 @@ def delete_security_rule(
 
     Examples:
         # Delete from folder
-        scm delete security rule --folder Texas --name test
+        scm delete security rule test --folder Texas
 
         # Delete from snippet
-        scm delete security rule --snippet DNS-Best-Practice --name block-dns
+        scm delete security rule block-dns --snippet DNS-Best-Practice
 
         # Delete from device
-        scm delete security rule --device austin-01 --name local-rule
+        scm delete security rule local-rule --device austin-01
 
     """
     # Validate location parameters
@@ -365,12 +365,7 @@ def delete_security_rule(
         if not confirm:
             raise typer.Abort()
 
-    # For now, SDK only supports folder
-    if location_type != "folder":
-        error(f"Error: Deleting security rules from {location_type} is not yet supported by the SDK")
-        raise typer.Exit(code=1)
-
-    result = scm_client.delete_security_rule(folder=location_value, name=name, rulebase=rulebase)
+    result = scm_client.delete_security_rule(**{location_type: location_value}, name=name, rulebase=rulebase)
     if result:
         success(f"Deleted security rule: {name} from {location_type} {location_value} rulebase {rulebase}")
     else:
@@ -460,18 +455,11 @@ def load_security_rule(
             # Validate using the Pydantic model
             rule = SecurityRule(**rule_data)
 
-            # For now, SDK only supports folder
-            if hasattr(rule, "snippet") and rule.snippet:
-                warning(f"Warning: Creating security rules in snippets is not yet supported by the SDK. Skipping rule '{rule.name}'")
-                continue
-            elif hasattr(rule, "device") and rule.device:
-                warning(f"Warning: Creating security rules on devices is not yet supported by the SDK. Skipping rule '{rule.name}'")
-                continue
-
             # Call the SDK client to create the security rule
             sdk_data = rule.to_sdk_model()
+            container_kwargs = {key: sdk_data[key] for key in ("folder", "snippet", "device") if sdk_data.get(key)}
             result = scm_client.create_security_rule(
-                folder=sdk_data["folder"],
+                **container_kwargs,
                 name=sdk_data["name"],
                 source_zones=sdk_data["source_zones"],
                 destination_zones=sdk_data["destination_zones"],
@@ -515,10 +503,10 @@ def load_security_rule(
 @set_app.command("rule")
 @handle_command_errors("creating security rule")
 def set_security_rule(
+    name: str = typer.Argument(..., help="Name of the security rule"),
     folder: str = typer.Option(None, "--folder", help="Folder path for the security rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path for the security rule"),
     device: str = typer.Option(None, "--device", help="Device path for the security rule"),
-    name: str = NAME_OPTION,
     source_zones: list[str] = SOURCE_ZONES_OPTION,
     destination_zones: list[str] = DESTINATION_ZONES_OPTION,
     source_addresses: list[str] | None = SOURCE_ADDRESSES_OPTION,
@@ -538,11 +526,11 @@ def set_security_rule(
 
     Examples:
         # Create basic rule
-        scm set security rule --folder Texas --name test \\
+        scm set security rule test --folder Texas \\
             --source-zones trust --destination-zones untrust
 
         # Create rule with full options
-        scm set security rule --folder Texas --name web-allow \\
+        scm set security rule web-allow --folder Texas \\
             --source-zones trust --destination-zones untrust \\
             --source-addresses internal-net --destination-addresses any \\
             --applications web-browsing --applications ssl \\
@@ -552,7 +540,7 @@ def set_security_rule(
             --tags web --tags production
 
         # Create rule in post rulebase
-        scm set security rule --folder Texas --name cleanup \\
+        scm set security rule cleanup --folder Texas \\
             --source-zones any --destination-zones any \\
             --action deny --log-start --log-end \\
             --rulebase post
@@ -560,11 +548,6 @@ def set_security_rule(
     """
     # Validate location parameters
     location_type, location_value = validate_location_params(folder, snippet, device)
-
-    # For now, SDK only supports folder
-    if location_type != "folder":
-        error(f"Error: Creating security rules in {location_type} is not yet supported by the SDK")
-        raise typer.Exit(code=1)
 
     # Parse comma-separated list options
     parsed_src_zones = parse_comma_separated_list(source_zones)
@@ -577,7 +560,7 @@ def set_security_rule(
 
     # Validate and create security rule
     rule = SecurityRule(
-        folder=location_value,
+        **{location_type: location_value},
         name=name,
         source_zones=parsed_src_zones,
         destination_zones=parsed_dst_zones,
@@ -605,7 +588,7 @@ def set_security_rule(
 
     # Call SDK client to create the rule
     result = scm_client.create_security_rule(
-        folder=rule.folder,
+        **{location_type: location_value},
         name=rule.name,
         source_zones=rule.source_zones,
         destination_zones=rule.destination_zones,
@@ -636,15 +619,16 @@ def set_security_rule(
 @show_app.command("rule")
 @handle_command_errors("showing security rule")
 def show_security_rule(
+    name: str | None = typer.Argument(None, help="Name of the security rule to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the security rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the security rule"),
     device: str = typer.Option(None, "--device", help="Device containing the security rule"),
     rulebase: str = RULEBASE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the security rule to show"),
     exclude_folder: list[str] | None = EXCLUDE_FOLDER_OPTION,
     exclude_snippet: list[str] | None = EXCLUDE_SNIPPET_OPTION,
     exclude_device: list[str] | None = EXCLUDE_DEVICE_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display security rules.
 
@@ -657,7 +641,7 @@ def show_security_rule(
         scm show security rule --folder Texas --rulebase post
 
         # Show a specific security rule by name
-        scm show security rule --folder Texas --name "Allow Web Traffic"
+        scm show security rule "Allow Web Traffic" --folder Texas
 
         # List rules excluding specific folders
         scm show security rule --folder Texas --exclude-folder "All"
@@ -671,13 +655,8 @@ def show_security_rule(
     location_type, location_value = validate_location_params(folder, snippet, device)
 
     if name:
-        # For now, SDK only supports folder for get operations
-        if location_type != "folder":
-            error(f"Error: Getting security rules from {location_type} is not yet supported by the SDK")
-            raise typer.Exit(code=1)
-
         # Get a specific security rule by name
-        rule = scm_client.get_security_rule(folder=location_value, name=name, rulebase=rulebase)
+        rule = scm_client.get_security_rule(**{location_type: location_value}, name=name, rulebase=rulebase)
 
         emit(rule, output, title=f"Security Rule: {rule.get('name', 'N/A')}")
         return rule
@@ -692,6 +671,9 @@ def show_security_rule(
             exclude_snippets=exclude_snippet or None,
             exclude_devices=exclude_device or None,
         )
+
+        if max_results is not None:
+            rules = rules[:max_results]
 
         if not rules:
             emit([], output)
@@ -774,23 +756,23 @@ def backup_anti_spyware_profile(
 @delete_app.command("anti-spyware-profile")
 @handle_command_errors("deleting anti-spyware profile")
 def delete_anti_spyware_profile(
+    name: str = typer.Argument(..., help="Name of the anti-spyware profile to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the anti-spyware profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the anti-spyware profile"),
     device: str = typer.Option(None, "--device", help="Device containing the anti-spyware profile"),
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an anti-spyware profile.
 
     Examples:
         # Delete from folder
-        scm delete security anti-spyware-profile --folder Texas --name strict-security
+        scm delete security anti-spyware-profile strict-security --folder Texas
 
         # Delete from snippet
-        scm delete security anti-spyware-profile --snippet DNS-Best-Practice --name dns-protection
+        scm delete security anti-spyware-profile dns-protection --snippet DNS-Best-Practice
 
         # Delete from device
-        scm delete security anti-spyware-profile --device austin-01 --name local-profile
+        scm delete security anti-spyware-profile local-profile --device austin-01
 
     """
     # Validate location parameters
@@ -933,10 +915,10 @@ def load_anti_spyware_profile(
 @set_app.command("anti-spyware-profile")
 @handle_command_errors("creating anti-spyware profile")
 def set_anti_spyware_profile(
+    name: str = typer.Argument(..., help="Name of the anti-spyware profile"),
     folder: str = typer.Option(None, "--folder", help="Folder path for the anti-spyware profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path for the anti-spyware profile"),
     device: str = typer.Option(None, "--device", help="Device path for the anti-spyware profile"),
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     cloud_inline_analysis: bool = typer.Option(
         False,
@@ -953,16 +935,16 @@ def set_anti_spyware_profile(
 
     Examples:
         # Create basic profile in folder
-        scm set security anti-spyware-profile --folder Texas --name strict-security \
+        scm set security anti-spyware-profile strict-security --folder Texas \
             --description "Block critical threats"
 
         # Create profile with cloud inline analysis
-        scm set security anti-spyware-profile --folder Texas --name cloud-protection \
+        scm set security anti-spyware-profile cloud-protection --folder Texas \
             --cloud-inline-analysis
 
         # Create profile in snippet
-        scm set security anti-spyware-profile --snippet Security-Best-Practice \
-            --name standard-protection
+        scm set security anti-spyware-profile standard-protection \
+            --snippet Security-Best-Practice
 
     """
     # Validate location parameters
@@ -1033,11 +1015,12 @@ def set_anti_spyware_profile(
 @show_app.command("anti-spyware-profile")
 @handle_command_errors("showing anti-spyware profile")
 def show_anti_spyware_profile(
+    name: str | None = typer.Argument(None, help="Name of the anti-spyware profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the anti-spyware profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the anti-spyware profile"),
     device: str = typer.Option(None, "--device", help="Device containing the anti-spyware profile"),
-    name: str | None = typer.Option(None, "--name", help="Name of the anti-spyware profile to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display anti-spyware profiles.
 
@@ -1046,7 +1029,7 @@ def show_anti_spyware_profile(
         scm show security anti-spyware-profile --folder Texas
 
         # Show a specific anti-spyware profile by name
-        scm show security anti-spyware-profile --folder Texas --name strict-security
+        scm show security anti-spyware-profile strict-security --folder Texas
 
         # List profiles in snippet
         scm show security anti-spyware-profile --snippet Security-Best-Practice
@@ -1067,6 +1050,9 @@ def show_anti_spyware_profile(
         # List all anti-spyware profiles in the specified container (default behavior)
         kwargs = {location_type: location_value}
         profiles = scm_client.list_anti_spyware_profiles(**kwargs, exact_match=False)
+
+        if max_results is not None:
+            profiles = profiles[:max_results]
 
         if not profiles:
             emit([], output)
@@ -1149,23 +1135,23 @@ def backup_decryption_profile(
 @delete_app.command("decryption-profile")
 @handle_command_errors("deleting decryption profile")
 def delete_decryption_profile(
+    name: str = typer.Argument(..., help="Name of the decryption profile to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the decryption profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the decryption profile"),
     device: str = typer.Option(None, "--device", help="Device containing the decryption profile"),
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a decryption profile.
 
     Examples:
         # Delete from folder
-        scm delete security decryption-profile --folder Texas --name ssl-forward-proxy
+        scm delete security decryption-profile ssl-forward-proxy --folder Texas
 
         # Delete from snippet
-        scm delete security decryption-profile --snippet DNS-Best-Practice --name ssl-inbound
+        scm delete security decryption-profile ssl-inbound --snippet DNS-Best-Practice
 
         # Delete from device
-        scm delete security decryption-profile --device austin-01 --name no-decrypt
+        scm delete security decryption-profile no-decrypt --device austin-01
 
     """
     # Validate location parameters
@@ -1308,10 +1294,10 @@ def load_decryption_profile(
 @set_app.command("decryption-profile")
 @handle_command_errors("creating decryption profile")
 def set_decryption_profile(
+    name: str = typer.Argument(..., help="Name of the decryption profile"),
     folder: str = typer.Option(None, "--folder", help="Folder path for the decryption profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path for the decryption profile"),
     device: str = typer.Option(None, "--device", help="Device path for the decryption profile"),
-    name: str = NAME_OPTION,
     description: str | None = typer.Option(
         None,
         "--description",
@@ -1342,19 +1328,19 @@ def set_decryption_profile(
 
     Examples:
         # Create basic SSL forward proxy profile
-        scm set security decryption-profile --folder Texas --name ssl-forward \
+        scm set security decryption-profile ssl-forward --folder Texas \
             --ssl-forward-proxy '{"block_expired_certificate": true, "block_untrusted_issuer": true}'
 
         # Create SSL inbound inspection profile
-        scm set security decryption-profile --folder Texas --name ssl-inbound \
+        scm set security decryption-profile ssl-inbound --folder Texas \
             --ssl-inbound-proxy '{"block_if_no_resource": true, "block_unsupported_cipher": true}'
 
         # Create no-decrypt profile
-        scm set security decryption-profile --folder Texas --name no-decrypt \
+        scm set security decryption-profile no-decrypt --folder Texas \
             --ssl-no-proxy '{"block_expired_certificate": false, "block_untrusted_issuer": false}'
 
         # Create profile with protocol settings
-        scm set security decryption-profile --folder Texas --name custom-decrypt \
+        scm set security decryption-profile custom-decrypt --folder Texas \
             --ssl-forward-proxy '{"block_expired_certificate": true}' \
             --ssl-protocol-settings '{"min_version": "tls1-2", "max_version": "tls1-3"}'
 
@@ -1412,11 +1398,12 @@ def set_decryption_profile(
 @show_app.command("decryption-profile")
 @handle_command_errors("showing decryption profile")
 def show_decryption_profile(
+    name: str | None = typer.Argument(None, help="Name of the decryption profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the decryption profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the decryption profile"),
     device: str = typer.Option(None, "--device", help="Device containing the decryption profile"),
-    name: str | None = typer.Option(None, "--name", help="Name of the decryption profile to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display decryption profiles.
 
@@ -1425,7 +1412,7 @@ def show_decryption_profile(
         scm show security decryption-profile --folder Texas
 
         # Show a specific decryption profile by name
-        scm show security decryption-profile --folder Texas --name ssl-forward
+        scm show security decryption-profile ssl-forward --folder Texas
 
         # List profiles in snippet
         scm show security decryption-profile --snippet Security-Best-Practice
@@ -1446,6 +1433,9 @@ def show_decryption_profile(
         # List all decryption profiles in the specified container (default behavior)
         kwargs = {location_type: location_value}
         profiles = scm_client.list_decryption_profiles(**kwargs, exact_match=False)
+
+        if max_results is not None:
+            profiles = profiles[:max_results]
 
         if not profiles:
             emit([], output)
@@ -1528,23 +1518,23 @@ def backup_wildfire_antivirus_profile(
 @delete_app.command("wildfire-antivirus-profile")
 @handle_command_errors("deleting WildFire antivirus profile")
 def delete_wildfire_antivirus_profile(
+    name: str = typer.Argument(..., help="Name of the WildFire antivirus profile to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the WildFire antivirus profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the WildFire antivirus profile"),
     device: str = typer.Option(None, "--device", help="Device containing the WildFire antivirus profile"),
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a WildFire antivirus profile.
 
     Examples:
         # Delete from folder
-        scm delete security wildfire-antivirus-profile --folder Texas --name wf-strict
+        scm delete security wildfire-antivirus-profile wf-strict --folder Texas
 
         # Delete from snippet
-        scm delete security wildfire-antivirus-profile --snippet Security-Best-Practice --name wf-standard
+        scm delete security wildfire-antivirus-profile wf-standard --snippet Security-Best-Practice
 
         # Delete from device
-        scm delete security wildfire-antivirus-profile --device austin-01 --name wf-local
+        scm delete security wildfire-antivirus-profile wf-local --device austin-01
 
     """
     # Validate location parameters
@@ -1687,10 +1677,10 @@ def load_wildfire_antivirus_profile(
 @set_app.command("wildfire-antivirus-profile")
 @handle_command_errors("creating WildFire antivirus profile")
 def set_wildfire_antivirus_profile(
+    name: str = typer.Argument(..., help="Name of the WildFire antivirus profile"),
     folder: str = typer.Option(None, "--folder", help="Folder path for the WildFire antivirus profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path for the WildFire antivirus profile"),
     device: str = typer.Option(None, "--device", help="Device path for the WildFire antivirus profile"),
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     rules_json: str | None = typer.Option(
         None,
@@ -1707,15 +1697,15 @@ def set_wildfire_antivirus_profile(
 
     Examples:
         # Create basic profile in folder with default rule
-        scm set security wildfire-antivirus-profile --folder Texas --name wf-basic \
+        scm set security wildfire-antivirus-profile wf-basic --folder Texas \
             --description "Basic WildFire profile"
 
         # Create profile with custom rules (JSON)
-        scm set security wildfire-antivirus-profile --folder Texas --name wf-custom \
+        scm set security wildfire-antivirus-profile wf-custom --folder Texas \
             --rules '[{"name":"Forward All","direction":"both","analysis":"public-cloud","application":["any"],"file_type":["any"]}]'
 
         # Create profile with packet capture
-        scm set security wildfire-antivirus-profile --folder Texas --name wf-capture \
+        scm set security wildfire-antivirus-profile wf-capture --folder Texas \
             --packet-capture
 
     """
@@ -1782,11 +1772,12 @@ def set_wildfire_antivirus_profile(
 @show_app.command("wildfire-antivirus-profile")
 @handle_command_errors("showing WildFire antivirus profile")
 def show_wildfire_antivirus_profile(
+    name: str | None = typer.Argument(None, help="Name of the WildFire antivirus profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the WildFire antivirus profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the WildFire antivirus profile"),
     device: str = typer.Option(None, "--device", help="Device containing the WildFire antivirus profile"),
-    name: str | None = typer.Option(None, "--name", help="Name of the WildFire antivirus profile to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display WildFire antivirus profiles.
 
@@ -1795,7 +1786,7 @@ def show_wildfire_antivirus_profile(
         scm show security wildfire-antivirus-profile --folder Texas
 
         # Show a specific profile by name
-        scm show security wildfire-antivirus-profile --folder Texas --name wf-basic
+        scm show security wildfire-antivirus-profile wf-basic --folder Texas
 
         # List profiles in snippet
         scm show security wildfire-antivirus-profile --snippet Security-Best-Practice
@@ -1816,6 +1807,9 @@ def show_wildfire_antivirus_profile(
         # Default behavior: list all
         kwargs = {location_type: location_value}
         profiles = scm_client.list_wildfire_antivirus_profiles(**kwargs, exact_match=False)
+
+        if max_results is not None:
+            profiles = profiles[:max_results]
 
         if not profiles:
             emit([], output)
@@ -1900,20 +1894,20 @@ def backup_dns_security_profile(
 @delete_app.command("dns-security-profile")
 @handle_command_errors("deleting DNS security profile")
 def delete_dns_security_profile(
+    name: str = typer.Argument(..., help="Name of the DNS security profile to delete"),
     folder: str = DNS_SEC_FOLDER_OPTION,
     snippet: str = DNS_SEC_SNIPPET_OPTION,
     device: str = DNS_SEC_DEVICE_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a DNS security profile.
 
     Examples:
         # Delete from folder
-        scm delete security dns-security-profile --folder Texas --name dns-sec-default
+        scm delete security dns-security-profile dns-sec-default --folder Texas
 
         # Delete from snippet
-        scm delete security dns-security-profile --snippet DNS-Best-Practice --name dns-sec-strict
+        scm delete security dns-security-profile dns-sec-strict --snippet DNS-Best-Practice
 
     """
     # Validate location parameters
@@ -2054,10 +2048,10 @@ def load_dns_security_profile(
 @set_app.command("dns-security-profile")
 @handle_command_errors("creating DNS security profile")
 def set_dns_security_profile(
+    name: str = typer.Argument(..., help="Name of the DNS security profile"),
     folder: str = typer.Option(None, "--folder", help="Folder path for the DNS security profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path for the DNS security profile"),
     device: str = typer.Option(None, "--device", help="Device path for the DNS security profile"),
-    name: str = NAME_OPTION,
     description: str | None = typer.Option(
         None,
         "--description",
@@ -2073,11 +2067,11 @@ def set_dns_security_profile(
 
     Examples:
         # Create basic DNS security profile with sinkhole
-        scm set security dns-security-profile --folder Texas --name dns-sec-default \
+        scm set security dns-security-profile dns-sec-default --folder Texas \
             --botnet-domains '{"dns_security_categories": [{"name": "pan-dns-sec-malware", "action": "sinkhole"}]}'
 
         # Create profile with whitelist
-        scm set security dns-security-profile --folder Texas --name dns-sec-custom \
+        scm set security dns-security-profile dns-sec-custom --folder Texas \
             --botnet-domains '{"whitelist": [{"name": "example.com"}]}'
 
     """
@@ -2128,11 +2122,12 @@ def set_dns_security_profile(
 @show_app.command("dns-security-profile")
 @handle_command_errors("showing DNS security profile")
 def show_dns_security_profile(
+    name: str | None = typer.Argument(None, help="Name of the DNS security profile to show; omit to list all"),
     folder: str = DNS_SEC_FOLDER_OPTION,
     snippet: str = DNS_SEC_SNIPPET_OPTION,
     device: str = DNS_SEC_DEVICE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the DNS security profile to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display DNS security profiles.
 
@@ -2141,7 +2136,7 @@ def show_dns_security_profile(
         scm show security dns-security-profile --folder Texas
 
         # Show a specific DNS security profile by name
-        scm show security dns-security-profile --folder Texas --name dns-sec-default
+        scm show security dns-security-profile dns-sec-default --folder Texas
 
         # List profiles in snippet
         scm show security dns-security-profile --snippet Security-Best-Practice
@@ -2162,6 +2157,9 @@ def show_dns_security_profile(
         # Default behavior: list all
         kwargs = {location_type: location_value}
         profiles = scm_client.list_dns_security_profiles(**kwargs, exact_match=False)
+
+        if max_results is not None:
+            profiles = profiles[:max_results]
 
         if not profiles:
             emit([], output)
@@ -2244,23 +2242,23 @@ def backup_vulnerability_protection_profile(
 @delete_app.command("vulnerability-protection-profile")
 @handle_command_errors("deleting vulnerability protection profile")
 def delete_vulnerability_protection_profile(
+    name: str = typer.Argument(..., help="Name of the vulnerability protection profile to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the vulnerability protection profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the vulnerability protection profile"),
     device: str = typer.Option(None, "--device", help="Device containing the vulnerability protection profile"),
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a vulnerability protection profile.
 
     Examples:
         # Delete from folder
-        scm delete security vulnerability-protection-profile --folder Texas --name strict-vuln
+        scm delete security vulnerability-protection-profile strict-vuln --folder Texas
 
         # Delete from snippet
-        scm delete security vulnerability-protection-profile --snippet Security-Best-Practice --name vuln-protection
+        scm delete security vulnerability-protection-profile vuln-protection --snippet Security-Best-Practice
 
         # Delete from device
-        scm delete security vulnerability-protection-profile --device austin-01 --name local-profile
+        scm delete security vulnerability-protection-profile local-profile --device austin-01
 
     """
     # Validate location parameters
@@ -2403,10 +2401,10 @@ def load_vulnerability_protection_profile(
 @set_app.command("vulnerability-protection-profile")
 @handle_command_errors("creating vulnerability protection profile")
 def set_vulnerability_protection_profile(
+    name: str = typer.Argument(..., help="Name of the vulnerability protection profile"),
     folder: str = typer.Option(None, "--folder", help="Folder path for the vulnerability protection profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path for the vulnerability protection profile"),
     device: str = typer.Option(None, "--device", help="Device path for the vulnerability protection profile"),
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     block_critical_high: bool = typer.Option(
         False,
@@ -2418,16 +2416,16 @@ def set_vulnerability_protection_profile(
 
     Examples:
         # Create basic profile in folder
-        scm set security vulnerability-protection-profile --folder Texas --name strict-vuln \
+        scm set security vulnerability-protection-profile strict-vuln --folder Texas \
             --description "Block critical vulnerabilities"
 
         # Create profile with block critical/high rule
-        scm set security vulnerability-protection-profile --folder Texas --name vuln-protection \
+        scm set security vulnerability-protection-profile vuln-protection --folder Texas \
             --block-critical-high
 
         # Create profile in snippet
-        scm set security vulnerability-protection-profile --snippet Security-Best-Practice \
-            --name standard-vuln
+        scm set security vulnerability-protection-profile standard-vuln \
+            --snippet Security-Best-Practice
 
     """
     # Validate location parameters
@@ -2501,11 +2499,12 @@ def set_vulnerability_protection_profile(
 @show_app.command("vulnerability-protection-profile")
 @handle_command_errors("showing vulnerability protection profile")
 def show_vulnerability_protection_profile(
+    name: str | None = typer.Argument(None, help="Name of the vulnerability protection profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the vulnerability protection profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the vulnerability protection profile"),
     device: str = typer.Option(None, "--device", help="Device containing the vulnerability protection profile"),
-    name: str | None = typer.Option(None, "--name", help="Name of the vulnerability protection profile to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display vulnerability protection profiles.
 
@@ -2514,7 +2513,7 @@ def show_vulnerability_protection_profile(
         scm show security vulnerability-protection-profile --folder Texas
 
         # Show a specific vulnerability protection profile by name
-        scm show security vulnerability-protection-profile --folder Texas --name strict-vuln
+        scm show security vulnerability-protection-profile strict-vuln --folder Texas
 
         # List profiles in snippet
         scm show security vulnerability-protection-profile --snippet Security-Best-Practice
@@ -2535,6 +2534,9 @@ def show_vulnerability_protection_profile(
         # Default behavior: list all
         kwargs = {location_type: location_value}
         profiles = scm_client.list_vulnerability_protection_profiles(**kwargs, exact_match=False)
+
+        if max_results is not None:
+            profiles = profiles[:max_results]
 
         if not profiles:
             emit([], output)
@@ -2616,23 +2618,23 @@ def backup_url_category(
 @delete_app.command("url-category")
 @handle_command_errors("deleting URL category")
 def delete_url_category(
+    name: str = typer.Argument(..., help="Name of the URL category to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the URL category"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the URL category"),
     device: str = typer.Option(None, "--device", help="Device containing the URL category"),
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a URL category.
 
     Examples:
         # Delete from folder
-        scm delete security url-category --folder Texas --name custom-block-list
+        scm delete security url-category custom-block-list --folder Texas
 
         # Delete from snippet
-        scm delete security url-category --snippet DNS-Best-Practice --name phishing-urls
+        scm delete security url-category phishing-urls --snippet DNS-Best-Practice
 
         # Delete from device
-        scm delete security url-category --device austin-01 --name local-blocklist
+        scm delete security url-category local-blocklist --device austin-01
 
     """
     # Validate location parameters
@@ -2775,10 +2777,10 @@ def load_url_category(
 @set_app.command("url-category")
 @handle_command_errors("creating URL category")
 def set_url_category(
+    name: str = typer.Argument(..., help="Name of the URL category"),
     folder: str = typer.Option(None, "--folder", help="Folder path for the URL category"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path for the URL category"),
     device: str = typer.Option(None, "--device", help="Device path for the URL category"),
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     type: str = typer.Option("URL List", "--type", help="Type of URL category (URL List or Category Match)"),
     urls: list[str] | None = URL_CATEGORY_URLS_OPTION,
@@ -2787,16 +2789,16 @@ def set_url_category(
 
     Examples:
         # Create URL list category in folder
-        scm set security url-category --folder Texas --name custom-block \
+        scm set security url-category custom-block --folder Texas \
             --url malware.example.com --url phishing.test.org
 
         # Create category match type
-        scm set security url-category --folder Texas --name match-category \
+        scm set security url-category match-category --folder Texas \
             --type "Category Match" --url gambling --url adult
 
         # Create in snippet
-        scm set security url-category --snippet Security-Best-Practice \
-            --name blocked-sites --url bad-site.com
+        scm set security url-category blocked-sites \
+            --snippet Security-Best-Practice --url bad-site.com
 
     """
     # Validate location parameters
@@ -2844,11 +2846,12 @@ def set_url_category(
 @show_app.command("url-category")
 @handle_command_errors("showing URL category")
 def show_url_category(
+    name: str | None = typer.Argument(None, help="Name of the URL category to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the URL category"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the URL category"),
     device: str = typer.Option(None, "--device", help="Device containing the URL category"),
-    name: str | None = typer.Option(None, "--name", help="Name of the URL category to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display URL categories.
 
@@ -2857,7 +2860,7 @@ def show_url_category(
         scm show security url-category --folder Texas
 
         # Show a specific URL category by name
-        scm show security url-category --folder Texas --name custom-block
+        scm show security url-category custom-block --folder Texas
 
         # List URL categories in snippet
         scm show security url-category --snippet Security-Best-Practice
@@ -2878,6 +2881,9 @@ def show_url_category(
         # Default behavior: list all
         kwargs = {location_type: location_value}
         categories = scm_client.list_url_categories(**kwargs, exact_match=False)
+
+        if max_results is not None:
+            categories = categories[:max_results]
 
         if not categories:
             emit([], output)
@@ -2947,17 +2953,17 @@ def backup_app_override_rule(
 @delete_app.command("app-override-rule")
 @handle_command_errors("deleting app override rule")
 def delete_app_override_rule(
+    name: str = typer.Argument(..., help="Name of the app override rule to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
-    name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an app override rule.
 
     Examples:
-        scm delete security app-override-rule --folder Texas --name override-web --rulebase pre
+        scm delete security app-override-rule override-web --folder Texas --rulebase pre
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3063,10 +3069,10 @@ def load_app_override_rule(
 @set_app.command("app-override-rule")
 @handle_command_errors("creating app override rule")
 def set_app_override_rule(
+    name: str = typer.Argument(..., help="Name of the app override rule"),
     folder: str = typer.Option(None, "--folder", help="Folder path"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path"),
     device: str = typer.Option(None, "--device", help="Device path"),
-    name: str = NAME_OPTION,
     application: str = typer.Option(..., "--application", help="Application to override"),
     port: str = typer.Option(..., "--port", help="Port(s) for the rule"),
     protocol: str = typer.Option(..., "--protocol", help="Protocol (tcp or udp)"),
@@ -3080,7 +3086,7 @@ def set_app_override_rule(
     r"""Create or update an app override rule.
 
     Examples:
-        scm set security app-override-rule --folder Texas --name override-https \
+        scm set security app-override-rule override-https --folder Texas \
             --application ssl --port 8443 --protocol tcp
 
     """
@@ -3130,18 +3136,19 @@ def set_app_override_rule(
 @show_app.command("app-override-rule")
 @handle_command_errors("showing app override rule")
 def show_app_override_rule(
+    name: str | None = typer.Argument(None, help="Name of the app override rule to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
-    name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
     rulebase: str = RULEBASE_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display app override rules.
 
     Examples:
         scm show security app-override-rule --folder Texas --rulebase pre
-        scm show security app-override-rule --folder Texas --name override-https
+        scm show security app-override-rule override-https --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3155,6 +3162,9 @@ def show_app_override_rule(
     else:
         kwargs = {location_type: location_value}
         rules = scm_client.list_app_override_rules(**kwargs, rulebase=rulebase, exact_match=False)
+
+        if max_results is not None:
+            rules = rules[:max_results]
 
         if not rules:
             emit([], output)
@@ -3220,17 +3230,17 @@ def backup_authentication_rule(
 @delete_app.command("authentication-rule")
 @handle_command_errors("deleting authentication rule")
 def delete_authentication_rule(
+    name: str = typer.Argument(..., help="Name of the authentication rule to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
-    name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an authentication rule.
 
     Examples:
-        scm delete security authentication-rule --folder Texas --name auth-rule-1
+        scm delete security authentication-rule auth-rule-1 --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3335,10 +3345,10 @@ def load_authentication_rule(
 @set_app.command("authentication-rule")
 @handle_command_errors("creating authentication rule")
 def set_authentication_rule(
+    name: str = typer.Argument(..., help="Name of the authentication rule"),
     folder: str = typer.Option(None, "--folder", help="Folder path"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path"),
     device: str = typer.Option(None, "--device", help="Device path"),
-    name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     source_zones: list[str] | None = AUTH_RULE_SOURCE_ZONES_OPTION,
@@ -3352,7 +3362,7 @@ def set_authentication_rule(
     r"""Create or update an authentication rule.
 
     Examples:
-        scm set security authentication-rule --folder Texas --name auth-web \
+        scm set security authentication-rule auth-web --folder Texas \
             --source-zones trust --destination-zones untrust
 
     """
@@ -3405,18 +3415,19 @@ def set_authentication_rule(
 @show_app.command("authentication-rule")
 @handle_command_errors("showing authentication rule")
 def show_authentication_rule(
+    name: str | None = typer.Argument(None, help="Name of the authentication rule to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
-    name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
     rulebase: str = RULEBASE_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display authentication rules.
 
     Examples:
         scm show security authentication-rule --folder Texas --rulebase pre
-        scm show security authentication-rule --folder Texas --name auth-web
+        scm show security authentication-rule auth-web --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3430,6 +3441,9 @@ def show_authentication_rule(
     else:
         kwargs = {location_type: location_value}
         rules = scm_client.list_authentication_rules(**kwargs, rulebase=rulebase, exact_match=False)
+
+        if max_results is not None:
+            rules = rules[:max_results]
 
         if not rules:
             emit([], output)
@@ -3495,17 +3509,17 @@ def backup_decryption_rule(
 @delete_app.command("decryption-rule")
 @handle_command_errors("deleting decryption rule")
 def delete_decryption_rule(
+    name: str = typer.Argument(..., help="Name of the decryption rule to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
-    name: str = NAME_OPTION,
     rulebase: str = RULEBASE_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a decryption rule.
 
     Examples:
-        scm delete security decryption-rule --folder Texas --name decrypt-web
+        scm delete security decryption-rule decrypt-web --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3610,10 +3624,10 @@ def load_decryption_rule(
 @set_app.command("decryption-rule")
 @handle_command_errors("creating decryption rule")
 def set_decryption_rule(
+    name: str = typer.Argument(..., help="Name of the decryption rule"),
     folder: str = typer.Option(None, "--folder", help="Folder path"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path"),
     device: str = typer.Option(None, "--device", help="Device path"),
-    name: str = NAME_OPTION,
     action: str = typer.Option(..., "--action", help="Action (decrypt or no-decrypt)"),
     rulebase: str = RULEBASE_OPTION,
     description: str | None = DESCRIPTION_OPTION,
@@ -3627,10 +3641,10 @@ def set_decryption_rule(
     r"""Create or update a decryption rule.
 
     Examples:
-        scm set security decryption-rule --folder Texas --name no-decrypt-internal \
+        scm set security decryption-rule no-decrypt-internal --folder Texas \
             --action no-decrypt --source-zones trust --destination-zones trust
 
-        scm set security decryption-rule --folder Texas --name decrypt-outbound \
+        scm set security decryption-rule decrypt-outbound --folder Texas \
             --action decrypt --type '{"ssl_forward_proxy": {}}'
 
     """
@@ -3682,18 +3696,19 @@ def set_decryption_rule(
 @show_app.command("decryption-rule")
 @handle_command_errors("showing decryption rule")
 def show_decryption_rule(
+    name: str | None = typer.Argument(None, help="Name of the decryption rule to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the rule"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the rule"),
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
-    name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
     rulebase: str = RULEBASE_OPTION,
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display decryption rules.
 
     Examples:
         scm show security decryption-rule --folder Texas --rulebase pre
-        scm show security decryption-rule --folder Texas --name decrypt-outbound
+        scm show security decryption-rule decrypt-outbound --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3707,6 +3722,9 @@ def show_decryption_rule(
     else:
         kwargs = {location_type: location_value}
         rules = scm_client.list_decryption_rules(**kwargs, rulebase=rulebase, exact_match=False)
+
+        if max_results is not None:
+            rules = rules[:max_results]
 
         if not rules:
             emit([], output)
@@ -3770,16 +3788,16 @@ def backup_url_access_profile(
 @delete_app.command("url-access-profile")
 @handle_command_errors("deleting URL access profile")
 def delete_url_access_profile(
+    name: str = typer.Argument(..., help="Name of the URL access profile to delete"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the profile"),
     device: str = typer.Option(None, "--device", help="Device containing the profile"),
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a URL access profile.
 
     Examples:
-        scm delete security url-access-profile --folder Texas --name strict-url-profile
+        scm delete security url-access-profile strict-url-profile --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3885,10 +3903,10 @@ def load_url_access_profile(
 @set_app.command("url-access-profile")
 @handle_command_errors("creating URL access profile")
 def set_url_access_profile(
+    name: str = typer.Argument(..., help="Name of the URL access profile"),
     folder: str = typer.Option(None, "--folder", help="Folder path"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet path"),
     device: str = typer.Option(None, "--device", help="Device path"),
-    name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     block: list[str] | None = URL_PROFILE_BLOCK_OPTION,
     alert: list[str] | None = URL_PROFILE_ALERT_OPTION,
@@ -3900,7 +3918,7 @@ def set_url_access_profile(
     r"""Create or update a URL access profile.
 
     Examples:
-        scm set security url-access-profile --folder Texas --name strict-url \
+        scm set security url-access-profile strict-url --folder Texas \
             --block adult --block malware --alert hacking
 
     """
@@ -3950,17 +3968,18 @@ def set_url_access_profile(
 @show_app.command("url-access-profile")
 @handle_command_errors("showing URL access profile")
 def show_url_access_profile(
+    name: str | None = typer.Argument(None, help="Name of the URL access profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder containing the profile"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the profile"),
     device: str = typer.Option(None, "--device", help="Device containing the profile"),
-    name: str | None = typer.Option(None, "--name", help="Name of the profile to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display URL access profiles.
 
     Examples:
         scm show security url-access-profile --folder Texas
-        scm show security url-access-profile --folder Texas --name strict-url
+        scm show security url-access-profile strict-url --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3974,6 +3993,9 @@ def show_url_access_profile(
     else:
         kwargs = {location_type: location_value}
         profiles = scm_client.list_url_access_profiles(**kwargs, exact_match=False)
+
+        if max_results is not None:
+            profiles = profiles[:max_results]
 
         if not profiles:
             emit([], output)
@@ -3995,7 +4017,6 @@ def show_url_access_profile(
 MOVE_FOLDER_OPTION = typer.Option(None, "--folder", help="Folder containing the rule")
 MOVE_SNIPPET_OPTION = typer.Option(None, "--snippet", help="Snippet containing the rule")
 MOVE_DEVICE_OPTION = typer.Option(None, "--device", help="Device containing the rule")
-MOVE_NAME_OPTION = typer.Option(..., "--name", help="Name of the rule to move")
 MOVE_DESTINATION_OPTION = typer.Option(..., "--destination", help="Where to move (top, bottom, before, after)")
 MOVE_RULEBASE_OPTION = typer.Option("pre", "--rulebase", help="Rulebase (pre or post)")
 MOVE_DESTINATION_RULE_OPTION = typer.Option(None, "--destination-rule", help="UUID of reference rule for before/after")
@@ -4004,10 +4025,10 @@ MOVE_DESTINATION_RULE_OPTION = typer.Option(None, "--destination-rule", help="UU
 @move_app.command("rule")
 @handle_command_errors("moving security rule")
 def move_security_rule_cmd(
+    name: str = typer.Argument(..., help="Name of the security rule to move"),
     folder: str = MOVE_FOLDER_OPTION,
     snippet: str = MOVE_SNIPPET_OPTION,
     device: str = MOVE_DEVICE_OPTION,
-    name: str = MOVE_NAME_OPTION,
     destination: str = MOVE_DESTINATION_OPTION,
     rulebase: str = MOVE_RULEBASE_OPTION,
     destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
@@ -4015,8 +4036,8 @@ def move_security_rule_cmd(
     """Move a security rule to a new position.
 
     Examples:
-        scm move security rule --folder Texas --name "Allow Web" --destination top --rulebase pre
-        scm move security rule --folder Texas --name "Allow Web" --destination after --destination-rule <uuid>
+        scm move security rule "Allow Web" --folder Texas --destination top --rulebase pre
+        scm move security rule "Allow Web" --folder Texas --destination after --destination-rule <uuid>
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -4039,10 +4060,10 @@ def move_security_rule_cmd(
 @move_app.command("app-override-rule")
 @handle_command_errors("moving app override rule")
 def move_app_override_rule_cmd(
+    name: str = typer.Argument(..., help="Name of the app override rule to move"),
     folder: str = MOVE_FOLDER_OPTION,
     snippet: str = MOVE_SNIPPET_OPTION,
     device: str = MOVE_DEVICE_OPTION,
-    name: str = MOVE_NAME_OPTION,
     destination: str = MOVE_DESTINATION_OPTION,
     rulebase: str = MOVE_RULEBASE_OPTION,
     destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
@@ -4050,8 +4071,8 @@ def move_app_override_rule_cmd(
     """Move an app override rule to a new position.
 
     Examples:
-        scm move security app-override-rule --folder Texas --name override-https --destination top
-        scm move security app-override-rule --folder Texas --name override-https --destination before --destination-rule <uuid>
+        scm move security app-override-rule override-https --folder Texas --destination top
+        scm move security app-override-rule override-https --folder Texas --destination before --destination-rule <uuid>
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -4074,10 +4095,10 @@ def move_app_override_rule_cmd(
 @move_app.command("authentication-rule")
 @handle_command_errors("moving authentication rule")
 def move_authentication_rule_cmd(
+    name: str = typer.Argument(..., help="Name of the authentication rule to move"),
     folder: str = MOVE_FOLDER_OPTION,
     snippet: str = MOVE_SNIPPET_OPTION,
     device: str = MOVE_DEVICE_OPTION,
-    name: str = MOVE_NAME_OPTION,
     destination: str = MOVE_DESTINATION_OPTION,
     rulebase: str = MOVE_RULEBASE_OPTION,
     destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
@@ -4085,7 +4106,7 @@ def move_authentication_rule_cmd(
     """Move an authentication rule to a new position.
 
     Examples:
-        scm move security authentication-rule --folder Texas --name auth-rule --destination bottom
+        scm move security authentication-rule auth-rule --folder Texas --destination bottom
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -4108,10 +4129,10 @@ def move_authentication_rule_cmd(
 @move_app.command("decryption-rule")
 @handle_command_errors("moving decryption rule")
 def move_decryption_rule_cmd(
+    name: str = typer.Argument(..., help="Name of the decryption rule to move"),
     folder: str = MOVE_FOLDER_OPTION,
     snippet: str = MOVE_SNIPPET_OPTION,
     device: str = MOVE_DEVICE_OPTION,
-    name: str = MOVE_NAME_OPTION,
     destination: str = MOVE_DESTINATION_OPTION,
     rulebase: str = MOVE_RULEBASE_OPTION,
     destination_rule: str = MOVE_DESTINATION_RULE_OPTION,
@@ -4119,7 +4140,7 @@ def move_decryption_rule_cmd(
     """Move a decryption rule to a new position.
 
     Examples:
-        scm move security decryption-rule --folder Texas --name decrypt-rule --destination top
+        scm move security decryption-rule decrypt-rule --folder Texas --destination top
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)

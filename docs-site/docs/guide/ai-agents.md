@@ -153,7 +153,7 @@ file committed to version control. Use environment variables or pre-configured c
 
 ## Best Practices
 
-1. **Start with mock mode**: When testing agent workflows, append `--mock` to commands to validate the command structure without making API calls.
+1. **Start with mock mode**: When testing agent workflows, set `SCM_MOCK=1` to validate the command structure without making API calls.
 2. **Use dry runs for bulk operations**: Always run `scm load ... --dry-run` before applying YAML imports to catch errors early.
 3. **Commit explicitly**: Instruct your agent to commit only when you confirm. Staged changes have no effect until committed.
 4. **Scope agent permissions**: Limit the agent to specific folders to prevent unintended changes across your SCM tenant.

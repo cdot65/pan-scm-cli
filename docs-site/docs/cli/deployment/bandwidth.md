@@ -19,14 +19,19 @@ Create or update a bandwidth allocation.
 ### Syntax
 
 ```bash
-scm set sase bandwidth-allocation [OPTIONS]
+scm set sase bandwidth-allocation NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the bandwidth allocation | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the bandwidth allocation | Yes |
 | `--bandwidth INT` | Bandwidth value in Mbps | Yes |
 | `--spn-name-list TEXT` | SPN names (comma-separated if multiple) | Yes |
 | `--description TEXT` | Description for the bandwidth allocation | No |
@@ -41,8 +46,7 @@ Bandwidth allocations are global resources and do not require a `--folder` param
 #### Create a Basic Bandwidth Allocation
 
 ```bash
-$ scm set sase bandwidth-allocation \
-    --name Standard-Branch \
+$ scm set sase bandwidth-allocation Standard-Branch \
     --bandwidth 100 \
     --spn-name-list "branch-spn-1" \
     --description "Standard bandwidth for branch offices"
@@ -53,8 +57,7 @@ Created bandwidth allocation: Standard-Branch (100 Mbps)
 #### Create a Bandwidth Allocation with Multiple SPNs
 
 ```bash
-$ scm set sase bandwidth-allocation \
-    --name HQ-Bandwidth \
+$ scm set sase bandwidth-allocation HQ-Bandwidth \
     --bandwidth 1000 \
     --spn-name-list "HQ-SPN-1,HQ-SPN-2" \
     --description "High bandwidth for headquarters"
@@ -69,21 +72,26 @@ Delete a bandwidth allocation from SCM.
 ### Syntax
 
 ```bash
-scm delete sase bandwidth-allocation [OPTIONS]
+scm delete sase bandwidth-allocation NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the bandwidth allocation to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the bandwidth allocation to delete | Yes |
 | `--spn-name-list TEXT` | SPN names (comma-separated if multiple) | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase bandwidth-allocation --name Standard-Branch --spn-name-list "branch-spn-1" --force
+$ scm delete sase bandwidth-allocation Standard-Branch --spn-name-list "branch-spn-1" --force
 ---> 100%
 Deleted bandwidth allocation: Standard-Branch
 ```
@@ -148,17 +156,24 @@ Display bandwidth allocation objects.
 ### Syntax
 
 ```bash
-scm show sase bandwidth-allocation [OPTIONS]
+scm show sase bandwidth-allocation [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the bandwidth allocation to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the bandwidth allocation to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -166,7 +181,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Bandwidth Allocation
 
 ```bash
-$ scm show sase bandwidth-allocation --name HQ-Bandwidth
+$ scm show sase bandwidth-allocation HQ-Bandwidth
 ---> 100%
 Bandwidth Allocation: HQ-Bandwidth
   Allocated Bandwidth: 1000 Mbps

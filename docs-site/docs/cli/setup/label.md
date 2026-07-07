@@ -19,14 +19,19 @@ Create or update a label.
 ### Syntax
 
 ```bash
-scm set setup label [OPTIONS]
+scm set setup label NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Label name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Label name | Yes |
 | `--description TEXT` | Description | No |
 
 ### Examples
@@ -34,7 +39,7 @@ scm set setup label [OPTIONS]
 #### Create a Simple Label
 
 ```bash
-$ scm set setup label --name production
+$ scm set setup label production
 ---> 100%
 Created label: production
 ```
@@ -42,8 +47,7 @@ Created label: production
 #### Create a Label with Description
 
 ```bash
-$ scm set setup label \
-    --name staging \
+$ scm set setup label staging \
     --description "Staging environment"
 ---> 100%
 Created label: staging
@@ -56,20 +60,25 @@ Delete a label from SCM.
 ### Syntax
 
 ```bash
-scm delete setup label [OPTIONS]
+scm delete setup label NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the label to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the label to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete setup label --name staging --force
+$ scm delete setup label staging --force
 ---> 100%
 Deleted label: staging
 ```
@@ -135,17 +144,24 @@ Display label objects.
 ### Syntax
 
 ```bash
-scm show setup label [OPTIONS]
+scm show setup label [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the label to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the label to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all labels are listed by default.
+When no `NAME` is specified, all labels are listed by default.
 :::
 
 ### Examples
@@ -153,7 +169,7 @@ When no `--name` is specified, all labels are listed by default.
 #### Show Specific Label
 
 ```bash
-$ scm show setup label --name production
+$ scm show setup label production
 ---> 100%
 Label: production
 ================================================================================
@@ -225,13 +241,13 @@ Labels can be applied to folders, snippets, and devices. Create the labels first
 
 ```bash
 # Folder
-scm set setup folder --name Austin --parent Texas --labels production
+scm set setup folder Austin --parent Texas --labels production
 
 # Snippet
-scm set setup snippet --name Web-Security --labels production
+scm set setup snippet Web-Security --labels production
 
 # Device (must already exist)
-scm set setup device --name PA-VM-01 --labels production --labels west
+scm set setup device PA-VM-01 --labels production --labels west
 ```
 
 See [folders](folder.md), [snippets](snippet.md), and [devices](device.md) for full details on each command.

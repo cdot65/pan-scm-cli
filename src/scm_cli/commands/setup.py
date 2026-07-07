@@ -11,6 +11,7 @@ import typer
 import yaml
 from pydantic import ValidationError
 
+from ..utils import validate_location_params
 from ..utils.bulk import run_bulk
 from ..utils.config import load_from_yaml
 from ..utils.decorators import handle_command_errors
@@ -34,11 +35,6 @@ backup_app = typer.Typer(help="Backup setup configurations to YAML files")
 # =============================================================================================================================================================================================
 
 # Common options
-NAME_OPTION = typer.Option(
-    ...,
-    "--name",
-    help="Name of the resource",
-)
 DESCRIPTION_OPTION = typer.Option(
     None,
     "--description",
@@ -58,6 +54,11 @@ BACKUP_FILE_OPTION = typer.Option(
     None,
     "--file",
     help="Output filename for backup (defaults to {object-type}_{timestamp}.yaml)",
+)
+MAX_RESULTS_OPTION = typer.Option(
+    None,
+    "--max-results",
+    help="Maximum number of results to display",
 )
 
 # Folder-specific options
@@ -131,31 +132,6 @@ def get_default_backup_filename(object_type: str) -> str:
     return f"{object_type}_{timestamp}.yaml"
 
 
-def validate_container_params(folder: str | None = None, snippet: str | None = None, device: str | None = None) -> tuple[str, str]:
-    """Validate that exactly one container parameter is provided.
-
-    Returns:
-        tuple: (container_type, container_value)
-
-    """
-    container_count = sum(1 for c in [folder, snippet, device] if c is not None)
-
-    if container_count == 0:
-        error("Error: One of --folder, --snippet, or --device must be specified")
-        raise typer.Exit(code=1)
-    elif container_count > 1:
-        error("Error: Only one of --folder, --snippet, or --device can be specified")
-        raise typer.Exit(code=1)
-
-    if folder:
-        return "folder", folder
-    elif snippet:
-        return "snippet", snippet
-    else:
-        assert device is not None
-        return "device", device
-
-
 def get_child_folder_names(parent_name: str) -> list[str]:
     """Return direct child folder names for a parent folder."""
     folders = scm_client.list_folders()
@@ -170,7 +146,7 @@ def get_child_folder_names(parent_name: str) -> list[str]:
 @set_app.command("folder")
 @handle_command_errors("creating folder")
 def set_folder(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the folder"),
     parent: str = PARENT_OPTION,
     description: str | None = DESCRIPTION_OPTION,
     labels: list[str] | None = LABELS_OPTION,
@@ -180,8 +156,8 @@ def set_folder(
 
     Examples
     --------
-        scm set setup folder --name Texas --parent "All"
-        scm set setup folder --name Branch --parent Texas --description "Branch offices"
+        scm set setup folder Texas --parent "All"
+        scm set setup folder Branch --parent Texas --description "Branch offices"
 
     """
     try:
@@ -211,15 +187,16 @@ def set_folder(
 @show_app.command("folder")
 @handle_command_errors("showing folders")
 def show_folder(
-    name: str | None = typer.Option(None, "--name", help="Name of the folder to show"),
+    name: str | None = typer.Argument(None, help="Name of the folder to show; omit to list all"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display folders.
 
     Examples
     --------
         scm show setup folder
-        scm show setup folder --name Texas
+        scm show setup folder Texas
 
     """
     if name:
@@ -228,18 +205,20 @@ def show_folder(
         return
 
     folders = scm_client.list_folders()
+    if max_results is not None:
+        folders = folders[:max_results]
     emit(folders, output, columns=["name", "display_name", "parent", "description"], title="Folders")
 
 
 @delete_app.command("folder")
 @handle_command_errors("deleting folder")
 def delete_folder(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the folder"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a folder.
 
-    Example: scm delete setup folder --name Branch
+    Example: scm delete setup folder Branch
     """
     if not force:
         typer.confirm(f"Delete folder '{name}'?", abort=True)
@@ -345,15 +324,15 @@ def backup_folder(
 @set_app.command("label")
 @handle_command_errors("creating label")
 def set_label(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the label"),
     description: str | None = DESCRIPTION_OPTION,
 ):
     """Create or update a label.
 
     Examples
     --------
-        scm set setup label --name production
-        scm set setup label --name staging --description "Staging environment"
+        scm set setup label production
+        scm set setup label staging --description "Staging environment"
 
     """
     try:
@@ -380,15 +359,16 @@ def set_label(
 @show_app.command("label")
 @handle_command_errors("showing labels")
 def show_label(
-    name: str | None = typer.Option(None, "--name", help="Name of the label to show"),
+    name: str | None = typer.Argument(None, help="Name of the label to show; omit to list all"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display labels.
 
     Examples
     --------
         scm show setup label
-        scm show setup label --name production
+        scm show setup label production
 
     """
     if name:
@@ -397,18 +377,20 @@ def show_label(
         return
 
     labels = scm_client.list_labels()
+    if max_results is not None:
+        labels = labels[:max_results]
     emit(labels, output, columns=["name", "description"], title="Labels")
 
 
 @delete_app.command("label")
 @handle_command_errors("deleting label")
 def delete_label(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the label"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a label.
 
-    Example: scm delete setup label --name staging
+    Example: scm delete setup label staging
     """
     if not force:
         typer.confirm(f"Delete label '{name}'?", abort=True)
@@ -510,7 +492,7 @@ def backup_label(
 @set_app.command("snippet")
 @handle_command_errors("creating snippet")
 def set_snippet(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the snippet"),
     description: str | None = DESCRIPTION_OPTION,
     labels: list[str] | None = LABELS_OPTION,
     enable_prefix: bool | None = ENABLE_PREFIX_OPTION,
@@ -519,8 +501,8 @@ def set_snippet(
 
     Examples
     --------
-        scm set setup snippet --name "DNS-Best-Practice"
-        scm set setup snippet --name "Web-Security" --description "Web security config" --labels prod
+        scm set setup snippet "DNS-Best-Practice"
+        scm set setup snippet "Web-Security" --description "Web security config" --labels prod
 
     """
     try:
@@ -549,15 +531,16 @@ def set_snippet(
 @show_app.command("snippet")
 @handle_command_errors("showing snippets")
 def show_snippet(
-    name: str | None = typer.Option(None, "--name", help="Name of the snippet to show"),
+    name: str | None = typer.Argument(None, help="Name of the snippet to show; omit to list all"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display snippets.
 
     Examples
     --------
         scm show setup snippet
-        scm show setup snippet --name "DNS-Best-Practice"
+        scm show setup snippet "DNS-Best-Practice"
 
     """
     if name:
@@ -566,18 +549,20 @@ def show_snippet(
         return
 
     snippets = scm_client.list_snippets()
+    if max_results is not None:
+        snippets = snippets[:max_results]
     emit(snippets, output, columns=["name", "type", "description"], title="Snippets")
 
 
 @delete_app.command("snippet")
 @handle_command_errors("deleting snippet")
 def delete_snippet(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the snippet"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a snippet.
 
-    Example: scm delete setup snippet --name "DNS-Best-Practice"
+    Example: scm delete setup snippet "DNS-Best-Practice"
     """
     if not force:
         typer.confirm(f"Delete snippet '{name}'?", abort=True)
@@ -679,7 +664,7 @@ def backup_snippet(
 @set_app.command("variable")
 @handle_command_errors("creating variable")
 def set_variable(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the variable"),
     type: str = TYPE_OPTION,
     value: str = VALUE_OPTION,
     folder: str | None = FOLDER_OPTION,
@@ -691,11 +676,11 @@ def set_variable(
 
     Examples
     --------
-        scm set setup variable --name "\$egress-max" --type egress-max --value 1000 --folder Texas
-        scm set setup variable --name "\$dns-server" --type fqdn --value dns.example.com --snippet "DNS-Config"
+        scm set setup variable "\$egress-max" --type egress-max --value 1000 --folder Texas
+        scm set setup variable "\$dns-server" --type fqdn --value dns.example.com --snippet "DNS-Config"
 
     """
-    container_type, container_value = validate_container_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
     try:
         variable_model = Variable(
@@ -715,46 +700,49 @@ def set_variable(
 
     action = result.get("__action__", "created")
     if action == "no_change":
-        info(f"No changes detected for variable: {name} in {container_type} {container_value}")
+        info(f"No changes detected for variable: {name} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated variable: {name} in {container_type} {container_value}")
+        success(f"Updated variable: {name} in {location_type} {location_value}")
     else:
-        success(f"Created variable: {name} in {container_type} {container_value}")
+        success(f"Created variable: {name} in {location_type} {location_value}")
     return result
 
 
 @show_app.command("variable")
 @handle_command_errors("showing variables")
 def show_variable(
+    name: str | None = typer.Argument(None, help="Name of the variable to show; omit to list all"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the variable to show"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     r"""Display variables.
 
     Examples
     --------
         scm show setup variable --folder Texas
-        scm show setup variable --folder Texas --name "\$egress-max"
+        scm show setup variable "\$egress-max" --folder Texas
 
     """
+    _, location_value = validate_location_params(folder, snippet, device)
+
     if name:
         variable = scm_client.get_variable(name=name, folder=folder, snippet=snippet, device=device)
         emit(variable, output, title=f"Variable: {name}")
         return
 
     variables = scm_client.list_variables(folder=folder, snippet=snippet, device=device)
-    location = folder or snippet or device
-    title = f"Variables in {location}" if location else "Variables"
-    emit(variables, output, columns=["name", "type", "value", "description"], title=title)
+    if max_results is not None:
+        variables = variables[:max_results]
+    emit(variables, output, columns=["name", "type", "value", "description"], title=f"Variables in {location_value}")
 
 
 @delete_app.command("variable")
 @handle_command_errors("deleting variable")
 def delete_variable(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the variable"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
@@ -762,15 +750,15 @@ def delete_variable(
 ):
     r"""Delete a variable.
 
-    Example: scm delete setup variable --name "\$egress-max" --folder Texas
+    Example: scm delete setup variable "\$egress-max" --folder Texas
     """
-    container_type, container_value = validate_container_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        typer.confirm(f"Delete variable '{name}' from {container_type} '{container_value}'?", abort=True)
+        typer.confirm(f"Delete variable '{name}' from {location_type} '{location_value}'?", abort=True)
     result = scm_client.delete_variable(name=name, folder=folder, snippet=snippet, device=device)
 
     if result:
-        success(f"Deleted variable: {name} from {container_type} {container_value}")
+        success(f"Deleted variable: {name} from {location_type} {location_value}")
     else:
         error(f"Variable not found: {name}")
         raise typer.Exit(code=1)
@@ -879,16 +867,17 @@ DEVICE_FOLDER_OPTION = typer.Option(
 @show_app.command("device")
 @handle_command_errors("showing devices")
 def show_device(
-    name: str | None = typer.Option(None, "--name", help="Name or serial number of the device to show"),
+    name: str | None = typer.Argument(None, help="Name or serial number of the device to show; omit to list all"),
     folder: str | None = typer.Option(None, "--folder", help="Filter devices by folder"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display devices.
 
     Examples
     --------
         scm show setup device
-        scm show setup device --name "PA-VM-01"
+        scm show setup device "PA-VM-01"
         scm show setup device --folder Texas
 
     """
@@ -898,6 +887,8 @@ def show_device(
         return
 
     devices = scm_client.list_devices(folder=folder)
+    if max_results is not None:
+        devices = devices[:max_results]
     title = f"Devices in {folder}" if folder else "Devices"
     emit(devices, output, columns=["name", "serial_number", "model", "folder", "labels", "is_connected"], title=title)
 
@@ -905,7 +896,7 @@ def show_device(
 @set_app.command("device")
 @handle_command_errors("updating device")
 def set_device(
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name or serial number of the device"),
     display_name: str | None = DISPLAY_NAME_OPTION,
     folder: str | None = DEVICE_FOLDER_OPTION,
     description: str | None = DESCRIPTION_OPTION,
@@ -920,9 +911,9 @@ def set_device(
 
     Examples
     --------
-        scm set setup device --name PA-VM-01 --labels production --labels west
-        scm set setup device --name 0123456789 --folder Austin
-        scm set setup device --name PA-VM-01 --description "Edge firewall"
+        scm set setup device PA-VM-01 --labels production --labels west
+        scm set setup device 0123456789 --folder Austin
+        scm set setup device PA-VM-01 --description "Edge firewall"
 
     """
     try:

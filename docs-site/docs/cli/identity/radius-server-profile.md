@@ -19,14 +19,19 @@ Create or update a RADIUS server profile.
 ### Syntax
 
 ```bash
-scm set identity radius-server-profile [OPTIONS]
+scm set identity radius-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -42,9 +47,8 @@ scm set identity radius-server-profile [OPTIONS]
 #### Create RADIUS Server Profile
 
 ```bash
-$ scm set identity radius-server-profile \
+$ scm set identity radius-server-profile corp-radius \
     --folder Texas \
-    --name corp-radius \
     --servers '[{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812, "secret": "s3cret"}]' \
     --protocol '{"CHAP": {}}' \
     --timeout 5 \
@@ -56,9 +60,8 @@ Created radius-server-profile: corp-radius in folder Texas
 #### Create Profile with Multiple Servers
 
 ```bash
-$ scm set identity radius-server-profile \
+$ scm set identity radius-server-profile corp-radius-ha \
     --folder Texas \
-    --name corp-radius-ha \
     --servers '[{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812, "secret": "s3cret"}, {"name": "rad2", "ip_address": "10.0.0.2", "port": 1812, "secret": "s3cret"}]' \
     --timeout 3 \
     --retries 3
@@ -69,9 +72,8 @@ Created radius-server-profile: corp-radius-ha in folder Texas
 #### Create Profile with PAP Protocol
 
 ```bash
-$ scm set identity radius-server-profile \
+$ scm set identity radius-server-profile vpn-radius \
     --folder Texas \
-    --name vpn-radius \
     --servers '[{"name": "rad-vpn", "ip_address": "10.0.1.1", "port": 1812, "secret": "vpn-s3cret"}]' \
     --protocol '{"PAP": {}}' \
     --timeout 10
@@ -86,14 +88,19 @@ Delete a RADIUS server profile from SCM.
 ### Syntax
 
 ```bash
-scm delete identity radius-server-profile [OPTIONS]
+scm delete identity radius-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -104,9 +111,8 @@ scm delete identity radius-server-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete identity radius-server-profile \
+$ scm delete identity radius-server-profile corp-radius \
     --folder Texas \
-    --name corp-radius \
     --force
 ---> 100%
 Deleted radius-server-profile: corp-radius from folder Texas
@@ -200,22 +206,29 @@ Display RADIUS server profile objects.
 ### Syntax
 
 ```bash
-scm show identity radius-server-profile [OPTIONS]
+scm show identity radius-server-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | No |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -223,9 +236,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific RADIUS Server Profile
 
 ```bash
-$ scm show identity radius-server-profile \
-    --folder Texas \
-    --name corp-radius
+$ scm show identity radius-server-profile corp-radius \
+    --folder Texas
 ---> 100%
 RADIUS Server Profile: corp-radius
   Location: Folder 'Texas'
