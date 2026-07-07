@@ -8,9 +8,9 @@ import sys
 from pathlib import Path
 
 import typer
-from rich.console import Console
-from rich.table import Table
 
+from ..utils.decorators import handle_command_errors
+from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, success
 from ..utils.sdk_client import scm_client
 
 # =============================================================================================================================================================================================
@@ -18,7 +18,6 @@ from ..utils.sdk_client import scm_client
 # =============================================================================================================================================================================================
 
 app = typer.Typer(help="Manage local device configurations")
-console = Console()
 
 # =============================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -34,8 +33,10 @@ DEVICE_OPTION = typer.Option(..., "--device", "-d", help="Device name or serial 
 
 
 @app.command("list")
+@handle_command_errors("listing config versions")
 def list_versions(
     device: str = DEVICE_OPTION,
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """List configuration versions for a device.
 
@@ -46,47 +47,25 @@ def list_versions(
     """
     try:
         versions = scm_client.list_local_config_versions(device=device)
-
-        if not versions:
-            typer.echo("No config versions found")
-            return
-
-        table = Table(title=f"Config Versions — {device}")
-        table.add_column("Version", style="cyan")
-        table.add_column("Timestamp", style="white")
-        table.add_column("Serial", style="green")
-        table.add_column("MD5", style="dim")
-
-        for v in versions:
-            table.add_row(
-                str(v.get("local_version", "")),
-                str(v.get("timestamp", "")),
-                str(v.get("serial", "")),
-                str(v.get("md5", "")),
-            )
-
-        console.print(table)
-
     except ValueError as e:
         if "Invalid error response format" in str(e):
-            typer.echo(
-                "Error: The Local Config API returned 404. "
-                "This API may not be available for your SCM tenant or device type. "
-                "Contact Palo Alto Networks support to verify Local Config API access.",
-                err=True,
-            )
-        else:
-            typer.echo(f"Error listing config versions: {e!s}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error listing config versions: {e!s}", err=True)
-        raise typer.Exit(code=1) from e
+            error("The Local Config API returned 404. This API may not be available for your SCM tenant or device type. Contact Palo Alto Networks support to verify Local Config API access.")
+            raise typer.Exit(code=1) from e
+        raise
+
+    emit(
+        versions,
+        output,
+        columns=["local_version", "timestamp", "serial", "md5"],
+        title=f"Config Versions — {device}",
+    )
 
 
 # ----------------------------------------------------------------------------------- download -----------------------------------------------------------------------------------
 
 
 @app.command("download")
+@handle_command_errors("downloading config")
 def download_config(
     device: str = DEVICE_OPTION,
     version: str = typer.Option(..., "--version", "-v", help="Config version number"),
@@ -100,16 +79,11 @@ def download_config(
     scm local download --device 007951000123456 --version 42 --output config.xml
 
     """
-    try:
-        xml_data = scm_client.download_local_config(device=device, version=version)
+    xml_data = scm_client.download_local_config(device=device, version=version)
 
-        if output:
-            Path(output).write_bytes(xml_data)
-            typer.echo(f"Config written to {output}", err=True)
-        else:
-            sys.stdout.buffer.write(xml_data)
-            sys.stdout.buffer.write(b"\n")
-
-    except Exception as e:
-        typer.echo(f"Error downloading config: {e!s}", err=True)
-        raise typer.Exit(code=1) from e
+    if output:
+        Path(output).write_bytes(xml_data)
+        success(f"Config written to {output}")
+    else:
+        sys.stdout.buffer.write(xml_data)
+        sys.stdout.buffer.write(b"\n")

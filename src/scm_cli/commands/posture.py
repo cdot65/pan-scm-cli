@@ -14,6 +14,7 @@ from pathlib import Path
 import typer
 
 from ..utils.decorators import handle_command_errors
+from ..utils.output import error, info, success, warning
 from ..utils.sdk_client import scm_client
 from ..utils.validators import BpaAssessRequest, BpaStatusResponse, PostureExport
 
@@ -44,16 +45,16 @@ def flatten_bpa_checks(
             continue
         for subcategory, items in subcategories.items():
             for item in items:
-                for warning in item.get("warnings", []):
+                for warn in item.get("warnings", []):
                     check = {
                         "category": category,
                         "subcategory": subcategory,
-                        "check_id": warning.get("check_id"),
-                        "check_name": warning.get("check_name"),
-                        "check_type": warning.get("check_type"),
-                        "check_message": warning.get("check_message"),
-                        "check_passed": warning.get("check_passed"),
-                        "remediation": warning.get("remediation"),
+                        "check_id": warn.get("check_id"),
+                        "check_name": warn.get("check_name"),
+                        "check_type": warn.get("check_type"),
+                        "check_message": warn.get("check_message"),
+                        "check_passed": warn.get("check_passed"),
+                        "remediation": warn.get("remediation"),
                     }
                     checks.append(check)
 
@@ -250,11 +251,11 @@ def export_config(
     if not password:
         password = os.environ.get("PANOS_PASSWORD")
     if not password:
-        typer.echo("Error: password required via --password or PANOS_PASSWORD env var", err=True)
+        error("Error: password required via --password or PANOS_PASSWORD env var")
         raise typer.Exit(code=1)
 
     if not host:
-        typer.echo("Error: --host is required or set PANOS_HOST env var", err=True)
+        error("Error: --host is required or set PANOS_HOST env var")
         raise typer.Exit(code=1)
 
     # Validate inputs
@@ -272,7 +273,7 @@ def export_config(
         user=export_params.user,
         password=export_params.password,
     )
-    typer.echo(f"Generated API key for {export_params.user}@{export_params.host}", err=True)
+    info(f"Generated API key for {export_params.user}@{export_params.host}")
 
     # Export config
     config_xml = scm_client.export_panos_config(
@@ -284,7 +285,7 @@ def export_config(
     # Write to file
     output_path = Path(export_params.output)
     output_path.write_text(config_xml)
-    typer.echo(f"Exported {export_params.category} config to {output_path}")
+    success(f"Exported {export_params.category} config to {output_path}")
 
 
 # =============================================================================================================================================================================================
@@ -318,7 +319,7 @@ def assess_config(
     """
     config_path = Path(config)
     if not config_path.exists():
-        typer.echo(f"Error: config file not found: {config_path}", err=True)
+        error(f"Error: config file not found: {config_path}")
         raise typer.Exit(code=1)
 
     assess_params = BpaAssessRequest(
@@ -329,22 +330,22 @@ def assess_config(
     )
 
     # Step 1: Initiate upload
-    typer.echo("Initiating BPA upload...", err=True)
+    info("Initiating BPA upload...")
     initiate_result = scm_client.initiate_bpa_upload(
         delete_after_processing=assess_params.delete_after_processing,
     )
     task_id = initiate_result["task_id"]
     upload_url = initiate_result["upload_url"]
-    typer.echo(f"Task ID: {task_id}", err=True)
+    info(f"Task ID: {task_id}")
 
     # Step 2: Upload config to presigned URL
-    typer.echo("Uploading config...", err=True)
+    info("Uploading config...")
     config_data = config_path.read_bytes()
     scm_client.upload_config_to_presigned_url(
         upload_url=upload_url,
         config_data=config_data,
     )
-    typer.echo("Upload complete. Waiting for processing...", err=True)
+    info("Upload complete. Waiting for processing...")
 
     # Step 3: Poll for completion
     start_time = time.time()
@@ -353,7 +354,7 @@ def assess_config(
     while True:
         elapsed = time.time() - start_time
         if elapsed >= assess_params.timeout:
-            typer.echo(f"Error: BPA processing timed out after {assess_params.timeout}s", err=True)
+            error(f"Error: BPA processing timed out after {assess_params.timeout}s")
             raise typer.Exit(code=1)
 
         status_result = scm_client.get_bpa_status(task_id=task_id)
@@ -363,28 +364,28 @@ def assess_config(
             break
         elif status.status == "FAILED":
             msg = status.message or "unknown error"
-            typer.echo(f"Error: BPA processing failed: {msg}", err=True)
+            error(f"Error: BPA processing failed: {msg}")
             raise typer.Exit(code=1)
 
-        typer.echo(f"  Status: {status.status} ({status.message or 'processing...'})", err=True)
+        info(f"  Status: {status.status} ({status.message or 'processing...'})")
         time.sleep(poll_interval)
 
     # Step 4: Fetch report
     report_url = status.result["report_url"]  # type: ignore[index]
-    typer.echo("Fetching report...", err=True)
+    info("Fetching report...")
     report = scm_client.fetch_bpa_report(report_url=report_url)
 
     # Save raw report
     output_path = Path(assess_params.output)
     output_path.write_text(json.dumps(report, indent=2))
-    typer.echo(f"BPA report saved to {output_path}", err=True)
+    info(f"BPA report saved to {output_path}")
 
     # Output formatted results to stdout
     checks = flatten_bpa_checks(report)
     if checks:
         typer.echo(format_bpa_output(checks, fmt=format))
     else:
-        typer.echo("Warning: no checks found in report", err=True)
+        warning("Warning: no checks found in report")
 
 
 # =============================================================================================================================================================================================
@@ -415,14 +416,14 @@ def score_report(
     """
     report_path = Path(report)
     if not report_path.exists():
-        typer.echo(f"Error: report file not found: {report_path}", err=True)
+        error(f"Error: report file not found: {report_path}")
         raise typer.Exit(code=1)
 
     report_data = json.loads(report_path.read_text())
     checks = flatten_bpa_checks(report_data, scope=scope)
 
     if not checks:
-        typer.echo("Error: no checks found for the given scope", err=True)
+        error("Error: no checks found for the given scope")
         raise typer.Exit(code=1)
 
     typer.echo(format_bpa_output(checks, fmt=format))

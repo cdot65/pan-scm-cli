@@ -12,6 +12,8 @@ import yaml
 from pydantic import ValidationError
 
 from ..utils.config import load_from_yaml
+from ..utils.decorators import handle_command_errors
+from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
 from ..utils.sdk_client import scm_client
 from ..utils.validators import Device, Folder, Label, Snippet, Variable
 
@@ -138,10 +140,10 @@ def validate_container_params(folder: str | None = None, snippet: str | None = N
     container_count = sum(1 for c in [folder, snippet, device] if c is not None)
 
     if container_count == 0:
-        typer.echo("Error: One of --folder, --snippet, or --device must be specified", err=True)
+        error("Error: One of --folder, --snippet, or --device must be specified")
         raise typer.Exit(code=1)
     elif container_count > 1:
-        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     if folder:
@@ -165,6 +167,7 @@ def get_child_folder_names(parent_name: str) -> list[str]:
 
 
 @set_app.command("folder")
+@handle_command_errors("creating folder")
 def set_folder(
     name: str = NAME_OPTION,
     parent: str = PARENT_OPTION,
@@ -188,29 +191,27 @@ def set_folder(
             labels=labels,
             snippets=snippets,
         )
-
-        result = scm_client.create_folder(**folder_model.to_sdk_model())
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for folder: {name} (parent: {parent})")
-        elif action == "updated":
-            typer.echo(f"Updated folder: {name} (parent: {parent})")
-        else:
-            typer.echo(f"Created folder: {name} (parent: {parent})")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating folder: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.create_folder(**folder_model.to_sdk_model())
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for folder: {name} (parent: {parent})")
+    elif action == "updated":
+        success(f"Updated folder: {name} (parent: {parent})")
+    else:
+        success(f"Created folder: {name} (parent: {parent})")
+    return result
 
 
 @show_app.command("folder")
+@handle_command_errors("showing folders")
 def show_folder(
     name: str | None = typer.Option(None, "--name", help="Name of the folder to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display folders.
 
@@ -220,45 +221,17 @@ def show_folder(
         scm show setup folder --name Texas
 
     """
-    try:
-        if name:
-            folder = scm_client.get_folder(name=name)
+    if name:
+        folder = scm_client.get_folder(name=name)
+        emit(folder, output, title=f"Folder: {name}")
+        return
 
-            typer.echo(f"\nFolder: {folder.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            typer.echo(f"Parent: {folder.get('parent', 'N/A')}")
-            if folder.get("description"):
-                typer.echo(f"Description: {folder['description']}")
-            if folder.get("labels"):
-                typer.echo(f"Labels: {', '.join(folder['labels'])}")
-            if folder.get("snippets"):
-                typer.echo(f"Snippets: {', '.join(folder['snippets'])}")
-            if folder.get("id"):
-                typer.echo(f"ID: {folder['id']}")
-        else:
-            folders = scm_client.list_folders()
-
-            if not folders:
-                typer.echo("No folders found")
-                return
-
-            typer.echo(f"\nFolders ({len(folders)}):")
-            typer.echo("-" * 80)
-            for f in folders:
-                typer.echo(f"Name: {f.get('name', 'N/A')}")
-                if f.get("display_name"):
-                    typer.echo(f"  Display Name: {f['display_name']}")
-                typer.echo(f"  Parent: {f.get('parent', 'N/A')}")
-                if f.get("description"):
-                    typer.echo(f"  Description: {f['description']}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing folders: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    folders = scm_client.list_folders()
+    emit(folders, output, columns=["name", "display_name", "parent", "description"], title="Folders")
 
 
 @delete_app.command("folder")
+@handle_command_errors("deleting folder")
 def delete_folder(
     name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
@@ -267,34 +240,26 @@ def delete_folder(
 
     Example: scm delete setup folder --name Branch
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete folder '{name}'?", abort=True)
+    if not force:
+        typer.confirm(f"Delete folder '{name}'?", abort=True)
 
-        child_folders = get_child_folder_names(name)
-        if child_folders:
-            child_list = ", ".join(child_folders)
-            typer.echo(
-                f"Cannot delete folder '{name}' because it contains child folder(s): {child_list}. Delete or move the child folder(s) first.",
-                err=True,
-            )
-            raise typer.Exit(code=1)
+    child_folders = get_child_folder_names(name)
+    if child_folders:
+        child_list = ", ".join(child_folders)
+        error(f"Cannot delete folder '{name}' because it contains child folder(s): {child_list}. Delete or move the child folder(s) first.")
+        raise typer.Exit(code=1)
 
-        result = scm_client.delete_folder(name=name)
+    result = scm_client.delete_folder(name=name)
 
-        if result:
-            typer.echo(f"Deleted folder: {name}")
-        else:
-            typer.echo(f"Folder not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except typer.Exit:
-        raise
-    except Exception as e:
-        typer.echo(f"Error deleting folder: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted folder: {name}")
+    else:
+        error(f"Folder not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("folder")
+@handle_command_errors("loading folders")
 def load_folder(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -303,41 +268,38 @@ def load_folder(
 
     Example: scm load setup folder --file folders.yaml
     """
-    try:
-        config = load_from_yaml(str(file), "folders")
+    config = load_from_yaml(str(file), "folders")
 
-        if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
-            typer.echo(yaml.dump(config["folders"]))
-            return None
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        typer.echo(yaml.dump(config["folders"]))
+        return None
 
-        results = []
-        for folder_data in config["folders"]:
+    results = []
+    for folder_data in config["folders"]:
+        try:
             folder_model = Folder(**folder_data)
-            sdk_data = folder_model.to_sdk_model()
-            result = scm_client.create_folder(**sdk_data)
-            results.append(result)
+        except ValidationError as e:
+            error(f"Validation error: {e}")
+            raise typer.Exit(code=1) from e
+        sdk_data = folder_model.to_sdk_model()
+        result = scm_client.create_folder(**sdk_data)
+        results.append(result)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                typer.echo(f"No changes for folder: {folder_model.name}")
-            elif action == "updated":
-                typer.echo(f"Updated folder: {folder_model.name}")
-            else:
-                typer.echo(f"Created folder: {folder_model.name}")
+        action = result.get("__action__", "created")
+        if action == "no_change":
+            info(f"No changes for folder: {folder_model.name}")
+        elif action == "updated":
+            success(f"Updated folder: {folder_model.name}")
+        else:
+            success(f"Created folder: {folder_model.name}")
 
-        typer.echo(f"\nProcessed {len(results)} folders from {file}")
-        return results
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading folders: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {len(results)} folders from {file}")
+    return results
 
 
 @backup_app.command("folder")
+@handle_command_errors("backing up folders")
 def backup_folder(
     file: str = BACKUP_FILE_OPTION,
 ):
@@ -352,30 +314,25 @@ def backup_folder(
     if not file:
         file = get_default_backup_filename("folders")
 
-    try:
-        folders = scm_client.list_folders()
+    folders = scm_client.list_folders()
 
-        if not folders:
-            typer.echo("No folders found")
-            return None
+    if not folders:
+        info("No folders found")
+        return None
 
-        backup_data = []
-        for f in folders:
-            f_dict = f.copy()
-            f_dict.pop("id", None)
-            backup_data.append(f_dict)
+    backup_data = []
+    for f in folders:
+        f_dict = f.copy()
+        f_dict.pop("id", None)
+        backup_data.append(f_dict)
 
-        yaml_data = {"folders": backup_data}
+    yaml_data = {"folders": backup_data}
 
-        with open(file, "w") as fh:
-            yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
+    with open(file, "w") as fh:
+        yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} folders to {file}")
-        return file
-
-    except Exception as e:
-        typer.echo(f"Error backing up folders: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} folders to {file}")
+    return file
 
 
 # =============================================================================================================================================================================================
@@ -384,6 +341,7 @@ def backup_folder(
 
 
 @set_app.command("label")
+@handle_command_errors("creating label")
 def set_label(
     name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
@@ -401,29 +359,27 @@ def set_label(
             name=name,
             description=description,
         )
-
-        result = scm_client.create_label(**label_model.to_sdk_model())
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for label: {name}")
-        elif action == "updated":
-            typer.echo(f"Updated label: {name}")
-        else:
-            typer.echo(f"Created label: {name}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating label: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.create_label(**label_model.to_sdk_model())
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for label: {name}")
+    elif action == "updated":
+        success(f"Updated label: {name}")
+    else:
+        success(f"Created label: {name}")
+    return result
 
 
 @show_app.command("label")
+@handle_command_errors("showing labels")
 def show_label(
     name: str | None = typer.Option(None, "--name", help="Name of the label to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display labels.
 
@@ -433,37 +389,17 @@ def show_label(
         scm show setup label --name production
 
     """
-    try:
-        if name:
-            label = scm_client.get_label(name=name)
+    if name:
+        label = scm_client.get_label(name=name)
+        emit(label, output, title=f"Label: {name}")
+        return
 
-            typer.echo(f"\nLabel: {label.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            if label.get("description"):
-                typer.echo(f"Description: {label['description']}")
-            if label.get("id"):
-                typer.echo(f"ID: {label['id']}")
-        else:
-            labels = scm_client.list_labels()
-
-            if not labels:
-                typer.echo("No labels found")
-                return
-
-            typer.echo(f"\nLabels ({len(labels)}):")
-            typer.echo("-" * 80)
-            for lbl in labels:
-                typer.echo(f"Name: {lbl.get('name', 'N/A')}")
-                if lbl.get("description"):
-                    typer.echo(f"  Description: {lbl['description']}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing labels: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    labels = scm_client.list_labels()
+    emit(labels, output, columns=["name", "description"], title="Labels")
 
 
 @delete_app.command("label")
+@handle_command_errors("deleting label")
 def delete_label(
     name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
@@ -472,22 +408,19 @@ def delete_label(
 
     Example: scm delete setup label --name staging
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete label '{name}'?", abort=True)
-        result = scm_client.delete_label(name=name)
+    if not force:
+        typer.confirm(f"Delete label '{name}'?", abort=True)
+    result = scm_client.delete_label(name=name)
 
-        if result:
-            typer.echo(f"Deleted label: {name}")
-        else:
-            typer.echo(f"Label not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting label: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted label: {name}")
+    else:
+        error(f"Label not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("label")
+@handle_command_errors("loading labels")
 def load_label(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -496,41 +429,38 @@ def load_label(
 
     Example: scm load setup label --file labels.yaml
     """
-    try:
-        config = load_from_yaml(str(file), "labels")
+    config = load_from_yaml(str(file), "labels")
 
-        if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
-            typer.echo(yaml.dump(config["labels"]))
-            return None
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        typer.echo(yaml.dump(config["labels"]))
+        return None
 
-        results = []
-        for label_data in config["labels"]:
+    results = []
+    for label_data in config["labels"]:
+        try:
             label_model = Label(**label_data)
-            sdk_data = label_model.to_sdk_model()
-            result = scm_client.create_label(**sdk_data)
-            results.append(result)
+        except ValidationError as e:
+            error(f"Validation error: {e}")
+            raise typer.Exit(code=1) from e
+        sdk_data = label_model.to_sdk_model()
+        result = scm_client.create_label(**sdk_data)
+        results.append(result)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                typer.echo(f"No changes for label: {label_model.name}")
-            elif action == "updated":
-                typer.echo(f"Updated label: {label_model.name}")
-            else:
-                typer.echo(f"Created label: {label_model.name}")
+        action = result.get("__action__", "created")
+        if action == "no_change":
+            info(f"No changes for label: {label_model.name}")
+        elif action == "updated":
+            success(f"Updated label: {label_model.name}")
+        else:
+            success(f"Created label: {label_model.name}")
 
-        typer.echo(f"\nProcessed {len(results)} labels from {file}")
-        return results
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading labels: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {len(results)} labels from {file}")
+    return results
 
 
 @backup_app.command("label")
+@handle_command_errors("backing up labels")
 def backup_label(
     file: str = BACKUP_FILE_OPTION,
 ):
@@ -545,30 +475,25 @@ def backup_label(
     if not file:
         file = get_default_backup_filename("labels")
 
-    try:
-        labels = scm_client.list_labels()
+    labels = scm_client.list_labels()
 
-        if not labels:
-            typer.echo("No labels found")
-            return None
+    if not labels:
+        info("No labels found")
+        return None
 
-        backup_data = []
-        for lbl in labels:
-            lbl_dict = lbl.copy()
-            lbl_dict.pop("id", None)
-            backup_data.append(lbl_dict)
+    backup_data = []
+    for lbl in labels:
+        lbl_dict = lbl.copy()
+        lbl_dict.pop("id", None)
+        backup_data.append(lbl_dict)
 
-        yaml_data = {"labels": backup_data}
+    yaml_data = {"labels": backup_data}
 
-        with open(file, "w") as fh:
-            yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
+    with open(file, "w") as fh:
+        yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} labels to {file}")
-        return file
-
-    except Exception as e:
-        typer.echo(f"Error backing up labels: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} labels to {file}")
+    return file
 
 
 # =============================================================================================================================================================================================
@@ -577,6 +502,7 @@ def backup_label(
 
 
 @set_app.command("snippet")
+@handle_command_errors("creating snippet")
 def set_snippet(
     name: str = NAME_OPTION,
     description: str | None = DESCRIPTION_OPTION,
@@ -598,29 +524,27 @@ def set_snippet(
             labels=labels,
             enable_prefix=enable_prefix,
         )
-
-        result = scm_client.create_snippet(**snippet_model.to_sdk_model())
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for snippet: {name}")
-        elif action == "updated":
-            typer.echo(f"Updated snippet: {name}")
-        else:
-            typer.echo(f"Created snippet: {name}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating snippet: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.create_snippet(**snippet_model.to_sdk_model())
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for snippet: {name}")
+    elif action == "updated":
+        success(f"Updated snippet: {name}")
+    else:
+        success(f"Created snippet: {name}")
+    return result
 
 
 @show_app.command("snippet")
+@handle_command_errors("showing snippets")
 def show_snippet(
     name: str | None = typer.Option(None, "--name", help="Name of the snippet to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display snippets.
 
@@ -630,45 +554,17 @@ def show_snippet(
         scm show setup snippet --name "DNS-Best-Practice"
 
     """
-    try:
-        if name:
-            snippet = scm_client.get_snippet(name=name)
+    if name:
+        snippet = scm_client.get_snippet(name=name)
+        emit(snippet, output, title=f"Snippet: {name}")
+        return
 
-            typer.echo(f"\nSnippet: {snippet.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            if snippet.get("description"):
-                typer.echo(f"Description: {snippet['description']}")
-            if snippet.get("type"):
-                typer.echo(f"Type: {snippet['type']}")
-            if snippet.get("labels"):
-                typer.echo(f"Labels: {', '.join(snippet['labels'])}")
-            if snippet.get("enable_prefix") is not None:
-                typer.echo(f"Enable Prefix: {snippet['enable_prefix']}")
-            if snippet.get("id"):
-                typer.echo(f"ID: {snippet['id']}")
-        else:
-            snippets = scm_client.list_snippets()
-
-            if not snippets:
-                typer.echo("No snippets found")
-                return
-
-            typer.echo(f"\nSnippets ({len(snippets)}):")
-            typer.echo("-" * 80)
-            for s in snippets:
-                typer.echo(f"Name: {s.get('name', 'N/A')}")
-                if s.get("description"):
-                    typer.echo(f"  Description: {s['description']}")
-                if s.get("type"):
-                    typer.echo(f"  Type: {s['type']}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing snippets: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    snippets = scm_client.list_snippets()
+    emit(snippets, output, columns=["name", "type", "description"], title="Snippets")
 
 
 @delete_app.command("snippet")
+@handle_command_errors("deleting snippet")
 def delete_snippet(
     name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
@@ -677,22 +573,19 @@ def delete_snippet(
 
     Example: scm delete setup snippet --name "DNS-Best-Practice"
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete snippet '{name}'?", abort=True)
-        result = scm_client.delete_snippet(name=name)
+    if not force:
+        typer.confirm(f"Delete snippet '{name}'?", abort=True)
+    result = scm_client.delete_snippet(name=name)
 
-        if result:
-            typer.echo(f"Deleted snippet: {name}")
-        else:
-            typer.echo(f"Snippet not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting snippet: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted snippet: {name}")
+    else:
+        error(f"Snippet not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("snippet")
+@handle_command_errors("loading snippets")
 def load_snippet(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -701,41 +594,38 @@ def load_snippet(
 
     Example: scm load setup snippet --file snippets.yaml
     """
-    try:
-        config = load_from_yaml(str(file), "snippets")
+    config = load_from_yaml(str(file), "snippets")
 
-        if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
-            typer.echo(yaml.dump(config["snippets"]))
-            return None
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        typer.echo(yaml.dump(config["snippets"]))
+        return None
 
-        results = []
-        for snippet_data in config["snippets"]:
+    results = []
+    for snippet_data in config["snippets"]:
+        try:
             snippet_model = Snippet(**snippet_data)
-            sdk_data = snippet_model.to_sdk_model()
-            result = scm_client.create_snippet(**sdk_data)
-            results.append(result)
+        except ValidationError as e:
+            error(f"Validation error: {e}")
+            raise typer.Exit(code=1) from e
+        sdk_data = snippet_model.to_sdk_model()
+        result = scm_client.create_snippet(**sdk_data)
+        results.append(result)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                typer.echo(f"No changes for snippet: {snippet_model.name}")
-            elif action == "updated":
-                typer.echo(f"Updated snippet: {snippet_model.name}")
-            else:
-                typer.echo(f"Created snippet: {snippet_model.name}")
+        action = result.get("__action__", "created")
+        if action == "no_change":
+            info(f"No changes for snippet: {snippet_model.name}")
+        elif action == "updated":
+            success(f"Updated snippet: {snippet_model.name}")
+        else:
+            success(f"Created snippet: {snippet_model.name}")
 
-        typer.echo(f"\nProcessed {len(results)} snippets from {file}")
-        return results
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading snippets: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {len(results)} snippets from {file}")
+    return results
 
 
 @backup_app.command("snippet")
+@handle_command_errors("backing up snippets")
 def backup_snippet(
     file: str = BACKUP_FILE_OPTION,
 ):
@@ -750,30 +640,25 @@ def backup_snippet(
     if not file:
         file = get_default_backup_filename("snippets")
 
-    try:
-        snippets = scm_client.list_snippets()
+    snippets = scm_client.list_snippets()
 
-        if not snippets:
-            typer.echo("No snippets found")
-            return None
+    if not snippets:
+        info("No snippets found")
+        return None
 
-        backup_data = []
-        for s in snippets:
-            s_dict = s.copy()
-            s_dict.pop("id", None)
-            backup_data.append(s_dict)
+    backup_data = []
+    for s in snippets:
+        s_dict = s.copy()
+        s_dict.pop("id", None)
+        backup_data.append(s_dict)
 
-        yaml_data = {"snippets": backup_data}
+    yaml_data = {"snippets": backup_data}
 
-        with open(file, "w") as fh:
-            yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
+    with open(file, "w") as fh:
+        yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} snippets to {file}")
-        return file
-
-    except Exception as e:
-        typer.echo(f"Error backing up snippets: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} snippets to {file}")
+    return file
 
 
 # =============================================================================================================================================================================================
@@ -782,6 +667,7 @@ def backup_snippet(
 
 
 @set_app.command("variable")
+@handle_command_errors("creating variable")
 def set_variable(
     name: str = NAME_OPTION,
     type: str = TYPE_OPTION,
@@ -799,9 +685,9 @@ def set_variable(
         scm set setup variable --name "\$dns-server" --type fqdn --value dns.example.com --snippet "DNS-Config"
 
     """
-    try:
-        container_type, container_value = validate_container_params(folder, snippet, device)
+    container_type, container_value = validate_container_params(folder, snippet, device)
 
+    try:
         variable_model = Variable(
             name=name,
             type=type,
@@ -811,32 +697,30 @@ def set_variable(
             device=device,
             description=description,
         )
-
-        result = scm_client.create_variable(**variable_model.to_sdk_model())
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for variable: {name} in {container_type} {container_value}")
-        elif action == "updated":
-            typer.echo(f"Updated variable: {name} in {container_type} {container_value}")
-        else:
-            typer.echo(f"Created variable: {name} in {container_type} {container_value}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating variable: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.create_variable(**variable_model.to_sdk_model())
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for variable: {name} in {container_type} {container_value}")
+    elif action == "updated":
+        success(f"Updated variable: {name} in {container_type} {container_value}")
+    else:
+        success(f"Created variable: {name} in {container_type} {container_value}")
+    return result
 
 
 @show_app.command("variable")
+@handle_command_errors("showing variables")
 def show_variable(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the variable to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     r"""Display variables.
 
@@ -846,47 +730,19 @@ def show_variable(
         scm show setup variable --folder Texas --name "\$egress-max"
 
     """
-    try:
-        if name:
-            variable = scm_client.get_variable(name=name, folder=folder, snippet=snippet, device=device)
+    if name:
+        variable = scm_client.get_variable(name=name, folder=folder, snippet=snippet, device=device)
+        emit(variable, output, title=f"Variable: {name}")
+        return
 
-            typer.echo(f"\nVariable: {variable.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            typer.echo(f"Type: {variable.get('type', 'N/A')}")
-            typer.echo(f"Value: {variable.get('value', 'N/A')}")
-            if variable.get("description"):
-                typer.echo(f"Description: {variable['description']}")
-            if variable.get("folder"):
-                typer.echo(f"Folder: {variable['folder']}")
-            if variable.get("snippet"):
-                typer.echo(f"Snippet: {variable['snippet']}")
-            if variable.get("device"):
-                typer.echo(f"Device: {variable['device']}")
-            if variable.get("id"):
-                typer.echo(f"ID: {variable['id']}")
-        else:
-            variables = scm_client.list_variables(folder=folder, snippet=snippet, device=device)
-
-            if not variables:
-                typer.echo("No variables found")
-                return
-
-            typer.echo(f"\nVariables ({len(variables)}):")
-            typer.echo("-" * 80)
-            for v in variables:
-                typer.echo(f"Name: {v.get('name', 'N/A')}")
-                typer.echo(f"  Type: {v.get('type', 'N/A')}")
-                typer.echo(f"  Value: {v.get('value', 'N/A')}")
-                if v.get("description"):
-                    typer.echo(f"  Description: {v['description']}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing variables: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    variables = scm_client.list_variables(folder=folder, snippet=snippet, device=device)
+    location = folder or snippet or device
+    title = f"Variables in {location}" if location else "Variables"
+    emit(variables, output, columns=["name", "type", "value", "description"], title=title)
 
 
 @delete_app.command("variable")
+@handle_command_errors("deleting variable")
 def delete_variable(
     name: str = NAME_OPTION,
     folder: str | None = FOLDER_OPTION,
@@ -898,23 +754,20 @@ def delete_variable(
 
     Example: scm delete setup variable --name "\$egress-max" --folder Texas
     """
-    try:
-        container_type, container_value = validate_container_params(folder, snippet, device)
-        if not force:
-            typer.confirm(f"Delete variable '{name}' from {container_type} '{container_value}'?", abort=True)
-        result = scm_client.delete_variable(name=name, folder=folder, snippet=snippet, device=device)
+    container_type, container_value = validate_container_params(folder, snippet, device)
+    if not force:
+        typer.confirm(f"Delete variable '{name}' from {container_type} '{container_value}'?", abort=True)
+    result = scm_client.delete_variable(name=name, folder=folder, snippet=snippet, device=device)
 
-        if result:
-            typer.echo(f"Deleted variable: {name} from {container_type} {container_value}")
-        else:
-            typer.echo(f"Variable not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting variable: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted variable: {name} from {container_type} {container_value}")
+    else:
+        error(f"Variable not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("variable")
+@handle_command_errors("loading variables")
 def load_variable(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -923,41 +776,38 @@ def load_variable(
 
     Example: scm load setup variable --file variables.yaml
     """
-    try:
-        config = load_from_yaml(str(file), "variables")
+    config = load_from_yaml(str(file), "variables")
 
-        if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
-            typer.echo(yaml.dump(config["variables"]))
-            return None
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        typer.echo(yaml.dump(config["variables"]))
+        return None
 
-        results = []
-        for var_data in config["variables"]:
+    results = []
+    for var_data in config["variables"]:
+        try:
             variable_model = Variable(**var_data)
-            sdk_data = variable_model.to_sdk_model()
-            result = scm_client.create_variable(**sdk_data)
-            results.append(result)
+        except ValidationError as e:
+            error(f"Validation error: {e}")
+            raise typer.Exit(code=1) from e
+        sdk_data = variable_model.to_sdk_model()
+        result = scm_client.create_variable(**sdk_data)
+        results.append(result)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                typer.echo(f"No changes for variable: {variable_model.name}")
-            elif action == "updated":
-                typer.echo(f"Updated variable: {variable_model.name}")
-            else:
-                typer.echo(f"Created variable: {variable_model.name}")
+        action = result.get("__action__", "created")
+        if action == "no_change":
+            info(f"No changes for variable: {variable_model.name}")
+        elif action == "updated":
+            success(f"Updated variable: {variable_model.name}")
+        else:
+            success(f"Created variable: {variable_model.name}")
 
-        typer.echo(f"\nProcessed {len(results)} variables from {file}")
-        return results
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading variables: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {len(results)} variables from {file}")
+    return results
 
 
 @backup_app.command("variable")
+@handle_command_errors("backing up variables")
 def backup_variable(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -975,30 +825,25 @@ def backup_variable(
     if not file:
         file = get_default_backup_filename("variables")
 
-    try:
-        variables = scm_client.list_variables(folder=folder, snippet=snippet, device=device)
+    variables = scm_client.list_variables(folder=folder, snippet=snippet, device=device)
 
-        if not variables:
-            typer.echo("No variables found")
-            return None
+    if not variables:
+        info("No variables found")
+        return None
 
-        backup_data = []
-        for v in variables:
-            v_dict = v.copy()
-            v_dict.pop("id", None)
-            backup_data.append(v_dict)
+    backup_data = []
+    for v in variables:
+        v_dict = v.copy()
+        v_dict.pop("id", None)
+        backup_data.append(v_dict)
 
-        yaml_data = {"variables": backup_data}
+    yaml_data = {"variables": backup_data}
 
-        with open(file, "w") as fh:
-            yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
+    with open(file, "w") as fh:
+        yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} variables to {file}")
-        return file
-
-    except Exception as e:
-        typer.echo(f"Error backing up variables: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} variables to {file}")
+    return file
 
 
 # =============================================================================================================================================================================================
@@ -1018,9 +863,11 @@ DEVICE_FOLDER_OPTION = typer.Option(
 
 
 @show_app.command("device")
+@handle_command_errors("showing devices")
 def show_device(
     name: str | None = typer.Option(None, "--name", help="Name or serial number of the device to show"),
     folder: str | None = typer.Option(None, "--folder", help="Filter devices by folder"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display devices.
 
@@ -1031,70 +878,18 @@ def show_device(
         scm show setup device --folder Texas
 
     """
-    try:
-        if name:
-            device = scm_client.get_device(name=name)
+    if name:
+        device = scm_client.get_device(name=name)
+        emit(device, output, title=f"Device: {device.get('name', device.get('hostname', name))}")
+        return
 
-            typer.echo(f"\nDevice: {device.get('name', device.get('hostname', 'N/A'))}")
-            typer.echo("=" * 80)
-            if device.get("serial_number"):
-                typer.echo(f"Serial Number: {device['serial_number']}")
-            if device.get("model"):
-                typer.echo(f"Model: {device['model']}")
-            if device.get("family"):
-                typer.echo(f"Family: {device['family']}")
-            if device.get("hostname"):
-                typer.echo(f"Hostname: {device['hostname']}")
-            if device.get("display_name"):
-                typer.echo(f"Display Name: {device['display_name']}")
-            if device.get("description"):
-                typer.echo(f"Description: {device['description']}")
-            if device.get("labels"):
-                typer.echo(f"Labels: {', '.join(device['labels'])}")
-            if device.get("snippets"):
-                typer.echo(f"Snippets: {', '.join(device['snippets'])}")
-            if device.get("ip_address"):
-                typer.echo(f"IP Address: {device['ip_address']}")
-            if device.get("folder"):
-                typer.echo(f"Folder: {device['folder']}")
-            if device.get("software_version"):
-                typer.echo(f"Software Version: {device['software_version']}")
-            if device.get("is_connected") is not None:
-                typer.echo(f"Connected: {device['is_connected']}")
-            if device.get("uptime"):
-                typer.echo(f"Uptime: {device['uptime']}")
-            if device.get("id"):
-                typer.echo(f"ID: {device['id']}")
-        else:
-            devices = scm_client.list_devices(folder=folder)
-
-            if not devices:
-                typer.echo("No devices found")
-                return
-
-            typer.echo(f"\nDevices ({len(devices)}):")
-            typer.echo("-" * 80)
-            for d in devices:
-                display_name = d.get("name", d.get("hostname", "N/A"))
-                typer.echo(f"Name: {display_name}")
-                if d.get("serial_number"):
-                    typer.echo(f"  Serial: {d['serial_number']}")
-                if d.get("model"):
-                    typer.echo(f"  Model: {d['model']}")
-                if d.get("folder"):
-                    typer.echo(f"  Folder: {d['folder']}")
-                if d.get("labels"):
-                    typer.echo(f"  Labels: {', '.join(d['labels'])}")
-                if d.get("is_connected") is not None:
-                    typer.echo(f"  Connected: {d['is_connected']}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing devices: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    devices = scm_client.list_devices(folder=folder)
+    title = f"Devices in {folder}" if folder else "Devices"
+    emit(devices, output, columns=["name", "serial_number", "model", "folder", "labels", "is_connected"], title=title)
 
 
 @set_app.command("device")
+@handle_command_errors("updating device")
 def set_device(
     name: str = NAME_OPTION,
     display_name: str | None = DISPLAY_NAME_OPTION,
@@ -1125,24 +920,22 @@ def set_device(
             labels=labels,
             snippets=snippets,
         )
-        result = scm_client.update_device(**device_model.to_sdk_model())
-
-        action = result.get("__action__", "updated")
-        if action == "no_change":
-            typer.echo(f"No changes detected for device: {name}")
-        else:
-            typer.echo(f"Updated device: {name}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error updating device: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.update_device(**device_model.to_sdk_model())
+
+    action = result.get("__action__", "updated")
+    if action == "no_change":
+        info(f"No changes detected for device: {name}")
+    else:
+        success(f"Updated device: {name}")
+    return result
 
 
 @load_app.command("device")
+@handle_command_errors("loading devices")
 def load_device(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -1155,38 +948,35 @@ def load_device(
 
     Example: scm load setup device --file devices.yaml
     """
-    try:
-        config = load_from_yaml(str(file), "devices")
+    config = load_from_yaml(str(file), "devices")
 
-        if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
-            typer.echo(yaml.dump(config["devices"]))
-            return None
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        typer.echo(yaml.dump(config["devices"]))
+        return None
 
-        results = []
-        for device_data in config["devices"]:
+    results = []
+    for device_data in config["devices"]:
+        try:
             device_model = Device(**device_data)
-            result = scm_client.update_device(**device_model.to_sdk_model())
-            results.append(result)
+        except ValidationError as e:
+            error(f"Validation error: {e}")
+            raise typer.Exit(code=1) from e
+        result = scm_client.update_device(**device_model.to_sdk_model())
+        results.append(result)
 
-            action = result.get("__action__", "updated")
-            if action == "no_change":
-                typer.echo(f"No changes for device: {device_model.name}")
-            else:
-                typer.echo(f"Updated device: {device_model.name}")
+        action = result.get("__action__", "updated")
+        if action == "no_change":
+            info(f"No changes for device: {device_model.name}")
+        else:
+            success(f"Updated device: {device_model.name}")
 
-        typer.echo(f"\nProcessed {len(results)} devices from {file}")
-        return results
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading devices: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {len(results)} devices from {file}")
+    return results
 
 
 @backup_app.command("device")
+@handle_command_errors("backing up devices")
 def backup_device(
     file: str = BACKUP_FILE_OPTION,
 ):
@@ -1204,27 +994,22 @@ def backup_device(
     if not file:
         file = get_default_backup_filename("devices")
 
-    try:
-        devices = scm_client.list_devices()
+    devices = scm_client.list_devices()
 
-        if not devices:
-            typer.echo("No devices found")
-            return None
+    if not devices:
+        info("No devices found")
+        return None
 
-        backup_data = []
-        for d in devices:
-            d_dict = d.copy()
-            d_dict.pop("id", None)
-            backup_data.append(d_dict)
+    backup_data = []
+    for d in devices:
+        d_dict = d.copy()
+        d_dict.pop("id", None)
+        backup_data.append(d_dict)
 
-        yaml_data = {"devices": backup_data}
+    yaml_data = {"devices": backup_data}
 
-        with open(file, "w") as fh:
-            yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
+    with open(file, "w") as fh:
+        yaml.dump(yaml_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} devices to {file}")
-        return file
-
-    except Exception as e:
-        typer.echo(f"Error backing up devices: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} devices to {file}")
+    return file

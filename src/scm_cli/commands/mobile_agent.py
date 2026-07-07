@@ -14,6 +14,8 @@ from pydantic import ValidationError
 from ..utils import validate_location_params
 from ..utils.config import load_from_yaml, settings
 from ..utils.context import get_current_context
+from ..utils.decorators import handle_command_errors
+from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     AgentProfile,
@@ -158,9 +160,11 @@ USER_CREDENTIAL_OR_CLIENT_CERT_REQUIRED_OPTION = typer.Option(
 
 
 @show_app.command("agent-version")
+@handle_command_errors("showing agent version")
 def show_agent_version(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the agent version to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display agent versions.
 
@@ -173,68 +177,23 @@ def show_agent_version(
         scm show mobile-agent agent-version --folder "Mobile Users" --name "5.2.0"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if name:
-            # Get a specific agent version by name
-            version = scm_client.get_agent_version(folder=folder, name=name)
+    if name:
+        # Get a specific agent version by name
+        version = scm_client.get_agent_version(folder=folder, name=name)
+        emit(version, output, title=f"Agent Version: {version.get('name', 'N/A')}")
+        return version
 
-            typer.echo(f"\nAgent Version: {version.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-
-            # Display container location
-            if version.get("folder"):
-                typer.echo(f"Location: Folder '{version['folder']}'")
-            elif version.get("snippet"):
-                typer.echo(f"Location: Snippet '{version['snippet']}'")
-            elif version.get("device"):
-                typer.echo(f"Location: Device '{version['device']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            # Display version details
-            if version.get("version"):
-                typer.echo(f"Version: {version['version']}")
-            if version.get("description"):
-                typer.echo(f"Description: {version['description']}")
-            if version.get("release_date"):
-                typer.echo(f"Release Date: {version['release_date']}")
-            if version.get("end_of_life_date"):
-                typer.echo(f"End of Life: {version['end_of_life_date']}")
-            if version.get("platform"):
-                typer.echo(f"Platform: {version['platform']}")
-            if version.get("id"):
-                typer.echo(f"ID: {version['id']}")
-
-            return version
-
-        else:
-            # Default: list all agent versions
-            versions = scm_client.list_agent_versions(folder=folder)
-
-            if not versions:
-                typer.echo(f"No agent versions found in folder '{folder}'")
-                return
-
-            typer.echo(f"\nAgent Versions in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for ver in versions:
-                typer.echo(f"Name: {ver.get('name', 'N/A')}")
-                if ver.get("version"):
-                    typer.echo(f"  Version: {ver['version']}")
-                if ver.get("platform"):
-                    typer.echo(f"  Platform: {ver['platform']}")
-                if ver.get("release_date"):
-                    typer.echo(f"  Release Date: {ver['release_date']}")
-                typer.echo("-" * 60)
-
-            return versions
-
-    except Exception as e:
-        typer.echo(f"Error showing agent version: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    # Default: list all agent versions
+    versions = scm_client.list_agent_versions(folder=folder)
+    emit(
+        versions,
+        output,
+        columns=["name", "version", "platform", "release_date"],
+        title=f"Agent Versions in folder '{folder}'",
+    )
+    return versions
 
 
 # =============================================================================================================================================================================================
@@ -243,6 +202,7 @@ def show_agent_version(
 
 
 @backup_app.command("auth-setting")
+@handle_command_errors("backing up auth settings")
 def backup_auth_setting(
     folder: str = BACKUP_FOLDER_OPTION,
     snippet: str = BACKUP_SNIPPET_OPTION,
@@ -260,46 +220,42 @@ def backup_auth_setting(
         scm backup mobile-agent auth-setting --folder "Mobile Users" --file auth-settings-backup.yaml
 
     """
-    try:
-        # Validate location parameters
-        location_type, location_value = validate_location_params(folder, snippet, device)
+    # Validate location parameters
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
-        # List all auth settings in the location with exact_match=True
-        kwargs = {location_type: location_value}
-        auth_settings = scm_client.list_auth_settings(**kwargs, exact_match=True)
+    # List all auth settings in the location with exact_match=True
+    kwargs = {location_type: location_value}
+    auth_settings = scm_client.list_auth_settings(**kwargs, exact_match=True)
 
-        if not auth_settings:
-            typer.echo(f"No auth settings found in {location_type} '{location_value}'")
-            return
+    if not auth_settings:
+        info(f"No auth settings found in {location_type} '{location_value}'")
+        return
 
-        # Convert SDK models to dictionaries, excluding unset values
-        backup_data = []
-        for setting in auth_settings:
-            setting_dict = {k: v for k, v in setting.items() if v is not None}
-            # Remove system fields that shouldn't be in backup
-            setting_dict.pop("id", None)
-            backup_data.append(setting_dict)
+    # Convert SDK models to dictionaries, excluding unset values
+    backup_data = []
+    for setting in auth_settings:
+        setting_dict = {k: v for k, v in setting.items() if v is not None}
+        # Remove system fields that shouldn't be in backup
+        setting_dict.pop("id", None)
+        backup_data.append(setting_dict)
 
-        # Create the YAML structure
-        yaml_data = {"auth_settings": backup_data}
+    # Create the YAML structure
+    yaml_data = {"auth_settings": backup_data}
 
-        # Generate filename
-        if file is None:
-            file = Path(get_default_backup_filename("auth-setting", location_type, location_value))
+    # Generate filename
+    if file is None:
+        file = Path(get_default_backup_filename("auth-setting", location_type, location_value))
 
-        # Write to YAML file
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    # Write to YAML file
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} auth settings to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up auth settings: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} auth settings to {file}")
+    return str(file)
 
 
 @delete_app.command("auth-setting")
+@handle_command_errors("deleting auth setting")
 def delete_auth_setting(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -312,19 +268,16 @@ def delete_auth_setting(
         scm delete mobile-agent auth-setting --folder "Mobile Users" --name "saml-auth"
 
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete auth setting '{name}' from folder '{folder}'?", abort=True)
-        result = scm_client.delete_auth_setting(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted auth setting: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting auth setting: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if not force:
+        typer.confirm(f"Delete auth setting '{name}' from folder '{folder}'?", abort=True)
+    result = scm_client.delete_auth_setting(folder=folder, name=name)
+    if result:
+        success(f"Deleted auth setting: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("auth-setting")
+@handle_command_errors("loading auth settings")
 def load_auth_setting(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -348,7 +301,7 @@ def load_auth_setting(
         config = load_from_yaml(str(file), "auth_settings")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["auth_settings"]))
             return None
 
@@ -385,33 +338,31 @@ def load_auth_setting(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created auth setting: {result.get('name', 'N/A')}")
+                    success(f"Created auth setting: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated auth setting: {result.get('name', 'N/A')}")
+                    success(f"Updated auth setting: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for auth setting: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for auth setting: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading auth setting '{setting_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading auth setting '{setting_data.get('name', 'unknown')}': {str(e)}")
 
         # Summary
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading auth settings: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
 @set_app.command("auth-setting")
+@handle_command_errors("creating/updating auth setting")
 def set_auth_setting(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -431,54 +382,52 @@ def set_auth_setting(
         --os Any
 
     """
+    # Build auth setting data
+    setting_data: dict[str, Any] = {
+        "name": name,
+    }
+
+    if folder:
+        setting_data["folder"] = folder
+    if description is not None:
+        setting_data["description"] = description
+    if authentication_profile is not None:
+        setting_data["authentication_profile"] = authentication_profile
+    if os is not None:
+        setting_data["os"] = os
+    if user_credential_or_client_cert_required is not None:
+        setting_data["user_credential_or_client_cert_required"] = user_credential_or_client_cert_required
+
+    # Validate using the Pydantic model
     try:
-        # Build auth setting data
-        setting_data: dict[str, Any] = {
-            "name": name,
-        }
-
-        if folder:
-            setting_data["folder"] = folder
-        if description is not None:
-            setting_data["description"] = description
-        if authentication_profile is not None:
-            setting_data["authentication_profile"] = authentication_profile
-        if os is not None:
-            setting_data["os"] = os
-        if user_credential_or_client_cert_required is not None:
-            setting_data["user_credential_or_client_cert_required"] = user_credential_or_client_cert_required
-
-        # Validate using the Pydantic model
         auth_setting = AuthSetting(**setting_data)
         sdk_data = auth_setting.to_sdk_model()
-
-        # Call the SDK client
-        result = scm_client.create_auth_setting(**sdk_data)
-
-        # Get the action performed
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created auth setting: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "updated":
-            typer.echo(f"Updated auth setting: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for auth setting: {result.get('name', name)} in folder {result.get('folder', folder)}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating/updating auth setting: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    # Call the SDK client
+    result = scm_client.create_auth_setting(**sdk_data)
+
+    # Get the action performed
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created auth setting: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "updated":
+        success(f"Updated auth setting: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "no_change":
+        info(f"No changes needed for auth setting: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+    return result
 
 
 @show_app.command("auth-setting")
+@handle_command_errors("showing auth setting")
 def show_auth_setting(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the auth setting to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display auth settings.
 
@@ -491,66 +440,23 @@ def show_auth_setting(
         scm show mobile-agent auth-setting --folder "Mobile Users" --name "saml-auth"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if name:
-            # Get a specific auth setting by name
-            setting = scm_client.get_auth_setting(folder=folder, name=name)
+    if name:
+        # Get a specific auth setting by name
+        setting = scm_client.get_auth_setting(folder=folder, name=name)
+        emit(setting, output, title=f"Auth Setting: {setting.get('name', 'N/A')}")
+        return setting
 
-            typer.echo(f"\nAuth Setting: {setting.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-
-            # Display container location
-            if setting.get("folder"):
-                typer.echo(f"Location: Folder '{setting['folder']}'")
-            elif setting.get("snippet"):
-                typer.echo(f"Location: Snippet '{setting['snippet']}'")
-            elif setting.get("device"):
-                typer.echo(f"Location: Device '{setting['device']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            # Display auth setting details
-            if setting.get("description"):
-                typer.echo(f"Description: {setting['description']}")
-            if setting.get("authentication_profile"):
-                typer.echo(f"Authentication Profile: {setting['authentication_profile']}")
-            if setting.get("os"):
-                typer.echo(f"OS: {setting['os']}")
-            if setting.get("user_credential_or_client_cert_required") is not None:
-                typer.echo(f"User Credential or Client Cert Required: {setting['user_credential_or_client_cert_required']}")
-            if setting.get("id"):
-                typer.echo(f"ID: {setting['id']}")
-
-            return setting
-
-        else:
-            # Default: list all auth settings
-            settings_list = scm_client.list_auth_settings(folder=folder)
-
-            if not settings_list:
-                typer.echo(f"No auth settings found in folder '{folder}'")
-                return
-
-            typer.echo(f"\nAuth Settings in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for setting in settings_list:
-                typer.echo(f"Name: {setting.get('name', 'N/A')}")
-                if setting.get("authentication_profile"):
-                    typer.echo(f"  Authentication Profile: {setting['authentication_profile']}")
-                if setting.get("os"):
-                    typer.echo(f"  OS: {setting['os']}")
-                if setting.get("description"):
-                    typer.echo(f"  Description: {setting['description']}")
-                typer.echo("-" * 60)
-
-            return settings_list
-
-    except Exception as e:
-        typer.echo(f"Error showing auth setting: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    # Default: list all auth settings
+    settings_list = scm_client.list_auth_settings(folder=folder)
+    emit(
+        settings_list,
+        output,
+        columns=["name", "authentication_profile", "os", "description"],
+        title=f"Auth Settings in folder '{folder}'",
+    )
+    return settings_list
 
 
 # =============================================================================================================================================================================================
@@ -587,6 +493,7 @@ _PROFILE_TYPE_KEY_MAP = {
 
 
 @backup_app.command("forwarding-profile")
+@handle_command_errors("backing up forwarding profiles")
 def backup_forwarding_profile(
     folder: str = BACKUP_FOLDER_OPTION,
     file: Path | None = BACKUP_FILE_OPTION,
@@ -598,39 +505,35 @@ def backup_forwarding_profile(
         scm backup mobile-agent forwarding-profile --folder "Mobile Users"
 
     """
-    try:
-        if not folder:
-            folder = "Mobile Users"
+    if not folder:
+        folder = "Mobile Users"
 
-        profiles = scm_client.list_forwarding_profiles(folder=folder)
+    profiles = scm_client.list_forwarding_profiles(folder=folder)
 
-        if not profiles:
-            typer.echo(f"No forwarding profiles found in folder '{folder}'")
-            return None
+    if not profiles:
+        info(f"No forwarding profiles found in folder '{folder}'")
+        return None
 
-        backup_data = []
-        for profile in profiles:
-            profile_dict = {k: v for k, v in profile.items() if v is not None}
-            profile_dict.pop("id", None)
-            backup_data.append(profile_dict)
+    backup_data = []
+    for profile in profiles:
+        profile_dict = {k: v for k, v in profile.items() if v is not None}
+        profile_dict.pop("id", None)
+        backup_data.append(profile_dict)
 
-        yaml_data = {"forwarding_profiles": backup_data}
+    yaml_data = {"forwarding_profiles": backup_data}
 
-        if file is None:
-            file = Path(get_default_backup_filename("forwarding-profile", "folder", folder))
+    if file is None:
+        file = Path(get_default_backup_filename("forwarding-profile", "folder", folder))
 
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profiles to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up forwarding profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} forwarding profiles to {file}")
+    return str(file)
 
 
 @delete_app.command("forwarding-profile")
+@handle_command_errors("deleting forwarding profile")
 def delete_forwarding_profile(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -646,20 +549,17 @@ def delete_forwarding_profile(
         scm delete mobile-agent forwarding-profile --id "123e4567-e89b-12d3-a456-426655440000"
 
     """
-    try:
-        identifier = profile_id or name
-        if not force:
-            typer.confirm(f"Delete forwarding profile '{identifier}'?", abort=True)
-        result = scm_client.delete_forwarding_profile(folder=folder, name=name, profile_id=profile_id)
-        if result:
-            typer.echo(f"Deleted forwarding profile: {identifier}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting forwarding profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    identifier = profile_id or name
+    if not force:
+        typer.confirm(f"Delete forwarding profile '{identifier}'?", abort=True)
+    result = scm_client.delete_forwarding_profile(folder=folder, name=name, profile_id=profile_id)
+    if result:
+        success(f"Deleted forwarding profile: {identifier}")
+    return result
 
 
 @load_app.command("forwarding-profile")
+@handle_command_errors("loading forwarding profiles")
 def load_forwarding_profile(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -679,7 +579,7 @@ def load_forwarding_profile(
         config = load_from_yaml(str(file), "forwarding_profiles")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["forwarding_profiles"]))
             return None
 
@@ -701,32 +601,30 @@ def load_forwarding_profile(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created forwarding profile: {result.get('name', 'N/A')}")
+                    success(f"Created forwarding profile: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated forwarding profile: {result.get('name', 'N/A')}")
+                    success(f"Updated forwarding profile: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for forwarding profile: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for forwarding profile: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading forwarding profile '{profile_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading forwarding profile '{profile_data.get('name', 'unknown')}': {str(e)}")
 
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading forwarding profiles: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
 @set_app.command("forwarding-profile")
+@handle_command_errors("creating/updating forwarding profile")
 def set_forwarding_profile(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -749,61 +647,54 @@ def set_forwarding_profile(
         --profile-type ztna-agent
 
     """
+    profile_data: dict[str, Any] = {
+        "name": name,
+    }
+
+    if folder:
+        profile_data["folder"] = folder
+    if description is not None:
+        profile_data["description"] = description
+    if definition_method is not None:
+        profile_data["definition_method"] = definition_method
+    if profile_type is not None:
+        type_key = _PROFILE_TYPE_KEY_MAP.get(profile_type)
+        if type_key is None:
+            error(f"Error: --profile-type must be one of: {', '.join(sorted(_PROFILE_TYPE_KEY_MAP))}")
+            raise typer.Exit(code=1)
+        type_config: dict[str, Any] = {}
+        if pac_upload is not None:
+            type_config["pac_upload"] = pac_upload
+        profile_data["type"] = {type_key: type_config}
+
     try:
-        profile_data: dict[str, Any] = {
-            "name": name,
-        }
-
-        if folder:
-            profile_data["folder"] = folder
-        if description is not None:
-            profile_data["description"] = description
-        if definition_method is not None:
-            profile_data["definition_method"] = definition_method
-        if profile_type is not None:
-            type_key = _PROFILE_TYPE_KEY_MAP.get(profile_type)
-            if type_key is None:
-                typer.echo(
-                    f"Error: --profile-type must be one of: {', '.join(sorted(_PROFILE_TYPE_KEY_MAP))}",
-                    err=True,
-                )
-                raise typer.Exit(code=1)
-            type_config: dict[str, Any] = {}
-            if pac_upload is not None:
-                type_config["pac_upload"] = pac_upload
-            profile_data["type"] = {type_key: type_config}
-
         profile = ForwardingProfile(**profile_data)
         sdk_data = profile.to_sdk_model()
-
-        result = scm_client.create_forwarding_profile(**sdk_data)
-
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created forwarding profile: {result.get('name', name)}")
-        elif action == "updated":
-            typer.echo(f"Updated forwarding profile: {result.get('name', name)}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for forwarding profile: {result.get('name', name)}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except typer.Exit:
-        raise
-    except Exception as e:
-        typer.echo(f"Error creating/updating forwarding profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.create_forwarding_profile(**sdk_data)
+
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created forwarding profile: {result.get('name', name)}")
+    elif action == "updated":
+        success(f"Updated forwarding profile: {result.get('name', name)}")
+    elif action == "no_change":
+        info(f"No changes needed for forwarding profile: {result.get('name', name)}")
+
+    return result
 
 
 @show_app.command("forwarding-profile")
+@handle_command_errors("showing forwarding profile")
 def show_forwarding_profile(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the forwarding profile to show"),
     profile_id: str | None = PROFILE_ID_OPTION,
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display forwarding profiles.
 
@@ -819,54 +710,21 @@ def show_forwarding_profile(
         scm show mobile-agent forwarding-profile --id "123e4567-e89b-12d3-a456-426655440000"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if profile_id or name:
-            profile = scm_client.get_forwarding_profile(folder=folder, name=name, profile_id=profile_id)
+    if profile_id or name:
+        profile = scm_client.get_forwarding_profile(folder=folder, name=name, profile_id=profile_id)
+        emit(profile, output, title=f"Forwarding Profile: {profile.get('name', 'N/A')}")
+        return profile
 
-            typer.echo(f"\nForwarding Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-
-            if profile.get("description"):
-                typer.echo(f"Description: {profile['description']}")
-            if profile.get("definition_method"):
-                typer.echo(f"Definition Method: {profile['definition_method']}")
-            if profile.get("type"):
-                typer.echo("Type:")
-                typer.echo(yaml.dump(profile["type"], default_flow_style=False, sort_keys=False).rstrip())
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-
-            return profile
-
-        else:
-            profiles = scm_client.list_forwarding_profiles(folder=folder)
-
-            if not profiles:
-                typer.echo(f"No forwarding profiles found in folder '{folder or 'Mobile Users'}'")
-                return None
-
-            typer.echo(f"\nForwarding Profiles in folder '{folder or 'Mobile Users'}':")
-            typer.echo("-" * 60)
-
-            for profile in profiles:
-                typer.echo(f"Name: {profile.get('name', 'N/A')}")
-                if profile.get("definition_method"):
-                    typer.echo(f"  Definition Method: {profile['definition_method']}")
-                if profile.get("type"):
-                    typer.echo(f"  Profile Type: {', '.join(profile['type'].keys())}")
-                if profile.get("description"):
-                    typer.echo(f"  Description: {profile['description']}")
-                if profile.get("id"):
-                    typer.echo(f"  ID: {profile['id']}")
-                typer.echo("-" * 60)
-
-            return profiles
-
-    except Exception as e:
-        typer.echo(f"Error showing forwarding profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_forwarding_profiles(folder=folder)
+    emit(
+        profiles,
+        output,
+        columns=["name", "definition_method", "type", "description", "id"],
+        title=f"Forwarding Profiles in folder '{folder or 'Mobile Users'}'",
+    )
+    return profiles
 
 
 # =============================================================================================================================================================================================
@@ -887,6 +745,7 @@ IP_ADDRESS_OPTION = typer.Option(
 
 
 @backup_app.command("forwarding-profile-destination")
+@handle_command_errors("backing up forwarding profile destinations")
 def backup_forwarding_profile_destination(
     folder: str = BACKUP_FOLDER_OPTION,
     file: Path | None = BACKUP_FILE_OPTION,
@@ -898,39 +757,35 @@ def backup_forwarding_profile_destination(
         scm backup mobile-agent forwarding-profile-destination --folder "Mobile Users"
 
     """
-    try:
-        if not folder:
-            folder = "Mobile Users"
+    if not folder:
+        folder = "Mobile Users"
 
-        destinations = scm_client.list_forwarding_profile_destinations(folder=folder)
+    destinations = scm_client.list_forwarding_profile_destinations(folder=folder)
 
-        if not destinations:
-            typer.echo(f"No forwarding profile destinations found in folder '{folder}'")
-            return None
+    if not destinations:
+        info(f"No forwarding profile destinations found in folder '{folder}'")
+        return None
 
-        backup_data = []
-        for destination in destinations:
-            destination_dict = {k: v for k, v in destination.items() if v is not None}
-            destination_dict.pop("id", None)
-            backup_data.append(destination_dict)
+    backup_data = []
+    for destination in destinations:
+        destination_dict = {k: v for k, v in destination.items() if v is not None}
+        destination_dict.pop("id", None)
+        backup_data.append(destination_dict)
 
-        yaml_data = {"forwarding_profile_destinations": backup_data}
+    yaml_data = {"forwarding_profile_destinations": backup_data}
 
-        if file is None:
-            file = Path(get_default_backup_filename("forwarding-profile-destination", "folder", folder))
+    if file is None:
+        file = Path(get_default_backup_filename("forwarding-profile-destination", "folder", folder))
 
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profile destinations to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up forwarding profile destinations: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} forwarding profile destinations to {file}")
+    return str(file)
 
 
 @delete_app.command("forwarding-profile-destination")
+@handle_command_errors("deleting forwarding profile destination")
 def delete_forwarding_profile_destination(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -944,20 +799,17 @@ def delete_forwarding_profile_destination(
         scm delete mobile-agent forwarding-profile-destination --folder "Mobile Users" --name "internal-apps"
 
     """
-    try:
-        identifier = destination_id or name
-        if not force:
-            typer.confirm(f"Delete forwarding profile destination '{identifier}'?", abort=True)
-        result = scm_client.delete_forwarding_profile_destination(folder=folder, name=name, destination_id=destination_id)
-        if result:
-            typer.echo(f"Deleted forwarding profile destination: {identifier}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting forwarding profile destination: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    identifier = destination_id or name
+    if not force:
+        typer.confirm(f"Delete forwarding profile destination '{identifier}'?", abort=True)
+    result = scm_client.delete_forwarding_profile_destination(folder=folder, name=name, destination_id=destination_id)
+    if result:
+        success(f"Deleted forwarding profile destination: {identifier}")
+    return result
 
 
 @load_app.command("forwarding-profile-destination")
+@handle_command_errors("loading forwarding profile destinations")
 def load_forwarding_profile_destination(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -974,7 +826,7 @@ def load_forwarding_profile_destination(
         config = load_from_yaml(str(file), "forwarding_profile_destinations")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["forwarding_profile_destinations"]))
             return None
 
@@ -996,32 +848,30 @@ def load_forwarding_profile_destination(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created forwarding profile destination: {result.get('name', 'N/A')}")
+                    success(f"Created forwarding profile destination: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated forwarding profile destination: {result.get('name', 'N/A')}")
+                    success(f"Updated forwarding profile destination: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for forwarding profile destination: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for forwarding profile destination: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading forwarding profile destination '{destination_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading forwarding profile destination '{destination_data.get('name', 'unknown')}': {str(e)}")
 
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading forwarding profile destinations: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
 @set_app.command("forwarding-profile-destination")
+@handle_command_errors("creating/updating forwarding profile destination")
 def set_forwarding_profile_destination(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -1043,49 +893,47 @@ def set_forwarding_profile_destination(
         --ip-address "10.0.0.0/8"
 
     """
+    destination_data: dict[str, Any] = {
+        "name": name,
+    }
+
+    if folder:
+        destination_data["folder"] = folder
+    if description is not None:
+        destination_data["description"] = description
+    if fqdn:
+        destination_data["fqdn"] = fqdn
+    if ip_address:
+        destination_data["ip_addresses"] = ip_address
+
     try:
-        destination_data: dict[str, Any] = {
-            "name": name,
-        }
-
-        if folder:
-            destination_data["folder"] = folder
-        if description is not None:
-            destination_data["description"] = description
-        if fqdn:
-            destination_data["fqdn"] = fqdn
-        if ip_address:
-            destination_data["ip_addresses"] = ip_address
-
         destination = ForwardingProfileDestination(**destination_data)
         sdk_data = destination.to_sdk_model()
-
-        result = scm_client.create_forwarding_profile_destination(**sdk_data)
-
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created forwarding profile destination: {result.get('name', name)}")
-        elif action == "updated":
-            typer.echo(f"Updated forwarding profile destination: {result.get('name', name)}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for forwarding profile destination: {result.get('name', name)}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating/updating forwarding profile destination: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.create_forwarding_profile_destination(**sdk_data)
+
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created forwarding profile destination: {result.get('name', name)}")
+    elif action == "updated":
+        success(f"Updated forwarding profile destination: {result.get('name', name)}")
+    elif action == "no_change":
+        info(f"No changes needed for forwarding profile destination: {result.get('name', name)}")
+
+    return result
 
 
 @show_app.command("forwarding-profile-destination")
+@handle_command_errors("showing forwarding profile destination")
 def show_forwarding_profile_destination(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the forwarding profile destination to show"),
     destination_id: str | None = PROFILE_ID_OPTION,
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display forwarding profile destinations.
 
@@ -1101,59 +949,21 @@ def show_forwarding_profile_destination(
         scm show mobile-agent forwarding-profile-destination --id "123e4567-e89b-12d3-a456-426655440000"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if destination_id or name:
-            destination = scm_client.get_forwarding_profile_destination(folder=folder, name=name, destination_id=destination_id)
+    if destination_id or name:
+        destination = scm_client.get_forwarding_profile_destination(folder=folder, name=name, destination_id=destination_id)
+        emit(destination, output, title=f"Forwarding Profile Destination: {destination.get('name', 'N/A')}")
+        return destination
 
-            typer.echo(f"\nForwarding Profile Destination: {destination.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-
-            if destination.get("description"):
-                typer.echo(f"Description: {destination['description']}")
-            if destination.get("fqdn"):
-                typer.echo("FQDN Entries:")
-                for entry in destination["fqdn"]:
-                    port_suffix = f":{entry['port']}" if entry.get("port") else ""
-                    typer.echo(f"  - {entry.get('name', 'N/A')}{port_suffix}")
-            if destination.get("ip_addresses"):
-                typer.echo("IP Address Entries:")
-                for entry in destination["ip_addresses"]:
-                    port_suffix = f":{entry['port']}" if entry.get("port") else ""
-                    typer.echo(f"  - {entry.get('name', 'N/A')}{port_suffix}")
-            if destination.get("id"):
-                typer.echo(f"ID: {destination['id']}")
-
-            return destination
-
-        else:
-            destinations = scm_client.list_forwarding_profile_destinations(folder=folder)
-
-            if not destinations:
-                typer.echo(f"No forwarding profile destinations found in folder '{folder or 'Mobile Users'}'")
-                return None
-
-            typer.echo(f"\nForwarding Profile Destinations in folder '{folder or 'Mobile Users'}':")
-            typer.echo("-" * 60)
-
-            for destination in destinations:
-                typer.echo(f"Name: {destination.get('name', 'N/A')}")
-                if destination.get("fqdn"):
-                    typer.echo(f"  FQDN Entries: {len(destination['fqdn'])}")
-                if destination.get("ip_addresses"):
-                    typer.echo(f"  IP Address Entries: {len(destination['ip_addresses'])}")
-                if destination.get("description"):
-                    typer.echo(f"  Description: {destination['description']}")
-                if destination.get("id"):
-                    typer.echo(f"  ID: {destination['id']}")
-                typer.echo("-" * 60)
-
-            return destinations
-
-    except Exception as e:
-        typer.echo(f"Error showing forwarding profile destination: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    destinations = scm_client.list_forwarding_profile_destinations(folder=folder)
+    emit(
+        destinations,
+        output,
+        columns=["name", "fqdn", "ip_addresses", "description", "id"],
+        title=f"Forwarding Profile Destinations in folder '{folder or 'Mobile Users'}'",
+    )
+    return destinations
 
 
 # =============================================================================================================================================================================================
@@ -1205,16 +1015,8 @@ GP_EXCLUDE_APPLICATION_OPTION: list[str] | None = typer.Option(
 )
 
 
-def _echo_nested(profile: dict[str, Any], keys: tuple[str, ...]) -> None:
-    """Echo nested dict fields of a profile as indented YAML blocks."""
-    for key in keys:
-        if profile.get(key):
-            typer.echo(f"{key.replace('_', ' ').title()}:")
-            block = yaml.dump(profile[key], default_flow_style=False, sort_keys=False)
-            typer.echo("\n".join(f"  {line}" for line in block.splitlines()))
-
-
 @backup_app.command("agent-profile")
+@handle_command_errors("backing up agent profiles")
 def backup_agent_profile(
     folder: str = GP_FOLDER_OPTION,
     file: Path | None = BACKUP_FILE_OPTION,
@@ -1230,36 +1032,32 @@ def backup_agent_profile(
         scm backup mobile-agent agent-profile --file agent-profiles-backup.yaml
 
     """
-    try:
-        profiles = scm_client.list_agent_profiles(folder=folder)
+    profiles = scm_client.list_agent_profiles(folder=folder)
 
-        if not profiles:
-            typer.echo(f"No agent profiles found in folder '{folder}'")
-            return
+    if not profiles:
+        info(f"No agent profiles found in folder '{folder}'")
+        return
 
-        backup_data = []
-        for profile in profiles:
-            profile_dict = {k: v for k, v in profile.items() if v is not None}
-            profile_dict.pop("id", None)
-            backup_data.append(profile_dict)
+    backup_data = []
+    for profile in profiles:
+        profile_dict = {k: v for k, v in profile.items() if v is not None}
+        profile_dict.pop("id", None)
+        backup_data.append(profile_dict)
 
-        yaml_data = {"agent_profiles": backup_data}
+    yaml_data = {"agent_profiles": backup_data}
 
-        if file is None:
-            file = Path(get_default_backup_filename("agent-profile", "folder", folder))
+    if file is None:
+        file = Path(get_default_backup_filename("agent-profile", "folder", folder))
 
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} agent profiles to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up agent profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} agent profiles to {file}")
+    return str(file)
 
 
 @delete_app.command("agent-profile")
+@handle_command_errors("deleting agent profile")
 def delete_agent_profile(
     folder: str = GP_FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -1272,19 +1070,16 @@ def delete_agent_profile(
         scm delete mobile-agent agent-profile --folder "Mobile Users" --name "corp-app-settings"
 
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete agent profile '{name}' from folder '{folder}'?", abort=True)
-        result = scm_client.delete_agent_profile(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted agent profile: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting agent profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if not force:
+        typer.confirm(f"Delete agent profile '{name}' from folder '{folder}'?", abort=True)
+    result = scm_client.delete_agent_profile(folder=folder, name=name)
+    if result:
+        success(f"Deleted agent profile: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("agent-profile")
+@handle_command_errors("loading agent profiles")
 def load_agent_profile(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -1305,7 +1100,7 @@ def load_agent_profile(
         config = load_from_yaml(str(file), "agent_profiles")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["agent_profiles"]))
             return None
 
@@ -1327,32 +1122,30 @@ def load_agent_profile(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created agent profile: {result.get('name', 'N/A')}")
+                    success(f"Created agent profile: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated agent profile: {result.get('name', 'N/A')}")
+                    success(f"Updated agent profile: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for agent profile: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for agent profile: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading agent profile '{profile_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading agent profile '{profile_data.get('name', 'unknown')}': {str(e)}")
 
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading agent profiles: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
 @set_app.command("agent-profile")
+@handle_command_errors("creating/updating agent profile")
 def set_agent_profile(
     folder: str = GP_FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -1378,53 +1171,51 @@ def set_agent_profile(
         --os Windows --os Mac
 
     """
+    profile_data: dict[str, Any] = {
+        "name": name,
+        "folder": folder,
+    }
+
+    if os:
+        profile_data["os"] = os
+    if connect_method is not None:
+        profile_data["connect_method"] = connect_method
+    if tunnel_mtu is not None:
+        profile_data["tunnel_mtu"] = tunnel_mtu
+    if save_user_credentials is not None:
+        profile_data["save_user_credentials"] = save_user_credentials
+    if source_user:
+        profile_data["source_user"] = source_user
+    if third_party_vpn_clients:
+        profile_data["third_party_vpn_clients"] = third_party_vpn_clients
+
     try:
-        profile_data: dict[str, Any] = {
-            "name": name,
-            "folder": folder,
-        }
-
-        if os:
-            profile_data["os"] = os
-        if connect_method is not None:
-            profile_data["connect_method"] = connect_method
-        if tunnel_mtu is not None:
-            profile_data["tunnel_mtu"] = tunnel_mtu
-        if save_user_credentials is not None:
-            profile_data["save_user_credentials"] = save_user_credentials
-        if source_user:
-            profile_data["source_user"] = source_user
-        if third_party_vpn_clients:
-            profile_data["third_party_vpn_clients"] = third_party_vpn_clients
-
         agent_profile = AgentProfile(**profile_data)
         sdk_data = agent_profile.to_sdk_model()
-
-        result = scm_client.create_agent_profile(**sdk_data)
-
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "updated":
-            typer.echo(f"Updated agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating/updating agent profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.create_agent_profile(**sdk_data)
+
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "updated":
+        success(f"Updated agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "no_change":
+        info(f"No changes needed for agent profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+    return result
 
 
 @show_app.command("agent-profile")
+@handle_command_errors("showing agent profile")
 def show_agent_profile(
     folder: str = GP_FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the agent profile to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display agent profiles (GlobalProtect app settings).
 
@@ -1437,68 +1228,21 @@ def show_agent_profile(
         scm show mobile-agent agent-profile --folder "Mobile Users" --name "corp-app-settings"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if name:
-            profile = scm_client.get_agent_profile(folder=folder, name=name)
+    if name:
+        profile = scm_client.get_agent_profile(folder=folder, name=name)
+        emit(profile, output, title=f"Agent Profile: {profile.get('name', 'N/A')}")
+        return profile
 
-            typer.echo(f"\nAgent Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            typer.echo(f"Location: Folder '{profile.get('folder', folder)}'")
-
-            if profile.get("os"):
-                typer.echo(f"OS: {', '.join(profile['os'])}")
-            if profile.get("save_user_credentials") is not None:
-                typer.echo(f"Save User Credentials: {profile['save_user_credentials']}")
-            if profile.get("source_user"):
-                typer.echo(f"Source Users: {', '.join(profile['source_user'])}")
-            if profile.get("third_party_vpn_clients"):
-                typer.echo(f"Third Party VPN Clients: {', '.join(profile['third_party_vpn_clients'])}")
-            _echo_nested(
-                profile,
-                (
-                    "gp_app_config",
-                    "agent_ui",
-                    "authentication_override",
-                    "certificate",
-                    "client_certificate",
-                    "custom_checks",
-                    "gateways",
-                    "hip_collection",
-                    "internal_host_detection",
-                    "internal_host_detection_v6",
-                    "machine_account_exists_with_serialno",
-                ),
-            )
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-
-            return profile
-
-        else:
-            profiles = scm_client.list_agent_profiles(folder=folder)
-
-            if not profiles:
-                typer.echo(f"No agent profiles found in folder '{folder}'")
-                return
-
-            typer.echo(f"\nAgent Profiles in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for profile in profiles:
-                typer.echo(f"Name: {profile.get('name', 'N/A')}")
-                if profile.get("os"):
-                    typer.echo(f"  OS: {', '.join(profile['os'])}")
-                if profile.get("save_user_credentials") is not None:
-                    typer.echo(f"  Save User Credentials: {profile['save_user_credentials']}")
-                typer.echo("-" * 60)
-
-            return profiles
-
-    except Exception as e:
-        typer.echo(f"Error showing agent profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_agent_profiles(folder=folder)
+    emit(
+        profiles,
+        output,
+        columns=["name", "os", "save_user_credentials"],
+        title=f"Agent Profiles in folder '{folder}'",
+    )
+    return profiles
 
 
 # =============================================================================================================================================================================================
@@ -1507,6 +1251,7 @@ def show_agent_profile(
 
 
 @backup_app.command("tunnel-profile")
+@handle_command_errors("backing up tunnel profiles")
 def backup_tunnel_profile(
     folder: str = GP_FOLDER_OPTION,
     file: Path | None = BACKUP_FILE_OPTION,
@@ -1522,36 +1267,32 @@ def backup_tunnel_profile(
         scm backup mobile-agent tunnel-profile --file tunnel-profiles-backup.yaml
 
     """
-    try:
-        profiles = scm_client.list_tunnel_profiles(folder=folder)
+    profiles = scm_client.list_tunnel_profiles(folder=folder)
 
-        if not profiles:
-            typer.echo(f"No tunnel profiles found in folder '{folder}'")
-            return
+    if not profiles:
+        info(f"No tunnel profiles found in folder '{folder}'")
+        return
 
-        backup_data = []
-        for profile in profiles:
-            profile_dict = {k: v for k, v in profile.items() if v is not None}
-            profile_dict.pop("id", None)
-            backup_data.append(profile_dict)
+    backup_data = []
+    for profile in profiles:
+        profile_dict = {k: v for k, v in profile.items() if v is not None}
+        profile_dict.pop("id", None)
+        backup_data.append(profile_dict)
 
-        yaml_data = {"tunnel_profiles": backup_data}
+    yaml_data = {"tunnel_profiles": backup_data}
 
-        if file is None:
-            file = Path(get_default_backup_filename("tunnel-profile", "folder", folder))
+    if file is None:
+        file = Path(get_default_backup_filename("tunnel-profile", "folder", folder))
 
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} tunnel profiles to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up tunnel profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} tunnel profiles to {file}")
+    return str(file)
 
 
 @delete_app.command("tunnel-profile")
+@handle_command_errors("deleting tunnel profile")
 def delete_tunnel_profile(
     folder: str = GP_FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -1564,19 +1305,16 @@ def delete_tunnel_profile(
         scm delete mobile-agent tunnel-profile --folder "Mobile Users" --name "corp-tunnel"
 
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete tunnel profile '{name}' from folder '{folder}'?", abort=True)
-        result = scm_client.delete_tunnel_profile(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted tunnel profile: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting tunnel profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if not force:
+        typer.confirm(f"Delete tunnel profile '{name}' from folder '{folder}'?", abort=True)
+    result = scm_client.delete_tunnel_profile(folder=folder, name=name)
+    if result:
+        success(f"Deleted tunnel profile: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("tunnel-profile")
+@handle_command_errors("loading tunnel profiles")
 def load_tunnel_profile(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -1597,7 +1335,7 @@ def load_tunnel_profile(
         config = load_from_yaml(str(file), "tunnel_profiles")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["tunnel_profiles"]))
             return None
 
@@ -1619,32 +1357,30 @@ def load_tunnel_profile(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created tunnel profile: {result.get('name', 'N/A')}")
+                    success(f"Created tunnel profile: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated tunnel profile: {result.get('name', 'N/A')}")
+                    success(f"Updated tunnel profile: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for tunnel profile: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for tunnel profile: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading tunnel profile '{profile_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading tunnel profile '{profile_data.get('name', 'unknown')}': {str(e)}")
 
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading tunnel profiles: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
 @set_app.command("tunnel-profile")
+@handle_command_errors("creating/updating tunnel profile")
 def set_tunnel_profile(
     folder: str = GP_FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -1679,57 +1415,55 @@ def set_tunnel_profile(
         --no-direct-access-to-local-network
 
     """
+    profile_data: dict[str, Any] = {
+        "name": name,
+        "folder": folder,
+    }
+
+    if no_direct_access_to_local_network is not None:
+        profile_data["no_direct_access_to_local_network"] = no_direct_access_to_local_network
+    if retrieve_framed_ip_address is not None:
+        profile_data["retrieve_framed_ip_address"] = retrieve_framed_ip_address
+    if os:
+        profile_data["os"] = os
+    if source_user:
+        profile_data["source_user"] = source_user
+    if access_route:
+        profile_data["access_route"] = access_route
+    if exclude_access_route:
+        profile_data["exclude_access_route"] = exclude_access_route
+    if include_applications:
+        profile_data["include_applications"] = include_applications
+    if exclude_applications:
+        profile_data["exclude_applications"] = exclude_applications
+
     try:
-        profile_data: dict[str, Any] = {
-            "name": name,
-            "folder": folder,
-        }
-
-        if no_direct_access_to_local_network is not None:
-            profile_data["no_direct_access_to_local_network"] = no_direct_access_to_local_network
-        if retrieve_framed_ip_address is not None:
-            profile_data["retrieve_framed_ip_address"] = retrieve_framed_ip_address
-        if os:
-            profile_data["os"] = os
-        if source_user:
-            profile_data["source_user"] = source_user
-        if access_route:
-            profile_data["access_route"] = access_route
-        if exclude_access_route:
-            profile_data["exclude_access_route"] = exclude_access_route
-        if include_applications:
-            profile_data["include_applications"] = include_applications
-        if exclude_applications:
-            profile_data["exclude_applications"] = exclude_applications
-
         tunnel_profile = TunnelProfile(**profile_data)
         sdk_data = tunnel_profile.to_sdk_model()
-
-        result = scm_client.create_tunnel_profile(**sdk_data)
-
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "updated":
-            typer.echo(f"Updated tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating/updating tunnel profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.create_tunnel_profile(**sdk_data)
+
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "updated":
+        success(f"Updated tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "no_change":
+        info(f"No changes needed for tunnel profile: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+    return result
 
 
 @show_app.command("tunnel-profile")
+@handle_command_errors("showing tunnel profile")
 def show_tunnel_profile(
     folder: str = GP_FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the tunnel profile to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display tunnel profiles (GlobalProtect tunnel settings).
 
@@ -1742,53 +1476,21 @@ def show_tunnel_profile(
         scm show mobile-agent tunnel-profile --folder "Mobile Users" --name "corp-tunnel"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if name:
-            profile = scm_client.get_tunnel_profile(folder=folder, name=name)
+    if name:
+        profile = scm_client.get_tunnel_profile(folder=folder, name=name)
+        emit(profile, output, title=f"Tunnel Profile: {profile.get('name', 'N/A')}")
+        return profile
 
-            typer.echo(f"\nTunnel Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            typer.echo(f"Location: Folder '{profile.get('folder', folder)}'")
-
-            if profile.get("no_direct_access_to_local_network") is not None:
-                typer.echo(f"No Direct Access To Local Network: {profile['no_direct_access_to_local_network']}")
-            if profile.get("retrieve_framed_ip_address") is not None:
-                typer.echo(f"Retrieve Framed IP Address: {profile['retrieve_framed_ip_address']}")
-            if profile.get("os"):
-                typer.echo(f"OS: {', '.join(profile['os'])}")
-            if profile.get("source_user"):
-                typer.echo(f"Source Users: {', '.join(profile['source_user'])}")
-            _echo_nested(profile, ("split_tunneling", "source_address", "authentication_override"))
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-
-            return profile
-
-        else:
-            profiles = scm_client.list_tunnel_profiles(folder=folder)
-
-            if not profiles:
-                typer.echo(f"No tunnel profiles found in folder '{folder}'")
-                return
-
-            typer.echo(f"\nTunnel Profiles in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for profile in profiles:
-                typer.echo(f"Name: {profile.get('name', 'N/A')}")
-                if profile.get("os"):
-                    typer.echo(f"  OS: {', '.join(profile['os'])}")
-                if profile.get("no_direct_access_to_local_network") is not None:
-                    typer.echo(f"  No Direct Access To Local Network: {profile['no_direct_access_to_local_network']}")
-                typer.echo("-" * 60)
-
-            return profiles
-
-    except Exception as e:
-        typer.echo(f"Error showing tunnel profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_tunnel_profiles(folder=folder)
+    emit(
+        profiles,
+        output,
+        columns=["name", "os", "no_direct_access_to_local_network"],
+        title=f"Tunnel Profiles in folder '{folder}'",
+    )
+    return profiles
 
 
 # =============================================================================================================================================================================================
@@ -1810,6 +1512,7 @@ INFRA_NAME_OPTION = typer.Option(
 
 
 @set_app.command("infrastructure-setting")
+@handle_command_errors("creating/updating infrastructure setting")
 def set_infrastructure_setting(
     folder: str = INFRA_FOLDER_OPTION,
     name: str = INFRA_NAME_OPTION,
@@ -1832,55 +1535,53 @@ def set_infrastructure_setting(
         --portal-hostname '{"default_domain": {"hostname": "acme"}}'
 
     """
-    try:
-        # Build setting data; the Pydantic model parses JSON strings into structures
-        setting_data: dict[str, Any] = {
-            "name": name,
-            "folder": folder,
-            "dns_servers": dns_servers,
-            "ip_pools": ip_pools,
-            "portal_hostname": portal_hostname,
-        }
-        if enable_wins is not None:
-            setting_data["enable_wins"] = enable_wins
-        if ipv6 is not None:
-            setting_data["ipv6"] = ipv6
-        if udp_queries is not None:
-            setting_data["udp_queries"] = udp_queries
-        if static_ip_pools is not None:
-            setting_data["static_ip_pools"] = static_ip_pools
+    # Build setting data; the Pydantic model parses JSON strings into structures
+    setting_data: dict[str, Any] = {
+        "name": name,
+        "folder": folder,
+        "dns_servers": dns_servers,
+        "ip_pools": ip_pools,
+        "portal_hostname": portal_hostname,
+    }
+    if enable_wins is not None:
+        setting_data["enable_wins"] = enable_wins
+    if ipv6 is not None:
+        setting_data["ipv6"] = ipv6
+    if udp_queries is not None:
+        setting_data["udp_queries"] = udp_queries
+    if static_ip_pools is not None:
+        setting_data["static_ip_pools"] = static_ip_pools
 
-        # Validate using the Pydantic model
+    # Validate using the Pydantic model
+    try:
         infrastructure_setting = InfrastructureSetting(**setting_data)
         sdk_data = infrastructure_setting.to_sdk_model()
-
-        # Call the SDK client
-        result = scm_client.create_infrastructure_setting(**sdk_data)
-
-        # Get the action performed
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created infrastructure setting: {result.get('name', name)} in folder {folder}")
-        elif action == "updated":
-            typer.echo(f"Updated infrastructure setting: {result.get('name', name)} in folder {folder}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for infrastructure setting: {result.get('name', name)} in folder {folder}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating/updating infrastructure setting: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    # Call the SDK client
+    result = scm_client.create_infrastructure_setting(**sdk_data)
+
+    # Get the action performed
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created infrastructure setting: {result.get('name', name)} in folder {folder}")
+    elif action == "updated":
+        success(f"Updated infrastructure setting: {result.get('name', name)} in folder {folder}")
+    elif action == "no_change":
+        info(f"No changes needed for infrastructure setting: {result.get('name', name)} in folder {folder}")
+
+    return result
 
 
 @show_app.command("infrastructure-setting")
+@handle_command_errors("showing infrastructure setting")
 def show_infrastructure_setting(
     folder: str = INFRA_FOLDER_OPTION,
     name: str = INFRA_NAME_OPTION,
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display an infrastructure setting.
 
@@ -1891,40 +1592,15 @@ def show_infrastructure_setting(
         scm show mobile-agent infrastructure-setting --name "gp-infra"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        setting = scm_client.get_infrastructure_setting(folder=folder, name=name)
-
-        typer.echo(f"\nInfrastructure Setting: {setting.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-        typer.echo(f"Location: Folder '{folder}'")
-
-        if setting.get("portal_hostname"):
-            typer.echo(f"Portal Hostname: {yaml.dump(setting['portal_hostname'], default_flow_style=True).strip()}")
-        if setting.get("dns_servers"):
-            typer.echo(f"DNS Servers: {yaml.dump(setting['dns_servers'], default_flow_style=True).strip()}")
-        if setting.get("ip_pools"):
-            typer.echo(f"IP Pools: {yaml.dump(setting['ip_pools'], default_flow_style=True).strip()}")
-        if setting.get("enable_wins"):
-            typer.echo(f"WINS: {yaml.dump(setting['enable_wins'], default_flow_style=True).strip()}")
-        if setting.get("ipv6") is not None:
-            typer.echo(f"IPv6: {setting['ipv6']}")
-        if setting.get("udp_queries"):
-            typer.echo(f"UDP Queries: {yaml.dump(setting['udp_queries'], default_flow_style=True).strip()}")
-        if setting.get("static_ip_pools"):
-            typer.echo(f"Static IP Pools: {yaml.dump(setting['static_ip_pools'], default_flow_style=True).strip()}")
-        if setting.get("id"):
-            typer.echo(f"ID: {setting['id']}")
-
-        return setting
-
-    except Exception as e:
-        typer.echo(f"Error showing infrastructure setting: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    setting = scm_client.get_infrastructure_setting(folder=folder, name=name)
+    emit(setting, output, title=f"Infrastructure Setting: {setting.get('name', 'N/A')}")
+    return setting
 
 
 @delete_app.command("infrastructure-setting")
+@handle_command_errors("deleting infrastructure setting")
 def delete_infrastructure_setting(
     folder: str = INFRA_FOLDER_OPTION,
     name: str = INFRA_NAME_OPTION,
@@ -1937,19 +1613,16 @@ def delete_infrastructure_setting(
         scm delete mobile-agent infrastructure-setting --name "gp-infra"
 
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete infrastructure setting '{name}' from folder '{folder}'?", abort=True)
-        result = scm_client.delete_infrastructure_setting(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted infrastructure setting: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting infrastructure setting: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if not force:
+        typer.confirm(f"Delete infrastructure setting '{name}' from folder '{folder}'?", abort=True)
+    result = scm_client.delete_infrastructure_setting(folder=folder, name=name)
+    if result:
+        success(f"Deleted infrastructure setting: {name} from folder {folder}")
+    return result
 
 
 @backup_app.command("infrastructure-setting")
+@handle_command_errors("backing up infrastructure settings")
 def backup_infrastructure_setting(
     folder: str = INFRA_FOLDER_OPTION,
     name: str = INFRA_NAME_OPTION,
@@ -1965,37 +1638,33 @@ def backup_infrastructure_setting(
         scm backup mobile-agent infrastructure-setting --name "gp-infra"
 
     """
-    try:
-        settings_list = scm_client.list_infrastructure_settings(folder=folder, name=name)
+    settings_list = scm_client.list_infrastructure_settings(folder=folder, name=name)
 
-        if not settings_list:
-            typer.echo(f"No infrastructure settings named '{name}' found in folder '{folder}'")
-            return
+    if not settings_list:
+        info(f"No infrastructure settings named '{name}' found in folder '{folder}'")
+        return
 
-        # Convert to backup format, stripping system fields
-        backup_data = []
-        for setting in settings_list:
-            setting_dict = {k: v for k, v in setting.items() if v is not None}
-            setting_dict.pop("id", None)
-            backup_data.append(setting_dict)
+    # Convert to backup format, stripping system fields
+    backup_data = []
+    for setting in settings_list:
+        setting_dict = {k: v for k, v in setting.items() if v is not None}
+        setting_dict.pop("id", None)
+        backup_data.append(setting_dict)
 
-        yaml_data = {"infrastructure_settings": backup_data}
+    yaml_data = {"infrastructure_settings": backup_data}
 
-        if file is None:
-            file = Path(get_default_backup_filename("infrastructure-setting", "folder", folder))
+    if file is None:
+        file = Path(get_default_backup_filename("infrastructure-setting", "folder", folder))
 
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} infrastructure settings to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up infrastructure settings: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} infrastructure settings to {file}")
+    return str(file)
 
 
 @load_app.command("infrastructure-setting")
+@handle_command_errors("loading infrastructure settings")
 def load_infrastructure_setting(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -2013,7 +1682,7 @@ def load_infrastructure_setting(
         config = load_from_yaml(str(file), "infrastructure_settings")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["infrastructure_settings"]))
             return None
 
@@ -2037,28 +1706,25 @@ def load_infrastructure_setting(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created infrastructure setting: {result.get('name', 'N/A')}")
+                    success(f"Created infrastructure setting: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated infrastructure setting: {result.get('name', 'N/A')}")
+                    success(f"Updated infrastructure setting: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for infrastructure setting: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for infrastructure setting: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading infrastructure setting '{setting_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading infrastructure setting '{setting_data.get('name', 'unknown')}': {str(e)}")
 
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading infrastructure settings: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
@@ -2068,7 +1734,10 @@ def load_infrastructure_setting(
 
 
 @show_app.command("global-setting")
-def show_global_setting():
+@handle_command_errors("showing global settings")
+def show_global_setting(
+    output: OutputFormat = OUTPUT_OPTION,
+):
     """Display the GlobalProtect global settings.
 
     Global settings are a tenant-wide singleton; there is nothing to filter by.
@@ -2078,29 +1747,18 @@ def show_global_setting():
         scm show mobile-agent global-setting
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        setting = scm_client.get_global_settings()
+    setting = scm_client.get_global_settings()
 
-        typer.echo("\nGlobalProtect Global Settings")
-        typer.echo("=" * 80)
-
-        if setting.get("agent_version"):
-            typer.echo(f"Agent Version: {setting['agent_version']}")
-        if setting.get("manual_gateway"):
-            typer.echo(f"Manual Gateway: {yaml.dump(setting['manual_gateway'], default_flow_style=True).strip()}")
-        if not setting:
-            typer.echo("No global settings configured")
-
-        return setting
-
-    except Exception as e:
-        typer.echo(f"Error showing global settings: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if not setting:
+        info("No global settings configured")
+    emit(setting, output, title="GlobalProtect Global Settings")
+    return setting
 
 
 @set_app.command("global-setting")
+@handle_command_errors("updating global settings")
 def set_global_setting(
     agent_version: str | None = typer.Option(None, "--agent-version", help="GlobalProtect agent version"),
     manual_gateway: str | None = typer.Option(None, "--manual-gateway", help="Manual gateway configuration as JSON"),
@@ -2118,30 +1776,26 @@ def set_global_setting(
         --manual-gateway '{"region": [{"name": "americas", "locations": ["us-east-1"]}]}'
 
     """
-    try:
-        # Build setting data; the Pydantic model parses JSON strings into structures
-        setting_data: dict[str, Any] = {}
-        if agent_version is not None:
-            setting_data["agent_version"] = agent_version
-        if manual_gateway is not None:
-            setting_data["manual_gateway"] = manual_gateway
+    # Build setting data; the Pydantic model parses JSON strings into structures
+    setting_data: dict[str, Any] = {}
+    if agent_version is not None:
+        setting_data["agent_version"] = agent_version
+    if manual_gateway is not None:
+        setting_data["manual_gateway"] = manual_gateway
 
-        # Validate using the Pydantic model (requires at least one field)
+    # Validate using the Pydantic model (requires at least one field)
+    try:
         global_setting = GlobalSetting(**setting_data)
         sdk_data = global_setting.to_sdk_model()
-
-        result = scm_client.update_global_settings(**sdk_data)
-        result.pop("__action__", None)
-
-        typer.echo("Updated GlobalProtect global settings")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error updating global settings: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    result = scm_client.update_global_settings(**sdk_data)
+    result.pop("__action__", None)
+
+    success("Updated GlobalProtect global settings")
+    return result
 
 
 # =============================================================================================================================================================================================
@@ -2156,6 +1810,7 @@ APPLICATION_OPTION = typer.Option(
 
 
 @backup_app.command("forwarding-profile-source-application")
+@handle_command_errors("backing up forwarding profile source applications")
 def backup_forwarding_profile_source_application(
     folder: str = BACKUP_FOLDER_OPTION,
     file: Path | None = BACKUP_FILE_OPTION,
@@ -2168,43 +1823,39 @@ def backup_forwarding_profile_source_application(
         scm backup mobile-agent forwarding-profile-source-application --folder "Mobile Users"
 
     """
-    try:
-        folder = folder or "Mobile Users"
+    folder = folder or "Mobile Users"
 
-        source_applications = scm_client.list_forwarding_profile_source_applications(folder=folder)
+    source_applications = scm_client.list_forwarding_profile_source_applications(folder=folder)
 
-        if not source_applications:
-            typer.echo(f"No forwarding profile source applications found in folder '{folder}'")
-            return
+    if not source_applications:
+        info(f"No forwarding profile source applications found in folder '{folder}'")
+        return
 
-        # Convert SDK models to dictionaries, excluding unset values
-        backup_data = []
-        for app in source_applications:
-            app_dict = {k: v for k, v in app.items() if v is not None}
-            # Remove system fields that shouldn't be in backup
-            app_dict.pop("id", None)
-            backup_data.append(app_dict)
+    # Convert SDK models to dictionaries, excluding unset values
+    backup_data = []
+    for app in source_applications:
+        app_dict = {k: v for k, v in app.items() if v is not None}
+        # Remove system fields that shouldn't be in backup
+        app_dict.pop("id", None)
+        backup_data.append(app_dict)
 
-        # Create the YAML structure
-        yaml_data = {"forwarding_profile_source_applications": backup_data}
+    # Create the YAML structure
+    yaml_data = {"forwarding_profile_source_applications": backup_data}
 
-        # Generate filename
-        if file is None:
-            file = Path(get_default_backup_filename("forwarding-profile-source-application", "folder", folder))
+    # Generate filename
+    if file is None:
+        file = Path(get_default_backup_filename("forwarding-profile-source-application", "folder", folder))
 
-        # Write to YAML file
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    # Write to YAML file
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profile source applications to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up forwarding profile source applications: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} forwarding profile source applications to {file}")
+    return str(file)
 
 
 @delete_app.command("forwarding-profile-source-application")
+@handle_command_errors("deleting forwarding profile source application")
 def delete_forwarding_profile_source_application(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -2217,19 +1868,16 @@ def delete_forwarding_profile_source_application(
         scm delete mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps"
 
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete forwarding profile source application '{name}' from folder '{folder}'?", abort=True)
-        result = scm_client.delete_forwarding_profile_source_application(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted forwarding profile source application: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting forwarding profile source application: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if not force:
+        typer.confirm(f"Delete forwarding profile source application '{name}' from folder '{folder}'?", abort=True)
+    result = scm_client.delete_forwarding_profile_source_application(folder=folder, name=name)
+    if result:
+        success(f"Deleted forwarding profile source application: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("forwarding-profile-source-application")
+@handle_command_errors("loading forwarding profile source applications")
 def load_forwarding_profile_source_application(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -2251,7 +1899,7 @@ def load_forwarding_profile_source_application(
         config = load_from_yaml(str(file), "forwarding_profile_source_applications")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["forwarding_profile_source_applications"]))
             return None
 
@@ -2278,33 +1926,31 @@ def load_forwarding_profile_source_application(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created forwarding profile source application: {result.get('name', 'N/A')}")
+                    success(f"Created forwarding profile source application: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated forwarding profile source application: {result.get('name', 'N/A')}")
+                    success(f"Updated forwarding profile source application: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for forwarding profile source application: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for forwarding profile source application: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading forwarding profile source application '{app_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading forwarding profile source application '{app_data.get('name', 'unknown')}': {str(e)}")
 
         # Summary
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading forwarding profile source applications: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
 @set_app.command("forwarding-profile-source-application")
+@handle_command_errors("creating/updating forwarding profile source application")
 def set_forwarding_profile_source_application(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -2322,50 +1968,48 @@ def set_forwarding_profile_source_application(
         --application zoom
 
     """
+    # Build source application data
+    app_data: dict[str, Any] = {
+        "name": name,
+    }
+
+    if folder:
+        app_data["folder"] = folder
+    if description is not None:
+        app_data["description"] = description
+    if application:
+        app_data["applications"] = application
+
+    # Validate using the Pydantic model
     try:
-        # Build source application data
-        app_data: dict[str, Any] = {
-            "name": name,
-        }
-
-        if folder:
-            app_data["folder"] = folder
-        if description is not None:
-            app_data["description"] = description
-        if application:
-            app_data["applications"] = application
-
-        # Validate using the Pydantic model
         source_application = ForwardingProfileSourceApplication(**app_data)
         sdk_data = source_application.to_sdk_model()
-
-        # Call the SDK client
-        result = scm_client.create_forwarding_profile_source_application(**sdk_data)
-
-        # Get the action performed
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "updated":
-            typer.echo(f"Updated forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating/updating forwarding profile source application: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    # Call the SDK client
+    result = scm_client.create_forwarding_profile_source_application(**sdk_data)
+
+    # Get the action performed
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "updated":
+        success(f"Updated forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "no_change":
+        info(f"No changes needed for forwarding profile source application: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+    return result
 
 
 @show_app.command("forwarding-profile-source-application")
+@handle_command_errors("showing forwarding profile source application")
 def show_forwarding_profile_source_application(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the source application to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display forwarding profile source applications.
 
@@ -2378,56 +2022,23 @@ def show_forwarding_profile_source_application(
         scm show mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if name:
-            # Get a specific source application by name
-            app = scm_client.get_forwarding_profile_source_application(folder=folder, name=name)
+    if name:
+        # Get a specific source application by name
+        app = scm_client.get_forwarding_profile_source_application(folder=folder, name=name)
+        emit(app, output, title=f"Forwarding Profile Source Application: {app.get('name', 'N/A')}")
+        return app
 
-            typer.echo(f"\nForwarding Profile Source Application: {app.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-
-            # Display container location
-            if app.get("folder"):
-                typer.echo(f"Location: Folder '{app['folder']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            # Display source application details
-            if app.get("description"):
-                typer.echo(f"Description: {app['description']}")
-            if app.get("applications"):
-                typer.echo(f"Applications: {', '.join(app['applications'])}")
-            if app.get("id"):
-                typer.echo(f"ID: {app['id']}")
-
-            return app
-
-        else:
-            # Default: list all source applications
-            apps_list = scm_client.list_forwarding_profile_source_applications(folder=folder)
-
-            if not apps_list:
-                typer.echo(f"No forwarding profile source applications found in folder '{folder}'")
-                return
-
-            typer.echo(f"\nForwarding Profile Source Applications in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for app in apps_list:
-                typer.echo(f"Name: {app.get('name', 'N/A')}")
-                if app.get("applications"):
-                    typer.echo(f"  Applications: {', '.join(app['applications'])}")
-                if app.get("description"):
-                    typer.echo(f"  Description: {app['description']}")
-                typer.echo("-" * 60)
-
-            return apps_list
-
-    except Exception as e:
-        typer.echo(f"Error showing forwarding profile source application: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    # Default: list all source applications
+    apps_list = scm_client.list_forwarding_profile_source_applications(folder=folder)
+    emit(
+        apps_list,
+        output,
+        columns=["name", "applications", "description"],
+        title=f"Forwarding Profile Source Applications in folder '{folder}'",
+    )
+    return apps_list
 
 
 # =============================================================================================================================================================================================
@@ -2451,22 +2062,8 @@ USER_LOCATION_IP_OPTION = typer.Option(
 )
 
 
-def _format_user_location_choice(choice: dict[str, Any]) -> list[str]:
-    """Format a user location choice dictionary for display."""
-    lines = []
-    if choice.get("ip_addresses"):
-        ips = ", ".join(entry.get("name", "N/A") for entry in choice["ip_addresses"])
-        lines.append(f"IP Addresses: {ips}")
-    internal_host = choice.get("internal_host_detection")
-    if internal_host:
-        if internal_host.get("ip_address"):
-            lines.append(f"Internal Host IP: {internal_host['ip_address']}")
-        if internal_host.get("fqdn"):
-            lines.append(f"Internal Host FQDN: {internal_host['fqdn']}")
-    return lines
-
-
 @backup_app.command("forwarding-profile-user-location")
+@handle_command_errors("backing up forwarding profile user locations")
 def backup_forwarding_profile_user_location(
     folder: str = BACKUP_FOLDER_OPTION,
     file: Path | None = BACKUP_FILE_OPTION,
@@ -2479,52 +2076,48 @@ def backup_forwarding_profile_user_location(
         scm backup mobile-agent forwarding-profile-user-location --folder "Mobile Users"
 
     """
-    try:
-        folder = folder or "Mobile Users"
+    folder = folder or "Mobile Users"
 
-        user_locations = scm_client.list_forwarding_profile_user_locations(folder=folder)
+    user_locations = scm_client.list_forwarding_profile_user_locations(folder=folder)
 
-        if not user_locations:
-            typer.echo(f"No forwarding profile user locations found in folder '{folder}'")
-            return
+    if not user_locations:
+        info(f"No forwarding profile user locations found in folder '{folder}'")
+        return
 
-        # Convert SDK models to dictionaries, excluding unset values
-        backup_data = []
-        for location in user_locations:
-            location_dict = {k: v for k, v in location.items() if v is not None}
-            # Remove system fields that shouldn't be in backup
-            location_dict.pop("id", None)
-            # Flatten choice into the CLI YAML schema
-            choice = location_dict.pop("choice", None) or {}
-            if choice.get("ip_addresses"):
-                location_dict["ip_addresses"] = [entry["name"] for entry in choice["ip_addresses"] if entry.get("name")]
-            internal_host = choice.get("internal_host_detection") or {}
-            if internal_host.get("ip_address"):
-                location_dict["internal_host_ip"] = internal_host["ip_address"]
-            if internal_host.get("fqdn"):
-                location_dict["internal_host_fqdn"] = internal_host["fqdn"]
-            backup_data.append(location_dict)
+    # Convert SDK models to dictionaries, excluding unset values
+    backup_data = []
+    for location in user_locations:
+        location_dict = {k: v for k, v in location.items() if v is not None}
+        # Remove system fields that shouldn't be in backup
+        location_dict.pop("id", None)
+        # Flatten choice into the CLI YAML schema
+        choice = location_dict.pop("choice", None) or {}
+        if choice.get("ip_addresses"):
+            location_dict["ip_addresses"] = [entry["name"] for entry in choice["ip_addresses"] if entry.get("name")]
+        internal_host = choice.get("internal_host_detection") or {}
+        if internal_host.get("ip_address"):
+            location_dict["internal_host_ip"] = internal_host["ip_address"]
+        if internal_host.get("fqdn"):
+            location_dict["internal_host_fqdn"] = internal_host["fqdn"]
+        backup_data.append(location_dict)
 
-        # Create the YAML structure
-        yaml_data = {"forwarding_profile_user_locations": backup_data}
+    # Create the YAML structure
+    yaml_data = {"forwarding_profile_user_locations": backup_data}
 
-        # Generate filename
-        if file is None:
-            file = Path(get_default_backup_filename("forwarding-profile-user-location", "folder", folder))
+    # Generate filename
+    if file is None:
+        file = Path(get_default_backup_filename("forwarding-profile-user-location", "folder", folder))
 
-        # Write to YAML file
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    # Write to YAML file
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profile user locations to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up forwarding profile user locations: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} forwarding profile user locations to {file}")
+    return str(file)
 
 
 @delete_app.command("forwarding-profile-user-location")
+@handle_command_errors("deleting forwarding profile user location")
 def delete_forwarding_profile_user_location(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -2537,19 +2130,16 @@ def delete_forwarding_profile_user_location(
         scm delete mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network"
 
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete forwarding profile user location '{name}' from folder '{folder}'?", abort=True)
-        result = scm_client.delete_forwarding_profile_user_location(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted forwarding profile user location: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting forwarding profile user location: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if not force:
+        typer.confirm(f"Delete forwarding profile user location '{name}' from folder '{folder}'?", abort=True)
+    result = scm_client.delete_forwarding_profile_user_location(folder=folder, name=name)
+    if result:
+        success(f"Deleted forwarding profile user location: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("forwarding-profile-user-location")
+@handle_command_errors("loading forwarding profile user locations")
 def load_forwarding_profile_user_location(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -2571,7 +2161,7 @@ def load_forwarding_profile_user_location(
         config = load_from_yaml(str(file), "forwarding_profile_user_locations")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["forwarding_profile_user_locations"]))
             return None
 
@@ -2598,33 +2188,31 @@ def load_forwarding_profile_user_location(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created forwarding profile user location: {result.get('name', 'N/A')}")
+                    success(f"Created forwarding profile user location: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated forwarding profile user location: {result.get('name', 'N/A')}")
+                    success(f"Updated forwarding profile user location: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for forwarding profile user location: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for forwarding profile user location: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading forwarding profile user location '{location_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading forwarding profile user location '{location_data.get('name', 'unknown')}': {str(e)}")
 
         # Summary
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading forwarding profile user locations: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
 @set_app.command("forwarding-profile-user-location")
+@handle_command_errors("creating/updating forwarding profile user location")
 def set_forwarding_profile_user_location(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -2653,54 +2241,52 @@ def set_forwarding_profile_user_location(
         --internal-host-fqdn "intranet.example.com"
 
     """
+    # Build user location data
+    location_data: dict[str, Any] = {
+        "name": name,
+    }
+
+    if folder:
+        location_data["folder"] = folder
+    if description is not None:
+        location_data["description"] = description
+    if internal_host_ip is not None:
+        location_data["internal_host_ip"] = internal_host_ip
+    if internal_host_fqdn is not None:
+        location_data["internal_host_fqdn"] = internal_host_fqdn
+    if ip_address:
+        location_data["ip_addresses"] = ip_address
+
+    # Validate using the Pydantic model
     try:
-        # Build user location data
-        location_data: dict[str, Any] = {
-            "name": name,
-        }
-
-        if folder:
-            location_data["folder"] = folder
-        if description is not None:
-            location_data["description"] = description
-        if internal_host_ip is not None:
-            location_data["internal_host_ip"] = internal_host_ip
-        if internal_host_fqdn is not None:
-            location_data["internal_host_fqdn"] = internal_host_fqdn
-        if ip_address:
-            location_data["ip_addresses"] = ip_address
-
-        # Validate using the Pydantic model
         user_location = ForwardingProfileUserLocation(**location_data)
         sdk_data = user_location.to_sdk_model()
-
-        # Call the SDK client
-        result = scm_client.create_forwarding_profile_user_location(**sdk_data)
-
-        # Get the action performed
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "updated":
-            typer.echo(f"Updated forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating/updating forwarding profile user location: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    # Call the SDK client
+    result = scm_client.create_forwarding_profile_user_location(**sdk_data)
+
+    # Get the action performed
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "updated":
+        success(f"Updated forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "no_change":
+        info(f"No changes needed for forwarding profile user location: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+    return result
 
 
 @show_app.command("forwarding-profile-user-location")
+@handle_command_errors("showing forwarding profile user location")
 def show_forwarding_profile_user_location(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the user location to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display forwarding profile user locations.
 
@@ -2713,56 +2299,23 @@ def show_forwarding_profile_user_location(
         scm show mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if name:
-            # Get a specific user location by name
-            location = scm_client.get_forwarding_profile_user_location(folder=folder, name=name)
+    if name:
+        # Get a specific user location by name
+        location = scm_client.get_forwarding_profile_user_location(folder=folder, name=name)
+        emit(location, output, title=f"Forwarding Profile User Location: {location.get('name', 'N/A')}")
+        return location
 
-            typer.echo(f"\nForwarding Profile User Location: {location.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-
-            # Display container location
-            if location.get("folder"):
-                typer.echo(f"Location: Folder '{location['folder']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            # Display user location details
-            if location.get("description"):
-                typer.echo(f"Description: {location['description']}")
-            for line in _format_user_location_choice(location.get("choice") or {}):
-                typer.echo(line)
-            if location.get("id"):
-                typer.echo(f"ID: {location['id']}")
-
-            return location
-
-        else:
-            # Default: list all user locations
-            locations_list = scm_client.list_forwarding_profile_user_locations(folder=folder)
-
-            if not locations_list:
-                typer.echo(f"No forwarding profile user locations found in folder '{folder}'")
-                return
-
-            typer.echo(f"\nForwarding Profile User Locations in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for location in locations_list:
-                typer.echo(f"Name: {location.get('name', 'N/A')}")
-                for line in _format_user_location_choice(location.get("choice") or {}):
-                    typer.echo(f"  {line}")
-                if location.get("description"):
-                    typer.echo(f"  Description: {location['description']}")
-                typer.echo("-" * 60)
-
-            return locations_list
-
-    except Exception as e:
-        typer.echo(f"Error showing forwarding profile user location: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    # Default: list all user locations
+    locations_list = scm_client.list_forwarding_profile_user_locations(folder=folder)
+    emit(
+        locations_list,
+        output,
+        columns=["name", "choice", "description"],
+        title=f"Forwarding Profile User Locations in folder '{folder}'",
+    )
+    return locations_list
 
 
 # =============================================================================================================================================================================================
@@ -2817,6 +2370,7 @@ LOCATION_PREFERENCE_OPTION = typer.Option(
 
 
 @backup_app.command("forwarding-profile-regional-and-custom-proxy")
+@handle_command_errors("backing up forwarding profile regional and custom proxies")
 def backup_forwarding_profile_regional_and_custom_proxy(
     folder: str = BACKUP_FOLDER_OPTION,
     file: Path | None = BACKUP_FILE_OPTION,
@@ -2829,43 +2383,39 @@ def backup_forwarding_profile_regional_and_custom_proxy(
         scm backup mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users"
 
     """
-    try:
-        folder = folder or "Mobile Users"
+    folder = folder or "Mobile Users"
 
-        proxies = scm_client.list_forwarding_profile_regional_and_custom_proxies(folder=folder)
+    proxies = scm_client.list_forwarding_profile_regional_and_custom_proxies(folder=folder)
 
-        if not proxies:
-            typer.echo(f"No forwarding profile regional and custom proxies found in folder '{folder}'")
-            return
+    if not proxies:
+        info(f"No forwarding profile regional and custom proxies found in folder '{folder}'")
+        return
 
-        # Convert SDK models to dictionaries, excluding unset values
-        backup_data = []
-        for proxy in proxies:
-            proxy_dict = {k: v for k, v in proxy.items() if v is not None}
-            # Remove system fields that shouldn't be in backup
-            proxy_dict.pop("id", None)
-            backup_data.append(proxy_dict)
+    # Convert SDK models to dictionaries, excluding unset values
+    backup_data = []
+    for proxy in proxies:
+        proxy_dict = {k: v for k, v in proxy.items() if v is not None}
+        # Remove system fields that shouldn't be in backup
+        proxy_dict.pop("id", None)
+        backup_data.append(proxy_dict)
 
-        # Create the YAML structure
-        yaml_data = {"forwarding_profile_regional_and_custom_proxies": backup_data}
+    # Create the YAML structure
+    yaml_data = {"forwarding_profile_regional_and_custom_proxies": backup_data}
 
-        # Generate filename
-        if file is None:
-            file = Path(get_default_backup_filename("forwarding-profile-regional-and-custom-proxy", "folder", folder))
+    # Generate filename
+    if file is None:
+        file = Path(get_default_backup_filename("forwarding-profile-regional-and-custom-proxy", "folder", folder))
 
-        # Write to YAML file
-        with file.open("w") as f:
-            yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+    # Write to YAML file
+    with file.open("w") as f:
+        yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data)} forwarding profile regional and custom proxies to {file}")
-        return str(file)
-
-    except Exception as e:
-        typer.echo(f"Error backing up forwarding profile regional and custom proxies: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data)} forwarding profile regional and custom proxies to {file}")
+    return str(file)
 
 
 @delete_app.command("forwarding-profile-regional-and-custom-proxy")
+@handle_command_errors("deleting forwarding profile regional and custom proxy")
 def delete_forwarding_profile_regional_and_custom_proxy(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -2878,19 +2428,16 @@ def delete_forwarding_profile_regional_and_custom_proxy(
         scm delete mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy"
 
     """
-    try:
-        if not force:
-            typer.confirm(f"Delete forwarding profile regional and custom proxy '{name}' from folder '{folder}'?", abort=True)
-        result = scm_client.delete_forwarding_profile_regional_and_custom_proxy(folder=folder, name=name)
-        if result:
-            typer.echo(f"Deleted forwarding profile regional and custom proxy: {name} from folder {folder}")
-        return result
-    except Exception as e:
-        typer.echo(f"Error deleting forwarding profile regional and custom proxy: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if not force:
+        typer.confirm(f"Delete forwarding profile regional and custom proxy '{name}' from folder '{folder}'?", abort=True)
+    result = scm_client.delete_forwarding_profile_regional_and_custom_proxy(folder=folder, name=name)
+    if result:
+        success(f"Deleted forwarding profile regional and custom proxy: {name} from folder {folder}")
+    return result
 
 
 @load_app.command("forwarding-profile-regional-and-custom-proxy")
+@handle_command_errors("loading forwarding profile regional and custom proxies")
 def load_forwarding_profile_regional_and_custom_proxy(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -2915,7 +2462,7 @@ def load_forwarding_profile_regional_and_custom_proxy(
         config = load_from_yaml(str(file), "forwarding_profile_regional_and_custom_proxies")
 
         if dry_run:
-            typer.echo("Dry run mode: would apply the following configurations:")
+            info("Dry run mode: would apply the following configurations:")
             typer.echo(yaml.dump(config["forwarding_profile_regional_and_custom_proxies"]))
             return None
 
@@ -2942,33 +2489,31 @@ def load_forwarding_profile_regional_and_custom_proxy(
                 action = result.pop("__action__", "created")
                 if action == "created":
                     created_count += 1
-                    typer.echo(f"Created forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
+                    success(f"Created forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
                 elif action == "updated":
                     updated_count += 1
-                    typer.echo(f"Updated forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
+                    success(f"Updated forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
                 elif action == "no_change":
                     no_change_count += 1
-                    typer.echo(f"No changes needed for forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
+                    info(f"No changes needed for forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
 
                 results.append(result)
 
             except Exception as e:
-                typer.echo(f"Error loading forwarding profile regional and custom proxy '{proxy_data.get('name', 'unknown')}': {str(e)}", err=True)
+                error(f"Error loading forwarding profile regional and custom proxy '{proxy_data.get('name', 'unknown')}': {str(e)}")
 
         # Summary
-        typer.echo(f"\nSummary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
 
         return results
 
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading forwarding profile regional and custom proxies: {str(e)}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
 
 
 @set_app.command("forwarding-profile-regional-and-custom-proxy")
+@handle_command_errors("creating/updating forwarding profile regional and custom proxy")
 def set_forwarding_profile_regional_and_custom_proxy(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -2999,75 +2544,73 @@ def set_forwarding_profile_regional_and_custom_proxy(
         --fallback-option fail-open
 
     """
+    # Build regional and custom proxy data
+    proxy_data: dict[str, Any] = {
+        "name": name,
+    }
+
+    if folder:
+        proxy_data["folder"] = folder
+    if description is not None:
+        proxy_data["description"] = description
+    if type is not None:
+        proxy_data["type"] = type
+
+    proxy_1: dict[str, Any] = {}
+    if proxy_1_fqdn is not None:
+        proxy_1["fqdn"] = proxy_1_fqdn
+    if proxy_1_port is not None:
+        proxy_1["port"] = proxy_1_port
+    if proxy_1_location is not None:
+        proxy_1["location"] = proxy_1_location
+    if proxy_1:
+        proxy_data["proxy_1"] = proxy_1
+
+    proxy_2: dict[str, Any] = {}
+    if proxy_2_fqdn is not None:
+        proxy_2["fqdn"] = proxy_2_fqdn
+    if proxy_2_port is not None:
+        proxy_2["port"] = proxy_2_port
+    if proxy_2_location is not None:
+        proxy_2["location"] = proxy_2_location
+    if proxy_2:
+        proxy_data["proxy_2"] = proxy_2
+
+    if fallback_option is not None:
+        proxy_data["fallback_option"] = fallback_option
+    if location_preference is not None:
+        proxy_data["location_preference"] = location_preference
+
+    # Validate using the Pydantic model
     try:
-        # Build regional and custom proxy data
-        proxy_data: dict[str, Any] = {
-            "name": name,
-        }
-
-        if folder:
-            proxy_data["folder"] = folder
-        if description is not None:
-            proxy_data["description"] = description
-        if type is not None:
-            proxy_data["type"] = type
-
-        proxy_1: dict[str, Any] = {}
-        if proxy_1_fqdn is not None:
-            proxy_1["fqdn"] = proxy_1_fqdn
-        if proxy_1_port is not None:
-            proxy_1["port"] = proxy_1_port
-        if proxy_1_location is not None:
-            proxy_1["location"] = proxy_1_location
-        if proxy_1:
-            proxy_data["proxy_1"] = proxy_1
-
-        proxy_2: dict[str, Any] = {}
-        if proxy_2_fqdn is not None:
-            proxy_2["fqdn"] = proxy_2_fqdn
-        if proxy_2_port is not None:
-            proxy_2["port"] = proxy_2_port
-        if proxy_2_location is not None:
-            proxy_2["location"] = proxy_2_location
-        if proxy_2:
-            proxy_data["proxy_2"] = proxy_2
-
-        if fallback_option is not None:
-            proxy_data["fallback_option"] = fallback_option
-        if location_preference is not None:
-            proxy_data["location_preference"] = location_preference
-
-        # Validate using the Pydantic model
         regional_proxy = ForwardingProfileRegionalAndCustomProxy(**proxy_data)
         sdk_data = regional_proxy.to_sdk_model()
-
-        # Call the SDK client
-        result = scm_client.create_forwarding_profile_regional_and_custom_proxy(**sdk_data)
-
-        # Get the action performed
-        action = result.pop("__action__", "created")
-
-        if action == "created":
-            typer.echo(f"Created forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "updated":
-            typer.echo(f"Updated forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
-        elif action == "no_change":
-            typer.echo(f"No changes needed for forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
-
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {str(e)}", err=True)
+        error(f"Validation error: {str(e)}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating/updating forwarding profile regional and custom proxy: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    # Call the SDK client
+    result = scm_client.create_forwarding_profile_regional_and_custom_proxy(**sdk_data)
+
+    # Get the action performed
+    action = result.pop("__action__", "created")
+
+    if action == "created":
+        success(f"Created forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "updated":
+        success(f"Updated forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
+    elif action == "no_change":
+        info(f"No changes needed for forwarding profile regional and custom proxy: {result.get('name', name)} in folder {result.get('folder', folder)}")
+
+    return result
 
 
 @show_app.command("forwarding-profile-regional-and-custom-proxy")
+@handle_command_errors("showing forwarding profile regional and custom proxy")
 def show_forwarding_profile_regional_and_custom_proxy(
     folder: str = FOLDER_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the regional and custom proxy to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display forwarding profile regional and custom proxies.
 
@@ -3080,73 +2623,20 @@ def show_forwarding_profile_regional_and_custom_proxy(
         scm show mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy"
 
     """
-    try:
-        show_context_info()
+    show_context_info()
 
-        if name:
-            # Get a specific regional and custom proxy by name
-            proxy = scm_client.get_forwarding_profile_regional_and_custom_proxy(folder=folder, name=name)
+    if name:
+        # Get a specific regional and custom proxy by name
+        proxy = scm_client.get_forwarding_profile_regional_and_custom_proxy(folder=folder, name=name)
+        emit(proxy, output, title=f"Forwarding Profile Regional and Custom Proxy: {proxy.get('name', 'N/A')}")
+        return proxy
 
-            typer.echo(f"\nForwarding Profile Regional and Custom Proxy: {proxy.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-
-            # Display container location
-            if proxy.get("folder"):
-                typer.echo(f"Location: Folder '{proxy['folder']}'")
-            else:
-                typer.echo("Location: N/A")
-
-            # Display regional and custom proxy details
-            if proxy.get("description"):
-                typer.echo(f"Description: {proxy['description']}")
-            if proxy.get("type"):
-                typer.echo(f"Type: {proxy['type']}")
-            for proxy_key, proxy_label in (("proxy_1", "Proxy 1"), ("proxy_2", "Proxy 2")):
-                server = proxy.get(proxy_key)
-                if server:
-                    parts = [server.get("fqdn", "N/A")]
-                    if server.get("port"):
-                        parts.append(f"port {server['port']}")
-                    if server.get("location"):
-                        parts.append(f"location {server['location']}")
-                    typer.echo(f"{proxy_label}: {', '.join(parts)}")
-            if proxy.get("connectivity_preference"):
-                prefs = ", ".join(f"{pref.get('name', 'N/A')}={'enabled' if pref.get('enabled') else 'disabled'}" for pref in proxy["connectivity_preference"])
-                typer.echo(f"Connectivity Preference: {prefs}")
-            if proxy.get("fallback_option"):
-                typer.echo(f"Fallback Option: {proxy['fallback_option']}")
-            if proxy.get("location_preference"):
-                typer.echo(f"Location Preference: {proxy['location_preference']}")
-            if proxy.get("prisma_access_locations"):
-                for region in proxy["prisma_access_locations"]:
-                    locations = ", ".join(region.get("locations") or [])
-                    typer.echo(f"Prisma Access Region: {region.get('name', 'N/A')}{f' ({locations})' if locations else ''}")
-            if proxy.get("id"):
-                typer.echo(f"ID: {proxy['id']}")
-
-            return proxy
-
-        else:
-            # Default: list all regional and custom proxies
-            proxies_list = scm_client.list_forwarding_profile_regional_and_custom_proxies(folder=folder)
-
-            if not proxies_list:
-                typer.echo(f"No forwarding profile regional and custom proxies found in folder '{folder}'")
-                return
-
-            typer.echo(f"\nForwarding Profile Regional and Custom Proxies in folder '{folder}':")
-            typer.echo("-" * 60)
-
-            for proxy in proxies_list:
-                typer.echo(f"Name: {proxy.get('name', 'N/A')}")
-                if proxy.get("type"):
-                    typer.echo(f"  Type: {proxy['type']}")
-                if proxy.get("description"):
-                    typer.echo(f"  Description: {proxy['description']}")
-                typer.echo("-" * 60)
-
-            return proxies_list
-
-    except Exception as e:
-        typer.echo(f"Error showing forwarding profile regional and custom proxy: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    # Default: list all regional and custom proxies
+    proxies_list = scm_client.list_forwarding_profile_regional_and_custom_proxies(folder=folder)
+    emit(
+        proxies_list,
+        output,
+        columns=["name", "type", "description"],
+        title=f"Forwarding Profile Regional and Custom Proxies in folder '{folder}'",
+    )
+    return proxies_list

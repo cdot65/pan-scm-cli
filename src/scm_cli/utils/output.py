@@ -79,6 +79,22 @@ def info(message: str) -> None:
 
 # ----------------------------------------------------------------------------- data (stdout)
 
+_SECRET_KEYS = ("password", "secret", "private_key", "access_token")
+
+
+def redact(data: Any) -> Any:
+    """Return a copy of data with secret-bearing fields masked.
+
+    Any dict key containing password/secret/private_key/access_token (at any
+    nesting depth, in lists too) has its value replaced with ``********``.
+    Apply before emit() when the payload may carry credentials.
+    """
+    if isinstance(data, dict):
+        return {key: ("********" if any(marker in key.lower() for marker in _SECRET_KEYS) and value is not None else redact(value)) for key, value in data.items()}
+    if isinstance(data, list):
+        return [redact(item) for item in data]
+    return data
+
 
 def _humanize(key: str) -> str:
     """Convert a snake_case field name into a title-cased column label."""
@@ -91,7 +107,7 @@ def _cell(value: Any) -> str:
         return ""
     if isinstance(value, bool):
         return "yes" if value else "no"
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return ", ".join(_cell(v) for v in value)
     if isinstance(value, dict):
         return json.dumps(value, default=str)
