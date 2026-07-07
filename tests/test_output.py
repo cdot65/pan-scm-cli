@@ -138,3 +138,25 @@ class TestOutputOption:
 
     def test_output_format_values(self):
         assert {f.value for f in OutputFormat} == {"table", "json", "yaml"}
+
+
+class TestRedact:
+    def test_masks_secret_keys_at_depth(self):
+        from scm_cli.utils.output import redact
+
+        data = {
+            "name": "profile1",
+            "server": [{"name": "s1", "password": "hunter2", "url": "http://x"}],
+            "client_secret": "abc",
+        }
+        redacted = redact(data)
+        assert redacted["server"][0]["password"] == "********"
+        assert redacted["client_secret"] == "********"
+        assert redacted["server"][0]["url"] == "http://x"
+        # original untouched
+        assert data["server"][0]["password"] == "hunter2"
+
+    def test_none_secrets_stay_none(self):
+        from scm_cli.utils.output import redact
+
+        assert redact({"password": None})["password"] is None

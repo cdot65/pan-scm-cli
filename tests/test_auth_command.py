@@ -3,7 +3,6 @@
 This module tests the context test command for verifying authentication credentials.
 """
 
-from unittest.mock import patch
 
 from scm_cli.main import app
 

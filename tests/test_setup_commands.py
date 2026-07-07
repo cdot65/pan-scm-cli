@@ -1,5 +1,7 @@
 """Tests for the setup commands module."""
 
+import json
+
 import pytest
 import typer
 from pydantic import ValidationError
@@ -559,12 +561,18 @@ class TestDeviceCommands:
         result = runner.invoke(
             test_app,
             [
-                "--name", "PA-VM-01",
-                "--display-name", "Edge-FW",
-                "--folder", "Austin",
-                "--description", "Edge firewall",
-                "--labels", "production",
-                "--snippets", "DNS-Best-Practice",
+                "--name",
+                "PA-VM-01",
+                "--display-name",
+                "Edge-FW",
+                "--folder",
+                "Austin",
+                "--description",
+                "Edge firewall",
+                "--labels",
+                "production",
+                "--snippets",
+                "DNS-Best-Practice",
             ],
         )
 
@@ -630,13 +638,14 @@ class TestDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(show_device)
 
-        result = runner.invoke(test_app, ["--name", "PA-VM-01"])
+        result = runner.invoke(test_app, ["--name", "PA-VM-01", "--output", "json"])
 
         assert result.exit_code == 0, result.stdout
-        assert "Display Name: Edge-FW" in result.stdout
-        assert "Description: Edge firewall" in result.stdout
-        assert "Labels: production, west" in result.stdout
-        assert "Snippets: DNS-Best-Practice" in result.stdout
+        data = json.loads(result.stdout)
+        assert data["display_name"] == "Edge-FW"
+        assert data["description"] == "Edge firewall"
+        assert data["labels"] == ["production", "west"]
+        assert data["snippets"] == ["DNS-Best-Practice"]
 
     def test_show_device_list_shows_labels(self, runner, monkeypatch):
         from scm_cli.utils.sdk_client import scm_client
@@ -660,7 +669,7 @@ class TestDeviceCommands:
 
         assert result.exit_code == 0, result.stdout
         assert "PA-VM-01" in result.stdout
-        assert "Labels: production" in result.stdout
+        assert "production" in result.stdout
 
     def test_load_device_processes_all_entries(self, runner, monkeypatch, tmp_path):
         from scm_cli.commands.setup import load_app
@@ -676,6 +685,7 @@ class TestDeviceCommands:
 
         import shutil
         from pathlib import Path
+
         fixture = Path(__file__).parent / "data" / "devices.yaml"
         target = tmp_path / "devices.yaml"
         shutil.copy(fixture, target)
@@ -706,6 +716,7 @@ class TestDeviceCommands:
 
         import shutil
         from pathlib import Path
+
         fixture = Path(__file__).parent / "data" / "devices.yaml"
         target = tmp_path / "devices.yaml"
         shutil.copy(fixture, target)
@@ -745,6 +756,7 @@ class TestDeviceCommands:
         assert out_file.exists()
 
         import yaml
+
         data = yaml.safe_load(out_file.read_text())
         assert "devices" in data
         assert len(data["devices"]) == 2
@@ -765,3 +777,62 @@ class TestDeviceCommands:
 
         assert result.exit_code == 0
         assert "No devices found" in result.output
+
+
+class TestShowJsonOutput:
+    """Test that show commands emit machine-readable JSON on stdout."""
+
+    @pytest.mark.parametrize(
+        ("command_name", "list_method", "cli_args"),
+        [
+            ("show_folder", "list_folders", []),
+            ("show_label", "list_labels", []),
+            ("show_snippet", "list_snippets", []),
+            ("show_variable", "list_variables", ["--folder", "Texas"]),
+            ("show_device", "list_devices", []),
+        ],
+    )
+    def test_show_list_output_json_round_trips(self, runner, monkeypatch, command_name, list_method, cli_args):
+        import scm_cli.commands.setup as setup_module
+        from scm_cli.utils.sdk_client import scm_client
+
+        records = [
+            {"id": "obj-1", "name": "first", "description": "one"},
+            {"id": "obj-2", "name": "second", "description": "two"},
+        ]
+        monkeypatch.setattr(scm_client, list_method, lambda *a, **kw: records)
+
+        test_app = typer.Typer()
+        test_app.command()(getattr(setup_module, command_name))
+
+        result = runner.invoke(test_app, [*cli_args, "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == records
+
+    def test_show_folder_by_name_output_json(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        record = {"id": "f1", "name": "Texas", "parent": "All", "description": "Texas offices"}
+        monkeypatch.setattr(scm_client, "get_folder", lambda *a, **kw: record)
+
+        test_app = typer.Typer()
+        test_app.command()(show_folder)
+
+        result = runner.invoke(test_app, ["--name", "Texas", "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == record
+
+    def test_show_label_empty_list_output_json(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_labels", lambda *a, **kw: [])
+
+        test_app = typer.Typer()
+        test_app.command()(show_label)
+
+        result = runner.invoke(test_app, ["--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == []

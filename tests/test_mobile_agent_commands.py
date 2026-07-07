@@ -128,7 +128,7 @@ class TestAgentVersionCommands:
         )
 
         assert result.exit_code == 0
-        assert "No agent versions found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_show_agent_version_error(self, runner, monkeypatch):
         """Test showing agent version with an error."""
@@ -325,7 +325,7 @@ class TestAuthSettingCommands:
         )
 
         assert result.exit_code == 0
-        assert "No auth settings found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_delete_auth_setting(self, runner, monkeypatch):
         """Test deleting an auth setting."""
@@ -480,3 +480,50 @@ auth_settings:
         )
 
         assert result.exit_code == 1
+
+
+class TestShowJsonOutput:
+    """Test the --output json format for show commands."""
+
+    def test_show_agent_version_list_json(self, runner, monkeypatch):
+        """Test listing agent versions as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        versions = [
+            {"id": "av-1", "folder": "Mobile Users", "name": "5.2.13", "version": "5.2.13", "platform": "Windows"},
+            {"id": "av-2", "folder": "Mobile Users", "name": "5.2.12", "version": "5.2.12", "platform": "macOS"},
+        ]
+        monkeypatch.setattr(scm_client, "list_agent_versions", lambda *a, **k: versions)
+
+        test_app = typer.Typer()
+        test_app.command()(show_agent_version)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == versions
+
+    def test_show_auth_setting_detail_json(self, runner, monkeypatch):
+        """Test showing an auth setting as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        setting = {
+            "id": "as-saml-auth",
+            "folder": "Mobile Users",
+            "name": "saml-auth",
+            "authentication_profile": "best-practice",
+            "os": "Any",
+        }
+        monkeypatch.setattr(scm_client, "get_auth_setting", lambda *a, **k: setting)
+
+        test_app = typer.Typer()
+        test_app.command()(show_auth_setting)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "saml-auth", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == setting

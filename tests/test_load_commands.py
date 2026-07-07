@@ -3,7 +3,6 @@
 This module tests the load commands for bulk operations across resource types.
 """
 
-import pytest
 import typer
 
 from scm_cli.commands.network import load_security_zone

@@ -1,11 +1,12 @@
 """Tests for local config commands."""
 
-import os
+import json
 
 import pytest
+from typer.testing import CliRunner
 
-from src.scm_cli.main import app
 from src.scm_cli.commands import local as local_module
+from src.scm_cli.main import app
 from src.scm_cli.utils.sdk_client import SCMClient
 
 app.add_typer(local_module.app, name="local")
@@ -74,7 +75,17 @@ class TestLocalList:
         )
         result = runner.invoke(app, ["local", "list", "--device", "007951000123456"])
         assert result.exit_code == 0
-        assert "No config versions found" in result.output
+        assert "No results found" in result.output
+
+    def test_list_versions_output_json(self, mock_local_env):
+        """scm local list --output json emits machine-readable data on stdout."""
+        result = CliRunner(mix_stderr=False).invoke(app, ["local", "list", "--device", "007951000123456", "--output", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert isinstance(data, list)
+        assert len(data) == 3
+        assert data[0]["local_version"] == "42"
+        assert data[0]["serial"] == "007951000123456"
 
 
 class TestLocalDownload:

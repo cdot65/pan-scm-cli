@@ -1,5 +1,7 @@
 """Tests for jobs management commands."""
 
+import json
+
 import pytest
 from typer.testing import CliRunner
 
@@ -47,6 +49,17 @@ class TestJobsList:
         assert "11111" in result.output
         assert "22222" in result.output
 
+    def test_list_jobs_output_json(self, mock_jobs_env):
+        """Test jobs list --output json emits machine-readable data on stdout."""
+        result = CliRunner(mix_stderr=False).invoke(app, ["jobs", "list", "--output", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert isinstance(data, list)
+        assert len(data) == 3
+        assert data[0]["id"] == "11111"
+        assert data[0]["status"] == "FIN"
+        assert data[1]["id"] == "22222"
+
 
 class TestJobsStatus:
     """Test jobs status command."""
@@ -67,6 +80,15 @@ class TestJobsStatus:
         result = runner.invoke(app, ["jobs", "status", "--id", "99999"])
         assert result.exit_code == 0
         assert "CommitAll" in result.output
+
+    def test_job_status_output_json(self, mock_jobs_env):
+        """Test jobs status --output json emits machine-readable data on stdout."""
+        result = CliRunner(mix_stderr=False).invoke(app, ["jobs", "status", "--id", "12345", "--output", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert data["id"] == "12345"
+        assert data["status_str"] == "FIN"
+        assert data["type_str"] == "CommitAll"
 
 
 class TestJobsWait:

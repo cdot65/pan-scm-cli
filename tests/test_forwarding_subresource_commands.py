@@ -211,7 +211,7 @@ class TestForwardingProfileSourceApplicationCommands:
         )
 
         assert result.exit_code == 0
-        assert "No forwarding profile source applications found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_delete_source_application(self, runner, monkeypatch):
         """Test deleting a forwarding profile source application."""
@@ -589,7 +589,7 @@ class TestForwardingProfileUserLocationCommands:
         )
 
         assert result.exit_code == 0
-        assert "No forwarding profile user locations found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_delete_user_location(self, runner, monkeypatch):
         """Test deleting a user location."""
@@ -904,7 +904,7 @@ class TestForwardingProfileRegionalAndCustomProxyCommands:
         )
 
         assert result.exit_code == 0
-        assert "No forwarding profile regional and custom proxies found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_delete_regional_proxy(self, runner, monkeypatch):
         """Test deleting a regional and custom proxy."""
@@ -1069,3 +1069,73 @@ forwarding_profile_regional_and_custom_proxies:
         )
 
         assert result.exit_code == 1
+
+
+class TestShowJsonOutput:
+    """Test the --output json format for show commands."""
+
+    def test_show_source_application_list_json(self, runner, monkeypatch):
+        """Test listing forwarding profile source applications as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        apps = [
+            {"id": "sa-1", "folder": "Mobile Users", "name": "office-apps", "applications": ["slack", "zoom"]},
+            {"id": "sa-2", "folder": "Mobile Users", "name": "dev-apps", "applications": ["github"]},
+        ]
+        monkeypatch.setattr(scm_client, "list_forwarding_profile_source_applications", lambda *a, **k: apps)
+
+        test_app = typer.Typer()
+        test_app.command()(show_forwarding_profile_source_application)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == apps
+
+    def test_show_user_location_detail_json(self, runner, monkeypatch):
+        """Test showing a forwarding profile user location as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        location = {
+            "id": "ul-1",
+            "folder": "Mobile Users",
+            "name": "branch-network",
+            "choice": {"ip_addresses": [{"name": "10.1.0.0/16"}]},
+        }
+        monkeypatch.setattr(scm_client, "get_forwarding_profile_user_location", lambda *a, **k: location)
+
+        test_app = typer.Typer()
+        test_app.command()(show_forwarding_profile_user_location)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "branch-network", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == location
+
+    def test_show_regional_proxy_detail_json(self, runner, monkeypatch):
+        """Test showing a forwarding profile regional and custom proxy as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        proxy = {
+            "id": "rp-1",
+            "folder": "Mobile Users",
+            "name": "emea-proxy",
+            "type": "gp-and-pac",
+            "proxy_1": {"fqdn": "proxy1.example.com", "port": 8080},
+            "fallback_option": "fail-open",
+        }
+        monkeypatch.setattr(scm_client, "get_forwarding_profile_regional_and_custom_proxy", lambda *a, **k: proxy)
+
+        test_app = typer.Typer()
+        test_app.command()(show_forwarding_profile_regional_and_custom_proxy)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "emea-proxy", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == proxy

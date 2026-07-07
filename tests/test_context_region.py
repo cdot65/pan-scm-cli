@@ -3,12 +3,11 @@
 import os
 
 import yaml
-import pytest
 
-from src.scm_cli.utils.context import create_context, get_context_config
-from src.scm_cli.utils.config import get_auth_config
-from src.scm_cli.main import app as main_app
 from src.scm_cli.commands import context as context_module
+from src.scm_cli.main import app as main_app
+from src.scm_cli.utils.config import get_auth_config
+from src.scm_cli.utils.context import create_context, get_context_config
 
 main_app.add_typer(context_module.app, name="context")
 
@@ -129,8 +128,8 @@ class TestRegionInAuthConfig:
     def test_auth_config_region_from_context(self, tmp_path, monkeypatch):
         """get_auth_config picks up region from context settings."""
         import scm_cli.utils.context as ctx_mod
-        import src.scm_cli.utils.context as src_ctx_mod
         import src.scm_cli.utils.config as src_config_mod
+        import src.scm_cli.utils.context as src_ctx_mod
 
         # Patch both module instances (src. prefix and without)
         ctx_dir = str(tmp_path / "contexts")
@@ -161,18 +160,18 @@ class TestRegionOverride:
 
     def test_get_region_override_default_none(self):
         """get_region_override returns None when no override set."""
-        from scm_cli.main import get_region_override
-
         # Reset the module-level variable
         import scm_cli.main as main_mod
+        from scm_cli.main import get_region_override
 
         main_mod._region_override = None
         assert get_region_override() is None
 
     def test_region_override_set(self):
         """get_region_override returns value after being set."""
-        from scm_cli.main import get_region_override
         import sys
+
+        from scm_cli.main import get_region_override
 
         main_mod = sys.modules["scm_cli.main"]
         main_mod._region_override = "europe"

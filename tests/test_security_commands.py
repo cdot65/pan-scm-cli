@@ -1,5 +1,8 @@
 """Tests for the security commands module."""
 
+import json
+
+import pytest
 import typer
 
 from scm_cli.commands.security import (  # noqa: F401
@@ -34,10 +37,13 @@ from scm_cli.commands.security import (  # noqa: F401
     set_url_category,
     set_vulnerability_protection_profile,
     set_wildfire_antivirus_profile,
+    show_anti_spyware_profile,
     show_app_override_rule,
     show_authentication_rule,
+    show_decryption_profile,
     show_decryption_rule,
     show_dns_security_profile,
+    show_security_rule,
     show_url_access_profile,
     show_url_category,
     show_vulnerability_protection_profile,
@@ -305,9 +311,7 @@ class TestSecurityRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "test-folder", "--name", "test-rule",
-             "--source-zones", "trust", "--destination-zones", "untrust",
-             "--action", "allow"],
+            ["--folder", "test-folder", "--name", "test-rule", "--source-zones", "trust", "--destination-zones", "untrust", "--action", "allow"],
         )
 
         assert result.exit_code == 0
@@ -331,9 +335,7 @@ class TestSecurityRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "test-folder", "--name", "test-rule",
-             "--source-zones", "trust", "--destination-zones", "untrust",
-             "--action", "allow"],
+            ["--folder", "test-folder", "--name", "test-rule", "--source-zones", "trust", "--destination-zones", "untrust", "--action", "allow"],
         )
 
         assert result.exit_code == 0
@@ -510,7 +512,7 @@ class TestWildfireAntivirusProfileCommands:
 
         assert result.exit_code == 0
         assert "WF Test" in result.stdout
-        assert "Packet Capture: Enabled" in result.stdout
+        assert "Packet Capture" in result.stdout
         assert "Forward All" in result.stdout
 
     def test_load_wildfire_antivirus_profile_command(self, runner, monkeypatch, tmp_path):
@@ -1183,8 +1185,7 @@ class TestDecryptionProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "ssl-forward",
-             "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
+            ["--folder", "Texas", "--name", "ssl-forward", "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
         )
 
         assert result.exit_code == 0
@@ -1204,8 +1205,7 @@ class TestDecryptionProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "ssl-forward",
-             "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
+            ["--folder", "Texas", "--name", "ssl-forward", "--ssl-forward-proxy", '{"block_expired_certificate": true}'],
         )
 
         assert result.exit_code == 0
@@ -1490,7 +1490,8 @@ class TestAppOverrideRuleCommands:
         result = runner.invoke(test_app, ["--folder", "Texas", "--name", "override-https"])
 
         assert result.exit_code == 0
-        assert "App Override Rule: override-https" in result.stdout
+        assert "App Override Rule" in result.stdout
+        assert "override-https" in result.stdout
         assert "ssl" in result.stdout
 
     def test_set_app_override_rule_updated(self, runner, monkeypatch):
@@ -1507,8 +1508,7 @@ class TestAppOverrideRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "override-https",
-             "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
+            ["--folder", "Texas", "--name", "override-https", "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
         )
 
         assert result.exit_code == 0
@@ -1528,8 +1528,7 @@ class TestAppOverrideRuleCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "override-https",
-             "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
+            ["--folder", "Texas", "--name", "override-https", "--application", "ssl", "--port", "8443", "--protocol", "tcp"],
         )
 
         assert result.exit_code == 0
@@ -1770,7 +1769,8 @@ class TestDecryptionRuleCommands:
         result = runner.invoke(test_app, ["--folder", "Texas", "--name", "decrypt-outbound"])
 
         assert result.exit_code == 0
-        assert "Decryption Rule: decrypt-outbound" in result.stdout
+        assert "Decryption Rule" in result.stdout
+        assert "decrypt-outbound" in result.stdout
 
     def test_set_decryption_rule_updated(self, runner, monkeypatch):
         mock_client = self._mock_scm_client(monkeypatch)
@@ -1912,7 +1912,8 @@ class TestURLAccessProfileCommands:
         result = runner.invoke(test_app, ["--folder", "Texas", "--name", "strict-url"])
 
         assert result.exit_code == 0
-        assert "URL Access Profile: strict-url" in result.stdout
+        assert "URL Access Profile" in result.stdout
+        assert "strict-url" in result.stdout
 
     def test_set_url_access_profile_updated(self, runner, monkeypatch):
         mock_client = self._mock_scm_client(monkeypatch)
@@ -2377,3 +2378,83 @@ class TestMoveCommands:
 
         assert result.exit_code == 1
         assert "must be specified" in result.output
+
+
+class TestShowOutputJson:
+    """Verify --output json emits machine-readable data on stdout for show commands."""
+
+    def _mock_scm_client(self, monkeypatch):
+        """Set up a mock SCM client to avoid real API calls."""
+        from unittest.mock import MagicMock
+
+        import scm_cli.commands.security as sec_module
+
+        mock_client = MagicMock()
+        monkeypatch.setattr(sec_module, "scm_client", mock_client)
+        return mock_client
+
+    @pytest.mark.parametrize(
+        ("command", "list_method"),
+        [
+            (show_security_rule, "list_security_rules"),
+            (show_anti_spyware_profile, "list_anti_spyware_profiles"),
+            (show_decryption_profile, "list_decryption_profiles"),
+            (show_wildfire_antivirus_profile, "list_wildfire_antivirus_profiles"),
+            (show_dns_security_profile, "list_dns_security_profiles"),
+            (show_vulnerability_protection_profile, "list_vulnerability_protection_profiles"),
+            (show_url_category, "list_url_categories"),
+            (show_app_override_rule, "list_app_override_rules"),
+            (show_authentication_rule, "list_authentication_rules"),
+            (show_decryption_rule, "list_decryption_rules"),
+            (show_url_access_profile, "list_url_access_profiles"),
+        ],
+    )
+    def test_show_list_output_json(self, runner, monkeypatch, command, list_method):
+        """Each show command's list path round-trips data through --output json."""
+        sample = [
+            {"id": "obj-1", "name": "obj-one", "folder": "Texas"},
+            {"id": "obj-2", "name": "obj-two", "folder": "Texas"},
+        ]
+        mock_client = self._mock_scm_client(monkeypatch)
+        getattr(mock_client, list_method).return_value = sample
+
+        test_app = typer.Typer()
+        test_app.command()(command)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == sample
+
+    def test_show_single_output_json(self, runner, monkeypatch):
+        """A show command's single-object path round-trips data through --output json."""
+        sample = {
+            "id": "wfav-1",
+            "name": "wf-test",
+            "folder": "Texas",
+            "packet_capture": True,
+            "rules": [{"name": "Forward All", "direction": "both"}],
+        }
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.get_wildfire_antivirus_profile.return_value = sample
+
+        test_app = typer.Typer()
+        test_app.command()(show_wildfire_antivirus_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "wf-test", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == sample
+
+    def test_show_list_empty_output_json(self, runner, monkeypatch):
+        """An empty list emits a bare JSON array on stdout."""
+        mock_client = self._mock_scm_client(monkeypatch)
+        mock_client.list_url_categories.return_value = []
+
+        test_app = typer.Typer()
+        test_app.command()(show_url_category)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == []
