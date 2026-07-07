@@ -12,8 +12,7 @@ import yaml
 from pydantic import ValidationError
 
 from ..utils import validate_location_params
-from ..utils.config import load_from_yaml, settings
-from ..utils.context import get_current_context
+from ..utils.config import load_from_yaml
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
 from ..utils.sdk_client import scm_client
@@ -33,20 +32,6 @@ from ..utils.validators import (
 # =============================================================================================================================================================================================
 # HELPER FUNCTIONS
 # =============================================================================================================================================================================================
-
-
-def show_context_info() -> None:
-    """Display current context information if log level is INFO."""
-    log_level = settings.get("log_level", "INFO").upper()
-    if log_level == "INFO":
-        current_context = get_current_context()
-        if current_context:
-            typer.echo(f"[INFO] Using authentication context: {current_context}", err=True)
-        else:
-            typer.echo(
-                "[INFO] No context set, using environment variables or default settings",
-                err=True,
-            )
 
 
 def get_default_backup_filename(object_type: str, location_type: str, location_value: str) -> str:
@@ -177,8 +162,6 @@ def show_agent_version(
         scm show mobile-agent agent-version --folder "Mobile Users" --name "5.2.0"
 
     """
-    show_context_info()
-
     if name:
         # Get a specific agent version by name
         version = scm_client.get_agent_version(folder=folder, name=name)
@@ -440,8 +423,6 @@ def show_auth_setting(
         scm show mobile-agent auth-setting --folder "Mobile Users" --name "saml-auth"
 
     """
-    show_context_info()
-
     if name:
         # Get a specific auth setting by name
         setting = scm_client.get_auth_setting(folder=folder, name=name)
@@ -710,8 +691,6 @@ def show_forwarding_profile(
         scm show mobile-agent forwarding-profile --id "123e4567-e89b-12d3-a456-426655440000"
 
     """
-    show_context_info()
-
     if profile_id or name:
         profile = scm_client.get_forwarding_profile(folder=folder, name=name, profile_id=profile_id)
         emit(profile, output, title=f"Forwarding Profile: {profile.get('name', 'N/A')}")
@@ -949,8 +928,6 @@ def show_forwarding_profile_destination(
         scm show mobile-agent forwarding-profile-destination --id "123e4567-e89b-12d3-a456-426655440000"
 
     """
-    show_context_info()
-
     if destination_id or name:
         destination = scm_client.get_forwarding_profile_destination(folder=folder, name=name, destination_id=destination_id)
         emit(destination, output, title=f"Forwarding Profile Destination: {destination.get('name', 'N/A')}")
@@ -1228,8 +1205,6 @@ def show_agent_profile(
         scm show mobile-agent agent-profile --folder "Mobile Users" --name "corp-app-settings"
 
     """
-    show_context_info()
-
     if name:
         profile = scm_client.get_agent_profile(folder=folder, name=name)
         emit(profile, output, title=f"Agent Profile: {profile.get('name', 'N/A')}")
@@ -1476,8 +1451,6 @@ def show_tunnel_profile(
         scm show mobile-agent tunnel-profile --folder "Mobile Users" --name "corp-tunnel"
 
     """
-    show_context_info()
-
     if name:
         profile = scm_client.get_tunnel_profile(folder=folder, name=name)
         emit(profile, output, title=f"Tunnel Profile: {profile.get('name', 'N/A')}")
@@ -1592,8 +1565,6 @@ def show_infrastructure_setting(
         scm show mobile-agent infrastructure-setting --name "gp-infra"
 
     """
-    show_context_info()
-
     setting = scm_client.get_infrastructure_setting(folder=folder, name=name)
     emit(setting, output, title=f"Infrastructure Setting: {setting.get('name', 'N/A')}")
     return setting
@@ -1747,8 +1718,6 @@ def show_global_setting(
         scm show mobile-agent global-setting
 
     """
-    show_context_info()
-
     setting = scm_client.get_global_settings()
 
     if not setting:
@@ -2022,8 +1991,6 @@ def show_forwarding_profile_source_application(
         scm show mobile-agent forwarding-profile-source-application --folder "Mobile Users" --name "office-apps"
 
     """
-    show_context_info()
-
     if name:
         # Get a specific source application by name
         app = scm_client.get_forwarding_profile_source_application(folder=folder, name=name)
@@ -2299,8 +2266,6 @@ def show_forwarding_profile_user_location(
         scm show mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network"
 
     """
-    show_context_info()
-
     if name:
         # Get a specific user location by name
         location = scm_client.get_forwarding_profile_user_location(folder=folder, name=name)
@@ -2623,8 +2588,6 @@ def show_forwarding_profile_regional_and_custom_proxy(
         scm show mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy"
 
     """
-    show_context_info()
-
     if name:
         # Get a specific regional and custom proxy by name
         proxy = scm_client.get_forwarding_profile_regional_and_custom_proxy(folder=folder, name=name)

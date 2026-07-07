@@ -13,8 +13,6 @@ from typing import Annotated, Any
 
 import typer
 
-from ..utils.config import settings
-from ..utils.context import get_current_context
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OutputFormat, emit, info, success
 from ..utils.sdk_client import scm_client
@@ -22,20 +20,6 @@ from ..utils.sdk_client import scm_client
 # =============================================================================================================================================================================================
 # HELPER FUNCTIONS
 # =============================================================================================================================================================================================
-
-
-def show_context_info() -> None:
-    """Display current context information if log level is INFO."""
-    log_level = settings.get("log_level", "INFO").upper()
-    if log_level == "INFO":
-        current_context = get_current_context()
-        if current_context:
-            typer.echo(f"[INFO] Using authentication context: {current_context}", err=True)
-        else:
-            typer.echo(
-                "[INFO] No context set, using environment variables or default settings",
-                err=True,
-            )
 
 
 def export_data(data: list[dict[str, Any]], export_format: str, output_file: str) -> None:
@@ -155,8 +139,6 @@ def show_alerts(
         scm insights alerts --real-time
 
     """
-    show_context_info()
-
     # Note: scm_client automatically uses mock mode when no credentials are available
 
     if alert_id:
@@ -257,8 +239,6 @@ def show_mobile_users(
         scm insights mobile-users --list --export json --output users.json
 
     """
-    show_context_info()
-
     # Note: scm_client automatically uses mock mode when no credentials are available
 
     if user_id:
@@ -337,8 +317,6 @@ def show_locations(
         scm insights locations --list --export csv --output locations.csv
 
     """
-    show_context_info()
-
     # Note: scm_client automatically uses mock mode when no credentials are available
 
     if location_id:
@@ -420,8 +398,6 @@ def show_remote_networks(
         scm insights remote-networks --list --export json --output networks.json
 
     """
-    show_context_info()
-
     # Note: scm_client automatically uses mock mode when no credentials are available
 
     if network_id:
@@ -501,8 +477,6 @@ def show_service_connections(
         scm insights service-connections --list --metrics --export csv --output connections.csv
 
     """
-    show_context_info()
-
     # Note: scm_client automatically uses mock mode when no credentials are available
 
     if connection_id:
@@ -599,8 +573,6 @@ def show_tunnels(
         scm insights tunnels --list --stats --export json --output tunnels.json
 
     """
-    show_context_info()
-
     # Note: scm_client automatically uses mock mode when no credentials are available
 
     if tunnel_id:

@@ -1,7 +1,7 @@
 ---
 default:
   # Logging configuration
-  log_level: "INFO"
+  log_level: "WARNING"
 
 production:
   # Production-specific settings
