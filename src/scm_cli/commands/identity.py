@@ -14,6 +14,7 @@ import yaml
 from pydantic import ValidationError
 
 from ..utils import validate_location_params
+from ..utils.bulk import run_bulk
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
 from ..utils.sdk_client import scm_client
@@ -69,6 +70,30 @@ def get_default_backup_filename(object_type: str, location_type: str, location_v
     """Generate default backup filename based on object type and location."""
     safe_location = location_value.lower().replace("/", "-").replace(" ", "-")
     return f"{object_type}-{safe_location}.yaml"
+
+
+def _bulk_load_profiles(items: list[dict], apply_item, label: str, plural_label: str, file: Path) -> None:
+    """Apply profile items concurrently and report outcomes in input order.
+
+    ``apply_item`` returns ``(profile, result)``; per-item failures are reported
+    with the same wording as the previous sequential loop and skipped.
+    """
+    loaded_count = 0
+    for _item_data, outcome, exc in run_bulk(items, apply_item):
+        if exc is not None:
+            error(f"Error loading {label}: {str(exc)}")
+            continue
+        profile, result = outcome
+        action = result.get("__action__", "created")
+        if action == "no_change":
+            info(f"No changes for {label}: {profile.name}")
+        elif action == "updated":
+            success(f"Updated {label}: {profile.name}")
+        else:
+            success(f"Created {label}: {profile.name}")
+        loaded_count += 1
+
+    success(f"Processed {loaded_count} {plural_label} from {file}")
 
 
 # =============================================================================================================================================================================================
@@ -229,33 +254,19 @@ def load_authentication_profile(
         typer.echo(yaml.dump(profiles, default_flow_style=False))
         return
 
-    loaded_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-            elif snippet:
-                profile_data["snippet"] = snippet
-            elif device:
-                profile_data["device"] = device
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+        elif snippet:
+            profile_data["snippet"] = snippet
+        elif device:
+            profile_data["device"] = device
 
-            profile = AuthenticationProfile(**profile_data)
-            sdk_data = profile.to_sdk_model()
-            result = scm_client.create_authentication_profile(**sdk_data)
+        profile = AuthenticationProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+        return profile, scm_client.create_authentication_profile(**sdk_data)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                info(f"No changes for authentication profile: {profile.name}")
-            elif action == "updated":
-                success(f"Updated authentication profile: {profile.name}")
-            else:
-                success(f"Created authentication profile: {profile.name}")
-            loaded_count += 1
-
-        except Exception as e:
-            error(f"Error loading authentication profile: {str(e)}")
-
-    success(f"Processed {loaded_count} authentication profiles from {file}")
+    _bulk_load_profiles(profiles, _apply, "authentication profile", "authentication profiles", file)
 
 
 @backup_app.command("authentication-profile")
@@ -441,33 +452,19 @@ def load_kerberos_server_profile(
         typer.echo(yaml.dump(profiles, default_flow_style=False))
         return
 
-    loaded_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-            elif snippet:
-                profile_data["snippet"] = snippet
-            elif device:
-                profile_data["device"] = device
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+        elif snippet:
+            profile_data["snippet"] = snippet
+        elif device:
+            profile_data["device"] = device
 
-            profile = KerberosServerProfile(**profile_data)
-            sdk_data = profile.to_sdk_model()
-            result = scm_client.create_kerberos_server_profile(**sdk_data)
+        profile = KerberosServerProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+        return profile, scm_client.create_kerberos_server_profile(**sdk_data)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                info(f"No changes for Kerberos server profile: {profile.name}")
-            elif action == "updated":
-                success(f"Updated Kerberos server profile: {profile.name}")
-            else:
-                success(f"Created Kerberos server profile: {profile.name}")
-            loaded_count += 1
-
-        except Exception as e:
-            error(f"Error loading Kerberos server profile: {str(e)}")
-
-    success(f"Processed {loaded_count} Kerberos server profiles from {file}")
+    _bulk_load_profiles(profiles, _apply, "Kerberos server profile", "Kerberos server profiles", file)
 
 
 @backup_app.command("kerberos-server-profile")
@@ -664,33 +661,19 @@ def load_ldap_server_profile(
         typer.echo(yaml.dump(profiles, default_flow_style=False))
         return
 
-    loaded_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-            elif snippet:
-                profile_data["snippet"] = snippet
-            elif device:
-                profile_data["device"] = device
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+        elif snippet:
+            profile_data["snippet"] = snippet
+        elif device:
+            profile_data["device"] = device
 
-            profile = LdapServerProfile(**profile_data)
-            sdk_data = profile.to_sdk_model()
-            result = scm_client.create_ldap_server_profile(**sdk_data)
+        profile = LdapServerProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+        return profile, scm_client.create_ldap_server_profile(**sdk_data)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                info(f"No changes for LDAP server profile: {profile.name}")
-            elif action == "updated":
-                success(f"Updated LDAP server profile: {profile.name}")
-            else:
-                success(f"Created LDAP server profile: {profile.name}")
-            loaded_count += 1
-
-        except Exception as e:
-            error(f"Error loading LDAP server profile: {str(e)}")
-
-    success(f"Processed {loaded_count} LDAP server profiles from {file}")
+    _bulk_load_profiles(profiles, _apply, "LDAP server profile", "LDAP server profiles", file)
 
 
 @backup_app.command("ldap-server-profile")
@@ -884,33 +867,19 @@ def load_radius_server_profile(
         typer.echo(yaml.dump(profiles, default_flow_style=False))
         return
 
-    loaded_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-            elif snippet:
-                profile_data["snippet"] = snippet
-            elif device:
-                profile_data["device"] = device
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+        elif snippet:
+            profile_data["snippet"] = snippet
+        elif device:
+            profile_data["device"] = device
 
-            profile = RadiusServerProfile(**profile_data)
-            sdk_data = profile.to_sdk_model()
-            result = scm_client.create_radius_server_profile(**sdk_data)
+        profile = RadiusServerProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+        return profile, scm_client.create_radius_server_profile(**sdk_data)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                info(f"No changes for RADIUS server profile: {profile.name}")
-            elif action == "updated":
-                success(f"Updated RADIUS server profile: {profile.name}")
-            else:
-                success(f"Created RADIUS server profile: {profile.name}")
-            loaded_count += 1
-
-        except Exception as e:
-            error(f"Error loading RADIUS server profile: {str(e)}")
-
-    success(f"Processed {loaded_count} RADIUS server profiles from {file}")
+    _bulk_load_profiles(profiles, _apply, "RADIUS server profile", "RADIUS server profiles", file)
 
 
 @backup_app.command("radius-server-profile")
@@ -1109,33 +1078,19 @@ def load_saml_server_profile(
         typer.echo(yaml.dump(profiles, default_flow_style=False))
         return
 
-    loaded_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-            elif snippet:
-                profile_data["snippet"] = snippet
-            elif device:
-                profile_data["device"] = device
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+        elif snippet:
+            profile_data["snippet"] = snippet
+        elif device:
+            profile_data["device"] = device
 
-            profile = SamlServerProfile(**profile_data)
-            sdk_data = profile.to_sdk_model()
-            result = scm_client.create_saml_server_profile(**sdk_data)
+        profile = SamlServerProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+        return profile, scm_client.create_saml_server_profile(**sdk_data)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                info(f"No changes for SAML server profile: {profile.name}")
-            elif action == "updated":
-                success(f"Updated SAML server profile: {profile.name}")
-            else:
-                success(f"Created SAML server profile: {profile.name}")
-            loaded_count += 1
-
-        except Exception as e:
-            error(f"Error loading SAML server profile: {str(e)}")
-
-    success(f"Processed {loaded_count} SAML server profiles from {file}")
+    _bulk_load_profiles(profiles, _apply, "SAML server profile", "SAML server profiles", file)
 
 
 @backup_app.command("saml-server-profile")
@@ -1328,33 +1283,19 @@ def load_tacacs_server_profile(
         typer.echo(yaml.dump(profiles, default_flow_style=False))
         return
 
-    loaded_count = 0
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-            elif snippet:
-                profile_data["snippet"] = snippet
-            elif device:
-                profile_data["device"] = device
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+        elif snippet:
+            profile_data["snippet"] = snippet
+        elif device:
+            profile_data["device"] = device
 
-            profile = TacacsServerProfile(**profile_data)
-            sdk_data = profile.to_sdk_model()
-            result = scm_client.create_tacacs_server_profile(**sdk_data)
+        profile = TacacsServerProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+        return profile, scm_client.create_tacacs_server_profile(**sdk_data)
 
-            action = result.get("__action__", "created")
-            if action == "no_change":
-                info(f"No changes for TACACS+ server profile: {profile.name}")
-            elif action == "updated":
-                success(f"Updated TACACS+ server profile: {profile.name}")
-            else:
-                success(f"Created TACACS+ server profile: {profile.name}")
-            loaded_count += 1
-
-        except Exception as e:
-            error(f"Error loading TACACS+ server profile: {str(e)}")
-
-    success(f"Processed {loaded_count} TACACS+ server profiles from {file}")
+    _bulk_load_profiles(profiles, _apply, "TACACS+ server profile", "TACACS+ server profiles", file)
 
 
 @backup_app.command("tacacs-server-profile")

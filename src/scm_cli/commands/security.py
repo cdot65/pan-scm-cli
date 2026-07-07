@@ -13,6 +13,7 @@ import typer
 import yaml
 
 from ..utils import parse_comma_separated_list, validate_location_params
+from ..utils.bulk import run_bulk
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success, warning
 from ..utils.sdk_client import scm_client
@@ -439,6 +440,7 @@ def load_security_rule(
     created_count = 0
     updated_count = 0
 
+    # sequential: rule order matters
     for rule_data in rules:
         try:
             # Apply container override if specified
@@ -866,55 +868,57 @@ def load_anti_spyware_profile(
         return []
 
     # Apply each anti-spyware profile
+    def _apply(profile_data: dict):
+        # Apply container override if specified
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        profile = AntiSpywareProfile(**profile_data)
+
+        # Call the SDK client to create the anti-spyware profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        return scm_client.create_anti_spyware_profile(**container_kwargs, **sdk_data)
+
+    outcomes = run_bulk(profiles, _apply)
+
     results = []
     created_count = 0
     updated_count = 0
 
-    for profile_data in profiles:
-        try:
-            # Apply container override if specified
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            profile = AntiSpywareProfile(**profile_data)
-
-            # Call the SDK client to create the anti-spyware profile
-            sdk_data = profile.to_sdk_model()
-
-            # Extract container params
-            container_kwargs = {}
-            if sdk_data.get("folder"):
-                container_kwargs["folder"] = sdk_data.pop("folder")
-            elif sdk_data.get("snippet"):
-                container_kwargs["snippet"] = sdk_data.pop("snippet")
-            elif sdk_data.get("device"):
-                container_kwargs["device"] = sdk_data.pop("device")
-
-            result = scm_client.create_anti_spyware_profile(**container_kwargs, **sdk_data)
-
-            results.append(result)
-
-            # Track if created or updated based on response
-            if "created" in str(result).lower():
-                created_count += 1
-            else:
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing anti-spyware profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+    for profile_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing anti-spyware profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other profiles
             continue
+
+        results.append(result)
+
+        # Track if created or updated based on response
+        if "created" in str(result).lower():
+            created_count += 1
+        else:
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} anti-spyware profile(s):")
@@ -1239,55 +1243,57 @@ def load_decryption_profile(
         return []
 
     # Apply each decryption profile
+    def _apply(profile_data: dict):
+        # Apply container override if specified
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        profile = DecryptionProfile(**profile_data)
+
+        # Call the SDK client to create the decryption profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        return scm_client.create_decryption_profile(**container_kwargs, **sdk_data)
+
+    outcomes = run_bulk(profiles, _apply)
+
     results = []
     created_count = 0
     updated_count = 0
 
-    for profile_data in profiles:
-        try:
-            # Apply container override if specified
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            profile = DecryptionProfile(**profile_data)
-
-            # Call the SDK client to create the decryption profile
-            sdk_data = profile.to_sdk_model()
-
-            # Extract container params
-            container_kwargs = {}
-            if sdk_data.get("folder"):
-                container_kwargs["folder"] = sdk_data.pop("folder")
-            elif sdk_data.get("snippet"):
-                container_kwargs["snippet"] = sdk_data.pop("snippet")
-            elif sdk_data.get("device"):
-                container_kwargs["device"] = sdk_data.pop("device")
-
-            result = scm_client.create_decryption_profile(**container_kwargs, **sdk_data)
-
-            results.append(result)
-
-            # Track if created or updated based on response
-            if "created" in str(result).lower():
-                created_count += 1
-            else:
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing decryption profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+    for profile_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing decryption profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other profiles
             continue
+
+        results.append(result)
+
+        # Track if created or updated based on response
+        if "created" in str(result).lower():
+            created_count += 1
+        else:
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} decryption profile(s):")
@@ -1616,55 +1622,57 @@ def load_wildfire_antivirus_profile(
         return []
 
     # Apply each WildFire antivirus profile
+    def _apply(profile_data: dict):
+        # Apply container override if specified
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        profile = WildfireAntivirusProfile(**profile_data)
+
+        # Call the SDK client to create the WildFire antivirus profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        return scm_client.create_wildfire_antivirus_profile(**container_kwargs, **sdk_data)
+
+    outcomes = run_bulk(profiles, _apply)
+
     results = []
     created_count = 0
     updated_count = 0
 
-    for profile_data in profiles:
-        try:
-            # Apply container override if specified
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            profile = WildfireAntivirusProfile(**profile_data)
-
-            # Call the SDK client to create the WildFire antivirus profile
-            sdk_data = profile.to_sdk_model()
-
-            # Extract container params
-            container_kwargs = {}
-            if sdk_data.get("folder"):
-                container_kwargs["folder"] = sdk_data.pop("folder")
-            elif sdk_data.get("snippet"):
-                container_kwargs["snippet"] = sdk_data.pop("snippet")
-            elif sdk_data.get("device"):
-                container_kwargs["device"] = sdk_data.pop("device")
-
-            result = scm_client.create_wildfire_antivirus_profile(**container_kwargs, **sdk_data)
-
-            results.append(result)
-
-            # Track if created or updated based on response
-            if "created" in str(result).lower():
-                created_count += 1
-            else:
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing WildFire antivirus profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+    for profile_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing WildFire antivirus profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other profiles
             continue
+
+        results.append(result)
+
+        # Track if created or updated based on response
+        if "created" in str(result).lower():
+            created_count += 1
+        else:
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} WildFire antivirus profile(s):")
@@ -1980,56 +1988,58 @@ def load_dns_security_profile(
         return []
 
     # Apply each DNS security profile
+    def _apply(profile_data: dict):
+        # Apply container override if specified
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        profile = DNSSecurityProfile(**profile_data)
+
+        # Call the SDK client to create the DNS security profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        return scm_client.create_dns_security_profile(**container_kwargs, **sdk_data)
+
+    outcomes = run_bulk(profiles, _apply)
+
     results = []
     created_count = 0
     updated_count = 0
 
-    for profile_data in profiles:
-        try:
-            # Apply container override if specified
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            profile = DNSSecurityProfile(**profile_data)
-
-            # Call the SDK client to create the DNS security profile
-            sdk_data = profile.to_sdk_model()
-
-            # Extract container params
-            container_kwargs = {}
-            if sdk_data.get("folder"):
-                container_kwargs["folder"] = sdk_data.pop("folder")
-            elif sdk_data.get("snippet"):
-                container_kwargs["snippet"] = sdk_data.pop("snippet")
-            elif sdk_data.get("device"):
-                container_kwargs["device"] = sdk_data.pop("device")
-
-            result = scm_client.create_dns_security_profile(**container_kwargs, **sdk_data)
-
-            results.append(result)
-
-            # Track if created or updated based on __action__ field
-            action = result.get("__action__", "")
-            if action == "created":
-                created_count += 1
-            elif action == "updated":
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing DNS security profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+    for profile_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing DNS security profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other profiles
             continue
+
+        results.append(result)
+
+        # Track if created or updated based on __action__ field
+        action = result.get("__action__", "")
+        if action == "created":
+            created_count += 1
+        elif action == "updated":
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} DNS security profile(s):")
@@ -2328,55 +2338,57 @@ def load_vulnerability_protection_profile(
         return []
 
     # Apply each vulnerability protection profile
+    def _apply(profile_data: dict):
+        # Apply container override if specified
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        profile = VulnerabilityProtectionProfile(**profile_data)
+
+        # Call the SDK client to create the vulnerability protection profile
+        sdk_data = profile.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        return scm_client.create_vulnerability_protection_profile(**container_kwargs, **sdk_data)
+
+    outcomes = run_bulk(profiles, _apply)
+
     results = []
     created_count = 0
     updated_count = 0
 
-    for profile_data in profiles:
-        try:
-            # Apply container override if specified
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            profile = VulnerabilityProtectionProfile(**profile_data)
-
-            # Call the SDK client to create the vulnerability protection profile
-            sdk_data = profile.to_sdk_model()
-
-            # Extract container params
-            container_kwargs = {}
-            if sdk_data.get("folder"):
-                container_kwargs["folder"] = sdk_data.pop("folder")
-            elif sdk_data.get("snippet"):
-                container_kwargs["snippet"] = sdk_data.pop("snippet")
-            elif sdk_data.get("device"):
-                container_kwargs["device"] = sdk_data.pop("device")
-
-            result = scm_client.create_vulnerability_protection_profile(**container_kwargs, **sdk_data)
-
-            results.append(result)
-
-            # Track if created or updated based on response
-            if "created" in str(result).lower():
-                created_count += 1
-            else:
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing vulnerability protection profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+    for profile_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing vulnerability protection profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other profiles
             continue
+
+        results.append(result)
+
+        # Track if created or updated based on response
+        if "created" in str(result).lower():
+            created_count += 1
+        else:
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} vulnerability protection profile(s):")
@@ -2698,55 +2710,57 @@ def load_url_category(
         return []
 
     # Apply each URL category
+    def _apply(category_data: dict):
+        # Apply container override if specified
+        if folder:
+            category_data["folder"] = folder
+            category_data.pop("snippet", None)
+            category_data.pop("device", None)
+        elif snippet:
+            category_data["snippet"] = snippet
+            category_data.pop("folder", None)
+            category_data.pop("device", None)
+        elif device:
+            category_data["device"] = device
+            category_data.pop("folder", None)
+            category_data.pop("snippet", None)
+
+        # Validate using the Pydantic model
+        category = URLCategory(**category_data)
+
+        # Call the SDK client to create the URL category
+        sdk_data = category.to_sdk_model()
+
+        # Extract container params
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        return scm_client.create_url_category(**container_kwargs, **sdk_data)
+
+    outcomes = run_bulk(categories, _apply)
+
     results = []
     created_count = 0
     updated_count = 0
 
-    for category_data in categories:
-        try:
-            # Apply container override if specified
-            if folder:
-                category_data["folder"] = folder
-                category_data.pop("snippet", None)
-                category_data.pop("device", None)
-            elif snippet:
-                category_data["snippet"] = snippet
-                category_data.pop("folder", None)
-                category_data.pop("device", None)
-            elif device:
-                category_data["device"] = device
-                category_data.pop("folder", None)
-                category_data.pop("snippet", None)
-
-            # Validate using the Pydantic model
-            category = URLCategory(**category_data)
-
-            # Call the SDK client to create the URL category
-            sdk_data = category.to_sdk_model()
-
-            # Extract container params
-            container_kwargs = {}
-            if sdk_data.get("folder"):
-                container_kwargs["folder"] = sdk_data.pop("folder")
-            elif sdk_data.get("snippet"):
-                container_kwargs["snippet"] = sdk_data.pop("snippet")
-            elif sdk_data.get("device"):
-                container_kwargs["device"] = sdk_data.pop("device")
-
-            result = scm_client.create_url_category(**container_kwargs, **sdk_data)
-
-            results.append(result)
-
-            # Track if created or updated based on response
-            if result.get("__action__") == "created":
-                created_count += 1
-            else:
-                updated_count += 1
-
-        except Exception as e:
-            error(f"Error processing URL category '{category_data.get('name', 'unknown')}': {str(e)}")
+    for category_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing URL category '{category_data.get('name', 'unknown')}': {str(exc)}")
             # Continue processing other categories
             continue
+
+        results.append(result)
+
+        # Track if created or updated based on response
+        if result.get("__action__") == "created":
+            created_count += 1
+        else:
+            updated_count += 1
 
     # Display summary with counts
     success(f"Successfully processed {len(results)} URL category(ies):")
@@ -3008,6 +3022,7 @@ def load_app_override_rule(
         return []
 
     results = []
+    # sequential: rule order matters
     for rule_data in rules:
         try:
             if folder:
@@ -3279,6 +3294,7 @@ def load_authentication_rule(
         return []
 
     results = []
+    # sequential: rule order matters
     for rule_data in rules:
         try:
             if folder:
@@ -3553,6 +3569,7 @@ def load_decryption_rule(
         return []
 
     results = []
+    # sequential: rule order matters
     for rule_data in rules:
         try:
             if folder:
@@ -3825,39 +3842,41 @@ def load_url_access_profile(
         typer.echo(yaml.dump(profiles))
         return []
 
+    def _apply(profile_data: dict):
+        if folder:
+            profile_data["folder"] = folder
+            profile_data.pop("snippet", None)
+            profile_data.pop("device", None)
+        elif snippet:
+            profile_data["snippet"] = snippet
+            profile_data.pop("folder", None)
+            profile_data.pop("device", None)
+        elif device:
+            profile_data["device"] = device
+            profile_data.pop("folder", None)
+            profile_data.pop("snippet", None)
+
+        profile = URLAccessProfile(**profile_data)
+        sdk_data = profile.to_sdk_model()
+
+        container_kwargs = {}
+        if sdk_data.get("folder"):
+            container_kwargs["folder"] = sdk_data.pop("folder")
+        elif sdk_data.get("snippet"):
+            container_kwargs["snippet"] = sdk_data.pop("snippet")
+        elif sdk_data.get("device"):
+            container_kwargs["device"] = sdk_data.pop("device")
+
+        return scm_client.create_url_access_profile(**container_kwargs, **sdk_data)
+
+    outcomes = run_bulk(profiles, _apply)
+
     results = []
-    for profile_data in profiles:
-        try:
-            if folder:
-                profile_data["folder"] = folder
-                profile_data.pop("snippet", None)
-                profile_data.pop("device", None)
-            elif snippet:
-                profile_data["snippet"] = snippet
-                profile_data.pop("folder", None)
-                profile_data.pop("device", None)
-            elif device:
-                profile_data["device"] = device
-                profile_data.pop("folder", None)
-                profile_data.pop("snippet", None)
-
-            profile = URLAccessProfile(**profile_data)
-            sdk_data = profile.to_sdk_model()
-
-            container_kwargs = {}
-            if sdk_data.get("folder"):
-                container_kwargs["folder"] = sdk_data.pop("folder")
-            elif sdk_data.get("snippet"):
-                container_kwargs["snippet"] = sdk_data.pop("snippet")
-            elif sdk_data.get("device"):
-                container_kwargs["device"] = sdk_data.pop("device")
-
-            result = scm_client.create_url_access_profile(**container_kwargs, **sdk_data)
-            results.append(result)
-
-        except Exception as e:
-            error(f"Error processing URL access profile '{profile_data.get('name', 'unknown')}': {str(e)}")
+    for profile_data, result, exc in outcomes:
+        if exc is not None:
+            error(f"Error processing URL access profile '{profile_data.get('name', 'unknown')}': {str(exc)}")
             continue
+        results.append(result)
 
     success(f"Successfully processed {len(results)} URL access profile(s)")
     return results

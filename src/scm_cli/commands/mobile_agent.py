@@ -12,6 +12,7 @@ import yaml
 from pydantic import ValidationError
 
 from ..utils import validate_location_params
+from ..utils.bulk import run_bulk
 from ..utils.config import load_from_yaml
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
@@ -38,6 +39,42 @@ def get_default_backup_filename(object_type: str, location_type: str, location_v
     """Generate default backup filename based on object type and location."""
     safe_location = location_value.lower().replace("/", "-").replace(" ", "-")
     return f"{object_type}-{safe_location}.yaml"
+
+
+def _bulk_load_items(items: list[dict], apply_item, label: str) -> list[dict]:
+    """Apply load items concurrently and report outcomes in input order.
+
+    ``apply_item`` validates and creates a single item, returning the SDK
+    result dict. Per-item failures are reported with the same wording as the
+    previous sequential loop and skipped.
+    """
+    results = []
+    created_count = 0
+    updated_count = 0
+    no_change_count = 0
+
+    for item_data, result, exc in run_bulk(items, apply_item):
+        if exc is not None:
+            error(f"Error loading {label} '{item_data.get('name', 'unknown')}': {str(exc)}")
+            continue
+
+        action = result.pop("__action__", "created")
+        if action == "created":
+            created_count += 1
+            success(f"Created {label}: {result.get('name', 'N/A')}")
+        elif action == "updated":
+            updated_count += 1
+            success(f"Updated {label}: {result.get('name', 'N/A')}")
+        elif action == "no_change":
+            no_change_count += 1
+            info(f"No changes needed for {label}: {result.get('name', 'N/A')}")
+
+        results.append(result)
+
+    # Summary
+    info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
+
+    return results
 
 
 # =============================================================================================================================================================================================
@@ -288,56 +325,28 @@ def load_auth_setting(
             typer.echo(yaml.dump(config["auth_settings"]))
             return None
 
-        # Apply each auth setting
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(setting_data: dict):
+            # Apply container override if specified
+            if folder:
+                setting_data["folder"] = folder
+                setting_data.pop("snippet", None)
+                setting_data.pop("device", None)
+            elif snippet:
+                setting_data["snippet"] = snippet
+                setting_data.pop("folder", None)
+                setting_data.pop("device", None)
+            elif device:
+                setting_data["device"] = device
+                setting_data.pop("folder", None)
+                setting_data.pop("snippet", None)
+            # Validate using the Pydantic model
+            item = AuthSetting(**setting_data)
+            sdk_data = item.to_sdk_model()
 
-        for setting_data in config["auth_settings"]:
-            try:
-                # Apply container override if specified
-                if folder:
-                    setting_data["folder"] = folder
-                    setting_data.pop("snippet", None)
-                    setting_data.pop("device", None)
-                elif snippet:
-                    setting_data["snippet"] = snippet
-                    setting_data.pop("folder", None)
-                    setting_data.pop("device", None)
-                elif device:
-                    setting_data["device"] = device
-                    setting_data.pop("folder", None)
-                    setting_data.pop("snippet", None)
+            # Create via SDK client
+            return scm_client.create_auth_setting(**sdk_data)
 
-                # Validate using the Pydantic model
-                auth_setting = AuthSetting(**setting_data)
-                sdk_data = auth_setting.to_sdk_model()
-
-                # Create the auth setting via SDK client
-                result = scm_client.create_auth_setting(**sdk_data)
-
-                # Track action
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created auth setting: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated auth setting: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for auth setting: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading auth setting '{setting_data.get('name', 'unknown')}': {str(e)}")
-
-        # Summary
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["auth_settings"], _apply, "auth setting")
 
     except ValidationError as e:
         error(f"Validation error: {e}")
@@ -564,40 +573,18 @@ def load_forwarding_profile(
             typer.echo(yaml.dump(config["forwarding_profiles"]))
             return None
 
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(profile_data: dict):
+            # Apply folder override if specified
+            if folder:
+                profile_data["folder"] = folder
+            # Validate using the Pydantic model
+            item = ForwardingProfile(**profile_data)
+            sdk_data = item.to_sdk_model()
 
-        for profile_data in config["forwarding_profiles"]:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
+            # Create via SDK client
+            return scm_client.create_forwarding_profile(**sdk_data)
 
-                profile = ForwardingProfile(**profile_data)
-                sdk_data = profile.to_sdk_model()
-
-                result = scm_client.create_forwarding_profile(**sdk_data)
-
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created forwarding profile: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated forwarding profile: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for forwarding profile: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading forwarding profile '{profile_data.get('name', 'unknown')}': {str(e)}")
-
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["forwarding_profiles"], _apply, "forwarding profile")
 
     except ValidationError as e:
         error(f"Validation error: {e}")
@@ -809,40 +796,18 @@ def load_forwarding_profile_destination(
             typer.echo(yaml.dump(config["forwarding_profile_destinations"]))
             return None
 
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(destination_data: dict):
+            # Apply folder override if specified
+            if folder:
+                destination_data["folder"] = folder
+            # Validate using the Pydantic model
+            item = ForwardingProfileDestination(**destination_data)
+            sdk_data = item.to_sdk_model()
 
-        for destination_data in config["forwarding_profile_destinations"]:
-            try:
-                if folder:
-                    destination_data["folder"] = folder
+            # Create via SDK client
+            return scm_client.create_forwarding_profile_destination(**sdk_data)
 
-                destination = ForwardingProfileDestination(**destination_data)
-                sdk_data = destination.to_sdk_model()
-
-                result = scm_client.create_forwarding_profile_destination(**sdk_data)
-
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created forwarding profile destination: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated forwarding profile destination: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for forwarding profile destination: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading forwarding profile destination '{destination_data.get('name', 'unknown')}': {str(e)}")
-
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["forwarding_profile_destinations"], _apply, "forwarding profile destination")
 
     except ValidationError as e:
         error(f"Validation error: {e}")
@@ -1081,40 +1046,18 @@ def load_agent_profile(
             typer.echo(yaml.dump(config["agent_profiles"]))
             return None
 
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(profile_data: dict):
+            # Apply folder override if specified
+            if folder:
+                profile_data["folder"] = folder
+            # Validate using the Pydantic model
+            item = AgentProfile(**profile_data)
+            sdk_data = item.to_sdk_model()
 
-        for profile_data in config["agent_profiles"]:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
+            # Create via SDK client
+            return scm_client.create_agent_profile(**sdk_data)
 
-                agent_profile = AgentProfile(**profile_data)
-                sdk_data = agent_profile.to_sdk_model()
-
-                result = scm_client.create_agent_profile(**sdk_data)
-
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created agent profile: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated agent profile: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for agent profile: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading agent profile '{profile_data.get('name', 'unknown')}': {str(e)}")
-
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["agent_profiles"], _apply, "agent profile")
 
     except ValidationError as e:
         error(f"Validation error: {e}")
@@ -1314,40 +1257,18 @@ def load_tunnel_profile(
             typer.echo(yaml.dump(config["tunnel_profiles"]))
             return None
 
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(profile_data: dict):
+            # Apply folder override if specified
+            if folder:
+                profile_data["folder"] = folder
+            # Validate using the Pydantic model
+            item = TunnelProfile(**profile_data)
+            sdk_data = item.to_sdk_model()
 
-        for profile_data in config["tunnel_profiles"]:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
+            # Create via SDK client
+            return scm_client.create_tunnel_profile(**sdk_data)
 
-                tunnel_profile = TunnelProfile(**profile_data)
-                sdk_data = tunnel_profile.to_sdk_model()
-
-                result = scm_client.create_tunnel_profile(**sdk_data)
-
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created tunnel profile: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated tunnel profile: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for tunnel profile: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading tunnel profile '{profile_data.get('name', 'unknown')}': {str(e)}")
-
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["tunnel_profiles"], _apply, "tunnel profile")
 
     except ValidationError as e:
         error(f"Validation error: {e}")
@@ -1657,42 +1578,18 @@ def load_infrastructure_setting(
             typer.echo(yaml.dump(config["infrastructure_settings"]))
             return None
 
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(setting_data: dict):
+            # Apply folder override if specified
+            if folder:
+                setting_data["folder"] = folder
+            # Validate using the Pydantic model
+            item = InfrastructureSetting(**setting_data)
+            sdk_data = item.to_sdk_model()
 
-        for setting_data in config["infrastructure_settings"]:
-            try:
-                # Apply folder override if specified (only valid value is 'Mobile Users')
-                if folder:
-                    setting_data["folder"] = folder
+            # Create via SDK client
+            return scm_client.create_infrastructure_setting(**sdk_data)
 
-                # Validate using the Pydantic model
-                infrastructure_setting = InfrastructureSetting(**setting_data)
-                sdk_data = infrastructure_setting.to_sdk_model()
-
-                result = scm_client.create_infrastructure_setting(**sdk_data)
-
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created infrastructure setting: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated infrastructure setting: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for infrastructure setting: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading infrastructure setting '{setting_data.get('name', 'unknown')}': {str(e)}")
-
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["infrastructure_settings"], _apply, "infrastructure setting")
 
     except ValidationError as e:
         error(f"Validation error: {e}")
@@ -1872,46 +1769,18 @@ def load_forwarding_profile_source_application(
             typer.echo(yaml.dump(config["forwarding_profile_source_applications"]))
             return None
 
-        # Apply each source application
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(app_data: dict):
+            # Apply folder override if specified
+            if folder:
+                app_data["folder"] = folder
+            # Validate using the Pydantic model
+            item = ForwardingProfileSourceApplication(**app_data)
+            sdk_data = item.to_sdk_model()
 
-        for app_data in config["forwarding_profile_source_applications"]:
-            try:
-                # Apply container override if specified
-                if folder:
-                    app_data["folder"] = folder
+            # Create via SDK client
+            return scm_client.create_forwarding_profile_source_application(**sdk_data)
 
-                # Validate using the Pydantic model
-                source_application = ForwardingProfileSourceApplication(**app_data)
-                sdk_data = source_application.to_sdk_model()
-
-                # Create the source application via SDK client
-                result = scm_client.create_forwarding_profile_source_application(**sdk_data)
-
-                # Track action
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created forwarding profile source application: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated forwarding profile source application: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for forwarding profile source application: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading forwarding profile source application '{app_data.get('name', 'unknown')}': {str(e)}")
-
-        # Summary
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["forwarding_profile_source_applications"], _apply, "forwarding profile source application")
 
     except ValidationError as e:
         error(f"Validation error: {e}")
@@ -2132,46 +2001,18 @@ def load_forwarding_profile_user_location(
             typer.echo(yaml.dump(config["forwarding_profile_user_locations"]))
             return None
 
-        # Apply each user location
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(location_data: dict):
+            # Apply folder override if specified
+            if folder:
+                location_data["folder"] = folder
+            # Validate using the Pydantic model
+            item = ForwardingProfileUserLocation(**location_data)
+            sdk_data = item.to_sdk_model()
 
-        for location_data in config["forwarding_profile_user_locations"]:
-            try:
-                # Apply container override if specified
-                if folder:
-                    location_data["folder"] = folder
+            # Create via SDK client
+            return scm_client.create_forwarding_profile_user_location(**sdk_data)
 
-                # Validate using the Pydantic model
-                user_location = ForwardingProfileUserLocation(**location_data)
-                sdk_data = user_location.to_sdk_model()
-
-                # Create the user location via SDK client
-                result = scm_client.create_forwarding_profile_user_location(**sdk_data)
-
-                # Track action
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created forwarding profile user location: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated forwarding profile user location: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for forwarding profile user location: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading forwarding profile user location '{location_data.get('name', 'unknown')}': {str(e)}")
-
-        # Summary
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["forwarding_profile_user_locations"], _apply, "forwarding profile user location")
 
     except ValidationError as e:
         error(f"Validation error: {e}")
@@ -2431,46 +2272,18 @@ def load_forwarding_profile_regional_and_custom_proxy(
             typer.echo(yaml.dump(config["forwarding_profile_regional_and_custom_proxies"]))
             return None
 
-        # Apply each regional and custom proxy
-        results = []
-        created_count = 0
-        updated_count = 0
-        no_change_count = 0
+        def _apply(proxy_data: dict):
+            # Apply folder override if specified
+            if folder:
+                proxy_data["folder"] = folder
+            # Validate using the Pydantic model
+            item = ForwardingProfileRegionalAndCustomProxy(**proxy_data)
+            sdk_data = item.to_sdk_model()
 
-        for proxy_data in config["forwarding_profile_regional_and_custom_proxies"]:
-            try:
-                # Apply container override if specified
-                if folder:
-                    proxy_data["folder"] = folder
+            # Create via SDK client
+            return scm_client.create_forwarding_profile_regional_and_custom_proxy(**sdk_data)
 
-                # Validate using the Pydantic model
-                regional_proxy = ForwardingProfileRegionalAndCustomProxy(**proxy_data)
-                sdk_data = regional_proxy.to_sdk_model()
-
-                # Create the regional and custom proxy via SDK client
-                result = scm_client.create_forwarding_profile_regional_and_custom_proxy(**sdk_data)
-
-                # Track action
-                action = result.pop("__action__", "created")
-                if action == "created":
-                    created_count += 1
-                    success(f"Created forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
-                elif action == "updated":
-                    updated_count += 1
-                    success(f"Updated forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
-                elif action == "no_change":
-                    no_change_count += 1
-                    info(f"No changes needed for forwarding profile regional and custom proxy: {result.get('name', 'N/A')}")
-
-                results.append(result)
-
-            except Exception as e:
-                error(f"Error loading forwarding profile regional and custom proxy '{proxy_data.get('name', 'unknown')}': {str(e)}")
-
-        # Summary
-        info(f"Summary: {created_count} created, {updated_count} updated, {no_change_count} unchanged")
-
-        return results
+        return _bulk_load_items(config["forwarding_profile_regional_and_custom_proxies"], _apply, "forwarding profile regional and custom proxy")
 
     except ValidationError as e:
         error(f"Validation error: {e}")

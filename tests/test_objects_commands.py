@@ -1495,3 +1495,45 @@ class TestCommaParsingConsistency:
         result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-sg", "--members", "HTTP, HTTPS, SSH"])
         assert result.exit_code == 0
         assert captured.get("members") == ["HTTP", "HTTPS", "SSH"]
+
+
+class TestLoadConcurrency:
+    """Bulk load commands must apply items through the bounded thread pool (run_bulk)."""
+
+    def test_load_address_runs_concurrently(self, runner, monkeypatch, tmp_path):
+        """Load with >=4 items should overlap create calls and still create every item."""
+        import threading
+        import time
+
+        from scm_cli.commands.objects import load_address
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_content = "addresses:\n" + "".join(f"  - name: addr-{i}\n    folder: Texas\n    ip_netmask: 10.0.0.{i}/32\n" for i in range(6))
+        test_file = tmp_path / "addresses.yml"
+        test_file.write_text(yaml_content)
+
+        active = {"now": 0, "max": 0}
+        lock = threading.Lock()
+        created = []
+
+        def mock_create(*args, **kwargs):
+            with lock:
+                active["now"] += 1
+                active["max"] = max(active["max"], active["now"])
+            time.sleep(0.05)
+            with lock:
+                active["now"] -= 1
+                created.append(kwargs.get("name"))
+            return {"id": "addr-1", "name": kwargs.get("name"), "folder": kwargs.get("folder"), "created": True}
+
+        monkeypatch.setattr(scm_client, "create_address", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(load_address)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0
+        assert "Successfully processed 6 address(es):" in result.stdout
+        assert sorted(created) == [f"addr-{i}" for i in range(6)]
+        assert active["max"] > 1, "create calls never overlapped — load is still sequential"

@@ -175,10 +175,14 @@ class TestAuthSettingCommands:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Mobile Users",
-                "--name", "saml-auth",
-                "--authentication-profile", "best-practice",
-                "--os", "Any",
+                "--folder",
+                "Mobile Users",
+                "--name",
+                "saml-auth",
+                "--authentication-profile",
+                "best-practice",
+                "--os",
+                "Any",
             ],
         )
 
@@ -206,9 +210,12 @@ class TestAuthSettingCommands:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Mobile Users",
-                "--name", "saml-auth",
-                "--authentication-profile", "best-practice",
+                "--folder",
+                "Mobile Users",
+                "--name",
+                "saml-auth",
+                "--authentication-profile",
+                "best-practice",
             ],
         )
 
@@ -235,8 +242,10 @@ class TestAuthSettingCommands:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Mobile Users",
-                "--name", "saml-auth",
+                "--folder",
+                "Mobile Users",
+                "--name",
+                "saml-auth",
             ],
         )
 
@@ -474,8 +483,10 @@ auth_settings:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Mobile Users",
-                "--name", "fail-auth",
+                "--folder",
+                "Mobile Users",
+                "--name",
+                "fail-auth",
             ],
         )
 
@@ -527,3 +538,43 @@ class TestShowJsonOutput:
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == setting
+
+
+class TestMobileAgentBulkLoadConcurrency:
+    """Bulk loads issue create calls concurrently (bounded thread pool)."""
+
+    def test_load_auth_setting_runs_concurrently(self, runner, monkeypatch, tmp_path):
+        import threading
+        import time
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_content = "auth_settings:\n" + "".join(f'  - name: auth-{i}\n    folder: "Mobile Users"\n    authentication_profile: best-practice\n    os: Any\n' for i in range(4))
+        test_file = tmp_path / "auth_settings.yml"
+        test_file.write_text(yaml_content)
+
+        active = {"now": 0, "max": 0}
+        lock = threading.Lock()
+        created = []
+
+        def mock_create(**kwargs):
+            with lock:
+                active["now"] += 1
+                active["max"] = max(active["max"], active["now"])
+            time.sleep(0.05)
+            with lock:
+                active["now"] -= 1
+                created.append(kwargs.get("name"))
+            return {"name": kwargs.get("name"), "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_auth_setting", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(load_auth_setting)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0, result.output
+        assert active["max"] > 1, "create calls never overlapped"
+        assert sorted(created) == [f"auth-{i}" for i in range(4)]
+        assert "4 created" in result.output

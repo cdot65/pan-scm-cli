@@ -836,3 +836,43 @@ class TestShowJsonOutput:
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == []
+
+
+class TestDeploymentBulkLoadConcurrency:
+    """Bulk loads issue create calls concurrently (bounded thread pool)."""
+
+    def test_load_internal_dns_server_runs_concurrently(self, runner, monkeypatch, tmp_path):
+        import threading
+        import time
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        yaml_content = "internal_dns_servers:\n" + "".join(f"  - name: dns-{i}\n    domain_name: [corp{i}.example.com]\n    primary: 10.0.0.{i + 1}\n" for i in range(4))
+        test_file = tmp_path / "internal_dns_servers.yml"
+        test_file.write_text(yaml_content)
+
+        active = {"now": 0, "max": 0}
+        lock = threading.Lock()
+        created = []
+
+        def mock_create(**kwargs):
+            with lock:
+                active["now"] += 1
+                active["max"] = max(active["max"], active["now"])
+            time.sleep(0.05)
+            with lock:
+                active["now"] -= 1
+                created.append(kwargs.get("name"))
+            return {"name": kwargs.get("name"), "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_internal_dns_server", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(load_internal_dns_server)
+
+        result = runner.invoke(test_app, ["--file", str(test_file)])
+
+        assert result.exit_code == 0, result.output
+        assert active["max"] > 1, "create calls never overlapped"
+        assert sorted(created) == [f"dns-{i}" for i in range(4)]
+        assert "Loaded 4 internal DNS server(s)" in result.output
