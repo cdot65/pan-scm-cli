@@ -12,8 +12,6 @@ import yaml
 
 # Removed unused import: from the `..utils.config` import load_from_yaml
 from ..utils import parse_comma_separated_list, validate_location_params
-from ..utils.config import settings
-from ..utils.context import get_current_context
 from ..utils.decorators import handle_command_errors
 from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, redact, success, warning
 from ..utils.sdk_client import scm_client
@@ -42,20 +40,6 @@ from ..utils.validators import (
 # =============================================================================================================================================================================================
 # HELPER FUNCTIONS
 # =============================================================================================================================================================================================
-
-
-def show_context_info() -> None:
-    """Display current context information if log level is INFO."""
-    log_level = settings.get("log_level", "INFO").upper()
-    if log_level == "INFO":
-        current_context = get_current_context()
-        if current_context:
-            typer.echo(f"[INFO] Using authentication context: {current_context}", err=True)
-        else:
-            typer.echo(
-                "[INFO] No context set, using environment variables or default settings",
-                err=True,
-            )
 
 
 # =============================================================================================================================================================================================
@@ -1021,8 +1005,6 @@ def show_address(
 
     """
     # Show context info if log level is INFO
-    show_context_info()
-
     if name:
         # Get a specific address by name
         address = scm_client.get_address(folder=folder, name=name)
@@ -4037,8 +4019,6 @@ def delete_quarantined_device(
         scm delete object quarantined-device 01abcdef-2345-6789-abcd-ef0123456789
 
     """
-    show_context_info()
-
     if not force:
         confirm = typer.confirm(f"Delete quarantined device '{host_id}'?")
         if not confirm:
@@ -4214,8 +4194,6 @@ def set_quarantined_device(
     serial_number: str = typer.Option(None, "--serial-number", help="Serial number of the device"),
 ) -> None:
     """Create a quarantined device entry."""
-    show_context_info()
-
     # Build device data
     device_data: dict[str, Any] = {
         "host_id": host_id,
@@ -4254,8 +4232,6 @@ def show_quarantined_device(
         scm show object quarantined-device --host-id abc123
 
     """
-    show_context_info()
-
     devices = scm_client.list_quarantined_devices(
         host_id=host_id,
         serial_number=serial_number,

@@ -18,7 +18,7 @@ import requests
 from oauthlib.oauth2.rfc6749.errors import InvalidClientError
 from pydantic import ValidationError
 from scm.client import Scm
-from scm.exceptions import APIError, AuthenticationError, ClientError, GatewayTimeoutError, NotFoundError
+from scm.exceptions import APIError, AuthenticationError, ClientError, GatewayTimeoutError, NotFoundError, ObjectNotPresentError
 
 from .config import get_credentials, settings
 from .context import get_current_context
@@ -72,15 +72,10 @@ class SCMClient:
     """
 
     def __init__(self):
-        """Initialize the SCM client with logger and credentials."""
-        # Configure logging based on settings
-        logging_level = getattr(logging, settings.get("log_level", "INFO"))
-        logging.basicConfig(level=logging_level, force=True)
+        """Initialize the SCM client with logger and credentials.
 
-        # Suppress SDK auth logging for cleaner output
-        logging.getLogger("scm.auth").setLevel(logging.CRITICAL)
-        logging.getLogger("oauthlib").setLevel(logging.CRITICAL)
-
+        Logging is configured once at CLI entry (main callback), not here.
+        """
         self.logger = logger
         self.logger.info("Initializing SCM client")
         self.client = None
@@ -112,8 +107,8 @@ class SCMClient:
                 try:
                     ctx_config = get_context_config(current_context)
                     access_token = ctx_config.get("access_token")
-                except Exception:
-                    pass
+                except Exception as e:
+                    self.logger.warning(f"Could not read context config for '{current_context}': {e}")
 
             if access_token:
                 # Bearer token authentication mode
@@ -16228,8 +16223,8 @@ class SCMClient:
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
                     result["__action__"] = "updated"
                     return result
-            except Exception:
-                pass
+            except (NotFoundError, ObjectNotPresentError):
+                pass  # object does not exist yet; fall through to create
 
             create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
             created = self.client.authentication_profile.create(create_data)
@@ -16341,8 +16336,8 @@ class SCMClient:
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
                     result["__action__"] = "updated"
                     return result
-            except Exception:
-                pass
+            except (NotFoundError, ObjectNotPresentError):
+                pass  # object does not exist yet; fall through to create
 
             create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
             created = self.client.kerberos_server_profile.create(create_data)
@@ -16453,8 +16448,8 @@ class SCMClient:
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
                     result["__action__"] = "updated"
                     return result
-            except Exception:
-                pass
+            except (NotFoundError, ObjectNotPresentError):
+                pass  # object does not exist yet; fall through to create
 
             create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
             created = self.client.ldap_server_profile.create(create_data)
@@ -16578,8 +16573,8 @@ class SCMClient:
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
                     result["__action__"] = "updated"
                     return result
-            except Exception:
-                pass
+            except (NotFoundError, ObjectNotPresentError):
+                pass  # object does not exist yet; fall through to create
 
             create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
             created = self.client.radius_server_profile.create(create_data)
@@ -16698,8 +16693,8 @@ class SCMClient:
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
                     result["__action__"] = "updated"
                     return result
-            except Exception:
-                pass
+            except (NotFoundError, ObjectNotPresentError):
+                pass  # object does not exist yet; fall through to create
 
             create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
             created = self.client.saml_server_profile.create(create_data)
@@ -16826,8 +16821,8 @@ class SCMClient:
                     result = json.loads(updated.model_dump_json(exclude_unset=True))
                     result["__action__"] = "updated"
                     return result
-            except Exception:
-                pass
+            except (NotFoundError, ObjectNotPresentError):
+                pass  # object does not exist yet; fall through to create
 
             create_data = {"name": name, **container_kwargs, **{k: v for k, v in kwargs.items() if v is not None}}
             created = self.client.tacacs_server_profile.create(create_data)

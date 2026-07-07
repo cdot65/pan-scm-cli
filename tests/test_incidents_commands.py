@@ -74,10 +74,12 @@ class TestIncidentsList:
         assert result.exit_code == 0
         assert "medium" in result.output
 
-    def test_list_incidents_json(self, runner, mock_incidents_env):
-        result = runner.invoke(app, ["incidents", "list", "--json"])
+    def test_list_incidents_json(self, mock_incidents_env):
+        from typer.testing import CliRunner
+
+        result = CliRunner(mix_stderr=False).invoke(app, ["incidents", "list", "--json"])
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert isinstance(data, list)
         assert len(data) >= 2
 
@@ -101,10 +103,12 @@ class TestIncidentsShow:
         assert "Alerts" in result.output
         assert "Remediation" in result.output or "remediations" in result.output.lower()
 
-    def test_show_incident_json(self, runner, mock_incidents_env):
-        result = runner.invoke(app, ["incidents", "show", "INC-2026-04-001", "--json"])
+    def test_show_incident_json(self, mock_incidents_env):
+        from typer.testing import CliRunner
+
+        result = CliRunner(mix_stderr=False).invoke(app, ["incidents", "show", "INC-2026-04-001", "--json"])
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = json.loads(result.stdout)
         assert data["incident_id"] == "INC-2026-04-001"
         assert "alerts" in data
         assert "remediations" in data

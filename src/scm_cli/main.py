@@ -294,10 +294,41 @@ app.add_typer(posture.posture_app, name="posture")
 
 _region_override: str | None = None
 
+_VALID_LOG_LEVELS = ("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG")
+
 
 def get_region_override() -> str | None:
     """Get the global --region override value, if set."""
     return _region_override
+
+
+def _configure_logging(debug: bool) -> None:
+    """Configure logging once at CLI entry.
+
+    Precedence: --debug > SCM_LOG_LEVEL env > `log_level` setting > WARNING.
+    The SDK auth loggers stay pinned to CRITICAL unless the effective level
+    is DEBUG, so OAuth/token traffic is only visible when debugging.
+    """
+    import logging
+    import os
+
+    if debug:
+        level = logging.DEBUG
+    else:
+        from .utils.config import settings
+        from .utils.output import warning
+
+        level_name = (os.environ.get("SCM_LOG_LEVEL") or settings.get("log_level", "WARNING") or "WARNING").upper()
+        if level_name not in _VALID_LOG_LEVELS:
+            warning(f"Invalid SCM_LOG_LEVEL '{level_name}' (valid: {', '.join(_VALID_LOG_LEVELS)}); using WARNING")
+            level_name = "WARNING"
+        level = getattr(logging, level_name)
+
+    logging.basicConfig(level=level, force=True)
+
+    auth_logger_level = logging.NOTSET if level == logging.DEBUG else logging.CRITICAL
+    logging.getLogger("scm.auth").setLevel(auth_logger_level)
+    logging.getLogger("oauthlib").setLevel(auth_logger_level)
 
 
 def _version_callback(value: bool) -> None:
@@ -314,6 +345,11 @@ def callback(
         None,
         "--region",
         help="Override SCM API region for this invocation",
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Enable debug logging (including SDK auth/HTTP) and full tracebacks",
     ),
     version: bool | None = typer.Option(
         None,
@@ -340,6 +376,11 @@ def callback(
     """
     global _region_override  # noqa: PLW0603
     _region_override = region
+
+    from .utils.decorators import set_debug
+
+    set_debug(debug)
+    _configure_logging(debug)
 
 
 # =============================================================================================================================================================================================

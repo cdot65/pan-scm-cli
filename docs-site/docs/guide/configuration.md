@@ -313,7 +313,7 @@ The `settings.yaml` file contains default application settings:
 ```yaml
 ---
 default:
-  log_level: "INFO"
+  log_level: "WARNING"
 
 production:
   log_level: "WARNING"
@@ -331,7 +331,7 @@ The following legacy configuration methods are no longer supported as of version
 
 | Setting | Default | Environment Variable | Description |
 | --- | --- | --- | --- |
-| `log_level` | `"INFO"` | `SCM_LOG_LEVEL` | Controls SDK client logging verbosity |
+| `log_level` | `"WARNING"` | `SCM_LOG_LEVEL` | Controls logging verbosity (CRITICAL, ERROR, WARNING, INFO, DEBUG) |
 | `client_id` | None | `SCM_CLIENT_ID` | SCM API authentication |
 | `client_secret` | None | `SCM_CLIENT_SECRET` | SCM API authentication |
 | `tsg_id` | None | `SCM_TSG_ID` | SCM API tenant identification |
@@ -362,7 +362,33 @@ scm context test --mock
 scm context test staging --mock
 ```
 
-## Debugging Configuration
+## Debugging
+
+### The --debug Flag
+
+Pass the global `--debug` flag to any command for full diagnostics:
+
+```bash
+scm --debug show object address --folder Texas
+```
+
+`--debug` enables DEBUG-level logging (including the SDK's OAuth/auth loggers,
+which are silenced at every other level) and prints full tracebacks on
+unexpected errors instead of one-line messages.
+
+### Log Levels
+
+Logging is configured once at CLI startup with this precedence:
+
+1. `--debug` flag (forces DEBUG)
+2. `SCM_LOG_LEVEL` environment variable
+3. `log_level` in the active context or `settings.yaml`
+4. Default: `WARNING`
+
+Valid levels: `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG`. An invalid value
+produces a warning and falls back to `WARNING`.
+
+### Debugging Configuration
 
 To see which configuration values are being loaded:
 

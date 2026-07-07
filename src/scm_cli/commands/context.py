@@ -105,7 +105,7 @@ def show_command(
         else:
             console.print("  Client Secret: [red]Not set[/red]")
 
-    console.print(f"  Log Level: {config.get('log_level', 'INFO')}")
+    console.print(f"  Log Level: {config.get('log_level', 'WARNING')}")
     console.print(f"  API Base URL: {config.get('api_base_url') or '[dim]SDK default[/dim]'}")
     console.print(f"  Token URL: {config.get('token_url') or '[dim]SDK default[/dim]'}")
 
@@ -142,7 +142,7 @@ def create_command(
         help="Bearer access token for direct authentication (alternative to OAuth2)",
     ),
     log_level: str = typer.Option(
-        "INFO",
+        "WARNING",
         "--log-level",
         "-l",
         help="Logging level",
@@ -382,7 +382,7 @@ def test_command(
                 "client_id": config.get("client_id"),
                 "client_secret": config.get("client_secret"),
                 "tsg_id": config.get("tsg_id"),
-                "log_level": config.get("log_level", "INFO"),
+                "log_level": config.get("log_level", "WARNING"),
             }
             # Endpoint overrides — omit when unset so SDK defaults apply
             if config.get("api_base_url"):
