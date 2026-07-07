@@ -318,6 +318,8 @@ class TestEndpointsReachScmInit:
         import scm_cli.utils.sdk_client as sdk_module
         from scm_cli.utils.context import get_context_aware_settings
 
+        # These tests exercise real client init, so opt out of suite-wide mock mode
+        monkeypatch.delenv("SCM_MOCK", raising=False)
         monkeypatch.setattr(sdk_module, "Scm", FakeScm)
         monkeypatch.setattr(sdk_module, "settings", get_context_aware_settings())
         import scm_cli.utils.config as cfg_mod

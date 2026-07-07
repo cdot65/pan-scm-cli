@@ -25,6 +25,13 @@ def no_credentials(monkeypatch):
     for var in CRED_ENV_VARS:
         monkeypatch.setenv(var, "")
     monkeypatch.delenv("SCM_MOCK", raising=False)
+    # The autouse reset fixture only handles the installed-package namespace;
+    # these CLI tests exercise the src.* namespace singleton, so reset it too.
+    import src.scm_cli.utils.sdk_client as src_sdk_module
+
+    src_sdk_module.scm_client._client = None
+    yield
+    src_sdk_module.scm_client._client = None
 
 
 class TestNoCredentialsFailsLoudly:
@@ -49,7 +56,7 @@ class TestNoCredentialsFailsLoudly:
         assert "mock-address" not in result.output
 
     def test_commit_exits_1_without_creds(self, runner, no_credentials):
-        result = runner.invoke(app, ["commit", "--folder", "Texas", "--description", "x", "--force"])
+        result = runner.invoke(app, ["commit", "--folder", "Texas", "--description", "x"])
 
         assert result.exit_code == 1
         assert "mock-job-99999" not in result.output
@@ -85,7 +92,7 @@ class TestExplicitMockMode:
 
     def test_mock_commands_work_with_scm_mock(self, runner, monkeypatch, no_credentials):
         monkeypatch.setenv("SCM_MOCK", "1")
-        result = runner.invoke(app, ["commit", "--folder", "Texas", "--description", "x", "--force"])
+        result = runner.invoke(app, ["commit", "--folder", "Texas", "--description", "x"])
 
         assert result.exit_code == 0
         assert "mock-job-99999" in result.output

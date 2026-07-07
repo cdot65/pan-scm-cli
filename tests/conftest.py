@@ -43,6 +43,10 @@ def mock_dynaconf_settings(monkeypatch):
     monkeypatch.setenv("SCM_SCM_CLIENT_SECRET", "test-client-secret")
     monkeypatch.setenv("SCM_SCM_TSG_ID", "test-tsg-id")
     monkeypatch.setenv("SCM_LOG_LEVEL", "DEBUG")
+    # Mock mode must now be requested explicitly (no silent fallback on
+    # missing credentials), so opt the whole suite in. Tests that exercise
+    # real-client init delete SCM_MOCK and patch Scm/credentials themselves.
+    monkeypatch.setenv("SCM_MOCK", "1")
 
 
 @pytest.fixture(autouse=True)
