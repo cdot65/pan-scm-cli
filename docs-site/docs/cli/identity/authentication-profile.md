@@ -19,14 +19,19 @@ Create or update an authentication profile.
 ### Syntax
 
 ```bash
-scm set identity authentication-profile [OPTIONS]
+scm set identity authentication-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -45,9 +50,8 @@ scm set identity authentication-profile [OPTIONS]
 #### Create LDAP Authentication Profile
 
 ```bash
-$ scm set identity authentication-profile \
+$ scm set identity authentication-profile corp-ldap-auth \
     --folder Texas \
-    --name corp-ldap-auth \
     --method '{"ldap": {"server_profile": "corp-ldap", "login_attribute": "sAMAccountName"}}' \
     --user-domain "example.com"
 ---> 100%
@@ -57,9 +61,8 @@ Created authentication-profile: corp-ldap-auth in folder Texas
 #### Create RADIUS Authentication Profile with Lockout
 
 ```bash
-$ scm set identity authentication-profile \
+$ scm set identity authentication-profile corp-radius-auth \
     --folder Texas \
-    --name corp-radius-auth \
     --method '{"radius": {"server_profile": "corp-radius"}}' \
     --lockout '{"failed_attempts": 5, "lockout_time": 30}'
 ---> 100%
@@ -69,9 +72,8 @@ Created authentication-profile: corp-radius-auth in folder Texas
 #### Create SAML Profile with MFA
 
 ```bash
-$ scm set identity authentication-profile \
+$ scm set identity authentication-profile corp-saml-mfa \
     --folder Texas \
-    --name corp-saml-mfa \
     --method '{"saml_idp": {"server_profile": "corp-saml"}}' \
     --multi-factor-auth '{"mfa_enable": true, "factors": ["okta-otp"]}' \
     --single-sign-on '{"realm": "example.com"}'
@@ -86,14 +88,19 @@ Delete an authentication profile from SCM.
 ### Syntax
 
 ```bash
-scm delete identity authentication-profile [OPTIONS]
+scm delete identity authentication-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -104,9 +111,8 @@ scm delete identity authentication-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete identity authentication-profile \
+$ scm delete identity authentication-profile corp-ldap-auth \
     --folder Texas \
-    --name corp-ldap-auth \
     --force
 ---> 100%
 Deleted authentication-profile: corp-ldap-auth from folder Texas
@@ -194,22 +200,29 @@ Display authentication profile objects.
 ### Syntax
 
 ```bash
-scm show identity authentication-profile [OPTIONS]
+scm show identity authentication-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | No |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -217,9 +230,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Authentication Profile
 
 ```bash
-$ scm show identity authentication-profile \
-    --folder Texas \
-    --name corp-ldap-auth
+$ scm show identity authentication-profile corp-ldap-auth \
+    --folder Texas
 ---> 100%
 Authentication Profile: corp-ldap-auth
   Location: Folder 'Texas'

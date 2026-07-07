@@ -6,7 +6,7 @@ The `scm` CLI provides a consistent interface for managing configuration objects
 
 Configuration objects are the building blocks of your SCM environment. The CLI allows you to:
 
-- Create and update objects across multiple categories (objects, network, security, deployment)
+- Create and update objects across multiple categories (object, network, security, sase)
 - Delete objects that are no longer needed
 - List and inspect existing objects
 - Bulk import objects from YAML files
@@ -31,15 +31,19 @@ The CLI organizes configuration management commands into logical categories:
 | `object` | Network objects | Address, address group, application, service, tag |
 | `network` | Network configurations | Security zone |
 | `security` | Security policies | Security rule, anti-spyware profile, decryption profile |
-| `deployment` | Deployment settings | Bandwidth allocation |
+| `sase` | SASE deployment settings | Bandwidth allocation, remote network |
 
 ### Command Pattern
 
 All object commands follow a consistent pattern:
 
 ```bash
-scm <action> <category> <object> [OPTIONS]
+scm <action> <category> <object> [NAME] [OPTIONS]
 ```
+
+The object name is a positional argument: required for `set` and `delete`, optional
+for `show` (omit it to list all objects). Most `set`, `delete`, and `show` commands
+accept exactly one container option: `--folder`, `--snippet`, or `--device`.
 
 ### Object Relationships
 
@@ -61,22 +65,21 @@ Creating an address group that references a nonexistent address will fail.
 #### Address Objects
 
 ```bash
-$ scm set object address \
+$ scm set object address web-server \
     --folder Shared \
-    --name web-server \
     --ip-netmask 10.1.1.10/32
 ---> 100%
 Created address: web-server in folder Shared
 ```
 
 ```bash
-$ scm delete object address --folder Shared --name web-server
+$ scm delete object address web-server --folder Shared
 ---> 100%
 Deleted address: web-server from folder Shared
 ```
 
 ```bash
-$ scm load object address --folder Shared --file addresses.yaml
+$ scm load object address --file addresses.yaml --folder Shared
 ---> 100%
 ✓ Loaded address: web-server-1
 ✓ Loaded address: web-server-2
@@ -87,28 +90,27 @@ Successfully loaded 2 out of 2 addresses from 'addresses.yaml'
 #### Address Groups
 
 ```bash
-$ scm set object address-group \
+$ scm set object address-group web-servers \
     --folder Shared \
-    --name web-servers \
-    --static \
-    --members "web-server-1,web-server-2"
+    --type static \
+    --members web-server-1 --members web-server-2
 ---> 100%
-Created address-group: web-servers in folder Shared
+Created address group: web-servers in folder Shared
 ```
 
 ```bash
-$ scm delete object address-group --folder Shared --name web-servers
+$ scm delete object address-group web-servers --folder Shared
 ---> 100%
-Deleted address-group: web-servers from folder Shared
+Deleted address group: web-servers from folder Shared
 ```
 
 ```bash
-$ scm load object address-group --folder Shared --file address-groups.yaml
+$ scm load object address-group --file address-groups.yaml --folder Shared
 ---> 100%
-✓ Loaded address-group: web-servers
-✓ Loaded address-group: db-servers
+✓ Loaded address group: web-servers
+✓ Loaded address group: db-servers
 
-Successfully loaded 2 out of 2 address-groups from 'address-groups.yaml'
+Successfully loaded 2 out of 2 address groups from 'address-groups.yaml'
 ```
 
 ### Network Category
@@ -116,25 +118,24 @@ Successfully loaded 2 out of 2 address-groups from 'address-groups.yaml'
 #### Security Zones
 
 ```bash
-$ scm set network security-zone \
+$ scm set network zone Trust \
     --folder Shared \
-    --name Trust \
     --mode layer3
 ---> 100%
-Created security-zone: Trust in folder Shared
+Created zone: Trust in folder Shared
 ```
 
 ```bash
-$ scm delete network security-zone --folder Shared --name Trust
+$ scm delete network zone Trust --folder Shared
 ---> 100%
-Deleted security-zone: Trust from folder Shared
+Deleted zone: Trust from folder Shared
 ```
 
 ```bash
-$ scm load network security-zone --folder Shared --file security-zones.yaml
+$ scm load network zone --file security-zones.yaml --folder Shared
 ---> 100%
-✓ Loaded security-zone: Trust
-✓ Loaded security-zone: Untrust
+✓ Loaded zone: Trust
+✓ Loaded zone: Untrust
 
 Successfully loaded 2 out of 2 security-zones from 'security-zones.yaml'
 ```
@@ -144,9 +145,8 @@ Successfully loaded 2 out of 2 security-zones from 'security-zones.yaml'
 #### Security Rules
 
 ```bash
-$ scm set security rule \
+$ scm set security rule Allow-Web \
     --folder Shared \
-    --name "Allow-Web" \
     --source-zones Trust \
     --destination-zones Untrust
 ---> 100%
@@ -154,13 +154,13 @@ Created security rule: Allow-Web in folder Shared
 ```
 
 ```bash
-$ scm delete security rule --folder Shared --name "Allow-Web"
+$ scm delete security rule Allow-Web --folder Shared
 ---> 100%
 Deleted security rule: Allow-Web from folder Shared
 ```
 
 ```bash
-$ scm load security rule --folder Shared --file security-rules.yaml
+$ scm load security rule --file security-rules.yaml --folder Shared
 ---> 100%
 ✓ Loaded security rule: Allow-Web
 ✓ Loaded security rule: Block-Malware
@@ -173,23 +173,21 @@ Successfully loaded 2 out of 2 security rules from 'security-rules.yaml'
 #### Bandwidth Allocation
 
 ```bash
-$ scm set deployment bandwidth \
-    --folder Shared \
-    --name "Standard-Branch" \
-    --egress-guaranteed 50 \
-    --egress-max 100
+$ scm set sase bandwidth-allocation Standard-Branch \
+    --bandwidth 100 \
+    --spn-name-list spn1,spn2
 ---> 100%
-Created bandwidth: Standard-Branch in folder Shared
+Created bandwidth allocation: Standard-Branch (100 Mbps)
 ```
 
 ```bash
-$ scm delete deployment bandwidth --folder Shared --name "Standard-Branch"
+$ scm delete sase bandwidth-allocation Standard-Branch --spn-name-list spn1,spn2
 ---> 100%
-Deleted bandwidth: Standard-Branch from folder Shared
+Deleted bandwidth allocation: Standard-Branch
 ```
 
 ```bash
-$ scm load deployment bandwidth --folder Shared --file bandwidth-allocations.yaml
+$ scm load sase bandwidth-allocation --file bandwidth-allocations.yaml
 ---> 100%
 ✓ Loaded bandwidth: Standard-Branch
 ✓ Loaded bandwidth: Premium-Branch
@@ -204,12 +202,11 @@ Successfully loaded 2 out of 2 bandwidth allocations from 'bandwidth-allocations
 Every object type has a `set` command with required and optional parameters:
 
 ```bash
-$ scm set object address \
+$ scm set object address web-server \
     --folder Shared \
-    --name web-server \
     --ip-netmask 10.1.1.10/32 \
     --description "Web server" \
-    --tags "web,production"
+    --tags web --tags production
 ---> 100%
 Created address: web-server in folder Shared
 ```
@@ -219,9 +216,8 @@ Created address: web-server in folder Shared
 Updating uses the same `set` command. The CLI updates the object if it already exists:
 
 ```bash
-$ scm set object address \
+$ scm set object address web-server \
     --folder Shared \
-    --name web-server \
     --ip-netmask 10.1.1.20/32 \
     --description "Updated web server"
 ---> 100%
@@ -250,7 +246,7 @@ Name: web-server-2
 Load multiple objects from YAML files:
 
 ```bash
-$ scm load object address --folder Shared --file addresses.yaml
+$ scm load object address --file addresses.yaml --folder Shared
 ---> 100%
 ✓ Loaded address: web-server-1
 ✓ Loaded address: web-server-2
@@ -264,35 +260,32 @@ Create objects in the correct order to satisfy dependencies:
 
 ```bash
 # First create the address objects
-$ scm set object address \
+$ scm set object address web-server-1 \
     --folder Shared \
-    --name web-server-1 \
     --ip-netmask 10.1.1.10/32
 ---> 100%
 Created address: web-server-1 in folder Shared
 
-$ scm set object address \
+$ scm set object address web-server-2 \
     --folder Shared \
-    --name web-server-2 \
     --ip-netmask 10.1.1.11/32
 ---> 100%
 Created address: web-server-2 in folder Shared
 
 # Then create an address group that references them
-$ scm set object address-group \
+$ scm set object address-group web-servers \
     --folder Shared \
-    --name web-servers \
-    --static \
-    --members "web-server-1,web-server-2"
+    --type static \
+    --members web-server-1 --members web-server-2
 ---> 100%
-Created address-group: web-servers in folder Shared
+Created address group: web-servers in folder Shared
 ```
 
 ## Best Practices
 
 1. **Create dependencies first**: Always create referenced objects before the objects that reference them (e.g., addresses before address groups).
 2. **Use YAML for complex setups**: Bulk loading from YAML files ensures consistency and is easier to maintain in version control.
-3. **Validate with mock mode**: Use `--mock` to test commands before making changes to production.
+3. **Validate with mock mode**: Set `SCM_MOCK=1` to test commands before making changes to production.
 4. **Use descriptive names**: Choose clear, meaningful names for objects to make policies easier to understand.
 5. **Organize by folder**: Use SCM folders to logically separate objects by environment or location.
 

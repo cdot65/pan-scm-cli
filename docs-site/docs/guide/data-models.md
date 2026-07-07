@@ -30,36 +30,37 @@ CLI commands accept parameters in several formats depending on the field type.
 Most simple parameters are provided as strings:
 
 ```bash
-$ scm set object address \
-    --name "web-server" \
+$ scm set object address web-server \
     --description "Web server in DMZ" \
-    --folder "Shared"
+    --folder "Shared" \
+    --ip-netmask 10.1.1.10/32
 ---> 100%
 Created address: web-server in folder Shared
 ```
 
 #### Boolean Parameters
 
-Boolean parameters accept `true` or `false`:
+Boolean parameters are flags, often paired with a negated form (e.g. `--enabled / --disabled`):
 
 ```bash
-$ scm set security rule \
-    --name "Allow-Web" \
+$ scm set security rule Allow-Web \
     --folder "Shared" \
-    --disabled false
+    --source-zones Trust \
+    --destination-zones Untrust \
+    --disabled
 ---> 100%
 Created security rule: Allow-Web in folder Shared
 ```
 
 #### List Parameters
 
-Lists are provided as comma-separated values:
+Lists are provided by repeating the option once per value:
 
 ```bash
-$ scm set object address \
-    --name "web-server" \
+$ scm set object address web-server \
     --folder "Shared" \
-    --tags "web,dmz,production"
+    --ip-netmask 10.1.1.10/32 \
+    --tags web --tags dmz --tags production
 ---> 100%
 Created address: web-server in folder Shared
 ```
@@ -207,15 +208,15 @@ bandwidth_allocations:
 | Exclusive fields | Mutually exclusive fields cannot both be specified |
 
 :::tip
-Use the `--mock` flag to validate YAML files and command parameters
-without making changes to your SCM environment.
+Set the `SCM_MOCK=1` environment variable to validate YAML files and command
+parameters without making changes to your SCM environment.
 :::
 
 ## Best Practices
 
 1. **Use YAML files for complex or bulk operations**: Structured files are easier to maintain and review than long command lines.
 2. **Keep YAML files in version control**: Track configuration changes alongside your infrastructure code.
-3. **Validate before applying**: Use `--mock` to validate YAML files and commands before making changes.
+3. **Validate before applying**: Use `SCM_MOCK=1` to validate YAML files and commands before making changes.
 4. **Check command help for formats**: Use `--help` with any command to see required parameters and accepted formats.
 5. **Use `snake_case` in YAML**: Match the SDK model field names exactly when writing YAML files.
 

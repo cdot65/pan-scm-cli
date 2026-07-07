@@ -28,14 +28,19 @@ Create or update an LDAP server profile.
 ### Syntax
 
 ```bash
-scm set identity ldap-server-profile [OPTIONS]
+scm set identity ldap-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -53,9 +58,8 @@ scm set identity ldap-server-profile [OPTIONS]
 #### Create Active Directory Profile
 
 ```bash
-$ scm set identity ldap-server-profile \
+$ scm set identity ldap-server-profile corp-ldap \
     --folder Texas \
-    --name corp-ldap \
     --servers '[{"name": "ldap1", "address": "ldap.example.com", "port": 389}]' \
     --base "dc=example,dc=com" \
     --ldap-type active-directory
@@ -66,9 +70,8 @@ Created ldap-server-profile: corp-ldap in folder Texas
 #### Create LDAP Profile with SSL and Bind Credentials
 
 ```bash
-$ scm set identity ldap-server-profile \
+$ scm set identity ldap-server-profile secure-ldap \
     --folder Texas \
-    --name secure-ldap \
     --servers '[{"name": "ldaps1", "address": "ldaps.example.com", "port": 636}]' \
     --base "dc=example,dc=com" \
     --bind-dn "cn=admin,dc=example,dc=com" \
@@ -82,9 +85,8 @@ Created ldap-server-profile: secure-ldap in folder Texas
 #### Create Profile with Multiple Servers
 
 ```bash
-$ scm set identity ldap-server-profile \
+$ scm set identity ldap-server-profile corp-ldap-ha \
     --folder Texas \
-    --name corp-ldap-ha \
     --servers '[{"name": "ldap1", "address": "ldap1.example.com", "port": 389}, {"name": "ldap2", "address": "ldap2.example.com", "port": 389}]' \
     --base "dc=example,dc=com" \
     --ldap-type active-directory
@@ -99,14 +101,19 @@ Delete an LDAP server profile from SCM.
 ### Syntax
 
 ```bash
-scm delete identity ldap-server-profile [OPTIONS]
+scm delete identity ldap-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -117,9 +124,8 @@ scm delete identity ldap-server-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete identity ldap-server-profile \
+$ scm delete identity ldap-server-profile corp-ldap \
     --folder Texas \
-    --name corp-ldap \
     --force
 ---> 100%
 Deleted ldap-server-profile: corp-ldap from folder Texas
@@ -211,22 +217,29 @@ Display LDAP server profile objects.
 ### Syntax
 
 ```bash
-scm show identity ldap-server-profile [OPTIONS]
+scm show identity ldap-server-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | No |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -234,9 +247,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific LDAP Server Profile
 
 ```bash
-$ scm show identity ldap-server-profile \
-    --folder Texas \
-    --name corp-ldap
+$ scm show identity ldap-server-profile corp-ldap \
+    --folder Texas
 ---> 100%
 LDAP Server Profile: corp-ldap
   Location: Folder 'Texas'

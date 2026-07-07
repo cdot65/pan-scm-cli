@@ -31,55 +31,67 @@ Create or update a syslog server profile object.
 ### Syntax
 
 ```bash
-scm set object syslog-server-profile [OPTIONS]
+scm set object syslog-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the syslog server profile | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the syslog server profile object | No\* |
-| `--snippet TEXT` | Snippet for the syslog server profile object | No\* |
-| `--device TEXT` | Device for the syslog server profile object | No\* |
-| `--name TEXT` | Name of the syslog server profile | Yes |
-| `--servers JSON` | JSON array of server configurations | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--server-name TEXT` | Name of the syslog server | Yes |
+| `--server-address TEXT` | IP address or hostname of the syslog server | Yes |
+| `--transport TEXT` | Transport protocol (UDP, TCP, SSL) | Yes |
+| `--port INTEGER` | Port number (1-65535) | Yes |
+| `--format TEXT` | Log format (BSD, IETF) | Yes |
+| `--facility TEXT` | Syslog facility (LOG_USER, LOG_LOCAL0-7) | Yes |
 | `--description TEXT` | Description of the profile | No |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
+
+:::note
+The `set` command configures a single syslog server per profile. To define profiles
+with multiple servers, use the `load` command with a YAML file.
+:::
 
 ### Examples
 
 #### Create Basic Syslog Profile with TCP
 
 ```bash
-$ scm set object syslog-server-profile \
+$ scm set object syslog-server-profile central-syslog \
     --folder Texas \
-    --name central-syslog \
-    --servers '[{"name": "primary", "server": "10.0.1.50", "port": 514, "transport": "TCP", "format": "BSD", "facility": "LOG_USER"}]' \
+    --server-name primary \
+    --server-address 10.0.1.50 \
+    --transport TCP \
+    --port 514 \
+    --format BSD \
+    --facility LOG_USER \
     --description "Central syslog collection"
 ---> 100%
 Created syslog server profile: central-syslog in folder Texas
 ```
 
-#### Create Profile with Multiple Servers
-
-```bash
-$ scm set object syslog-server-profile \
-    --folder Texas \
-    --name redundant-syslog \
-    --servers '[{"name": "primary", "server": "syslog1.company.com", "port": 514, "transport": "UDP", "format": "BSD", "facility": "LOG_USER"}, {"name": "secondary", "server": "syslog2.company.com", "port": 514, "transport": "UDP", "format": "BSD", "facility": "LOG_USER"}]' \
-    --description "Redundant syslog servers"
----> 100%
-Created syslog server profile: redundant-syslog in folder Texas
-```
-
 #### Create Compliance Syslog Profile with IETF Format
 
 ```bash
-$ scm set object syslog-server-profile \
+$ scm set object syslog-server-profile compliance \
     --folder Shared \
-    --name compliance \
-    --servers '[{"name": "compliance-srv", "server": "10.10.10.50", "port": 6514, "transport": "TCP", "format": "IETF", "facility": "LOG_LOCAL7"}]' \
+    --server-name compliance-srv \
+    --server-address 10.10.10.50 \
+    --transport TCP \
+    --port 6514 \
+    --format IETF \
+    --facility LOG_LOCAL7 \
     --description "Compliance logging with IETF format"
 ---> 100%
 Created syslog server profile: compliance in folder Shared
@@ -92,25 +104,30 @@ Delete a syslog server profile object from SCM.
 ### Syntax
 
 ```bash
-scm delete object syslog-server-profile [OPTIONS]
+scm delete object syslog-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the syslog server profile to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the syslog server profile object | No\* |
-| `--snippet TEXT` | Snippet containing the syslog server profile object | No\* |
-| `--device TEXT` | Device containing the syslog server profile object | No\* |
-| `--name TEXT` | Name of the syslog server profile to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object syslog-server-profile --folder Texas --name central-syslog --force
+$ scm delete object syslog-server-profile central-syslog --folder Texas --force
 ---> 100%
 Deleted syslog server profile: central-syslog from folder Texas
 ```
@@ -232,30 +249,37 @@ Display syslog server profile objects.
 ### Syntax
 
 ```bash
-scm show object syslog-server-profile [OPTIONS]
+scm show object syslog-server-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the syslog server profile to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the syslog server profile object | No\* |
-| `--snippet TEXT` | Snippet containing the syslog server profile object | No\* |
-| `--device TEXT` | Device containing the syslog server profile object | No\* |
-| `--name TEXT` | Name of the syslog server profile to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Syslog Server Profile
 
 ```bash
-$ scm show object syslog-server-profile --folder Texas --name central-syslog
+$ scm show object syslog-server-profile central-syslog --folder Texas
 ---> 100%
 Syslog Server Profile: central-syslog
   Location: Folder 'Texas'

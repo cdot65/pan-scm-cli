@@ -88,15 +88,16 @@ variables for secure credential management. Regularly rotate your credentials.
 All commands follow this pattern:
 
 ```bash
-scm <action> <category> <resource> [options]
+scm <action> <category> <resource> [name] [options]
 ```
 
 | Component | Description | Examples |
 | --- | --- | --- |
-| `<action>` | Operation to perform | `set`, `delete`, `load`, `show`, `backup` |
+| `<action>` | Operation to perform | `set`, `delete`, `load`, `show`, `backup`, `move` |
 | `<category>` | Category of resource | `object`, `network`, `security`, `sase` |
-| `<resource>` | Specific resource type | `address`, `address-group`, `security-zone` |
-| `[options]` | Resource-specific parameters | `--folder`, `--name`, `--ip-netmask` |
+| `<resource>` | Specific resource type | `address`, `address-group`, `zone` |
+| `[name]` | Positional resource name (required for `set`/`delete`/`move`; optional for `show`) | `webserver` |
+| `[options]` | Resource-specific parameters | `--folder`, `--ip-netmask` |
 
 ## Basic Usage Examples
 
@@ -115,39 +116,51 @@ Options:
   --help     Show this message and exit.
 
 Commands:
-  backup   Backup configurations to YAML files
-  delete   Remove configurations
-  load     Load configurations from YAML files
-  set      Create or update configurations
-  show     Display configurations
+  backup      Backup configurations to YAML files
+  commit      Commit staged configuration changes
+  context     Manage authentication contexts
+  delete      Remove configurations
+  incidents   Search and view security incidents
+  insights    Query monitoring insights
+  jobs        Manage SCM jobs
+  load        Load configurations from YAML files
+  local       Retrieve local device configurations
+  move        Move rules to a new position
+  operations  Run device operations
+  posture     Firewall posture / BPA assessment
+  set         Create or update configurations
+  show        Display configurations
 ```
 
 Command-specific help:
 
 ```bash
 $ scm set object address --help
-Usage: scm set object address [OPTIONS]
+Usage: scm set object address [OPTIONS] NAME
 
-  Create or update an address object in SCM.
+  Create or update an address object.
+
+Arguments:
+  NAME                     Name of the address  [required]
 
 Options:
-  --folder TEXT            Folder for the address object  [required]
-  --name TEXT              Name of the address object  [required]
-  --description TEXT       Description for the address
-  --tags LIST              List of tags to apply to the address
-  --ip-netmask TEXT        Address in CIDR notation (e.g., 192.168.1.0/24)
-  --ip-range TEXT          Address range (e.g., 192.168.1.1-192.168.1.10)
-  --ip-wildcard TEXT       Address with wildcard mask (e.g., 10.20.1.0/0.0.248.255)
-  --fqdn TEXT              Fully qualified domain name (e.g., example.com)
+  --folder TEXT            Folder location
+  --snippet TEXT           Snippet location
+  --device TEXT            Device location
+  --description TEXT       Description of the address
+  --tags TEXT              Tags (repeat for multiple)
+  --ip-netmask TEXT        IP address with CIDR notation (e.g. 192.168.1.0/24)
+  --ip-range TEXT          IP address range (e.g. 192.168.1.1-192.168.1.10)
+  --ip-wildcard TEXT       IP wildcard mask (e.g. 10.20.1.0/0.0.248.255)
+  --fqdn TEXT              Fully qualified domain name (e.g. example.com)
   --help                   Show this message and exit.
 ```
 
 ### Creating an Address Object
 
 ```bash
-$ scm set object address \
+$ scm set object address webserver \
     --folder Texas \
-    --name webserver \
     --ip-netmask 192.168.1.100/32 \
     --description "Web server"
 ---> 100%
@@ -157,9 +170,8 @@ Created address: webserver in folder Texas
 ### Creating an Address with FQDN
 
 ```bash
-$ scm set object address \
+$ scm set object address company-website \
     --folder Texas \
-    --name company-website \
     --fqdn example.com \
     --description "Company website"
 ---> 100%
@@ -186,7 +198,7 @@ Name: company-website
 ### Deleting an Address Object
 
 ```bash
-$ scm delete object address --folder Texas --name webserver
+$ scm delete object address webserver --folder Texas
 ---> 100%
 Deleted address: webserver from folder Texas
 ```
@@ -241,30 +253,27 @@ Successfully loaded 3 out of 3 addresses from 'addresses.yml'
 
 ### Dry Run Mode
 
-Preview changes without applying them:
+Preview bulk changes without applying them (available on every `load` command):
 
 ```bash
-$ scm set object address \
-    --folder Texas \
-    --name webserver \
-    --ip-netmask 192.168.1.100/32 \
-    --dry-run
+$ scm load object address --file addresses.yml --dry-run
 ---> 100%
-[DRY RUN] Would create address: webserver in folder Texas
+Dry run mode: would apply the following configurations:
+- name: web-server-1
+  folder: Texas
+  ip_netmask: 192.168.1.10/32
 ```
 
 ### Mock Mode
 
-Run commands without connecting to the SCM API:
+Set `SCM_MOCK=1` to run commands without connecting to the SCM API:
 
 ```bash
-$ scm set object address \
+$ SCM_MOCK=1 scm set object address webserver \
     --folder Texas \
-    --name webserver \
-    --ip-netmask 192.168.1.100/32 \
-    --mock
+    --ip-netmask 192.168.1.100/32
 ---> 100%
-[MOCK] Created address: webserver in folder Texas
+Created address: webserver in folder Texas
 ```
 
 :::tip

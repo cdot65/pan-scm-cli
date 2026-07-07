@@ -19,46 +19,44 @@ Create or update an application group object.
 ### Syntax
 
 ```bash
-scm set object application-group [OPTIONS]
+scm set object application-group NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application group | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the application group object | No\* |
-| `--snippet TEXT` | Snippet for the application group object | No\* |
-| `--device TEXT` | Device for the application group object | No\* |
-| `--name TEXT` | Name of the application group | Yes |
-| `--members LIST` | Comma-separated list of application names | Yes |
-| `--description TEXT` | Description of the group | No |
-| `--tag LIST` | Tags for categorization | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--members TEXT` | Application name in the group (repeat for multiple) | Yes |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create a Basic Application Group
 
 ```bash
-$ scm set object application-group \
+$ scm set object application-group business-apps \
     --folder Texas \
-    --name business-apps \
-    --members "salesforce,office365,zoom,custom-crm" \
-    --description "Business critical applications"
+    --members salesforce --members office365 --members zoom --members custom-crm
 ---> 100%
 Created application group: business-apps in folder Texas
 ```
 
-#### Create an Application Group with Tags
+#### Create a Collaboration Application Group
 
 ```bash
-$ scm set object application-group \
+$ scm set object application-group collaboration-tools \
     --folder Texas \
-    --name collaboration-tools \
-    --members "slack,ms-teams,zoom,webex" \
-    --tag "collaboration,approved" \
-    --description "Approved collaboration applications"
+    --members slack --members ms-teams --members zoom --members webex
 ---> 100%
 Created application group: collaboration-tools in folder Texas
 ```
@@ -70,25 +68,30 @@ Delete an application group object from SCM.
 ### Syntax
 
 ```bash
-scm delete object application-group [OPTIONS]
+scm delete object application-group NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application group object to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the application group object | No\* |
-| `--snippet TEXT` | Snippet containing the application group object | No\* |
-| `--device TEXT` | Device containing the application group object | No\* |
-| `--name TEXT` | Name of the application group object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object application-group --folder Texas --name business-apps --force
+$ scm delete object application-group business-apps --folder Texas --force
 ---> 100%
 Deleted application group: business-apps from folder Texas
 ```
@@ -177,30 +180,37 @@ Display application group objects.
 ### Syntax
 
 ```bash
-scm show object application-group [OPTIONS]
+scm show object application-group [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application group object to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the application group object | No\* |
-| `--snippet TEXT` | Snippet containing the application group object | No\* |
-| `--device TEXT` | Device containing the application group object | No\* |
-| `--name TEXT` | Name of the application group object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Application Group
 
 ```bash
-$ scm show object application-group --folder Texas --name business-apps
+$ scm show object application-group business-apps --folder Texas
 ---> 100%
 Application Group: business-apps
   Location: Folder 'Texas'

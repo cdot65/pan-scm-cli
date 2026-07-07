@@ -36,31 +36,35 @@ Create or update an HTTP server profile object.
 ### Syntax
 
 ```bash
-scm set object http-server-profile [OPTIONS]
+scm set object http-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HTTP server profile | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the HTTP server profile object | No\* |
-| `--snippet TEXT` | Snippet for the HTTP server profile object | No\* |
-| `--device TEXT` | Device for the HTTP server profile object | No\* |
-| `--name TEXT` | Name of the HTTP server profile | Yes |
-| `--servers JSON` | JSON array of server configurations | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--servers TEXT` | JSON array of server configurations | Yes |
 | `--description TEXT` | Description of the profile | No |
 | `--tag-registration` | Enable tag registration on match | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create Basic HTTP Server Profile
 
 ```bash
-$ scm set object http-server-profile \
+$ scm set object http-server-profile syslog-http \
     --folder Texas \
-    --name syslog-http \
     --servers '[{"name": "primary", "address": "10.0.1.50", "protocol": "HTTP", "port": 8080, "http_method": "POST"}]' \
     --description "HTTP syslog forwarder"
 ---> 100%
@@ -70,9 +74,8 @@ Created HTTP server profile: syslog-http in folder Texas
 #### Create HTTPS Profile with Authentication
 
 ```bash
-$ scm set object http-server-profile \
+$ scm set object http-server-profile splunk-hec \
     --folder Texas \
-    --name splunk-hec \
     --servers '[{"name": "splunk", "address": "splunk.company.com", "protocol": "HTTPS", "port": 8088, "http_method": "POST", "username": "hec_user", "password": "hec_token", "tls_version": "1.2"}]' \
     --description "Splunk HTTP Event Collector"
 ---> 100%
@@ -82,9 +85,8 @@ Created HTTP server profile: splunk-hec in folder Texas
 #### Create Multi-Server Profile for Redundancy
 
 ```bash
-$ scm set object http-server-profile \
+$ scm set object http-server-profile siem-collectors \
     --folder Texas \
-    --name siem-collectors \
     --servers '[{"name": "primary", "address": "siem1.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}, {"name": "secondary", "address": "siem2.company.com", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]' \
     --tag-registration \
     --description "SIEM collector endpoints"
@@ -99,25 +101,30 @@ Delete an HTTP server profile object from SCM.
 ### Syntax
 
 ```bash
-scm delete object http-server-profile [OPTIONS]
+scm delete object http-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HTTP server profile to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the HTTP server profile object | No\* |
-| `--snippet TEXT` | Snippet containing the HTTP server profile object | No\* |
-| `--device TEXT` | Device containing the HTTP server profile object | No\* |
-| `--name TEXT` | Name of the HTTP server profile object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object http-server-profile --folder Texas --name syslog-http --force
+$ scm delete object http-server-profile syslog-http --folder Texas --force
 ---> 100%
 Deleted HTTP server profile: syslog-http from folder Texas
 ```
@@ -231,30 +238,37 @@ Display HTTP server profile objects.
 ### Syntax
 
 ```bash
-scm show object http-server-profile [OPTIONS]
+scm show object http-server-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HTTP server profile to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the HTTP server profile object | No\* |
-| `--snippet TEXT` | Snippet containing the HTTP server profile object | No\* |
-| `--device TEXT` | Device containing the HTTP server profile object | No\* |
-| `--name TEXT` | Name of the HTTP server profile object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific HTTP Server Profile
 
 ```bash
-$ scm show object http-server-profile --folder Texas --name splunk-hec
+$ scm show object http-server-profile splunk-hec --folder Texas
 ---> 100%
 HTTP Server Profile: splunk-hec
   Location: Folder 'Texas'

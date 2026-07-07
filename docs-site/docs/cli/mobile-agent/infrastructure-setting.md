@@ -17,7 +17,7 @@ Infrastructure settings live only in the `Mobile Users` folder. The `--folder` o
 :::
 
 :::note[Name required for show and backup]
-The SCM API addresses this resource by name everywhere, including list. There is no list-all mode, so `show` and `backup` require `--name`.
+The SCM API addresses this resource by name everywhere, including list. There is no list-all mode, so `show` requires the `NAME` argument and `backup` requires `--name`.
 :::
 
 ## Set Infrastructure Setting
@@ -27,14 +27,19 @@ Create or update an infrastructure setting.
 ### Syntax
 
 ```bash
-scm set mobile-agent infrastructure-setting [OPTIONS]
+scm set mobile-agent infrastructure-setting NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the infrastructure setting | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the infrastructure setting | Yes |
 | `--folder TEXT` | Folder location (must be `Mobile Users`, the default) | No |
 | `--dns-servers JSON` | DNS server entries as a JSON list | Yes |
 | `--ip-pools JSON` | IP pools as a JSON list | Yes |
@@ -47,8 +52,7 @@ scm set mobile-agent infrastructure-setting [OPTIONS]
 ### Examples
 
 ```bash
-$ scm set mobile-agent infrastructure-setting \
-    --name "gp-infra" \
+$ scm set mobile-agent infrastructure-setting "gp-infra" \
     --dns-servers '[{"name": "dns-1", "dns_suffix": ["example.com"], "primary_public_dns": {"dns_server": "8.8.8.8"}}]' \
     --ip-pools '[{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}]' \
     --portal-hostname '{"default_domain": {"hostname": "acme"}}'
@@ -56,8 +60,7 @@ Created infrastructure setting: gp-infra in folder Mobile Users
 ```
 
 ```bash
-$ scm set mobile-agent infrastructure-setting \
-    --name "gp-infra" \
+$ scm set mobile-agent infrastructure-setting "gp-infra" \
     --dns-servers '[{"name": "dns-1", "dns_suffix": ["example.com"]}]' \
     --ip-pools '[{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}]' \
     --portal-hostname '{"custom_domain": {"hostname": "vpn.acme.com", "cname": "acme.gpcloudservice.com", "ssl_tls_service_profile": "acme-profile"}}' \
@@ -73,13 +76,13 @@ Display a named infrastructure setting.
 ### Syntax
 
 ```bash
-scm show mobile-agent infrastructure-setting --name NAME
+scm show mobile-agent infrastructure-setting NAME
 ```
 
 ### Examples
 
 ```bash
-$ scm show mobile-agent infrastructure-setting --name "gp-infra"
+$ scm show mobile-agent infrastructure-setting "gp-infra"
 
 Infrastructure Setting: gp-infra
 ================================================================================
@@ -96,13 +99,13 @@ Delete an infrastructure setting.
 ### Syntax
 
 ```bash
-scm delete mobile-agent infrastructure-setting --name NAME [--force]
+scm delete mobile-agent infrastructure-setting NAME [--force]
 ```
 
 ### Examples
 
 ```bash
-$ scm delete mobile-agent infrastructure-setting --name "gp-infra" --force
+$ scm delete mobile-agent infrastructure-setting "gp-infra" --force
 Deleted infrastructure setting: gp-infra from folder Mobile Users
 ```
 

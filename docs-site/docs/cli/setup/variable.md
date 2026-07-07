@@ -33,14 +33,19 @@ Create or update a variable.
 ### Syntax
 
 ```bash
-scm set setup variable [OPTIONS]
+scm set setup variable NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Variable name (must start with $) | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Variable name (must start with $) | Yes |
 | `--type TEXT` | Variable type | Yes |
 | `--value TEXT` | Variable value | Yes |
 | `--folder TEXT` | Folder scope | No\* |
@@ -55,8 +60,7 @@ scm set setup variable [OPTIONS]
 #### Create an Egress Max Variable
 
 ```bash
-$ scm set setup variable \
-    --name "\$egress-max" \
+$ scm set setup variable "\$egress-max" \
     --type egress-max \
     --value 1000 \
     --folder Texas
@@ -67,8 +71,7 @@ Created variable: $egress-max in folder Texas
 #### Create an FQDN Variable in a Snippet
 
 ```bash
-$ scm set setup variable \
-    --name "\$dns-server" \
+$ scm set setup variable "\$dns-server" \
     --type fqdn \
     --value dns.example.com \
     --snippet "DNS-Config"
@@ -79,8 +82,7 @@ Created variable: $dns-server in snippet DNS-Config
 #### Create a Variable with Description
 
 ```bash
-$ scm set setup variable \
-    --name "\$web-port" \
+$ scm set setup variable "\$web-port" \
     --type port \
     --value 8080 \
     --folder Texas \
@@ -96,14 +98,19 @@ Delete a variable from SCM.
 ### Syntax
 
 ```bash
-scm delete setup variable [OPTIONS]
+scm delete setup variable NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the variable to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the variable to delete | Yes |
 | `--folder TEXT` | Folder scope | No\* |
 | `--snippet TEXT` | Snippet scope | No\* |
 | `--device TEXT` | Device scope | No\* |
@@ -114,7 +121,7 @@ scm delete setup variable [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete setup variable --name "\$egress-max" --folder Texas --force
+$ scm delete setup variable "\$egress-max" --folder Texas --force
 ---> 100%
 Deleted variable: $egress-max from folder Texas
 ```
@@ -190,22 +197,29 @@ Display variable objects.
 ### Syntax
 
 ```bash
-scm show setup variable [OPTIONS]
+scm show setup variable [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the variable to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the variable to show | No |
 | `--folder TEXT` | Folder scope | No\* |
 | `--snippet TEXT` | Snippet scope | No\* |
 | `--device TEXT` | Device scope | No\* |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required when listing variables.
 
 :::note
-When no `--name` is specified, all variables in the specified container are listed
+When no `NAME` is specified, all variables in the specified container are listed
 by default.
 :::
 
@@ -214,7 +228,7 @@ by default.
 #### Show Specific Variable
 
 ```bash
-$ scm show setup variable --folder Texas --name "\$egress-max"
+$ scm show setup variable "\$egress-max" --folder Texas
 ---> 100%
 Variable: $egress-max
 ================================================================================

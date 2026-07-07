@@ -143,9 +143,8 @@ Avoid committing credentials to version control.
 ### Creating an Address Object
 
 ```bash
-$ scm set object address \
+$ scm set object address web-server \
     --folder Shared \
-    --name web-server \
     --ip-netmask 192.168.1.100/32 \
     --description "Web server"
 ---> 100%
@@ -168,9 +167,8 @@ Name: web-server
 ### Updating an Address Object
 
 ```bash
-$ scm set object address \
+$ scm set object address web-server \
     --folder Shared \
-    --name web-server \
     --ip-netmask 192.168.1.200/32 \
     --description "Updated web server"
 ---> 100%
@@ -180,7 +178,7 @@ Updated address: web-server in folder Shared
 ### Deleting an Address Object
 
 ```bash
-$ scm delete object address --folder Shared --name web-server
+$ scm delete object address web-server --folder Shared
 ---> 100%
 Deleted address: web-server from folder Shared
 ```
@@ -210,7 +208,7 @@ addresses:
 Then load these address objects:
 
 ```bash
-$ scm load object address --folder Shared --file addresses.yaml
+$ scm load object address --file addresses.yaml --folder Shared
 ---> 100%
 ✓ Loaded address: web-server-1
 ✓ Loaded address: web-server-2
@@ -233,7 +231,7 @@ scm set object address --help
 ## Best Practices
 
 1. **Use contexts for authentication**: Contexts provide safe, isolated credential storage for multiple tenants.
-2. **Start with mock mode**: Use the `--mock` flag to test commands without making API changes.
+2. **Start with mock mode**: Set the `SCM_MOCK=1` environment variable to test commands without making API changes.
 3. **Use YAML for bulk operations**: Loading objects from YAML files is more maintainable than individual commands.
 4. **Test authentication first**: Run `scm context test` to verify credentials before running commands.
 5. **Check help for options**: Every command supports `--help` to show available parameters.

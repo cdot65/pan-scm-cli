@@ -9,18 +9,25 @@ Display agent version objects.
 ### Syntax
 
 ```bash
-scm show mobile-agent agent-version [OPTIONS]
+scm show mobile-agent agent-version [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of a specific agent version; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | Yes |
-| `--name TEXT` | Name of a specific agent version | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all agent versions are listed by default.
+When no `NAME` is specified, all agent versions are listed by default.
 :::
 
 ### Examples
@@ -28,9 +35,8 @@ When no `--name` is specified, all agent versions are listed by default.
 #### Show Specific Agent Version
 
 ```bash
-$ scm show mobile-agent agent-version \
-    --folder "Mobile Users" \
-    --name "5.2.0"
+$ scm show mobile-agent agent-version "5.2.0" \
+    --folder "Mobile Users"
 ---> 100%
 Agent Version: 5.2.0
   Location: Folder 'Mobile Users'

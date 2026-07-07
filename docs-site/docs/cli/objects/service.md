@@ -29,35 +29,39 @@ Create or update a service object.
 ### Syntax
 
 ```bash
-scm set object service [OPTIONS]
+scm set object service NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the service object | No\* |
-| `--snippet TEXT` | Snippet for the service object | No\* |
-| `--device TEXT` | Device for the service object | No\* |
-| `--name TEXT` | Name of the service | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--protocol TEXT` | Protocol type (tcp or udp) | Yes |
 | `--port TEXT` | Port specification | Yes |
 | `--description TEXT` | Description of the service | No |
-| `--tag TEXT` | Tags for categorization (comma-separated) | No |
-| `--timeout INT` | Session timeout in seconds (TCP only) | No |
-| `--halfclose-timeout INT` | TCP half-close timeout | No |
-| `--timewait-timeout INT` | TCP time-wait timeout | No |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
+| `--timeout INTEGER` | Session timeout in seconds (TCP only) | No |
+| `--halfclose-timeout INTEGER` | TCP half-close timeout | No |
+| `--timewait-timeout INTEGER` | TCP time-wait timeout | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create a Basic TCP Service
 
 ```bash
-$ scm set object service \
+$ scm set object service custom-web \
     --folder Texas \
-    --name custom-web \
     --protocol tcp \
     --port "8080,8443" \
     --description "Custom web service ports"
@@ -68,9 +72,8 @@ Created service: custom-web in folder Texas
 #### Create a UDP Service with Port Range
 
 ```bash
-$ scm set object service \
+$ scm set object service custom-voip \
     --folder Texas \
-    --name custom-voip \
     --protocol udp \
     --port "5060-5070" \
     --description "VoIP signaling ports"
@@ -81,9 +84,8 @@ Created service: custom-voip in folder Texas
 #### Create a TCP Service with Timeout Overrides
 
 ```bash
-$ scm set object service \
+$ scm set object service database-service \
     --folder Texas \
-    --name database-service \
     --protocol tcp \
     --port "3306" \
     --timeout 7200 \
@@ -101,25 +103,30 @@ Delete a service object from SCM.
 ### Syntax
 
 ```bash
-scm delete object service [OPTIONS]
+scm delete object service NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the service object | No\* |
-| `--snippet TEXT` | Snippet containing the service object | No\* |
-| `--device TEXT` | Device containing the service object | No\* |
-| `--name TEXT` | Name of the service to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object service --folder Texas --name custom-web --force
+$ scm delete object service custom-web --folder Texas --force
 ---> 100%
 Deleted service: custom-web from folder Texas
 ```
@@ -225,30 +232,37 @@ Display service objects.
 ### Syntax
 
 ```bash
-scm show object service [OPTIONS]
+scm show object service [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the service object | No\* |
-| `--snippet TEXT` | Snippet containing the service object | No\* |
-| `--device TEXT` | Device containing the service object | No\* |
-| `--name TEXT` | Name of the service to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Service
 
 ```bash
-$ scm show object service --folder Texas --name custom-web
+$ scm show object service custom-web --folder Texas
 ---> 100%
 Service: custom-web
   Location: Folder 'Texas'

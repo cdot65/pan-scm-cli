@@ -19,22 +19,26 @@ Create or update an application filter object.
 ### Syntax
 
 ```bash
-scm set object application-filter [OPTIONS]
+scm set object application-filter NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application filter | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the application filter object | No\* |
-| `--snippet TEXT` | Snippet for the application filter object | No\* |
-| `--device TEXT` | Device for the application filter object | No\* |
-| `--name TEXT` | Name of the application filter | Yes |
-| `--category LIST` | List of application categories | No\*\* |
-| `--subcategory LIST` | List of application subcategories | No\*\* |
-| `--technology LIST` | List of technologies | No\*\* |
-| `--risk LIST` | List of risk levels (1-5) | No\*\* |
-| `--description TEXT` | Description of the filter | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--category TEXT` | Application category to filter by (repeat for multiple) | Yes |
+| `--subcategory TEXT` | Application subcategory to filter by (repeat for multiple) | Yes |
+| `--technology TEXT` | Technology to filter by (repeat for multiple) | Yes |
+| `--risk INTEGER` | Risk level (1-5) to filter by (repeat for multiple) | Yes |
 | `--evasive` | Filter for evasive applications | No |
 | `--pervasive` | Filter for pervasive applications | No |
 | `--excessive-bandwidth-use` | Filter for bandwidth-heavy applications | No |
@@ -45,21 +49,19 @@ scm set object application-filter [OPTIONS]
 | `--prone-to-misuse` | Filter for applications prone to misuse | No |
 | `--no-certifications` | Filter for uncertified applications | No |
 
-\* One of --folder, --snippet, or --device is required.
-
-\*\* At least one filtering criterion must be specified.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create Basic Filter by Category and Risk
 
 ```bash
-$ scm set object application-filter \
+$ scm set object application-filter high-risk-apps \
     --folder Texas \
-    --name high-risk-apps \
-    --category "file-sharing,peer-to-peer" \
-    --risk 4 --risk 5 \
-    --description "High-risk file sharing applications"
+    --category file-sharing --category peer-to-peer \
+    --subcategory file-transfer \
+    --technology peer-to-peer \
+    --risk 4 --risk 5
 ---> 100%
 Created application filter: high-risk-apps in folder Texas
 ```
@@ -67,14 +69,15 @@ Created application filter: high-risk-apps in folder Texas
 #### Create Filter with Security Characteristics
 
 ```bash
-$ scm set object application-filter \
+$ scm set object application-filter malware-apps \
     --folder Texas \
-    --name malware-apps \
-    --category "file-sharing" \
+    --category file-sharing \
+    --subcategory file-transfer \
+    --technology peer-to-peer \
+    --risk 5 \
     --used-by-malware \
     --has-known-vulnerabilities \
-    --transfers-files \
-    --description "Applications with security concerns"
+    --transfers-files
 ---> 100%
 Created application filter: malware-apps in folder Texas
 ```
@@ -86,25 +89,30 @@ Delete an application filter object from SCM.
 ### Syntax
 
 ```bash
-scm delete object application-filter [OPTIONS]
+scm delete object application-filter NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application filter object to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the application filter object | No\* |
-| `--snippet TEXT` | Snippet containing the application filter object | No\* |
-| `--device TEXT` | Device containing the application filter object | No\* |
-| `--name TEXT` | Name of the application filter object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object application-filter --folder Texas --name high-risk-apps --force
+$ scm delete object application-filter high-risk-apps --folder Texas --force
 ---> 100%
 Deleted application filter: high-risk-apps from folder Texas
 ```
@@ -205,30 +213,37 @@ Display application filter objects.
 ### Syntax
 
 ```bash
-scm show object application-filter [OPTIONS]
+scm show object application-filter [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the application filter object to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the application filter object | No\* |
-| `--snippet TEXT` | Snippet containing the application filter object | No\* |
-| `--device TEXT` | Device containing the application filter object | No\* |
-| `--name TEXT` | Name of the application filter object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Application Filter
 
 ```bash
-$ scm show object application-filter --folder Texas --name high-risk-apps
+$ scm show object application-filter high-risk-apps --folder Texas
 ---> 100%
 Application Filter: high-risk-apps
   Location: Folder 'Texas'

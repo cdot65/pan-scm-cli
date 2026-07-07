@@ -22,18 +22,23 @@ Create or update a DHCP interface.
 scm set network dhcp-interface NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the DHCP interface | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Interface name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--server-json TEXT` | DHCP server config as JSON | No |
 | `--relay-json TEXT` | DHCP relay config as JSON | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
@@ -67,17 +72,22 @@ Delete a DHCP interface from SCM.
 scm delete network dhcp-interface NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the DHCP interface to delete | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Interface name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -102,12 +112,10 @@ scm load network dhcp-interface [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
 | `--dry-run` | Preview changes without applying | No |
-
-\* One of --folder, --snippet, or --device is required.
 
 ### YAML File Format
 
@@ -167,22 +175,29 @@ Display DHCP interface objects.
 ### Syntax
 
 ```bash
-scm show network dhcp-interface [OPTIONS]
+scm show network dhcp-interface [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the DHCP interface to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific interface | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -190,7 +205,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific DHCP Interface
 
 ```bash
-$ scm show network dhcp-interface --folder Texas --name ethernet1/1
+$ scm show network dhcp-interface ethernet1/1 --folder Texas
 ---> 100%
 DHCP Interface: ethernet1/1
   Location: Folder 'Texas'

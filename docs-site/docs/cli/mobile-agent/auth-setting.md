@@ -29,15 +29,20 @@ Create or update an auth setting.
 ### Syntax
 
 ```bash
-scm set mobile-agent auth-setting [OPTIONS]
+scm set mobile-agent auth-setting NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the auth setting | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | Yes |
-| `--name TEXT` | Name of the auth setting | Yes |
 | `--description TEXT` | Description | No |
 | `--auth-type TEXT` | Authentication type (saml, client-certificate, ldap) | No |
 | `--os TEXT` | Operating system (Any, Windows, macOS, Linux, iOS, Android, ChromeOS) | No |
@@ -51,9 +56,8 @@ scm set mobile-agent auth-setting [OPTIONS]
 #### Create SAML Auth Setting
 
 ```bash
-$ scm set mobile-agent auth-setting \
+$ scm set mobile-agent auth-setting "saml-auth" \
     --folder "Mobile Users" \
-    --name "saml-auth" \
     --auth-type saml \
     --saml-idp "okta-idp" \
     --os Any
@@ -64,9 +68,8 @@ Created auth setting: saml-auth in folder Mobile Users
 #### Create LDAP Auth Setting
 
 ```bash
-$ scm set mobile-agent auth-setting \
+$ scm set mobile-agent auth-setting "ldap-auth" \
     --folder "Mobile Users" \
-    --name "ldap-auth" \
     --auth-type ldap \
     --ldap-profile "corp-ldap" \
     --os Windows \
@@ -78,9 +81,8 @@ Created auth setting: ldap-auth in folder Mobile Users
 #### Create Certificate Auth Setting
 
 ```bash
-$ scm set mobile-agent auth-setting \
+$ scm set mobile-agent auth-setting "cert-auth" \
     --folder "Mobile Users" \
-    --name "cert-auth" \
     --auth-type client-certificate \
     --certificate-profile "gp-cert-profile" \
     --os macOS
@@ -95,23 +97,27 @@ Delete an auth setting from SCM.
 ### Syntax
 
 ```bash
-scm delete mobile-agent auth-setting [OPTIONS]
+scm delete mobile-agent auth-setting NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the auth setting to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | Yes |
-| `--name TEXT` | Name of the auth setting to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete mobile-agent auth-setting \
+$ scm delete mobile-agent auth-setting "saml-auth" \
     --folder "Mobile Users" \
-    --name "saml-auth" \
     --force
 ---> 100%
 Deleted auth setting: saml-auth from folder Mobile Users
@@ -195,18 +201,25 @@ Display auth setting objects.
 ### Syntax
 
 ```bash
-scm show mobile-agent auth-setting [OPTIONS]
+scm show mobile-agent auth-setting [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of a specific auth setting; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | Yes |
-| `--name TEXT` | Name of a specific auth setting | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -214,9 +227,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Auth Setting
 
 ```bash
-$ scm show mobile-agent auth-setting \
-    --folder "Mobile Users" \
-    --name "saml-auth"
+$ scm show mobile-agent auth-setting "saml-auth" \
+    --folder "Mobile Users"
 ---> 100%
 Auth Setting: saml-auth
   Location: Folder 'Mobile Users'

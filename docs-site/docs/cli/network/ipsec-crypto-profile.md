@@ -19,29 +19,37 @@ Create or update an IPsec crypto profile.
 ### Syntax
 
 ```bash
-scm set network ipsec-crypto-profile [OPTIONS]
+scm set network ipsec-crypto-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IPsec crypto profile | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
-| `--folder TEXT` | Folder location | Yes |
-| `--esp-encryption TEXT` | ESP encryption algorithms (aes-256-cbc, aes-128-cbc, etc.) | Yes |
-| `--esp-authentication TEXT` | ESP authentication algorithms (sha256, sha384, sha512, sha1, md5) | Yes |
-| `--dh-group TEXT` | DH group for PFS (group14, group19, group20, no-pfs) | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--esp-encryption TEXT` | ESP encryption algorithms (aes-256-cbc, aes-128-cbc, etc.; default: `aes-256-cbc`) | No |
+| `--esp-authentication TEXT` | ESP authentication algorithms (sha256, sha384, sha512, sha1, md5; default: `sha256`) | No |
+| `--dh-group TEXT` | DH group for PFS (group14, group19, group20, no-pfs; default: `group14`) | No |
 | `--lifetime-seconds INT` | Lifetime in seconds | No |
 | `--lifetime-hours INT` | Lifetime in hours | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create an IPsec Crypto Profile
 
 ```bash
-$ scm set network ipsec-crypto-profile \
+$ scm set network ipsec-crypto-profile my-ipsec-profile \
     --folder Texas \
-    --name my-ipsec-profile \
     --esp-encryption aes-256-cbc \
     --esp-authentication sha256 \
     --dh-group group14
@@ -52,9 +60,8 @@ Created IPsec crypto profile: my-ipsec-profile in folder Texas
 #### Create a Profile with Custom Lifetime
 
 ```bash
-$ scm set network ipsec-crypto-profile \
+$ scm set network ipsec-crypto-profile short-lived-profile \
     --folder Texas \
-    --name short-lived-profile \
     --esp-encryption aes-256-cbc \
     --esp-authentication sha384 \
     --dh-group group19 \
@@ -70,21 +77,30 @@ Delete an IPsec crypto profile from SCM.
 ### Syntax
 
 ```bash
-scm delete network ipsec-crypto-profile [OPTIONS]
+scm delete network ipsec-crypto-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IPsec crypto profile to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
-| `--folder TEXT` | Folder location | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete network ipsec-crypto-profile --folder Texas --name my-ipsec-profile --force
+$ scm delete network ipsec-crypto-profile my-ipsec-profile --folder Texas --force
 ---> 100%
 Deleted IPsec crypto profile: my-ipsec-profile from folder Texas
 ```
@@ -104,12 +120,10 @@ scm load network ipsec-crypto-profile [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
 | `--dry-run` | Preview changes without applying | No |
-
-\* One of --folder, --snippet, or --device is required.
 
 ### YAML File Format
 
@@ -174,22 +188,29 @@ Display IPsec crypto profile objects.
 ### Syntax
 
 ```bash
-scm show network ipsec-crypto-profile [OPTIONS]
+scm show network ipsec-crypto-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IPsec crypto profile to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific profile | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -197,7 +218,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific IPsec Crypto Profile
 
 ```bash
-$ scm show network ipsec-crypto-profile --folder Texas --name my-ipsec-profile
+$ scm show network ipsec-crypto-profile my-ipsec-profile --folder Texas
 ---> 100%
 IPsec Crypto Profile: my-ipsec-profile
   Location: Folder 'Texas'

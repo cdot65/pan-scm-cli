@@ -19,14 +19,19 @@ Create or update a Kerberos server profile.
 ### Syntax
 
 ```bash
-scm set identity kerberos-server-profile [OPTIONS]
+scm set identity kerberos-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -39,9 +44,8 @@ scm set identity kerberos-server-profile [OPTIONS]
 #### Create Kerberos Server Profile
 
 ```bash
-$ scm set identity kerberos-server-profile \
+$ scm set identity kerberos-server-profile corp-kerberos \
     --folder Texas \
-    --name corp-kerberos \
     --servers '[{"name": "kdc1", "host": "kdc1.example.com", "port": 88}]'
 ---> 100%
 Created kerberos-server-profile: corp-kerberos in folder Texas
@@ -50,9 +54,8 @@ Created kerberos-server-profile: corp-kerberos in folder Texas
 #### Create Profile with Multiple KDC Servers
 
 ```bash
-$ scm set identity kerberos-server-profile \
+$ scm set identity kerberos-server-profile corp-kerberos-ha \
     --folder Texas \
-    --name corp-kerberos-ha \
     --servers '[{"name": "kdc1", "host": "kdc1.example.com", "port": 88}, {"name": "kdc2", "host": "kdc2.example.com", "port": 88}]'
 ---> 100%
 Created kerberos-server-profile: corp-kerberos-ha in folder Texas
@@ -65,14 +68,19 @@ Delete a Kerberos server profile from SCM.
 ### Syntax
 
 ```bash
-scm delete identity kerberos-server-profile [OPTIONS]
+scm delete identity kerberos-server-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | Yes |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
@@ -83,9 +91,8 @@ scm delete identity kerberos-server-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete identity kerberos-server-profile \
+$ scm delete identity kerberos-server-profile corp-kerberos \
     --folder Texas \
-    --name corp-kerberos \
     --force
 ---> 100%
 Deleted kerberos-server-profile: corp-kerberos from folder Texas
@@ -173,22 +180,29 @@ Display Kerberos server profile objects.
 ### Syntax
 
 ```bash
-scm show identity kerberos-server-profile [OPTIONS]
+scm show identity kerberos-server-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Profile name | No |
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -196,9 +210,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Kerberos Server Profile
 
 ```bash
-$ scm show identity kerberos-server-profile \
-    --folder Texas \
-    --name corp-kerberos
+$ scm show identity kerberos-server-profile corp-kerberos \
+    --folder Texas
 ---> 100%
 Kerberos Server Profile: corp-kerberos
   Location: Folder 'Texas'

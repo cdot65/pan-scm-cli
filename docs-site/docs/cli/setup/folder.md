@@ -19,14 +19,19 @@ Create or update a folder.
 ### Syntax
 
 ```bash
-scm set setup folder [OPTIONS]
+scm set setup folder NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Folder name | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Folder name | Yes |
 | `--parent TEXT` | Parent folder name | Yes |
 | `--description TEXT` | Description | No |
 | `--labels TEXT` | Labels to apply | No |
@@ -37,8 +42,7 @@ scm set setup folder [OPTIONS]
 #### Create a Top-Level Folder
 
 ```bash
-$ scm set setup folder \
-    --name Texas \
+$ scm set setup folder Texas \
     --parent "All"
 ---> 100%
 Created folder: Texas (parent: All)
@@ -47,8 +51,7 @@ Created folder: Texas (parent: All)
 #### Create a Child Folder with Description
 
 ```bash
-$ scm set setup folder \
-    --name Branch \
+$ scm set setup folder Branch \
     --parent Texas \
     --description "Branch offices"
 ---> 100%
@@ -58,8 +61,7 @@ Created folder: Branch (parent: Texas)
 #### Create a Folder with Labels
 
 ```bash
-$ scm set setup folder \
-    --name Austin \
+$ scm set setup folder Austin \
     --parent Texas \
     --labels production \
     --labels west-region
@@ -74,20 +76,25 @@ Delete a folder from SCM.
 ### Syntax
 
 ```bash
-scm delete setup folder [OPTIONS]
+scm delete setup folder NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the folder to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the folder to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete setup folder --name Branch --force
+$ scm delete setup folder Branch --force
 ---> 100%
 Deleted folder: Branch
 ```
@@ -159,17 +166,24 @@ Display folder objects.
 ### Syntax
 
 ```bash
-scm show setup folder [OPTIONS]
+scm show setup folder [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the folder to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the folder to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all folders are listed by default.
+When no `NAME` is specified, all folders are listed by default.
 :::
 
 ### Examples
@@ -177,7 +191,7 @@ When no `--name` is specified, all folders are listed by default.
 #### Show Specific Folder
 
 ```bash
-$ scm show setup folder --name Texas
+$ scm show setup folder Texas
 ---> 100%
 Folder: Texas
 ================================================================================

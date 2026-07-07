@@ -30,31 +30,35 @@ Create or update a dynamic user group object.
 ### Syntax
 
 ```bash
-scm set object dynamic-user-group [OPTIONS]
+scm set object dynamic-user-group NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the dynamic user group | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the dynamic user group object | No\* |
-| `--snippet TEXT` | Snippet for the dynamic user group object | No\* |
-| `--device TEXT` | Device for the dynamic user group object | No\* |
-| `--name TEXT` | Name of the dynamic user group | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--filter TEXT` | Tag-based filter expression (max 2047 characters) | Yes |
 | `--description TEXT` | Description (max 1023 characters) | No |
-| `--tag LIST` | Tags for categorization | No |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create Basic Dynamic User Group
 
 ```bash
-$ scm set object dynamic-user-group \
+$ scm set object dynamic-user-group it-admins \
     --folder Texas \
-    --name it-admins \
     --filter "'IT' and 'Admin'" \
     --description "IT department administrators"
 ---> 100%
@@ -64,9 +68,8 @@ Created dynamic user group: it-admins in folder Texas
 #### Create with Complex Filter Expression
 
 ```bash
-$ scm set object dynamic-user-group \
+$ scm set object dynamic-user-group remote-employees \
     --folder Texas \
-    --name remote-employees \
     --filter "'Remote' and ('Engineering' or 'Sales' or 'Support')" \
     --description "Remote workers in technical departments"
 ---> 100%
@@ -80,25 +83,30 @@ Delete a dynamic user group object from SCM.
 ### Syntax
 
 ```bash
-scm delete object dynamic-user-group [OPTIONS]
+scm delete object dynamic-user-group NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the dynamic user group object to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the dynamic user group object | No\* |
-| `--snippet TEXT` | Snippet containing the dynamic user group object | No\* |
-| `--device TEXT` | Device containing the dynamic user group object | No\* |
-| `--name TEXT` | Name of the dynamic user group object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object dynamic-user-group --folder Texas --name it-admins --force
+$ scm delete object dynamic-user-group it-admins --folder Texas --force
 ---> 100%
 Deleted dynamic user group: it-admins from folder Texas
 ```
@@ -196,30 +204,37 @@ Display dynamic user group objects.
 ### Syntax
 
 ```bash
-scm show object dynamic-user-group [OPTIONS]
+scm show object dynamic-user-group [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the dynamic user group object to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the dynamic user group object | No\* |
-| `--snippet TEXT` | Snippet containing the dynamic user group object | No\* |
-| `--device TEXT` | Device containing the dynamic user group object | No\* |
-| `--name TEXT` | Name of the dynamic user group object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Dynamic User Group
 
 ```bash
-$ scm show object dynamic-user-group --folder Texas --name it-admins
+$ scm show object dynamic-user-group it-admins --folder Texas
 ---> 100%
 Dynamic User Group: it-admins
   Location: Folder 'Texas'

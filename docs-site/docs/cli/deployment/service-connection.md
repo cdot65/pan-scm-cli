@@ -19,21 +19,26 @@ Create or update a service connection configuration.
 ### Syntax
 
 ```bash
-scm set sase service-connection [OPTIONS]
+scm set sase service-connection NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service connection | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the service connection | Yes |
 | `--ipsec-tunnel TEXT` | IPsec tunnel for the service connection | Yes |
 | `--region TEXT` | Region for the service connection | Yes |
 | `--onboarding-type TEXT` | Onboarding type (default: classic) | No |
 | `--backup-sc TEXT` | Backup service connection name | No |
 | `--nat-pool TEXT` | NAT pool for the service connection | No |
 | `--source-nat` | Enable source NAT | No |
-| `--subnets LIST` | Comma-separated list of subnets | No |
+| `--subnets TEXT` | Subnets (repeat for multiple) | No |
 | `--bgp-enable` | Enable BGP | No |
 | `--bgp-peer-as TEXT` | BGP peer AS number | No |
 | `--bgp-peer-ip TEXT` | BGP peer IP address | No |
@@ -47,11 +52,10 @@ scm set sase service-connection [OPTIONS]
 #### Create a Basic Service Connection
 
 ```bash
-$ scm set sase service-connection \
-    --name branch-office-1 \
+$ scm set sase service-connection branch-office-1 \
     --ipsec-tunnel ipsec-tunnel-branch-1 \
     --region us-east-1 \
-    --subnets "10.1.0.0/24,10.1.1.0/24"
+    --subnets 10.1.0.0/24 --subnets 10.1.1.0/24
 ---> 100%
 Created service connection: branch-office-1
 ```
@@ -59,11 +63,10 @@ Created service connection: branch-office-1
 #### Create a Service Connection with BGP
 
 ```bash
-$ scm set sase service-connection \
-    --name hq-connection \
+$ scm set sase service-connection hq-connection \
     --ipsec-tunnel ipsec-tunnel-hq \
     --region us-west-2 \
-    --subnets "172.16.0.0/16" \
+    --subnets 172.16.0.0/16 \
     --bgp-enable \
     --bgp-peer-as "65001" \
     --bgp-peer-ip "192.168.1.1" \
@@ -76,12 +79,11 @@ Created service connection: hq-connection
 #### Create a Service Connection with High Availability
 
 ```bash
-$ scm set sase service-connection \
-    --name critical-site \
+$ scm set sase service-connection critical-site \
     --ipsec-tunnel ipsec-tunnel-primary \
     --region eu-central-1 \
     --backup-sc backup-connection \
-    --subnets "10.10.0.0/16" \
+    --subnets 10.10.0.0/16 \
     --source-nat \
     --qos-enable \
     --qos-profile business-critical
@@ -96,20 +98,25 @@ Delete a service connection configuration from SCM.
 ### Syntax
 
 ```bash
-scm delete sase service-connection [OPTIONS]
+scm delete sase service-connection NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service connection to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the service connection to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase service-connection --name branch-office-1 --force
+$ scm delete sase service-connection branch-office-1 --force
 ---> 100%
 Deleted service connection: branch-office-1
 ```
@@ -193,17 +200,24 @@ Display service connection configurations.
 ### Syntax
 
 ```bash
-scm show sase service-connection [OPTIONS]
+scm show sase service-connection [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the service connection to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the service connection to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -211,7 +225,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Service Connection
 
 ```bash
-$ scm show sase service-connection --name branch-office-east
+$ scm show sase service-connection branch-office-east
 ---> 100%
 Service Connection: branch-office-east
   IPsec Tunnel: ipsec-tunnel-east

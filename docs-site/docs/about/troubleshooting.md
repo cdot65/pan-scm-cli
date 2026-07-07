@@ -157,7 +157,7 @@ This format is produced by the `@handle_command_errors` decorator used across al
 :::tip
 Since errors go to stderr, you can separate them from normal output in scripts:
 ```bash
-scm set object address --folder Texas --name test --ip-netmask 10.0.0.1/32 2>errors.log
+scm set object address test --folder Texas --ip-netmask 10.0.0.1/32 2>errors.log
 ```
 :::
 

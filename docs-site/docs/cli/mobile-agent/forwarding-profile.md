@@ -14,7 +14,7 @@ The `forwarding-profile` commands allow you to:
 - Export forwarding profiles for backup or migration
 
 :::note
-Forwarding profiles only support the `Mobile Users` folder. The API addresses individual profiles by UUID; the CLI resolves `--name` to the UUID for you, or you can pass `--id` directly.
+Forwarding profiles only support the `Mobile Users` folder. The API addresses individual profiles by UUID; the CLI resolves the `NAME` argument to the UUID for you, or you can pass `--id` directly.
 :::
 
 ## Profile Types
@@ -32,15 +32,20 @@ Create or update a forwarding profile.
 ### Syntax
 
 ```bash
-scm set mobile-agent forwarding-profile [OPTIONS]
+scm set mobile-agent forwarding-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the forwarding profile | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the forwarding profile | Yes |
 | `--description TEXT` | Description | No |
 | `--definition-method TEXT` | How the profile is defined: `rules` or `pac-file` | No |
 | `--profile-type TEXT` | Profile type: `pac-file`, `global-protect-proxy`, or `ztna-agent` | No |
@@ -53,9 +58,8 @@ Complex forwarding rules and block rules are not expressible as flags — use [L
 #### Create ZTNA Agent Profile
 
 ```bash
-$ scm set mobile-agent forwarding-profile \
+$ scm set mobile-agent forwarding-profile "ztna-profile" \
     --folder "Mobile Users" \
-    --name "ztna-profile" \
     --profile-type ztna-agent
 Created forwarding profile: ztna-profile
 ```
@@ -63,9 +67,8 @@ Created forwarding profile: ztna-profile
 #### Create GlobalProtect Proxy Profile with PAC Upload
 
 ```bash
-$ scm set mobile-agent forwarding-profile \
+$ scm set mobile-agent forwarding-profile "proxy-profile" \
     --folder "Mobile Users" \
-    --name "proxy-profile" \
     --profile-type global-protect-proxy \
     --pac-upload
 Created forwarding profile: proxy-profile
@@ -78,16 +81,23 @@ Display forwarding profiles.
 ### Syntax
 
 ```bash
-scm show mobile-agent forwarding-profile [OPTIONS]
+scm show mobile-agent forwarding-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the profile to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | No (defaults to `Mobile Users`) |
-| `--name TEXT` | Name of the profile to show | No |
 | `--id TEXT` | UUID of the profile to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 ### Examples
 
@@ -96,7 +106,7 @@ scm show mobile-agent forwarding-profile [OPTIONS]
 $ scm show mobile-agent forwarding-profile --folder "Mobile Users"
 
 # Show by name
-$ scm show mobile-agent forwarding-profile --folder "Mobile Users" --name "ztna-profile"
+$ scm show mobile-agent forwarding-profile "ztna-profile" --folder "Mobile Users"
 
 # Show by UUID
 $ scm show mobile-agent forwarding-profile --id "123e4567-e89b-12d3-a456-426655440000"
@@ -109,22 +119,27 @@ Delete a forwarding profile by name or UUID.
 ### Syntax
 
 ```bash
-scm delete mobile-agent forwarding-profile [OPTIONS]
+scm delete mobile-agent forwarding-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the profile to delete (omit when using `--id`) | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | No (defaults to `Mobile Users`) |
-| `--name TEXT` | Name of the profile to delete | Yes (or `--id`) |
 | `--id TEXT` | UUID of the profile to delete | No |
 | `--force` | Skip confirmation prompt | No |
 
 ### Examples
 
 ```bash
-$ scm delete mobile-agent forwarding-profile --folder "Mobile Users" --name "ztna-profile" --force
+$ scm delete mobile-agent forwarding-profile "ztna-profile" --folder "Mobile Users" --force
 Deleted forwarding profile: ztna-profile
 ```
 

@@ -14,7 +14,7 @@ The `forwarding-profile-destination` commands allow you to:
 - Export destinations for backup or migration
 
 :::note
-Destinations only support the `Mobile Users` folder. The API addresses individual destinations by UUID; the CLI resolves `--name` to the UUID for you, or you can pass `--id` directly.
+Destinations only support the `Mobile Users` folder. The API addresses individual destinations by UUID; the CLI resolves the `NAME` argument to the UUID for you, or you can pass `--id` directly.
 :::
 
 ## Entry Formats
@@ -33,15 +33,20 @@ Create or update a destination.
 ### Syntax
 
 ```bash
-scm set mobile-agent forwarding-profile-destination [OPTIONS]
+scm set mobile-agent forwarding-profile-destination NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the destination | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the destination | Yes |
 | `--description TEXT` | Description | No |
 | `--fqdn TEXT` | FQDN entry as `host[:port]` (repeatable) | No |
 | `--ip-address TEXT` | IP entry as `ip[/prefix][:port]` (repeatable) | No |
@@ -49,9 +54,8 @@ scm set mobile-agent forwarding-profile-destination [OPTIONS]
 ### Examples
 
 ```bash
-$ scm set mobile-agent forwarding-profile-destination \
+$ scm set mobile-agent forwarding-profile-destination "internal-apps" \
     --folder "Mobile Users" \
-    --name "internal-apps" \
     --fqdn "*.example.com:8080" \
     --fqdn "app.internal" \
     --ip-address "10.0.0.0/8"
@@ -65,16 +69,23 @@ Display destinations.
 ### Syntax
 
 ```bash
-scm show mobile-agent forwarding-profile-destination [OPTIONS]
+scm show mobile-agent forwarding-profile-destination [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the destination to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | No (defaults to `Mobile Users`) |
-| `--name TEXT` | Name of the destination to show | No |
 | `--id TEXT` | UUID of the destination to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 ### Examples
 
@@ -83,7 +94,7 @@ scm show mobile-agent forwarding-profile-destination [OPTIONS]
 $ scm show mobile-agent forwarding-profile-destination --folder "Mobile Users"
 
 # Show by name
-$ scm show mobile-agent forwarding-profile-destination --folder "Mobile Users" --name "internal-apps"
+$ scm show mobile-agent forwarding-profile-destination "internal-apps" --folder "Mobile Users"
 
 # Show by UUID
 $ scm show mobile-agent forwarding-profile-destination --id "123e4567-e89b-12d3-a456-426655440000"
@@ -96,22 +107,27 @@ Delete a destination by name or UUID.
 ### Syntax
 
 ```bash
-scm delete mobile-agent forwarding-profile-destination [OPTIONS]
+scm delete mobile-agent forwarding-profile-destination [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the destination to delete (omit when using `--id`) | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location | No (defaults to `Mobile Users`) |
-| `--name TEXT` | Name of the destination to delete | Yes (or `--id`) |
 | `--id TEXT` | UUID of the destination to delete | No |
 | `--force` | Skip confirmation prompt | No |
 
 ### Examples
 
 ```bash
-$ scm delete mobile-agent forwarding-profile-destination --folder "Mobile Users" --name "internal-apps" --force
+$ scm delete mobile-agent forwarding-profile-destination "internal-apps" --folder "Mobile Users" --force
 Deleted forwarding profile destination: internal-apps
 ```
 

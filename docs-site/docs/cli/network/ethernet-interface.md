@@ -22,14 +22,19 @@ Create or update an ethernet interface.
 scm set network ethernet-interface NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the ethernet interface | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Interface name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--comment TEXT` | Interface description | No |
 | `--default-value TEXT` | Physical interface (e.g. ethernet1/1) | No |
 | `--link-speed TEXT` | Link speed (auto, 10, 100, 1000, 10000) | No |
@@ -39,7 +44,7 @@ scm set network ethernet-interface NAME [OPTIONS]
 | `--layer3-json TEXT` | Layer3 config as JSON | No |
 | `--tap-json TEXT` | TAP config as JSON | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
@@ -76,17 +81,22 @@ Delete an ethernet interface from SCM.
 scm delete network ethernet-interface NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the ethernet interface to delete | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Interface name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -111,12 +121,10 @@ scm load network ethernet-interface [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
 | `--dry-run` | Preview changes without applying | No |
-
-\* One of --folder, --snippet, or --device is required.
 
 ### YAML File Format
 
@@ -178,22 +186,29 @@ Display ethernet interface objects.
 ### Syntax
 
 ```bash
-scm show network ethernet-interface [OPTIONS]
+scm show network ethernet-interface [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the ethernet interface to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific interface | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -201,7 +216,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Ethernet Interface
 
 ```bash
-$ scm show network ethernet-interface --folder Texas --name ethernet1/1
+$ scm show network ethernet-interface ethernet1/1 --folder Texas
 ---> 100%
 Ethernet Interface: ethernet1/1
   Location: Folder 'Texas'

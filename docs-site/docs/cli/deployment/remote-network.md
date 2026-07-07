@@ -30,18 +30,23 @@ Create or update a remote network configuration.
 ### Syntax
 
 ```bash
-scm set sase remote-network [OPTIONS]
+scm set sase remote-network NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the remote network | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the remote network | Yes |
 | `--region TEXT` | Region for the remote network | Yes |
 | `--license-type TEXT` | License type (default: FWAAS-AGGREGATE) | No |
 | `--description TEXT` | Description of the remote network | No |
-| `--subnets LIST` | Comma-separated list of subnets | No |
+| `--subnets TEXT` | Subnets (repeat for multiple) | No |
 | `--spn-name TEXT` | SPN name (required for FWAAS-AGGREGATE license) | No |
 | `--ecmp-load-balancing TEXT` | Enable or disable ECMP (default: disable) | No |
 | `--ipsec-tunnel TEXT` | IPsec tunnel (required when ECMP is disabled) | No |
@@ -57,12 +62,11 @@ scm set sase remote-network [OPTIONS]
 #### Create a Basic Remote Network
 
 ```bash
-$ scm set sase remote-network \
-    --name branch-office-nyc \
+$ scm set sase remote-network branch-office-nyc \
     --region us-east-1 \
     --spn-name us-east-spn \
     --ipsec-tunnel ipsec-tunnel-nyc \
-    --subnets "10.1.0.0/24,10.1.1.0/24" \
+    --subnets 10.1.0.0/24 --subnets 10.1.1.0/24 \
     --description "New York branch office"
 ---> 100%
 Created remote network: branch-office-nyc
@@ -71,12 +75,11 @@ Created remote network: branch-office-nyc
 #### Create a Remote Network with BGP
 
 ```bash
-$ scm set sase remote-network \
-    --name datacenter-west \
+$ scm set sase remote-network datacenter-west \
     --region us-west-2 \
     --spn-name us-west-spn \
     --ipsec-tunnel ipsec-tunnel-dc-west \
-    --subnets "172.16.0.0/16,172.17.0.0/16" \
+    --subnets 172.16.0.0/16 --subnets 172.17.0.0/16 \
     --bgp-enable \
     --bgp-peer-as "65001" \
     --bgp-peer-ip "192.168.1.1" \
@@ -89,12 +92,11 @@ Created remote network: datacenter-west
 #### Create a Remote Network with ECMP Load Balancing
 
 ```bash
-$ scm set sase remote-network \
-    --name hq-campus \
+$ scm set sase remote-network hq-campus \
     --region eu-central-1 \
     --spn-name eu-central-spn \
     --ecmp-load-balancing enable \
-    --subnets "10.0.0.0/8" \
+    --subnets 10.0.0.0/8 \
     --description "Headquarters campus with ECMP"
 ---> 100%
 Created remote network: hq-campus
@@ -103,13 +105,12 @@ Created remote network: hq-campus
 #### Create a Remote Network with Redundant Tunnels
 
 ```bash
-$ scm set sase remote-network \
-    --name critical-site \
+$ scm set sase remote-network critical-site \
     --region ap-southeast-1 \
     --spn-name ap-southeast-spn \
     --ipsec-tunnel ipsec-tunnel-primary \
     --secondary-ipsec-tunnel ipsec-tunnel-secondary \
-    --subnets "192.168.0.0/16" \
+    --subnets 192.168.0.0/16 \
     --description "Critical site with tunnel redundancy"
 ---> 100%
 Created remote network: critical-site
@@ -122,20 +123,25 @@ Delete a remote network configuration from SCM.
 ### Syntax
 
 ```bash
-scm delete sase remote-network [OPTIONS]
+scm delete sase remote-network NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the remote network to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the remote network to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Example
 
 ```bash
-$ scm delete sase remote-network --name branch-office-nyc --force
+$ scm delete sase remote-network branch-office-nyc --force
 ---> 100%
 Deleted remote network: branch-office-nyc
 ```
@@ -231,17 +237,24 @@ Display remote network configurations.
 ### Syntax
 
 ```bash
-scm show sase remote-network [OPTIONS]
+scm show sase remote-network [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the remote network to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name of the remote network to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -249,7 +262,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Remote Network
 
 ```bash
-$ scm show sase remote-network --name datacenter-central
+$ scm show sase remote-network datacenter-central
 ---> 100%
 Remote Network: datacenter-central
   Folder: Remote Networks

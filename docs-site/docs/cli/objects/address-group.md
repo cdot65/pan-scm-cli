@@ -28,34 +28,39 @@ Create or update an address group.
 ### Syntax
 
 ```bash
-scm set object address-group [OPTIONS]
+scm set object address-group NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the address group | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the address group | Yes |
-| `--name TEXT` | Name of the address group | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--description TEXT` | Description for the address group | No |
-| `--tags LIST` | List of tags to apply to the address group | No |
-| `--static` | Create a static address group | No\* |
-| `--dynamic` | Create a dynamic address group | No\* |
-| `--members LIST` | List of address objects for static groups | Only with `--static` |
-| `--filter TEXT` | Tag-based filter expression for dynamic groups | Only with `--dynamic` |
+| `--tags TEXT` | Tag to apply (repeat for multiple) | No |
+| `--type TEXT` | Type of address group (`static` or `dynamic`) | Yes |
+| `--members TEXT` | Address object for static groups (repeat for multiple) | Only with `--type static` |
+| `--filter TEXT` | Tag-based filter expression for dynamic groups | Only with `--type dynamic` |
 
-\* You must specify exactly one of `--static` or `--dynamic`.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
 #### Create a Static Address Group
 
 ```bash
-$ scm set object address-group \
+$ scm set object address-group web-servers \
     --folder Shared \
-    --name web-servers \
-    --static \
-    --members "web-server-1,web-server-2"
+    --type static \
+    --members web-server-1 --members web-server-2
 ---> 100%
 Created address group: web-servers in folder Shared
 ```
@@ -63,10 +68,9 @@ Created address group: web-servers in folder Shared
 #### Create a Dynamic Address Group
 
 ```bash
-$ scm set object address-group \
+$ scm set object address-group trusted-endpoints \
     --folder Shared \
-    --name trusted-endpoints \
-    --dynamic \
+    --type dynamic \
     --filter "'trusted-endpoint' and 'corporate-asset'"
 ---> 100%
 Created address group: trusted-endpoints in folder Shared
@@ -79,21 +83,30 @@ Delete an address group from SCM.
 ### Syntax
 
 ```bash
-scm delete object address-group [OPTIONS]
+scm delete object address-group NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the address group to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the address group | Yes |
-| `--name TEXT` | Name of the address group to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object address-group --folder Shared --name web-servers --force
+$ scm delete object address-group web-servers --folder Shared --force
 ---> 100%
 Deleted address group: web-servers from folder Shared
 ```
@@ -181,18 +194,29 @@ Display address group objects.
 ### Syntax
 
 ```bash
-scm show object address-group [OPTIONS]
+scm show object address-group [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the address group to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the address group | Yes |
-| `--name TEXT` | Name of the address group to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -200,7 +224,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Address Group
 
 ```bash
-$ scm show object address-group --folder Texas --name web-servers
+$ scm show object address-group web-servers --folder Texas
 ---> 100%
 Address Group: web-servers
   Location: Folder 'Texas'

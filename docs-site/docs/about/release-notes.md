@@ -2,6 +2,29 @@
 
 This page contains the release history of the Strata Cloud Manager CLI, with the most recent releases at the top.
 
+## Version 2.0.0
+
+**Released:** July 2026
+
+### Changed (BREAKING)
+
+- **Positional NAME argument**: `set`, `delete`, `show`, and `move` commands now take the resource name as a positional argument instead of `--name`.
+    - Old: `scm set object address --folder Texas --name web1 --ip-netmask 10.0.0.1/32`
+    - New: `scm set object address web1 --folder Texas --ip-netmask 10.0.0.1/32`
+    - `show` without a name lists all items.
+    - Exceptions: quarantined devices use `--host-id`; network locations use `--value`; `bgp-routing` and mobile-agent `global-setting` are singletons with no name.
+    - **Migration**: Move the `--name` value to the position immediately after the object type.
+- **Containers everywhere**: `set`/`delete`/`show` for object, network, security, and identity types accept exactly one of `--folder`, `--snippet`, or `--device`. SASE resources and setup folder/label/snippet/device remain container-less; mobile-agent commands remain folder-only (SDK limitation).
+- **Repeatable `--tags`**: Tags are always provided by repeating the flag (`--tags a --tags b`). Comma-separated `--tag a,b` variants have been removed.
+- **Job IDs are always `--id`**: `scm operations status` now uses `--id` (previously `--job-id`), matching `scm jobs status` and `scm jobs wait`.
+- **Insights `--mock` flags removed**: Use the `SCM_MOCK=1` environment variable instead (applies to all commands; `scm context test --mock` is unchanged).
+- **Layer3 subinterface VLAN flag**: Renamed to `--vlan-tag`.
+
+### Improved
+
+- Every `show` command supports `--output table|json|yaml` and `--max-results N`.
+- Every `load` command supports `--dry-run`; every `backup` command supports `--file`.
+
 ## Version 1.3.3
 
 **Released:** April 2026

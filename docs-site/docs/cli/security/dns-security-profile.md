@@ -19,8 +19,14 @@ Create or update a DNS security profile.
 ### Syntax
 
 ```bash
-scm set security dns-security-profile [OPTIONS]
+scm set security dns-security-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
@@ -29,7 +35,6 @@ scm set security dns-security-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name | Yes |
 | `--description TEXT` | Profile description | No |
 | `--botnet-domains TEXT` | Botnet domains settings as JSON | No |
 
@@ -40,9 +45,8 @@ scm set security dns-security-profile [OPTIONS]
 #### Create Profile with Sinkhole
 
 ```bash
-$ scm set security dns-security-profile \
+$ scm set security dns-security-profile dns-sec-default \
     --folder Texas \
-    --name dns-sec-default \
     --botnet-domains '{"dns_security_categories": [{"name": "pan-dns-sec-malware", "action": "sinkhole"}]}'
 ---> 100%
 Created DNS security profile: dns-sec-default in folder Texas
@@ -51,9 +55,8 @@ Created DNS security profile: dns-sec-default in folder Texas
 #### Create Profile with Whitelist
 
 ```bash
-$ scm set security dns-security-profile \
+$ scm set security dns-security-profile dns-sec-custom \
     --folder Texas \
-    --name dns-sec-custom \
     --botnet-domains '{"whitelist": [{"name": "example.com"}]}'
 ---> 100%
 Created DNS security profile: dns-sec-custom in folder Texas
@@ -66,8 +69,14 @@ Delete a DNS security profile from SCM.
 ### Syntax
 
 ```bash
-scm delete security dns-security-profile [OPTIONS]
+scm delete security dns-security-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name to delete | Yes |
 
 ### Options
 
@@ -76,7 +85,6 @@ scm delete security dns-security-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
@@ -84,9 +92,8 @@ scm delete security dns-security-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete security dns-security-profile \
+$ scm delete security dns-security-profile dns-sec-default \
     --folder Texas \
-    --name dns-sec-default \
     --force
 ---> 100%
 Deleted DNS security profile: dns-sec-default from folder Texas
@@ -173,8 +180,14 @@ Display DNS security profile objects.
 ### Syntax
 
 ```bash
-scm show security dns-security-profile [OPTIONS]
+scm show security dns-security-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name to display; omit to list all | No |
 
 ### Options
 
@@ -183,12 +196,13 @@ scm show security dns-security-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name to display | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -196,9 +210,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Profile
 
 ```bash
-$ scm show security dns-security-profile \
-    --folder Texas \
-    --name dns-sec-default
+$ scm show security dns-security-profile dns-sec-default \
+    --folder Texas
 ---> 100%
 DNS Security Profile: dns-sec-default
   Location: Folder 'Texas'

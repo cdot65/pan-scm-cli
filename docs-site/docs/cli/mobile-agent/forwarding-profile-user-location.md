@@ -34,15 +34,20 @@ Create or update a forwarding profile user location.
 ### Syntax
 
 ```bash
-scm set mobile-agent forwarding-profile-user-location [OPTIONS]
+scm set mobile-agent forwarding-profile-user-location NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the user location | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the user location | Yes |
 | `--ip-address TEXT` | User location IP address (repeatable) | One criteria |
 | `--internal-host-ip TEXT` | Internal host detection IP address | One criteria |
 | `--internal-host-fqdn TEXT` | Internal host detection FQDN | One criteria |
@@ -52,17 +57,15 @@ scm set mobile-agent forwarding-profile-user-location [OPTIONS]
 
 ```bash
 # IP address based location
-$ scm set mobile-agent forwarding-profile-user-location \
+$ scm set mobile-agent forwarding-profile-user-location "branch-network" \
     --folder "Mobile Users" \
-    --name "branch-network" \
     --ip-address "10.1.0.0/16" \
     --ip-address "10.2.*.*"
 Created forwarding profile user location: branch-network in folder Mobile Users
 
 # Internal host detection based location
-$ scm set mobile-agent forwarding-profile-user-location \
+$ scm set mobile-agent forwarding-profile-user-location "corp-office" \
     --folder "Mobile Users" \
-    --name "corp-office" \
     --internal-host-ip "192.168.1.1" \
     --internal-host-fqdn "intranet.example.com"
 Created forwarding profile user location: corp-office in folder Mobile Users
@@ -75,15 +78,22 @@ Display forwarding profile user locations.
 ### Syntax
 
 ```bash
-scm show mobile-agent forwarding-profile-user-location [OPTIONS]
+scm show mobile-agent forwarding-profile-user-location [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the user location to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the user location to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 ### Examples
 
@@ -92,7 +102,7 @@ scm show mobile-agent forwarding-profile-user-location [OPTIONS]
 $ scm show mobile-agent forwarding-profile-user-location --folder "Mobile Users"
 
 # Show a specific user location by name
-$ scm show mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network"
+$ scm show mobile-agent forwarding-profile-user-location "branch-network" --folder "Mobile Users"
 ```
 
 ## Delete Forwarding Profile User Location
@@ -102,21 +112,26 @@ Remove a forwarding profile user location.
 ### Syntax
 
 ```bash
-scm delete mobile-agent forwarding-profile-user-location [OPTIONS]
+scm delete mobile-agent forwarding-profile-user-location NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the user location | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the user location | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Examples
 
 ```bash
-$ scm delete mobile-agent forwarding-profile-user-location --folder "Mobile Users" --name "branch-network" --force
+$ scm delete mobile-agent forwarding-profile-user-location "branch-network" --folder "Mobile Users" --force
 Deleted forwarding profile user location: branch-network from folder Mobile Users
 ```
 

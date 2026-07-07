@@ -26,8 +26,14 @@ Create or update a custom URL category.
 ### Syntax
 
 ```bash
-scm set security url-category [OPTIONS]
+scm set security url-category NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Category name | Yes |
 
 ### Options
 
@@ -36,7 +42,6 @@ scm set security url-category [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Category name | Yes |
 | `--description TEXT` | Description | No |
 | `--type TEXT` | Type: "URL List" or "Category Match" (default: URL List) | No |
 | `--url TEXT` | URL entries (can specify multiple) | No |
@@ -48,9 +53,8 @@ scm set security url-category [OPTIONS]
 #### Create URL List Category
 
 ```bash
-$ scm set security url-category \
+$ scm set security url-category custom-block \
     --folder Texas \
-    --name custom-block \
     --url malware.example.com \
     --url phishing.test.org
 ---> 100%
@@ -60,9 +64,8 @@ Created URL category: custom-block in folder Texas
 #### Create Category Match Type
 
 ```bash
-$ scm set security url-category \
+$ scm set security url-category match-category \
     --folder Texas \
-    --name match-category \
     --type "Category Match" \
     --url gambling \
     --url adult
@@ -77,8 +80,14 @@ Delete a custom URL category from SCM.
 ### Syntax
 
 ```bash
-scm delete security url-category [OPTIONS]
+scm delete security url-category NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Category name to delete | Yes |
 
 ### Options
 
@@ -87,7 +96,6 @@ scm delete security url-category [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Category name to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
@@ -95,9 +103,8 @@ scm delete security url-category [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete security url-category \
+$ scm delete security url-category custom-block \
     --folder Texas \
-    --name custom-block \
     --force
 ---> 100%
 Deleted URL category: custom-block from folder Texas
@@ -185,8 +192,14 @@ Display custom URL category objects.
 ### Syntax
 
 ```bash
-scm show security url-category [OPTIONS]
+scm show security url-category [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Category name to display; omit to list all | No |
 
 ### Options
 
@@ -195,12 +208,13 @@ scm show security url-category [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Category name to display | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -208,9 +222,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Category
 
 ```bash
-$ scm show security url-category \
-    --folder Texas \
-    --name custom-block
+$ scm show security url-category custom-block \
+    --folder Texas
 ---> 100%
 URL Category: custom-block
   Location: Folder 'Texas'

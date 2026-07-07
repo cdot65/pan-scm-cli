@@ -35,15 +35,20 @@ Create or update a forwarding profile regional and custom proxy.
 ### Syntax
 
 ```bash
-scm set mobile-agent forwarding-profile-regional-and-custom-proxy [OPTIONS]
+scm set mobile-agent forwarding-profile-regional-and-custom-proxy NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the regional and custom proxy | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the regional and custom proxy | Yes |
 | `--type TEXT` | Proxy type (`gp-and-pac`, `ztna-agent`) | No |
 | `--proxy-1-fqdn TEXT` | Primary proxy server FQDN | No |
 | `--proxy-1-port INT` | Primary proxy server port (1-65535) | No |
@@ -62,9 +67,8 @@ Nested `connectivity_preference` and `prisma_access_locations` entries are suppo
 ### Examples
 
 ```bash
-$ scm set mobile-agent forwarding-profile-regional-and-custom-proxy \
+$ scm set mobile-agent forwarding-profile-regional-and-custom-proxy "emea-proxy" \
     --folder "Mobile Users" \
-    --name "emea-proxy" \
     --type gp-and-pac \
     --proxy-1-fqdn "proxy1.example.com" \
     --proxy-1-port 8080 \
@@ -79,15 +83,22 @@ Display forwarding profile regional and custom proxies.
 ### Syntax
 
 ```bash
-scm show mobile-agent forwarding-profile-regional-and-custom-proxy [OPTIONS]
+scm show mobile-agent forwarding-profile-regional-and-custom-proxy [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the regional and custom proxy to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the regional and custom proxy to show | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 ### Examples
 
@@ -96,7 +107,7 @@ scm show mobile-agent forwarding-profile-regional-and-custom-proxy [OPTIONS]
 $ scm show mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users"
 
 # Show a specific regional and custom proxy by name
-$ scm show mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy"
+$ scm show mobile-agent forwarding-profile-regional-and-custom-proxy "emea-proxy" --folder "Mobile Users"
 ```
 
 ## Delete Forwarding Profile Regional and Custom Proxy
@@ -106,21 +117,26 @@ Remove a forwarding profile regional and custom proxy.
 ### Syntax
 
 ```bash
-scm delete mobile-agent forwarding-profile-regional-and-custom-proxy [OPTIONS]
+scm delete mobile-agent forwarding-profile-regional-and-custom-proxy NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the regional and custom proxy | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
 | `--folder TEXT` | Folder location (must be `Mobile Users`) | Yes |
-| `--name TEXT` | Name of the regional and custom proxy | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 ### Examples
 
 ```bash
-$ scm delete mobile-agent forwarding-profile-regional-and-custom-proxy --folder "Mobile Users" --name "emea-proxy" --force
+$ scm delete mobile-agent forwarding-profile-regional-and-custom-proxy "emea-proxy" --folder "Mobile Users" --force
 Deleted forwarding profile regional and custom proxy: emea-proxy from folder Mobile Users
 ```
 

@@ -22,19 +22,24 @@ Create or update a region.
 scm set object region NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the region | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Name of the region (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--latitude FLOAT` | Latitude (-90 to 90) | No |
 | `--longitude FLOAT` | Longitude (-180 to 180) | No |
-| `--addresses TEXT` | Associated addresses | No |
+| `--address TEXT` | Address CIDR to associate (repeat for multiple) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
@@ -54,8 +59,8 @@ Created region: us-west in folder Texas
 ```bash
 $ scm set object region branch-offices \
     --folder Texas \
-    --addresses 10.0.0.0/8 \
-    --addresses 172.16.0.0/12
+    --address 10.0.0.0/8 \
+    --address 172.16.0.0/12
 ---> 100%
 Created region: branch-offices in folder Texas
 ```
@@ -70,17 +75,22 @@ Delete a region from SCM.
 scm delete object region NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the region to delete | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Name of the region (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -164,30 +174,37 @@ Display region objects.
 ### Syntax
 
 ```bash
-scm show object region [OPTIONS]
+scm show object region [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the region to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of specific region to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Region
 
 ```bash
-$ scm show object region --folder Texas --name us-west
+$ scm show object region us-west --folder Texas
 ---> 100%
 Region: us-west
   Location: Folder 'Texas'

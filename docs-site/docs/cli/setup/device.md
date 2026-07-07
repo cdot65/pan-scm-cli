@@ -20,7 +20,7 @@ The `device` commands allow you to:
 
 | Field | Flag | Description |
 | --- | --- | --- |
-| `name` | `--name` | Lookup key (name or serial number). Required. |
+| `name` | `NAME` argument | Lookup key (name or serial number). Required. |
 | `display_name` | `--display-name` | Human-friendly display name. |
 | `folder` | `--folder` | Folder to move the device into. |
 | `description` | `--description` | Free-text description. |
@@ -36,14 +36,19 @@ Update an existing device.
 ### Syntax
 
 ```bash
-scm set setup device [OPTIONS]
+scm set setup device NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Device name or serial number | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Device name or serial number | Yes |
 | `--display-name TEXT` | Human-friendly display name | No |
 | `--folder TEXT` | Folder to move device into | No |
 | `--description TEXT` | Free-text description | No |
@@ -55,7 +60,7 @@ scm set setup device [OPTIONS]
 #### Attach Labels to a Device
 
 ```bash
-$ scm set setup device --name PA-VM-01 --labels production --labels west
+$ scm set setup device PA-VM-01 --labels production --labels west
 ---> 100%
 Updated device: PA-VM-01
 ```
@@ -63,7 +68,7 @@ Updated device: PA-VM-01
 #### Move Device into a Folder
 
 ```bash
-$ scm set setup device --name 0123456789 --folder Austin
+$ scm set setup device 0123456789 --folder Austin
 ---> 100%
 Updated device: 0123456789
 ```
@@ -71,8 +76,7 @@ Updated device: 0123456789
 #### Set Multiple Fields at Once
 
 ```bash
-$ scm set setup device \
-    --name PA-VM-01 \
+$ scm set setup device PA-VM-01 \
     --display-name "Edge-FW" \
     --description "Edge firewall" \
     --labels production
@@ -89,15 +93,22 @@ Display device objects.
 ### Syntax
 
 ```bash
-scm show setup device [OPTIONS]
+scm show setup device [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name or serial number of the device to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--name TEXT` | Name or serial number of the device to show | No |
 | `--folder TEXT` | Filter devices by folder | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 :::note
 When no options are specified, all devices are listed by default.
@@ -131,7 +142,7 @@ Name: PA-VM-02
 #### Show a Single Device
 
 ```bash
-$ scm show setup device --name PA-VM-01
+$ scm show setup device PA-VM-01
 ---> 100%
 Device: PA-VM-01
 ================================================================================
@@ -153,7 +164,7 @@ ID: device-PA-VM-01
 #### Show Device by Serial Number
 
 ```bash
-$ scm show setup device --name 0123456789
+$ scm show setup device 0123456789
 ---> 100%
 Device: 0123456789
 ================================================================================

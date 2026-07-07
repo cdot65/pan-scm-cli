@@ -60,7 +60,7 @@ scm operations logging-status --device 007951000123456
 Check on an async job:
 
 ```bash
-scm operations status --job-id abc-123
+scm operations status --id abc-123
 ```
 
 ## Sync vs Async

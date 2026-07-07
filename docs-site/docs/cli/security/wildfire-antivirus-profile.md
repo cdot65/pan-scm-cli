@@ -19,8 +19,14 @@ Create or update a WildFire antivirus profile.
 ### Syntax
 
 ```bash
-scm set security wildfire-antivirus-profile [OPTIONS]
+scm set security wildfire-antivirus-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name | Yes |
 
 ### Options
 
@@ -29,7 +35,6 @@ scm set security wildfire-antivirus-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name | Yes |
 | `--description TEXT` | Profile description | No |
 | `--rules TEXT` | Rules configuration as JSON | No |
 | `--packet-capture / --no-packet-capture` | Enable packet capture | No |
@@ -41,9 +46,8 @@ scm set security wildfire-antivirus-profile [OPTIONS]
 #### Create Basic Profile
 
 ```bash
-$ scm set security wildfire-antivirus-profile \
+$ scm set security wildfire-antivirus-profile wf-basic \
     --folder Texas \
-    --name wf-basic \
     --description "Basic WildFire profile"
 ---> 100%
 Created WildFire antivirus profile: wf-basic in folder Texas
@@ -52,9 +56,8 @@ Created WildFire antivirus profile: wf-basic in folder Texas
 #### Create Profile with Custom Rules
 
 ```bash
-$ scm set security wildfire-antivirus-profile \
+$ scm set security wildfire-antivirus-profile wf-custom \
     --folder Texas \
-    --name wf-custom \
     --rules '[{"name":"Forward All","direction":"both","analysis":"public-cloud","application":["any"],"file_type":["any"]}]'
 ---> 100%
 Created WildFire antivirus profile: wf-custom in folder Texas
@@ -63,9 +66,8 @@ Created WildFire antivirus profile: wf-custom in folder Texas
 #### Create Profile with Packet Capture
 
 ```bash
-$ scm set security wildfire-antivirus-profile \
+$ scm set security wildfire-antivirus-profile wf-capture \
     --folder Texas \
-    --name wf-capture \
     --packet-capture
 ---> 100%
 Created WildFire antivirus profile: wf-capture in folder Texas
@@ -78,8 +80,14 @@ Delete a WildFire antivirus profile from SCM.
 ### Syntax
 
 ```bash
-scm delete security wildfire-antivirus-profile [OPTIONS]
+scm delete security wildfire-antivirus-profile NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name to delete | Yes |
 
 ### Options
 
@@ -88,7 +96,6 @@ scm delete security wildfire-antivirus-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name to delete | Yes |
 | `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
@@ -96,9 +103,8 @@ scm delete security wildfire-antivirus-profile [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete security wildfire-antivirus-profile \
+$ scm delete security wildfire-antivirus-profile wf-basic \
     --folder Texas \
-    --name wf-basic \
     --force
 ---> 100%
 Deleted WildFire antivirus profile: wf-basic from folder Texas
@@ -186,8 +192,14 @@ Display WildFire antivirus profile objects.
 ### Syntax
 
 ```bash
-scm show security wildfire-antivirus-profile [OPTIONS]
+scm show security wildfire-antivirus-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Profile name to display; omit to list all | No |
 
 ### Options
 
@@ -196,12 +208,13 @@ scm show security wildfire-antivirus-profile [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Profile name to display | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -209,9 +222,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Profile
 
 ```bash
-$ scm show security wildfire-antivirus-profile \
-    --folder Texas \
-    --name wf-basic
+$ scm show security wildfire-antivirus-profile wf-basic \
+    --folder Texas
 ---> 100%
 WildFire Antivirus Profile: wf-basic
   Location: Folder 'Texas'

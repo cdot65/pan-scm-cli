@@ -22,24 +22,29 @@ Create or update an IKE crypto profile.
 scm set network ike-crypto-profile NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IKE crypto profile | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Profile name (positional) | Yes |
 | `--hash TEXT` | Hash algorithms (sha256, sha384, sha512, sha1, md5) | Yes |
 | `--dh-group TEXT` | DH groups (group1, group2, group5, group14, group19, group20) | Yes |
 | `--encryption TEXT` | Encryption algorithms (aes-256-cbc, aes-128-cbc, etc.) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--lifetime-seconds INT` | Lifetime in seconds (180-65535) | No |
 | `--lifetime-minutes INT` | Lifetime in minutes (3-65535) | No |
 | `--lifetime-hours INT` | Lifetime in hours (1-65535) | No |
 | `--lifetime-days INT` | Lifetime in days (1-365) | No |
 | `--authentication-multiple INT` | IKEv2 SA reauthentication interval (0-50) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
@@ -79,17 +84,22 @@ Delete an IKE crypto profile from SCM.
 scm delete network ike-crypto-profile NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IKE crypto profile to delete | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Profile name (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -114,12 +124,10 @@ scm load network ike-crypto-profile [OPTIONS]
 | Option | Description | Required |
 | --- | --- | --- |
 | `--file TEXT` | Path to YAML file | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Override folder location for all objects | No |
+| `--snippet TEXT` | Override snippet location for all objects | No |
+| `--device TEXT` | Override device location for all objects | No |
 | `--dry-run` | Preview changes without applying | No |
-
-\* One of --folder, --snippet, or --device is required.
 
 ### YAML File Format
 
@@ -184,22 +192,29 @@ Display IKE crypto profile objects.
 ### Syntax
 
 ```bash
-scm show network ike-crypto-profile [OPTIONS]
+scm show network ike-crypto-profile [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the IKE crypto profile to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of a specific profile | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
 
 ### Examples
@@ -207,7 +222,7 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific IKE Crypto Profile
 
 ```bash
-$ scm show network ike-crypto-profile --folder Texas --name my-ike-profile
+$ scm show network ike-crypto-profile my-ike-profile --folder Texas
 ---> 100%
 IKE Crypto Profile: my-ike-profile
   Location: Folder 'Texas'

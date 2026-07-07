@@ -20,77 +20,76 @@ Create or update a HIP object.
 ### Syntax
 
 ```bash
-scm set object hip-object [OPTIONS]
+scm set object hip-object NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HIP object (max 31 characters) | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder for the HIP object | No\* |
-| `--snippet TEXT` | Snippet for the HIP object | No\* |
-| `--device TEXT` | Device for the HIP object | No\* |
-| `--name TEXT` | Name of the HIP object (max 31 characters) | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--description TEXT` | Description (max 255 characters) | No |
 | `--host-info-os TEXT` | OS vendor (Microsoft, Apple, Google, Linux, Other) | No |
 | `--host-info-os-value TEXT` | OS version or "All" | No |
 | `--host-info-domain TEXT` | Domain criteria (is, is_not, contains) | No |
 | `--host-info-domain-value TEXT` | Domain value to match | No |
-| `--host-info-managed` | Managed state (true/false) | No |
-| `--patch-management-enabled` | Enable patch management checks | No |
-| `--patch-management-vendor-name TEXT` | Vendor name | No |
-| `--patch-management-product-name TEXT` | Product name | No |
-| `--patch-management-criteria-is-installed TEXT` | Installation criteria | No |
-| `--patch-management-missing-patches TEXT` | Missing patches check | No |
-| `--disk-encryption-enabled` | Enable disk encryption checks | No |
-| `--disk-encryption-vendor-name TEXT` | Encryption vendor | No |
-| `--disk-encryption-product-name TEXT` | Encryption product | No |
-| `--disk-encryption-criteria-is-installed TEXT` | Installation criteria (is, is_not) | No |
-| `--disk-encryption-state TEXT` | Encryption state (is, is_not) | No |
-| `--mobile-device-jailbroken TEXT` | Jailbreak status | No |
-| `--mobile-device-disk-encrypted TEXT` | Disk encryption status | No |
-| `--mobile-device-passcode-set TEXT` | Passcode requirement | No |
+| `--host-info-managed / --no-host-info-managed` | Managed state criteria | No |
+| `--network-info-type TEXT` | Network type (is, is_not) | No |
+| `--network-info-value TEXT` | Network value (wifi, mobile, ethernet, unknown) | No |
+| `--patch-management-enabled / --no-patch-management-enabled` | Whether patch management is enabled | No |
+| `--patch-management-missing-patches TEXT` | Missing patches check (has-any, has-none, has-all) | No |
+| `--patch-management-severity INTEGER` | Patch severity level | No |
+| `--disk-encryption-enabled / --no-disk-encryption-enabled` | Whether disk encryption is enabled | No |
+| `--mobile-device-jailbroken / --no-mobile-device-jailbroken` | Jailbroken status | No |
+| `--mobile-device-disk-encrypted / --no-mobile-device-disk-encrypted` | Disk encryption status | No |
+| `--mobile-device-passcode-set / --no-mobile-device-passcode-set` | Passcode status | No |
+| `--certificate-profile TEXT` | Certificate profile name | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
-#### Create Basic Windows Patch Compliance
+#### Create a Windows Workstation Compliance Policy
 
 ```bash
-$ scm set object hip-object \
+$ scm set object hip-object windows-compliance \
     --folder Texas \
-    --name windows-patches \
-    --description "Windows security patch compliance" \
-    --patch-management-vendor-name "Microsoft Corporation" \
-    --patch-management-product-name "Windows" \
-    --patch-management-criteria-is-installed yes \
-    --patch-management-missing-patches check-not-exist
+    --description "Windows workstation compliance" \
+    --host-info-os Microsoft \
+    --host-info-os-value All \
+    --host-info-managed \
+    --disk-encryption-enabled \
+    --patch-management-enabled
 ---> 100%
-Created HIP object: windows-patches in folder Texas
+Created HIP object: windows-compliance in folder Texas
 ```
 
-#### Create Disk Encryption Check
+#### Create a Mobile Device Policy
 
 ```bash
-$ scm set object hip-object \
+$ scm set object hip-object mobile-policy \
     --folder Texas \
-    --name disk-encryption \
-    --description "Disk encryption requirement" \
-    --disk-encryption-vendor-name "BitLocker" \
-    --disk-encryption-product-name "BitLocker Drive Encryption" \
-    --disk-encryption-criteria-is-installed is \
-    --disk-encryption-state is
+    --description "Mobile device compliance" \
+    --no-mobile-device-jailbroken \
+    --mobile-device-disk-encrypted \
+    --mobile-device-passcode-set
 ---> 100%
-Created HIP object: disk-encryption in folder Texas
+Created HIP object: mobile-policy in folder Texas
 ```
 
 #### Create Domain Membership Check
 
 ```bash
-$ scm set object hip-object \
+$ scm set object hip-object corp-domain \
     --folder Texas \
-    --name corp-domain \
     --description "Corporate domain membership" \
     --host-info-domain contains \
     --host-info-domain-value "corp.company.com" \
@@ -107,25 +106,30 @@ Delete a HIP object from SCM.
 ### Syntax
 
 ```bash
-scm delete object hip-object [OPTIONS]
+scm delete object hip-object NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HIP object to delete | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the HIP object | No\* |
-| `--snippet TEXT` | Snippet containing the HIP object | No\* |
-| `--device TEXT` | Device containing the HIP object | No\* |
-| `--name TEXT` | Name of the HIP object to delete | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
 ```bash
-$ scm delete object hip-object --folder Texas --name windows-patches --force
+$ scm delete object hip-object windows-patches --folder Texas --force
 ---> 100%
 Deleted HIP object: windows-patches from folder Texas
 ```
@@ -223,30 +227,37 @@ Display HIP objects.
 ### Syntax
 
 ```bash
-scm show object hip-object [OPTIONS]
+scm show object hip-object [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the HIP object to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the HIP object | No\* |
-| `--snippet TEXT` | Snippet containing the HIP object | No\* |
-| `--device TEXT` | Device containing the HIP object | No\* |
-| `--name TEXT` | Name of the HIP object to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific HIP Object
 
 ```bash
-$ scm show object hip-object --folder Texas --name windows-patches
+$ scm show object hip-object windows-patches --folder Texas
 ---> 100%
 HIP Object: windows-patches
   Location: Folder 'Texas'

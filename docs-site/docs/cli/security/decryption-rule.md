@@ -20,8 +20,14 @@ Create or update a decryption rule.
 ### Syntax
 
 ```bash
-scm set security decryption-rule [OPTIONS]
+scm set security decryption-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name | Yes |
 
 ### Options
 
@@ -30,7 +36,6 @@ scm set security decryption-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name | Yes |
 | `--action TEXT` | Action (decrypt or no-decrypt) | Yes |
 | `--rulebase TEXT` | Rulebase (pre, post, default) | No |
 | `--description TEXT` | Description | No |
@@ -48,9 +53,8 @@ scm set security decryption-rule [OPTIONS]
 #### Create No-Decrypt Rule
 
 ```bash
-$ scm set security decryption-rule \
+$ scm set security decryption-rule no-decrypt-internal \
     --folder Texas \
-    --name no-decrypt-internal \
     --action no-decrypt \
     --source-zones trust \
     --destination-zones trust
@@ -61,9 +65,8 @@ Created decryption rule: no-decrypt-internal in folder Texas
 #### Create Decrypt Rule with SSL Forward Proxy
 
 ```bash
-$ scm set security decryption-rule \
+$ scm set security decryption-rule decrypt-outbound \
     --folder Texas \
-    --name decrypt-outbound \
     --action decrypt \
     --type '{"ssl_forward_proxy": {}}' \
     --profile ssl-forward-profile \
@@ -80,33 +83,38 @@ Change the position of a decryption rule. Rules are processed in order from top 
 ### Syntax
 
 ```bash
-scm set security decryption-rule --move [OPTIONS]
+scm move security decryption-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the rule to move | Yes |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder containing the rules | No\* |
-| `--snippet TEXT` | Snippet containing the rules | No\* |
-| `--device TEXT` | Device containing the rules | No\* |
-| `--name TEXT` | Name of the rule to move | Yes |
-| `--location TEXT` | Where to move the rule (top, bottom, before, after) | Yes |
-| `--reference TEXT` | Reference rule name (required with before/after) | No\*\* |
+| `--folder TEXT` | Folder containing the rule | No\* |
+| `--snippet TEXT` | Snippet containing the rule | No\* |
+| `--device TEXT` | Device containing the rule | No\* |
+| `--destination TEXT` | Where to move (top, bottom, before, after) | Yes |
+| `--destination-rule TEXT` | UUID of the reference rule (required with before/after) | No\*\* |
+| `--rulebase TEXT` | Rulebase (pre or post; default: pre) | No |
 
 \* One of --folder, --snippet, or --device is required.
 
-\*\* Required when `--location` is `before` or `after`.
+\*\* Required when `--destination` is `before` or `after`.
 
 ### Examples
 
 #### Move Rule to Top
 
 ```bash
-$ scm set security decryption-rule --move \
+$ scm move security decryption-rule no-decrypt-internal \
     --folder Texas \
-    --name no-decrypt-internal \
-    --location top
+    --destination top
 ---> 100%
 Moved decryption rule: no-decrypt-internal to top in folder Texas
 ```
@@ -114,13 +122,12 @@ Moved decryption rule: no-decrypt-internal to top in folder Texas
 #### Move Rule After Another Rule
 
 ```bash
-$ scm set security decryption-rule --move \
+$ scm move security decryption-rule decrypt-outbound \
     --folder Texas \
-    --name decrypt-outbound \
-    --location after \
-    --reference no-decrypt-internal
+    --destination after \
+    --destination-rule 123e4567-e89b-12d3-a456-426614174000
 ---> 100%
-Moved decryption rule: decrypt-outbound after no-decrypt-internal in folder Texas
+Moved decryption rule: decrypt-outbound after rule 123e4567-e89b-12d3-a456-426614174000 in folder Texas
 ```
 
 ## Delete Decryption Rule
@@ -130,8 +137,14 @@ Delete a decryption rule from SCM.
 ### Syntax
 
 ```bash
-scm delete security decryption-rule [OPTIONS]
+scm delete security decryption-rule NAME [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name to delete | Yes |
 
 ### Options
 
@@ -140,7 +153,7 @@ scm delete security decryption-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name to delete | Yes |
+| `--rulebase TEXT` | Rulebase to use (pre, post, or default; default: pre) | No |
 | `--force` | Skip confirmation prompt | No |
 
 \* One of --folder, --snippet, or --device is required.
@@ -148,9 +161,8 @@ scm delete security decryption-rule [OPTIONS]
 ### Example
 
 ```bash
-$ scm delete security decryption-rule \
+$ scm delete security decryption-rule no-decrypt-internal \
     --folder Texas \
-    --name no-decrypt-internal \
     --force
 ---> 100%
 Deleted decryption rule: no-decrypt-internal from folder Texas
@@ -243,8 +255,14 @@ Display decryption rule objects.
 ### Syntax
 
 ```bash
-scm show security decryption-rule [OPTIONS]
+scm show security decryption-rule [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Rule name to display; omit to list all | No |
 
 ### Options
 
@@ -253,12 +271,14 @@ scm show security decryption-rule [OPTIONS]
 | `--folder TEXT` | Folder location | No\* |
 | `--snippet TEXT` | Snippet location | No\* |
 | `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Rule name to display | No |
+| `--rulebase TEXT` | Rulebase to use (pre, post, or default; default: pre) | No |
+| `--output, -o [table\|json\|yaml]` | Output format (default: table) | No |
+| `--max-results INTEGER` | Maximum number of results to display | No |
 
 \* One of --folder, --snippet, or --device is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` is specified, all items are listed by default.
 :::
 
 ### Examples
@@ -266,9 +286,8 @@ When no `--name` is specified, all items are listed by default.
 #### Show Specific Rule
 
 ```bash
-$ scm show security decryption-rule \
-    --folder Texas \
-    --name decrypt-outbound
+$ scm show security decryption-rule decrypt-outbound \
+    --folder Texas
 ---> 100%
 Decryption Rule: decrypt-outbound
   Location: Folder 'Texas'

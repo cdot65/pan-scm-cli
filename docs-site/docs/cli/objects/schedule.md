@@ -23,15 +23,20 @@ Create or update a schedule.
 scm set object schedule NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the schedule | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Name of the schedule (positional) | Yes |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--schedule-type TEXT` | Schedule type: recurring-daily, recurring-weekly, or non-recurring | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
 | `--time-range TEXT` | Time ranges (for daily/non-recurring) | No |
 | `--monday TEXT` | Monday time ranges (for weekly) | No |
 | `--tuesday TEXT` | Tuesday time ranges (for weekly) | No |
@@ -41,7 +46,7 @@ scm set object schedule NAME [OPTIONS]
 | `--saturday TEXT` | Saturday time ranges (for weekly) | No |
 | `--sunday TEXT` | Sunday time ranges (for weekly) | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Examples
 
@@ -81,17 +86,22 @@ Delete a schedule from SCM.
 scm delete object schedule NAME [OPTIONS]
 ```
 
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the schedule to delete | Yes |
+
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `NAME` | Name of the schedule (positional) | Yes |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
 | `--force` | Skip confirmation prompt | No |
 
-\* One of --folder, --snippet, or --device is required.
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 ### Example
 
@@ -178,30 +188,37 @@ Display schedule objects.
 ### Syntax
 
 ```bash
-scm show object schedule [OPTIONS]
+scm show object schedule [NAME] [OPTIONS]
 ```
+
+### Arguments
+
+| Argument | Description | Required |
+| --- | --- | --- |
+| `NAME` | Name of the schedule to show; omit to list all | No |
 
 ### Options
 
 | Option | Description | Required |
 | --- | --- | --- |
-| `--folder TEXT` | Folder location | No\* |
-| `--snippet TEXT` | Snippet location | No\* |
-| `--device TEXT` | Device location | No\* |
-| `--name TEXT` | Name of specific schedule to show | No |
+| `--folder TEXT` | Folder location | Yes\* |
+| `--snippet TEXT` | Snippet location | Yes\* |
+| `--device TEXT` | Device location | Yes\* |
+| `--max-results INTEGER` | Maximum number of results to display | No |
+| `--output [table\|json\|yaml]` | Output format (default: `table`) | No |
+
+\* Exactly one of `--folder`, `--snippet`, or `--device` is required.
 
 :::note
-When no `--name` is specified, all items are listed by default.
+When no `NAME` argument is provided, all items are listed by default.
 :::
-
-\* One of --folder, --snippet, or --device is required.
 
 ### Examples
 
 #### Show Specific Schedule
 
 ```bash
-$ scm show object schedule --folder Texas --name business-hours
+$ scm show object schedule business-hours --folder Texas
 ---> 100%
 Schedule: business-hours
   Location: Folder 'Texas'

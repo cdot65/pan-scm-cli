@@ -37,7 +37,6 @@ View and export security and system alerts from your Prisma Access environment.
 | `--max-results INT` | Maximum number of results to return (default: 10) | No |
 | `--export TEXT` | Export format (json, csv) | No |
 | `--output TEXT` | Output file path for export | No |
-| `--mock` | Run in mock mode | No |
 
 \* One of --list, --id, or --real-time is required.
 
@@ -126,7 +125,6 @@ Monitor mobile user connections and activity.
 | `--max-results INT` | Maximum number of results to return (default: 100) | No |
 | `--export TEXT` | Export format (json, csv) | No |
 | `--output TEXT` | Output file path for export | No |
-| `--mock` | Run in mock mode | No |
 
 \* One of --list or --id is required.
 
@@ -187,7 +185,6 @@ View location-based metrics and capacity information.
 | `--max-results INT` | Maximum number of results to return (default: 100) | No |
 | `--export TEXT` | Export format (json, csv) | No |
 | `--output TEXT` | Output file path for export | No |
-| `--mock` | Run in mock mode | No |
 
 \* One of --list or --id is required.
 
@@ -239,7 +236,6 @@ Monitor remote network connectivity and performance.
 | `--max-results INT` | Maximum number of results to return (default: 100) | No |
 | `--export TEXT` | Export format (json, csv) | No |
 | `--output TEXT` | Output file path for export | No |
-| `--mock` | Run in mock mode | No |
 
 \* One of --list or --id is required.
 
@@ -304,7 +300,6 @@ Monitor cloud service connections and their health status.
 | `--max-results INT` | Maximum number of results to return (default: 100) | No |
 | `--export TEXT` | Export format (json, csv) | No |
 | `--output TEXT` | Output file path for export | No |
-| `--mock` | Run in mock mode | No |
 
 \* One of --list or --id is required.
 
@@ -358,7 +353,6 @@ Monitor IPSec and SSL tunnel status and performance.
 | `--max-results INT` | Maximum number of results to return (default: 100) | No |
 | `--export TEXT` | Export format (json, csv) | No |
 | `--output TEXT` | Output file path for export | No |
-| `--mock` | Run in mock mode | No |
 
 \* One of --list or --id is required.
 
@@ -418,7 +412,6 @@ All insights commands support these common options:
 | `--max-results INT` | Limit the number of results (default varies by command) | No |
 | `--export TEXT` | Export format (json or csv) | No |
 | `--output TEXT` | Output file path for exports | No |
-| `--mock` | Run in mock mode for testing | No |
 
 ## Export Formats
 
@@ -456,4 +449,4 @@ alert-001,Critical CPU Usage,critical,active,2026-03-08T10:30:00Z,CPU usage exce
 - Export operations respect the `--max-results` limit
 - Time filters accept ISO timestamps (e.g., `2026-03-01T00:00:00`)
 - Alerts default to the last 7 days when no `--start` time is specified
-- All commands support `--mock` for testing without API credentials
+- Set the `SCM_MOCK=1` environment variable to test without API credentials
