@@ -20,6 +20,7 @@ from pydantic import ValidationError
 from scm.client import Scm
 from scm.exceptions import APIError, AuthenticationError, ClientError, GatewayTimeoutError, NotFoundError, ObjectNotPresentError
 
+from . import token_cache
 from .config import get_credentials, settings
 from .context import get_current_context
 
@@ -88,6 +89,7 @@ class SCMClient:
             self.logger.info("No context set, using environment variables or default settings")
 
         self._bearer_token_mode = False
+        self._cached_token_mode = False
 
         if mock_mode_requested():
             # Explicit mock mode: no API client, methods return mock data.
@@ -159,23 +161,37 @@ class SCMClient:
                     region_override = None
                 resolved_region = region_override or credentials.get("region", "americas")
 
-                scm_kwargs: dict[str, Any] = {
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                    "tsg_id": self.tsg_id,
-                    "log_level": settings.get("log_level", "INFO"),
-                }
                 scm_params = inspect.signature(Scm.__init__).parameters
+                common_kwargs: dict[str, Any] = {"log_level": settings.get("log_level", "INFO")}
                 if "region" in scm_params:
-                    scm_kwargs["region"] = resolved_region
+                    common_kwargs["region"] = resolved_region
                 # Endpoint overrides (env > context) — omitted when unset so SDK defaults apply
                 api_base_url = credentials.get("api_base_url") or settings.get("api_base_url", None)
                 if api_base_url and "api_base_url" in scm_params:
-                    scm_kwargs["api_base_url"] = api_base_url
+                    common_kwargs["api_base_url"] = api_base_url
                 token_url = credentials.get("token_url") or settings.get("token_url", None)
                 if token_url and "token_url" in scm_params:
-                    scm_kwargs["token_url"] = token_url
-                self.client = Scm(**scm_kwargs)
+                    common_kwargs["token_url"] = token_url
+
+                # Reuse a cached OAuth token (bearer-mode session) when one is
+                # still valid for these exact credentials — skips the token +
+                # JWKS roundtrips on every invocation.
+                cached = token_cache.load_token(current_context)
+                if cached and str(cached.get("client_id")) == str(self.client_id) and str(cached.get("tsg_id")) == str(self.tsg_id):
+                    self.client = Scm(access_token=cached["token"]["access_token"], **common_kwargs)
+                    self._cached_token_mode = True
+                    self.logger.debug("Using cached OAuth token (bearer-mode session)")
+                else:
+                    self.client = Scm(
+                        client_id=self.client_id,
+                        client_secret=self.client_secret,
+                        tsg_id=self.tsg_id,
+                        **common_kwargs,
+                    )
+                    oauth_client = getattr(self.client, "oauth_client", None)
+                    token = getattr(getattr(oauth_client, "session", None), "token", None)
+                    if token and token.get("access_token"):
+                        token_cache.save_token(current_context, dict(token), client_id=self.client_id, tsg_id=self.tsg_id)
                 self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
         except (ValueError, AuthenticationError) as e:
             import sys
@@ -311,6 +327,11 @@ class SCMClient:
         """
         if isinstance(exception, AuthenticationError):
             self.logger.error(f"Authentication error during {operation} of {resource_name}: {str(exception)}")
+            if self._cached_token_mode:
+                # The cached token was rejected — clear it so the next
+                # invocation performs a fresh OAuth login.
+                token_cache.clear_token(get_current_context())
+                self.logger.warning("Cached token rejected by the API; cache cleared — retry the command")
         elif isinstance(exception, NotFoundError):
             self.logger.error(f"Resource not found: {resource_name} in folder {folder}")
         elif isinstance(exception, ValidationError):
@@ -10314,6 +10335,10 @@ class SCMClient:
             # Pass admin parameter if specified (needed for bearer token auth)
             if admin:
                 commit_kwargs["admin"] = [admin]
+            elif self._cached_token_mode:
+                # Cached-token sessions are bearer-mode to the SDK, so supply
+                # the admin identity the token was issued for.
+                commit_kwargs["admin"] = [self.client_id]
 
             # Always commit asynchronously, then use our own wait_for_job if sync
             async_kwargs = {k: v for k, v in commit_kwargs.items() if k not in ("sync", "timeout")}

@@ -97,3 +97,69 @@ class TestDisableSwitch:
         token_cache.save_token("prod", _token(), client_id="cid", tsg_id="1")
 
         assert not (cache_dir / "token-prod.json").exists()
+
+
+class TestClientIntegration:
+    """SCMClient uses the cache: hit -> bearer-mode init (no OAuth), miss -> OAuth + save."""
+
+    def _fresh_client(self, monkeypatch, fake_scm):
+        import scm_cli.utils.sdk_client as sdk_module
+        from scm_cli.utils.context import get_context_aware_settings
+
+        monkeypatch.delenv("SCM_MOCK", raising=False)
+        monkeypatch.setenv("SCM_SCM_CLIENT_ID", "cid@x.com")
+        monkeypatch.setenv("SCM_SCM_CLIENT_SECRET", "sec")
+        monkeypatch.setenv("SCM_SCM_TSG_ID", "123")
+        monkeypatch.setattr(sdk_module, "Scm", fake_scm)
+        monkeypatch.setattr(sdk_module, "get_current_context", lambda: None)
+        monkeypatch.setattr(sdk_module, "settings", get_context_aware_settings())
+        import scm_cli.utils.config as cfg_mod
+
+        monkeypatch.setattr(cfg_mod, "settings", get_context_aware_settings())
+        return sdk_module.SCMClient()
+
+    def test_cache_hit_uses_bearer_mode(self, monkeypatch):
+        token_cache.save_token(None, _token(), client_id="cid@x.com", tsg_id="123")
+        captured = {}
+
+        class FakeScm:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+        client = self._fresh_client(monkeypatch, FakeScm)
+
+        assert captured.get("access_token") == "tok-abc"
+        assert "client_secret" not in captured
+        assert client._cached_token_mode is True
+
+    def test_cache_hit_for_other_client_id_ignored(self, monkeypatch):
+        token_cache.save_token(None, _token(), client_id="someone-else", tsg_id="123")
+        captured = {}
+
+        class FakeScm:
+            oauth_client = None
+
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+        client = self._fresh_client(monkeypatch, FakeScm)
+
+        assert "access_token" not in captured
+        assert captured.get("client_id") == "cid@x.com"
+        assert client._cached_token_mode is False
+
+    def test_cache_miss_saves_token_after_oauth(self, monkeypatch):
+        from types import SimpleNamespace
+
+        fresh_token = {"access_token": "new-tok", "expires_at": time.time() + 900}
+
+        class FakeScm:
+            def __init__(self, **kwargs):
+                self.oauth_client = SimpleNamespace(session=SimpleNamespace(token=fresh_token))
+
+        self._fresh_client(monkeypatch, FakeScm)
+
+        entry = token_cache.load_token(None)
+        assert entry is not None
+        assert entry["token"]["access_token"] == "new-tok"
+        assert entry["client_id"] == "cid@x.com"
