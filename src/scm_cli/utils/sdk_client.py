@@ -26,6 +26,21 @@ from .context import get_current_context
 # Create logger (will be configured in __init__)
 logger = logging.getLogger(__name__)
 
+_TRUTHY = ("1", "true", "yes", "on")
+
+
+def mock_mode_requested() -> bool:
+    """Return True if mock mode was explicitly requested.
+
+    Mock mode activates only via the SCM_MOCK environment variable —
+    never as a silent fallback for missing credentials. The environment
+    is read directly (not through Dynaconf) so the check stays accurate
+    even after settings have been loaded and cached.
+    """
+    import os
+
+    return os.environ.get("SCM_MOCK", "").strip().lower() in _TRUTHY
+
 
 class SCMClient:
     """Client for the SCM SDK.
@@ -78,6 +93,15 @@ class SCMClient:
             self.logger.info("No context set, using environment variables or default settings")
 
         self._bearer_token_mode = False
+
+        if mock_mode_requested():
+            # Explicit mock mode: no API client, methods return mock data.
+            self.logger.info("Mock mode enabled (SCM_MOCK) — no API calls will be made")
+            # The following mock credentials are used only in mock mode for testing purposes and do not represent real secrets.
+            self.client_id = "mock-client-id"
+            self.client_secret = "mock-client"  # noqa: S105
+            self.tsg_id = "mock-tsg-id"
+            return
 
         try:
             # Check for bearer token auth mode first
@@ -159,13 +183,25 @@ class SCMClient:
                 self.client = Scm(**scm_kwargs)
                 self.logger.info(f"Successfully initialized SDK client for TSG ID: {self.tsg_id}")
         except (ValueError, AuthenticationError) as e:
-            self.logger.warning(f"Failed to initialize SDK client: {str(e)}")
-            self.logger.warning("Using mock mode with dummy credentials")
-            # The following mock credentials are used only in mock mode for testing purposes and do not represent real secrets.
-            self.client_id = "mock-client-id"
-            self.client_secret = "mock-client"  # noqa: S105
-            self.tsg_id = "mock-tsg-id"
-            # In mock mode, methods will return mock data instead of making API calls
+            import sys
+
+            print(f"\n❌ Authentication not configured: {e}", file=sys.stderr)
+            print(f"\nCurrent context: {current_context or 'None set'}", file=sys.stderr)
+            print("\nTo fix this issue:", file=sys.stderr)
+            print(
+                "  1. Create a context: scm context create <name> --client-id <id> --client-secret <secret> --tsg-id <tsg>",
+                file=sys.stderr,
+            )
+            print("  2. Switch context: scm context use <name>", file=sys.stderr)
+            print(
+                "  3. Or use environment variables: SCM_CLIENT_ID, SCM_CLIENT_SECRET, SCM_TSG_ID",
+                file=sys.stderr,
+            )
+            print(
+                "\nFor testing without credentials, set SCM_MOCK=1 to enable mock mode.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1) from e
         except (APIError, InvalidClientError) as e:
             # Handle authentication failures gracefully
             error_msg = str(e)
@@ -18218,7 +18254,9 @@ class LazyClient:
         self._client = None
 
     def __getattr__(self, name):
-        """Initialize client on first access."""
+        """Initialize client on first access (never for dunder lookups)."""
+        if name.startswith("__") and name.endswith("__"):
+            raise AttributeError(name)
         if self._client is None:
             self._client = SCMClient()
         return getattr(self._client, name)
