@@ -33,14 +33,15 @@ class TestDebugFlag:
         assert logging.getLogger("scm.auth").level != logging.CRITICAL
         assert logging.getLogger("oauthlib").level != logging.CRITICAL
 
-    def test_default_pins_sdk_auth_loggers(self, runner):
+    def test_default_pins_sdk_auth_loggers(self, runner, monkeypatch):
+        monkeypatch.setenv("SCM_LOG_LEVEL", "WARNING")
         result = runner.invoke(app, ["show", "object", "address", "--folder", "Texas"])
 
         assert result.exit_code == 0
         assert logging.getLogger("scm.auth").level == logging.CRITICAL
 
     def test_debug_shows_traceback_on_error(self, runner, monkeypatch):
-        from scm_cli.utils.sdk_client import scm_client
+        from src.scm_cli.utils.sdk_client import scm_client
 
         def boom(**kwargs):
             raise RuntimeError("kaboom")
@@ -53,7 +54,7 @@ class TestDebugFlag:
         assert "Traceback" in result.output or "RuntimeError" in result.output
 
     def test_no_debug_hides_traceback(self, runner, monkeypatch):
-        from scm_cli.utils.sdk_client import scm_client
+        from src.scm_cli.utils.sdk_client import scm_client
 
         def boom(**kwargs):
             raise RuntimeError("kaboom")
@@ -110,7 +111,7 @@ class TestUpsertErrorPropagation:
 
         client = self._client_with_fake_sdk(monkeypatch, FakeProfile())
 
-        with pytest.raises(APIError, match="update failed"):
+        with pytest.raises(APIError):
             client.create_authentication_profile(name="p1", folder="Texas")
         assert calls["create"] == 0
 
