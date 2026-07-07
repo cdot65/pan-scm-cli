@@ -226,6 +226,7 @@ class TestZoneCommands:
                 "test-folder",
                 "--name",
                 "test-zone",
+                "--force",
             ],
         )
 
@@ -849,6 +850,7 @@ class TestIPsecCryptoProfileCommands:
                 "Texas",
                 "--name",
                 "test-profile",
+                "--force",
             ],
         )
 
@@ -1169,6 +1171,7 @@ class TestNATRuleCommands:
                 "Texas",
                 "--name",
                 "outbound-nat",
+                "--force",
             ],
         )
 
@@ -2961,3 +2964,60 @@ class TestQosRuleCommands:
         result = runner.invoke(test_app, ["--file", str(yaml_file)])
         assert result.exit_code == 0
         assert "Created QoS rule" in result.stdout
+
+
+class TestDeleteConfirmations:
+    """Deletes must prompt for confirmation unless --force is given.
+
+    Covers the three delete commands that historically deleted immediately:
+    zone, ipsec-crypto-profile, and nat-rule.
+    """
+
+    CASES = [
+        (delete_zone, "delete_zone", "test-zone"),
+        (delete_ipsec_crypto_profile, "delete_ipsec_crypto_profile", "test-profile"),
+        (delete_nat_rule, "delete_nat_rule", "outbound-nat"),
+    ]
+
+    def _make_app(self, command, client_method, monkeypatch, calls):
+        from scm_cli.utils.sdk_client import scm_client
+
+        def mock_delete(*args, **kwargs):
+            calls.append(kwargs)
+            return True
+
+        monkeypatch.setattr(scm_client, client_method, mock_delete)
+        test_app = typer.Typer()
+        test_app.command()(command)
+        return test_app
+
+    def test_prompt_decline_aborts_without_deleting(self, runner, monkeypatch):
+        for command, client_method, name in self.CASES:
+            calls = []
+            test_app = self._make_app(command, client_method, monkeypatch, calls)
+
+            result = runner.invoke(test_app, ["--folder", "Texas", "--name", name], input="n\n")
+
+            assert result.exit_code != 0, f"{client_method}: declining must not exit 0"
+            assert calls == [], f"{client_method}: delete must not be called on decline"
+
+    def test_prompt_accept_deletes(self, runner, monkeypatch):
+        for command, client_method, name in self.CASES:
+            calls = []
+            test_app = self._make_app(command, client_method, monkeypatch, calls)
+
+            result = runner.invoke(test_app, ["--folder", "Texas", "--name", name], input="y\n")
+
+            assert result.exit_code == 0, f"{client_method}: accepting must delete"
+            assert len(calls) == 1, f"{client_method}: delete must be called once"
+
+    def test_force_skips_prompt(self, runner, monkeypatch):
+        for command, client_method, name in self.CASES:
+            calls = []
+            test_app = self._make_app(command, client_method, monkeypatch, calls)
+
+            result = runner.invoke(test_app, ["--folder", "Texas", "--name", name, "--force"])
+
+            assert result.exit_code == 0, f"{client_method}: --force must delete"
+            assert len(calls) == 1
+            assert "?" not in result.stdout, f"{client_method}: --force must not prompt"
