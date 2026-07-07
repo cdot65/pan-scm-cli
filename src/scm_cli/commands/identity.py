@@ -41,11 +41,11 @@ backup_app = typer.Typer(help="Backup identity configurations to YAML files")
 # COMMAND OPTIONS
 # =============================================================================================================================================================================================
 
-NAME_OPTION = typer.Option(..., "--name", help="Name of the resource")
 DESCRIPTION_OPTION = typer.Option(None, "--description", help="Description of the resource")
 FOLDER_OPTION = typer.Option(None, "--folder", help="Folder to scope the resource to")
 SNIPPET_OPTION = typer.Option(None, "--snippet", help="Snippet to scope the resource to")
 DEVICE_OPTION = typer.Option(None, "--device", help="Device to scope the resource to")
+MAX_RESULTS_OPTION = typer.Option(None, "--max-results", help="Maximum number of results to display")
 FILE_OPTION = typer.Option(..., "--file", help="YAML file to load configurations from")
 DRY_RUN_OPTION = typer.Option(False, "--dry-run", help="Simulate execution without applying changes")
 
@@ -104,10 +104,10 @@ def _bulk_load_profiles(items: list[dict], apply_item, label: str, plural_label:
 @set_app.command("authentication-profile")
 @handle_command_errors("creating authentication profile")
 def set_authentication_profile(
+    name: str = typer.Argument(..., help="Name of the authentication profile"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     method: str | None = typer.Option(None, "--method", help="Authentication method as JSON string"),
     user_domain: str | None = typer.Option(None, "--user-domain", help="User domain"),
     username_modifier: str | None = typer.Option(None, "--username-modifier", help="Username modifier pattern"),
@@ -120,7 +120,7 @@ def set_authentication_profile(
 
     Examples
     --------
-        scm set identity authentication-profile --folder Texas --name my-auth \\
+        scm set identity authentication-profile my-auth --folder Texas \\
             --method '{"ldap": {"server_profile": "corp-ldap", "login_attribute": "sAMAccountName"}}'
 
     """
@@ -166,45 +166,46 @@ def set_authentication_profile(
 @show_app.command("authentication-profile")
 @handle_command_errors("showing authentication profiles")
 def show_authentication_profile(
+    name: str | None = typer.Argument(None, help="Name of the authentication profile to show; omit to list all"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the authentication profile to show"),
-    list_items: bool = typer.Option(False, "--list", "-l", help="List all authentication profiles"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display authentication profiles.
 
     Examples
     --------
-        scm show identity authentication-profile --folder Texas --list
-        scm show identity authentication-profile --folder Texas --name my-auth
+        scm show identity authentication-profile --folder Texas
+        scm show identity authentication-profile my-auth --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
-        location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_authentication_profile(name=name, **{location_type: location_value})
         emit(profile, output, title=f"Authentication Profile: {name}")
         return
 
     profiles = scm_client.list_authentication_profiles(folder=folder, snippet=snippet, device=device)
-    location = folder or snippet or device
-    title = f"Authentication Profiles in {location}" if location else "Authentication Profiles"
-    emit(profiles, output, columns=["name", "user_domain", "method", "allow_list"], title=title)
+    if max_results is not None:
+        profiles = profiles[:max_results]
+    emit(profiles, output, columns=["name", "user_domain", "method", "allow_list"], title=f"Authentication Profiles in {location_value}")
 
 
 @delete_app.command("authentication-profile")
 @handle_command_errors("deleting authentication profile")
 def delete_authentication_profile(
+    name: str = typer.Argument(..., help="Name of the authentication profile to delete"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an authentication profile.
 
-    Example: scm delete identity authentication-profile --folder Texas --name my-auth
+    Example: scm delete identity authentication-profile my-auth --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -318,17 +319,17 @@ def backup_authentication_profile(
 @set_app.command("kerberos-server-profile")
 @handle_command_errors("creating Kerberos server profile")
 def set_kerberos_server_profile(
+    name: str = typer.Argument(..., help="Name of the Kerberos server profile"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     servers: str | None = typer.Option(None, "--servers", help="Server list as JSON string"),
 ):
     r"""Create or update a Kerberos server profile.
 
     Examples
     --------
-        scm set identity kerberos-server-profile --folder Texas --name corp-kerberos \\
+        scm set identity kerberos-server-profile corp-kerberos --folder Texas \\
             --servers '[{"name": "kdc1", "host": "kdc1.example.com", "port": 88}]'
 
     """
@@ -364,45 +365,46 @@ def set_kerberos_server_profile(
 @show_app.command("kerberos-server-profile")
 @handle_command_errors("showing Kerberos server profiles")
 def show_kerberos_server_profile(
+    name: str | None = typer.Argument(None, help="Name of the Kerberos server profile to show; omit to list all"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the Kerberos server profile to show"),
-    list_items: bool = typer.Option(False, "--list", "-l", help="List all Kerberos server profiles"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display Kerberos server profiles.
 
     Examples
     --------
-        scm show identity kerberos-server-profile --folder Texas --list
-        scm show identity kerberos-server-profile --folder Texas --name corp-kerberos
+        scm show identity kerberos-server-profile --folder Texas
+        scm show identity kerberos-server-profile corp-kerberos --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
-        location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_kerberos_server_profile(name=name, **{location_type: location_value})
         emit(profile, output, title=f"Kerberos Server Profile: {name}")
         return
 
     profiles = scm_client.list_kerberos_server_profiles(folder=folder, snippet=snippet, device=device)
-    location = folder or snippet or device
-    title = f"Kerberos Server Profiles in {location}" if location else "Kerberos Server Profiles"
-    emit(profiles, output, columns=["name", "server"], title=title)
+    if max_results is not None:
+        profiles = profiles[:max_results]
+    emit(profiles, output, columns=["name", "server"], title=f"Kerberos Server Profiles in {location_value}")
 
 
 @delete_app.command("kerberos-server-profile")
 @handle_command_errors("deleting Kerberos server profile")
 def delete_kerberos_server_profile(
+    name: str = typer.Argument(..., help="Name of the Kerberos server profile to delete"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a Kerberos server profile.
 
-    Example: scm delete identity kerberos-server-profile --folder Texas --name corp-kerberos
+    Example: scm delete identity kerberos-server-profile corp-kerberos --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -516,10 +518,10 @@ def backup_kerberos_server_profile(
 @set_app.command("ldap-server-profile")
 @handle_command_errors("creating LDAP server profile")
 def set_ldap_server_profile(
+    name: str = typer.Argument(..., help="Name of the LDAP server profile"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     servers: str | None = typer.Option(None, "--servers", help="Server list as JSON string"),
     base: str | None = typer.Option(None, "--base", help="Base distinguished name"),
     bind_dn: str | None = typer.Option(None, "--bind-dn", help="Bind distinguished name"),
@@ -531,7 +533,7 @@ def set_ldap_server_profile(
 
     Examples
     --------
-        scm set identity ldap-server-profile --folder Texas --name corp-ldap \\
+        scm set identity ldap-server-profile corp-ldap --folder Texas \\
             --servers '[{"name": "ldap1", "address": "ldap.example.com", "port": 389}]' \\
             --base "dc=example,dc=com" --ldap-type active-directory
 
@@ -573,45 +575,46 @@ def set_ldap_server_profile(
 @show_app.command("ldap-server-profile")
 @handle_command_errors("showing LDAP server profiles")
 def show_ldap_server_profile(
+    name: str | None = typer.Argument(None, help="Name of the LDAP server profile to show; omit to list all"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the LDAP server profile to show"),
-    list_items: bool = typer.Option(False, "--list", "-l", help="List all LDAP server profiles"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display LDAP server profiles.
 
     Examples
     --------
-        scm show identity ldap-server-profile --folder Texas --list
-        scm show identity ldap-server-profile --folder Texas --name corp-ldap
+        scm show identity ldap-server-profile --folder Texas
+        scm show identity ldap-server-profile corp-ldap --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
-        location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_ldap_server_profile(name=name, **{location_type: location_value})
         emit(profile, output, title=f"LDAP Server Profile: {name}")
         return
 
     profiles = scm_client.list_ldap_server_profiles(folder=folder, snippet=snippet, device=device)
-    location = folder or snippet or device
-    title = f"LDAP Server Profiles in {location}" if location else "LDAP Server Profiles"
-    emit(profiles, output, columns=["name", "ldap_type", "base", "server"], title=title)
+    if max_results is not None:
+        profiles = profiles[:max_results]
+    emit(profiles, output, columns=["name", "ldap_type", "base", "server"], title=f"LDAP Server Profiles in {location_value}")
 
 
 @delete_app.command("ldap-server-profile")
 @handle_command_errors("deleting LDAP server profile")
 def delete_ldap_server_profile(
+    name: str = typer.Argument(..., help="Name of the LDAP server profile to delete"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an LDAP server profile.
 
-    Example: scm delete identity ldap-server-profile --folder Texas --name corp-ldap
+    Example: scm delete identity ldap-server-profile corp-ldap --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -725,10 +728,10 @@ def backup_ldap_server_profile(
 @set_app.command("radius-server-profile")
 @handle_command_errors("creating RADIUS server profile")
 def set_radius_server_profile(
+    name: str = typer.Argument(..., help="Name of the RADIUS server profile"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     servers: str | None = typer.Option(None, "--servers", help="Server list as JSON string"),
     protocol: str | None = typer.Option(None, "--protocol", help="Protocol config as JSON string"),
     timeout: int | None = typer.Option(None, "--timeout", help="Timeout in seconds (1-120)"),
@@ -738,7 +741,7 @@ def set_radius_server_profile(
 
     Examples
     --------
-        scm set identity radius-server-profile --folder Texas --name corp-radius \\
+        scm set identity radius-server-profile corp-radius --folder Texas \\
             --servers '[{"name": "rad1", "ip_address": "10.0.0.1", "port": 1812, "secret": "s3cret"}]' \\
             --protocol '{"CHAP": {}}' --timeout 5 --retries 3
 
@@ -779,45 +782,46 @@ def set_radius_server_profile(
 @show_app.command("radius-server-profile")
 @handle_command_errors("showing RADIUS server profiles")
 def show_radius_server_profile(
+    name: str | None = typer.Argument(None, help="Name of the RADIUS server profile to show; omit to list all"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the RADIUS server profile to show"),
-    list_items: bool = typer.Option(False, "--list", "-l", help="List all RADIUS server profiles"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display RADIUS server profiles.
 
     Examples
     --------
-        scm show identity radius-server-profile --folder Texas --list
-        scm show identity radius-server-profile --folder Texas --name corp-radius
+        scm show identity radius-server-profile --folder Texas
+        scm show identity radius-server-profile corp-radius --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
-        location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_radius_server_profile(name=name, **{location_type: location_value})
         emit(profile, output, title=f"RADIUS Server Profile: {name}")
         return
 
     profiles = scm_client.list_radius_server_profiles(folder=folder, snippet=snippet, device=device)
-    location = folder or snippet or device
-    title = f"RADIUS Server Profiles in {location}" if location else "RADIUS Server Profiles"
-    emit(profiles, output, columns=["name", "server", "timeout", "retries"], title=title)
+    if max_results is not None:
+        profiles = profiles[:max_results]
+    emit(profiles, output, columns=["name", "server", "timeout", "retries"], title=f"RADIUS Server Profiles in {location_value}")
 
 
 @delete_app.command("radius-server-profile")
 @handle_command_errors("deleting RADIUS server profile")
 def delete_radius_server_profile(
+    name: str = typer.Argument(..., help="Name of the RADIUS server profile to delete"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a RADIUS server profile.
 
-    Example: scm delete identity radius-server-profile --folder Texas --name corp-radius
+    Example: scm delete identity radius-server-profile corp-radius --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -931,10 +935,10 @@ def backup_radius_server_profile(
 @set_app.command("saml-server-profile")
 @handle_command_errors("creating SAML server profile")
 def set_saml_server_profile(
+    name: str = typer.Argument(..., help="Name of the SAML server profile"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     entity_id: str = typer.Option(..., "--entity-id", help="Entity ID"),
     certificate: str = typer.Option(..., "--certificate", help="Certificate name"),
     sso_url: str = typer.Option(..., "--sso-url", help="Single Sign-On URL"),
@@ -948,7 +952,7 @@ def set_saml_server_profile(
 
     Examples
     --------
-        scm set identity saml-server-profile --folder Texas --name corp-saml \\
+        scm set identity saml-server-profile corp-saml --folder Texas \\
             --entity-id "https://idp.example.com" --certificate idp-cert \\
             --sso-url "https://idp.example.com/sso" --sso-bindings post
 
@@ -990,45 +994,46 @@ def set_saml_server_profile(
 @show_app.command("saml-server-profile")
 @handle_command_errors("showing SAML server profiles")
 def show_saml_server_profile(
+    name: str | None = typer.Argument(None, help="Name of the SAML server profile to show; omit to list all"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the SAML server profile to show"),
-    list_items: bool = typer.Option(False, "--list", "-l", help="List all SAML server profiles"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display SAML server profiles.
 
     Examples
     --------
-        scm show identity saml-server-profile --folder Texas --list
-        scm show identity saml-server-profile --folder Texas --name corp-saml
+        scm show identity saml-server-profile --folder Texas
+        scm show identity saml-server-profile corp-saml --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
-        location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_saml_server_profile(name=name, **{location_type: location_value})
         emit(profile, output, title=f"SAML Server Profile: {name}")
         return
 
     profiles = scm_client.list_saml_server_profiles(folder=folder, snippet=snippet, device=device)
-    location = folder or snippet or device
-    title = f"SAML Server Profiles in {location}" if location else "SAML Server Profiles"
-    emit(profiles, output, columns=["name", "entity_id", "sso_url", "sso_bindings"], title=title)
+    if max_results is not None:
+        profiles = profiles[:max_results]
+    emit(profiles, output, columns=["name", "entity_id", "sso_url", "sso_bindings"], title=f"SAML Server Profiles in {location_value}")
 
 
 @delete_app.command("saml-server-profile")
 @handle_command_errors("deleting SAML server profile")
 def delete_saml_server_profile(
+    name: str = typer.Argument(..., help="Name of the SAML server profile to delete"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a SAML server profile.
 
-    Example: scm delete identity saml-server-profile --folder Texas --name corp-saml
+    Example: scm delete identity saml-server-profile corp-saml --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -1142,10 +1147,10 @@ def backup_saml_server_profile(
 @set_app.command("tacacs-server-profile")
 @handle_command_errors("creating TACACS+ server profile")
 def set_tacacs_server_profile(
+    name: str = typer.Argument(..., help="Name of the TACACS+ server profile"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     servers: str | None = typer.Option(None, "--servers", help="Server list as JSON string"),
     protocol: str | None = typer.Option(None, "--protocol", help="Protocol type (CHAP, PAP)"),
     timeout: int | None = typer.Option(None, "--timeout", help="Timeout in seconds (1-30)"),
@@ -1155,7 +1160,7 @@ def set_tacacs_server_profile(
 
     Examples
     --------
-        scm set identity tacacs-server-profile --folder Texas --name corp-tacacs \\
+        scm set identity tacacs-server-profile corp-tacacs --folder Texas \\
             --servers '[{"name": "tac1", "address": "10.0.0.1", "port": 49, "secret": "s3cret"}]' \\
             --protocol CHAP --timeout 5
 
@@ -1195,45 +1200,46 @@ def set_tacacs_server_profile(
 @show_app.command("tacacs-server-profile")
 @handle_command_errors("showing TACACS+ server profiles")
 def show_tacacs_server_profile(
+    name: str | None = typer.Argument(None, help="Name of the TACACS+ server profile to show; omit to list all"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the TACACS+ server profile to show"),
-    list_items: bool = typer.Option(False, "--list", "-l", help="List all TACACS+ server profiles"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = MAX_RESULTS_OPTION,
 ):
     """Display TACACS+ server profiles.
 
     Examples
     --------
-        scm show identity tacacs-server-profile --folder Texas --list
-        scm show identity tacacs-server-profile --folder Texas --name corp-tacacs
+        scm show identity tacacs-server-profile --folder Texas
+        scm show identity tacacs-server-profile corp-tacacs --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
     if name:
-        location_type, location_value = validate_location_params(folder, snippet, device)
         profile = scm_client.get_tacacs_server_profile(name=name, **{location_type: location_value})
         emit(profile, output, title=f"TACACS+ Server Profile: {name}")
         return
 
     profiles = scm_client.list_tacacs_server_profiles(folder=folder, snippet=snippet, device=device)
-    location = folder or snippet or device
-    title = f"TACACS+ Server Profiles in {location}" if location else "TACACS+ Server Profiles"
-    emit(profiles, output, columns=["name", "protocol", "server", "timeout"], title=title)
+    if max_results is not None:
+        profiles = profiles[:max_results]
+    emit(profiles, output, columns=["name", "protocol", "server", "timeout"], title=f"TACACS+ Server Profiles in {location_value}")
 
 
 @delete_app.command("tacacs-server-profile")
 @handle_command_errors("deleting TACACS+ server profile")
 def delete_tacacs_server_profile(
+    name: str = typer.Argument(..., help="Name of the TACACS+ server profile to delete"),
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
-    name: str = NAME_OPTION,
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a TACACS+ server profile.
 
-    Example: scm delete identity tacacs-server-profile --folder Texas --name corp-tacacs
+    Example: scm delete identity tacacs-server-profile corp-tacacs --folder Texas
 
     """
     location_type, location_value = validate_location_params(folder, snippet, device)

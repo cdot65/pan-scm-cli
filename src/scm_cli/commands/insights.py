@@ -112,7 +112,6 @@ def show_alerts(
         "--folder",
         help="Filter alerts by folder",
     ),
-    mock: bool = typer.Option(False, "--mock", help="Run in mock mode"),
 ):
     """Show alerts from Strata Cloud Manager.
 
@@ -139,8 +138,6 @@ def show_alerts(
         scm insights alerts --real-time
 
     """
-    # Note: scm_client automatically uses mock mode when no credentials are available
-
     if alert_id:
         # Get specific alert
         alert = scm_client.get_alert(alert_id=alert_id, folder=folder)
@@ -221,7 +218,6 @@ def show_mobile_users(
         "--folder",
         help="Filter by folder",
     ),
-    mock: bool = typer.Option(False, "--mock", help="Run in mock mode"),
 ):
     """Show mobile users insights from Strata Cloud Manager.
 
@@ -239,8 +235,6 @@ def show_mobile_users(
         scm insights mobile-users --list --export json --output users.json
 
     """
-    # Note: scm_client automatically uses mock mode when no credentials are available
-
     if user_id:
         # Get specific user
         user = scm_client.get_mobile_user(user_id=user_id, folder=folder)
@@ -299,7 +293,6 @@ def show_locations(
         "--folder",
         help="Filter by folder",
     ),
-    mock: bool = typer.Option(False, "--mock", help="Run in mock mode"),
 ):
     """Show locations insights from Strata Cloud Manager.
 
@@ -317,8 +310,6 @@ def show_locations(
         scm insights locations --list --export csv --output locations.csv
 
     """
-    # Note: scm_client automatically uses mock mode when no credentials are available
-
     if location_id:
         # Get specific location
         location = scm_client.get_location(location_id=location_id, folder=folder)
@@ -380,7 +371,6 @@ def show_remote_networks(
         "--folder",
         help="Filter by folder",
     ),
-    mock: bool = typer.Option(False, "--mock", help="Run in mock mode"),
 ):
     """Show remote networks insights from Strata Cloud Manager.
 
@@ -398,8 +388,6 @@ def show_remote_networks(
         scm insights remote-networks --list --export json --output networks.json
 
     """
-    # Note: scm_client automatically uses mock mode when no credentials are available
-
     if network_id:
         # Get specific network
         network = scm_client.get_remote_network_insights(network_id=network_id, folder=folder, include_metrics=show_metrics)
@@ -459,7 +447,6 @@ def show_service_connections(
         "--folder",
         help="Filter by folder",
     ),
-    mock: bool = typer.Option(False, "--mock", help="Run in mock mode"),
 ):
     """Show service connections insights from Strata Cloud Manager.
 
@@ -477,8 +464,6 @@ def show_service_connections(
         scm insights service-connections --list --metrics --export csv --output connections.csv
 
     """
-    # Note: scm_client automatically uses mock mode when no credentials are available
-
     if connection_id:
         # Get specific connection
         connection = scm_client.get_service_connection_insights(connection_id=connection_id, folder=folder, include_metrics=show_metrics)
@@ -552,7 +537,6 @@ def show_tunnels(
         "--folder",
         help="Filter by folder",
     ),
-    mock: bool = typer.Option(False, "--mock", help="Run in mock mode"),
 ):
     """Show tunnels insights from Strata Cloud Manager.
 
@@ -573,8 +557,6 @@ def show_tunnels(
         scm insights tunnels --list --stats --export json --output tunnels.json
 
     """
-    # Note: scm_client automatically uses mock mode when no credentials are available
-
     if tunnel_id:
         # Get specific tunnel
         tunnel = scm_client.get_tunnel(

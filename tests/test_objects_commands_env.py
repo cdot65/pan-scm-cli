@@ -29,7 +29,7 @@ class TestAddressCommands:
 
             result = runner.invoke(
                 app,
-                ["set", "object", "address", "--folder", "Shared", "--name", "test-address", "--ip-netmask", "192.168.1.1/32"],
+                ["set", "object", "address", "test-address", "--folder", "Shared", "--ip-netmask", "192.168.1.1/32"],
             )
 
             assert result.exit_code == 0
@@ -49,7 +49,7 @@ class TestAddressCommands:
 
             result = runner.invoke(
                 app,
-                ["set", "object", "address", "--folder", "Shared", "--name", "test-address", "--ip-netmask", "192.168.1.1/32"],
+                ["set", "object", "address", "test-address", "--folder", "Shared", "--ip-netmask", "192.168.1.1/32"],
             )
 
             assert result.exit_code == 0
@@ -63,7 +63,7 @@ class TestAddressCommands:
         with patch("scm_cli.commands.objects.scm_client") as mock_client:
             mock_client.delete_address.return_value = True
 
-            result = runner.invoke(app, ["delete", "object", "address", "--folder", "Shared", "--name", "test-address", "--force"])
+            result = runner.invoke(app, ["delete", "object", "address", "test-address", "--folder", "Shared", "--force"])
 
             assert result.exit_code == 0
             assert "Deleted address" in result.stdout
@@ -92,10 +92,9 @@ class TestAddressGroupCommands:
                     "set",
                     "object",
                     "address-group",
+                    "test-group",
                     "--folder",
                     "Shared",
-                    "--name",
-                    "test-group",
                     "--type",
                     "static",
                     "--description",

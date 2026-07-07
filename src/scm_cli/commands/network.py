@@ -63,16 +63,6 @@ backup_app = typer.Typer(help="Backup network configurations to YAML files")
 # =============================================================================================================================================================================================
 
 # Define typer option constants
-FOLDER_OPTION = typer.Option(
-    ...,
-    "--folder",
-    help="Folder path for the zone",
-)
-NAME_OPTION = typer.Option(
-    ...,
-    "--name",
-    help="Name of the zone",
-)
 MODE_OPTION = typer.Option(
     ...,
     "--mode",
@@ -122,25 +112,15 @@ BACKUP_FILE_OPTION = typer.Option(
 )
 
 # NAT rule option constants
-NAT_FOLDER_OPTION = typer.Option(
-    ...,
-    "--folder",
-    help="Folder path for the NAT rule",
-)
-NAT_NAME_OPTION = typer.Option(
-    ...,
-    "--name",
-    help="Name of the NAT rule",
-)
 NAT_DESCRIPTION_OPTION = typer.Option(
     None,
     "--description",
     help="Description of the NAT rule",
 )
-NAT_TAG_OPTION = typer.Option(
+NAT_TAGS_OPTION = typer.Option(
     None,
-    "--tag",
-    help="Tags for the NAT rule",
+    "--tags",
+    help="Tags for the NAT rule (repeat for multiple)",
 )
 NAT_DISABLED_OPTION = typer.Option(
     False,
@@ -211,8 +191,6 @@ LOAD_DEVICE_OPTION = typer.Option(
 )
 
 # IPsec crypto profile option constants (module-level to avoid B008)
-IPSEC_FOLDER_OPTION = typer.Option("Texas", "--folder", help="Folder path for the IPsec crypto profile")
-IPSEC_NAME_OPTION = typer.Option(..., "--name", help="Name of the IPsec crypto profile")
 IPSEC_ESP_ENCRYPTION_OPTION: list[str] = typer.Option(
     ["aes-256-cbc"],
     "--esp-encryption",
@@ -323,6 +301,7 @@ def load_ike_crypto_profile(
     folder: str = typer.Option(None, "--folder", help="Override folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Override snippet location"),
     device: str = typer.Option(None, "--device", help="Override device location"),
+    dry_run: bool = DRY_RUN_OPTION,
 ) -> None:
     """Load IKE crypto profiles from a YAML file."""
     if not Path(file).exists():
@@ -336,6 +315,16 @@ def load_ike_crypto_profile(
     profiles = data["ike_crypto_profiles"]
     if not isinstance(profiles, list):
         profiles = [profiles]
+
+    if dry_run:
+        info("Dry run mode: would apply the following configurations:")
+        if folder or snippet or device:
+            override_type = "folder" if folder else ("snippet" if snippet else "device")
+            override_value = folder or snippet or device
+            info(f"Container override: {override_type} = '{override_value}'")
+        typer.echo(yaml.dump(profiles))
+        return None
+
     created_count = 0
 
     def _apply(profile_data: dict):
@@ -411,11 +400,12 @@ def set_ike_crypto_profile(
 @show_app.command("ike-crypto-profile", help="Show IKE crypto profile details.")
 @handle_command_errors("showing IKE crypto profile")
 def show_ike_crypto_profile(
-    name: str = typer.Option(None, "--name", help="Name of specific IKE crypto profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the IKE crypto profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show IKE crypto profile details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -428,6 +418,8 @@ def show_ike_crypto_profile(
         return profile
     else:
         profiles = scm_client.list_ike_crypto_profiles(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            profiles = profiles[:max_results]
         emit(profiles, output, title=f"IKE Crypto Profiles in {location_type} '{location_value}'")
         return profiles
 
@@ -602,11 +594,12 @@ def set_aggregate_interface(
 @show_app.command("aggregate-interface", help="Show aggregate interface details.")
 @handle_command_errors("showing aggregate interface")
 def show_aggregate_interface(
-    name: str = typer.Option(None, "--name", help="Name of specific aggregate interface to show"),
+    name: str | None = typer.Argument(None, help="Name of the aggregate interface to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show aggregate interface details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -619,6 +612,8 @@ def show_aggregate_interface(
         return iface
     else:
         interfaces = scm_client.list_aggregate_interfaces(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            interfaces = interfaces[:max_results]
         emit(interfaces, output, title=f"Aggregate Interfaces in {location_type} '{location_value}'")
         return interfaces
 
@@ -870,11 +865,12 @@ def set_ike_gateway(
 @show_app.command("ike-gateway", help="Show IKE gateway details.")
 @handle_command_errors("showing IKE gateway")
 def show_ike_gateway(
-    name: str = typer.Option(None, "--name", help="Name of specific IKE gateway to show"),
+    name: str | None = typer.Argument(None, help="Name of the IKE gateway to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show IKE gateway details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -887,6 +883,8 @@ def show_ike_gateway(
         return gateway
     else:
         gateways = scm_client.list_ike_gateways(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            gateways = gateways[:max_results]
         emit(gateways, output, title=f"IKE Gateways in {location_type} '{location_value}'")
         return gateways
 
@@ -959,23 +957,26 @@ def backup_security_zone(
 @delete_app.command("zone")
 @handle_command_errors("deleting security zone")
 def delete_zone(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the security zone to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a security zone.
 
-    Example: scm delete network zone --folder Texas --name trust
+    Example: scm delete network zone trust --folder Texas
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        typer.confirm(f"Delete zone '{name}' from folder '{folder}'?", abort=True)
+        typer.confirm(f"Delete zone '{name}' from {location_type} '{location_value}'?", abort=True)
     # Call the SDK client to delete the zone
-    result = scm_client.delete_zone(folder=folder, name=name)
+    result = scm_client.delete_zone(folder=folder, snippet=snippet, device=device, name=name)
 
     if result:
-        success(f"Deleted zone: {name} from folder {folder}")
+        success(f"Deleted zone: {name} from {location_type} {location_value}")
     else:
-        error(f"Zone not found: {name} in folder {folder}")
+        error(f"Zone not found: {name} in {location_type} {location_value}")
         raise typer.Exit(code=1)
 
 
@@ -1003,21 +1004,26 @@ def load_security_zone(
 
         # Convert to the SDK model and create the zone
         sdk_data = zone.to_sdk_model()
-        return scm_client.create_zone(
+        result = scm_client.create_zone(
             folder=zone.folder,
+            snippet=zone.snippet,
+            device=zone.device,
             name=sdk_data["name"],
             mode=sdk_data["mode"],
             interfaces=sdk_data["interfaces"],
         )
+        return zone, result
 
     # Apply each zone
     results = []
-    for _item, result, exc in run_bulk(config["security_zones"], _apply):
+    for _item, outcome, exc in run_bulk(config["security_zones"], _apply):
         if exc is not None:
             raise exc  # abort on first error, matching the previous sequential behavior
 
+        zone, result = outcome
         results.append(result)
-        success(f"Applied zone: {result['name']} in folder {result['folder']}")
+        container = zone.folder or zone.snippet or zone.device
+        success(f"Applied zone: {result['name']} in {container}")
 
     return results
 
@@ -1025,8 +1031,10 @@ def load_security_zone(
 @set_app.command("zone")
 @handle_command_errors("creating security zone")
 def set_zone(
-    folder: str = FOLDER_OPTION,
-    name: str = NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the security zone"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     mode: str = MODE_OPTION,
     interfaces: list[str] | None = INTERFACES_OPTION,
     enable_user_id: bool | None = ENABLE_USER_ID_OPTION,
@@ -1035,10 +1043,11 @@ def set_zone(
 
     Example:
     -------
-        scm set network zone --folder Texas --name trust --mode layer3 \
+        scm set network zone trust --folder Texas --mode layer3 \
         --interfaces ["ethernet1/1"] --enable-user-id
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     # Validate mode parameter
     valid_modes = ["layer3", "layer2", "virtual-wire", "tap", "external", "tunnel"]
     if mode not in valid_modes:
@@ -1066,9 +1075,8 @@ def set_zone(
         network=network_config,
         description=None,
         tags=None,
-        # Add None defaults for optional fields
-        snippet=None,
-        device=None,
+        snippet=snippet,
+        device=device,
         enable_user_identification=enable_user_id,
         enable_device_identification=None,
     )
@@ -1079,6 +1087,8 @@ def set_zone(
 
     result = scm_client.create_zone(
         folder=zone.folder,
+        snippet=zone.snippet,
+        device=zone.device,
         name=zone.name,
         mode=sdk_model["mode"],
         interfaces=sdk_model["interfaces"],
@@ -1088,20 +1098,23 @@ def set_zone(
 
     action = result.get("__action__", "created")
     if action == "created":
-        success(f"Created zone: {result['name']} in folder {result['folder']}")
+        success(f"Created zone: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated zone: {result['name']} in folder {result['folder']}")
+        success(f"Updated zone: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for zone: {result['name']} in folder {result['folder']}")
+        info(f"No changes needed for zone: {result['name']} in {location_type} {location_value}")
     return result
 
 
 @show_app.command("zone")
 @handle_command_errors("showing security zone")
 def show_zone(
-    folder: str = FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the security zone to show"),
+    name: str | None = typer.Argument(None, help="Name of the security zone to show; omit to list all"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ):
     """Display security zones.
 
@@ -1111,16 +1124,19 @@ def show_zone(
         scm show network zone --folder Texas
 
         # Show a specific security zone by name
-        scm show network zone --folder Texas --name trust
+        scm show network zone trust --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if name:
-        zone = scm_client.get_security_zone(folder=folder, name=name)
+        zone = scm_client.get_security_zone(folder=folder, snippet=snippet, device=device, name=name)
         emit(zone, output, title=f"Security Zone: {name}")
         return zone
     else:
-        zones = scm_client.list_security_zones(folder=folder)
-        emit(zones, output, title=f"Security Zones in folder '{folder}'")
+        zones = scm_client.list_security_zones(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            zones = zones[:max_results]
+        emit(zones, output, title=f"Security Zones in {location_type} '{location_value}'")
         return zones
 
 
@@ -1177,22 +1193,25 @@ def backup_ipsec_crypto_profile(
 @delete_app.command("ipsec-crypto-profile")
 @handle_command_errors("deleting IPsec crypto profile")
 def delete_ipsec_crypto_profile(
-    folder: str = IPSEC_FOLDER_OPTION,
-    name: str = IPSEC_NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the IPsec crypto profile to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an IPsec crypto profile.
 
-    Example: scm delete network ipsec-crypto-profile --folder Texas --name my-profile
+    Example: scm delete network ipsec-crypto-profile my-profile --folder Texas
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        typer.confirm(f"Delete IPsec crypto profile '{name}' from folder '{folder}'?", abort=True)
-    result = scm_client.delete_ipsec_crypto_profile(folder=folder, name=name)
+        typer.confirm(f"Delete IPsec crypto profile '{name}' from {location_type} '{location_value}'?", abort=True)
+    result = scm_client.delete_ipsec_crypto_profile(folder=folder, snippet=snippet, device=device, name=name)
 
     if result:
-        success(f"Deleted IPsec crypto profile: {name} from folder {folder}")
+        success(f"Deleted IPsec crypto profile: {name} from {location_type} {location_value}")
     else:
-        error(f"IPsec crypto profile not found: {name} in folder {folder}")
+        error(f"IPsec crypto profile not found: {name} in {location_type} {location_value}")
         raise typer.Exit(code=1)
 
 
@@ -1218,7 +1237,9 @@ def load_ipsec_crypto_profile(
         sdk_data = profile.to_sdk_model()
 
         return scm_client.create_ipsec_crypto_profile(
-            folder=profile.folder or "Texas",
+            folder=profile.folder,
+            snippet=profile.snippet,
+            device=profile.device,
             name=sdk_data["name"],
             esp_encryption=sdk_data["esp"]["encryption"],
             esp_authentication=sdk_data["esp"]["authentication"],
@@ -1242,8 +1263,10 @@ def load_ipsec_crypto_profile(
 @set_app.command("ipsec-crypto-profile")
 @handle_command_errors("creating IPsec crypto profile")
 def set_ipsec_crypto_profile(
-    folder: str = IPSEC_FOLDER_OPTION,
-    name: str = IPSEC_NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the IPsec crypto profile"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     esp_encryption: list[str] = IPSEC_ESP_ENCRYPTION_OPTION,
     esp_authentication: list[str] = IPSEC_ESP_AUTHENTICATION_OPTION,
     dh_group: str = IPSEC_DH_GROUP_OPTION,
@@ -1254,14 +1277,15 @@ def set_ipsec_crypto_profile(
 
     Example:
     -------
-        scm set network ipsec-crypto-profile --folder Texas --name my-profile \
+        scm set network ipsec-crypto-profile my-profile --folder Texas \
         --esp-encryption aes-256-cbc --esp-authentication sha256 --dh-group group14
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     profile = IPSecCryptoProfile(
         folder=folder,
-        snippet=None,
-        device=None,
+        snippet=snippet,
+        device=device,
         name=name,
         esp_encryption=esp_encryption,
         esp_authentication=esp_authentication,
@@ -1280,6 +1304,8 @@ def set_ipsec_crypto_profile(
 
     result = scm_client.create_ipsec_crypto_profile(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         esp_encryption=sdk_data["esp"]["encryption"],
         esp_authentication=sdk_data["esp"]["authentication"],
@@ -1290,20 +1316,23 @@ def set_ipsec_crypto_profile(
 
     action = result.get("__action__", "created")
     if action == "created":
-        success(f"Created IPsec crypto profile: {result['name']} in folder {result.get('folder', folder)}")
+        success(f"Created IPsec crypto profile: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated IPsec crypto profile: {result['name']} in folder {result.get('folder', folder)}")
+        success(f"Updated IPsec crypto profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for IPsec crypto profile: {result['name']} in folder {result.get('folder', folder)}")
+        info(f"No changes needed for IPsec crypto profile: {result['name']} in {location_type} {location_value}")
     return result
 
 
 @show_app.command("ipsec-crypto-profile")
 @handle_command_errors("showing IPsec crypto profile")
 def show_ipsec_crypto_profile(
-    folder: str = IPSEC_FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the IPsec crypto profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the IPsec crypto profile to show; omit to list all"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ):
     """Display IPsec crypto profiles.
 
@@ -1313,16 +1342,19 @@ def show_ipsec_crypto_profile(
         scm show network ipsec-crypto-profile --folder Texas
 
         # Show a specific IPsec crypto profile
-        scm show network ipsec-crypto-profile --folder Texas --name my-profile
+        scm show network ipsec-crypto-profile my-profile --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if name:
-        profile = scm_client.get_ipsec_crypto_profile(folder=folder, name=name)
+        profile = scm_client.get_ipsec_crypto_profile(folder=folder, snippet=snippet, device=device, name=name)
         emit(profile, output, title=f"IPsec Crypto Profile: {name}")
         return profile
     else:
-        profiles = scm_client.list_ipsec_crypto_profiles(folder=folder)
-        emit(profiles, output, title=f"IPsec Crypto Profiles in folder '{folder}'")
+        profiles = scm_client.list_ipsec_crypto_profiles(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            profiles = profiles[:max_results]
+        emit(profiles, output, title=f"IPsec Crypto Profiles in {location_type} '{location_value}'")
         return profiles
 
 
@@ -1379,22 +1411,25 @@ def backup_nat_rule(
 @delete_app.command("nat-rule")
 @handle_command_errors("deleting NAT rule")
 def delete_nat_rule(
-    folder: str = NAT_FOLDER_OPTION,
-    name: str = NAT_NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the NAT rule to delete"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a NAT rule.
 
-    Example: scm delete network nat-rule --folder Texas --name outbound-nat
+    Example: scm delete network nat-rule outbound-nat --folder Texas
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if not force:
-        typer.confirm(f"Delete NAT rule '{name}' from folder '{folder}'?", abort=True)
-    result = scm_client.delete_nat_rule(folder=folder, name=name)
+        typer.confirm(f"Delete NAT rule '{name}' from {location_type} '{location_value}'?", abort=True)
+    result = scm_client.delete_nat_rule(folder=folder, snippet=snippet, device=device, name=name)
 
     if result:
-        success(f"Deleted NAT rule: {name} from folder {folder}")
+        success(f"Deleted NAT rule: {name} from {location_type} {location_value}")
     else:
-        error(f"NAT rule not found: {name} in folder {folder}")
+        error(f"NAT rule not found: {name} in {location_type} {location_value}")
         raise typer.Exit(code=1)
 
 
@@ -1513,10 +1548,12 @@ def load_nat_rule(
 @set_app.command("nat-rule")
 @handle_command_errors("creating NAT rule")
 def set_nat_rule(
-    folder: str = NAT_FOLDER_OPTION,
-    name: str = NAT_NAME_OPTION,
+    name: str = typer.Argument(..., help="Name of the NAT rule"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     description: str | None = NAT_DESCRIPTION_OPTION,
-    tag: list[str] | None = NAT_TAG_OPTION,
+    tags: list[str] | None = NAT_TAGS_OPTION,
     disabled: bool = NAT_DISABLED_OPTION,
     nat_type: str = NAT_NAT_TYPE_OPTION,
     from_zone: list[str] | None = NAT_FROM_ZONES_OPTION,
@@ -1532,20 +1569,23 @@ def set_nat_rule(
 
     Example:
     -------
-        scm set network nat-rule --folder Texas --name outbound-nat \
+        scm set network nat-rule outbound-nat --folder Texas \
         --from-zone trust --to-zone untrust --source any --destination any \
         --source-translation '{"dynamic_ip_and_port": {"type": "dynamic_ip_and_port", "translated_address": ["10.0.0.1"]}}'
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     # Parse JSON strings for translation configs
     src_translation = json.loads(source_translation) if source_translation else None
     dst_translation = json.loads(destination_translation) if destination_translation else None
 
     result = scm_client.create_nat_rule(
         folder=folder,
+        snippet=snippet,
+        device=device,
         name=name,
         description=description,
-        tag=tag,
+        tag=tags,
         disabled=disabled,
         nat_type=nat_type,
         from_zones=from_zone or ["any"],
@@ -1561,11 +1601,11 @@ def set_nat_rule(
     action = result.pop("__action__", "created")
 
     if action == "created":
-        success(f"Created NAT rule: {result['name']} in folder {folder}")
+        success(f"Created NAT rule: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        success(f"Updated NAT rule: {result['name']} in folder {folder}")
+        success(f"Updated NAT rule: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        info(f"No changes needed for NAT rule: {result['name']} in folder {folder}")
+        info(f"No changes needed for NAT rule: {result['name']} in {location_type} {location_value}")
 
     return result
 
@@ -1573,9 +1613,12 @@ def set_nat_rule(
 @show_app.command("nat-rule")
 @handle_command_errors("showing NAT rule")
 def show_nat_rule(
-    folder: str = NAT_FOLDER_OPTION,
-    name: str | None = typer.Option(None, "--name", help="Name of the NAT rule to show"),
+    name: str | None = typer.Argument(None, help="Name of the NAT rule to show; omit to list all"),
+    folder: str = typer.Option(None, "--folder", help="Folder location"),
+    snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
+    device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ):
     """Display NAT rules.
 
@@ -1585,16 +1628,19 @@ def show_nat_rule(
         scm show network nat-rule --folder Texas
 
         # Show a specific NAT rule by name
-        scm show network nat-rule --folder Texas --name outbound-nat
+        scm show network nat-rule outbound-nat --folder Texas
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
     if name:
-        rule = scm_client.get_nat_rule(folder=folder, name=name)
+        rule = scm_client.get_nat_rule(folder=folder, snippet=snippet, device=device, name=name)
         emit(rule, output, title=f"NAT Rule: {name}")
         return rule
     else:
-        rules = scm_client.list_nat_rules(folder=folder)
-        emit(rules, output, title=f"NAT Rules in folder '{folder}'")
+        rules = scm_client.list_nat_rules(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            rules = rules[:max_results]
+        emit(rules, output, title=f"NAT Rules in {location_type} '{location_value}'")
         return rules
 
 
@@ -1762,11 +1808,12 @@ def set_dhcp_interface(
 @show_app.command("dhcp-interface", help="Show DHCP interface details.")
 @handle_command_errors("showing DHCP interface")
 def show_dhcp_interface(
-    name: str = typer.Option(None, "--name", help="Name of specific DHCP interface to show"),
+    name: str | None = typer.Argument(None, help="Name of the DHCP interface to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show DHCP interface details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -1779,6 +1826,8 @@ def show_dhcp_interface(
         return iface
     else:
         interfaces = scm_client.list_dhcp_interfaces(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            interfaces = interfaces[:max_results]
         emit(interfaces, output, title=f"DHCP Interfaces in {location_type} '{location_value}'")
         return interfaces
 
@@ -1959,11 +2008,12 @@ def set_ethernet_interface(
 @show_app.command("ethernet-interface", help="Show ethernet interface details.")
 @handle_command_errors("showing ethernet interface")
 def show_ethernet_interface(
-    name: str = typer.Option(None, "--name", help="Name of specific ethernet interface to show"),
+    name: str | None = typer.Argument(None, help="Name of the ethernet interface to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show ethernet interface details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -1976,6 +2026,8 @@ def show_ethernet_interface(
         return iface
     else:
         interfaces = scm_client.list_ethernet_interfaces(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            interfaces = interfaces[:max_results]
         emit(interfaces, output, title=f"Ethernet Interfaces in {location_type} '{location_value}'")
         return interfaces
 
@@ -2145,11 +2197,12 @@ def set_layer2_subinterface(
 @show_app.command("layer2-subinterface", help="Show layer2 subinterface details.")
 @handle_command_errors("showing layer2 subinterface")
 def show_layer2_subinterface(
-    name: str = typer.Option(None, "--name", help="Name of specific layer2 subinterface to show"),
+    name: str | None = typer.Argument(None, help="Name of the layer2 subinterface to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show layer2 subinterface details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -2162,6 +2215,8 @@ def show_layer2_subinterface(
         return iface
     else:
         interfaces = scm_client.list_layer2_subinterfaces(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            interfaces = interfaces[:max_results]
         emit(interfaces, output, title=f"Layer2 Subinterfaces in {location_type} '{location_value}'")
         return interfaces
 
@@ -2305,7 +2360,7 @@ def set_layer3_subinterface(
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
-    tag: int = typer.Option(None, "--tag", help="VLAN tag (1-4096)"),
+    vlan_tag: int = typer.Option(None, "--vlan-tag", help="VLAN tag (1-4096)"),
     parent_interface: str = typer.Option(None, "--parent-interface", help="Parent interface name"),
     comment: str = typer.Option(None, "--comment", help="Interface description/comment"),
     mtu: int = typer.Option(None, "--mtu", help="MTU (576-9216)"),
@@ -2315,8 +2370,8 @@ def set_layer3_subinterface(
     """Create or update a layer3 subinterface."""
     location_type, location_value = validate_location_params(folder, snippet, device)
     iface_data: dict[str, Any] = {"name": name, location_type: location_value}
-    if tag is not None:
-        iface_data["tag"] = tag
+    if vlan_tag is not None:
+        iface_data["tag"] = vlan_tag
     if parent_interface:
         iface_data["parent_interface"] = parent_interface
     if comment:
@@ -2342,11 +2397,12 @@ def set_layer3_subinterface(
 @show_app.command("layer3-subinterface", help="Show layer3 subinterface details.")
 @handle_command_errors("showing layer3 subinterface")
 def show_layer3_subinterface(
-    name: str = typer.Option(None, "--name", help="Name of specific layer3 subinterface to show"),
+    name: str | None = typer.Argument(None, help="Name of the layer3 subinterface to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show layer3 subinterface details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -2359,6 +2415,8 @@ def show_layer3_subinterface(
         return iface
     else:
         interfaces = scm_client.list_layer3_subinterfaces(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            interfaces = interfaces[:max_results]
         emit(interfaces, output, title=f"Layer3 Subinterfaces in {location_type} '{location_value}'")
         return interfaces
 
@@ -2536,11 +2594,12 @@ def set_loopback_interface(
 @show_app.command("loopback-interface", help="Show loopback interface details.")
 @handle_command_errors("showing loopback interface")
 def show_loopback_interface(
-    name: str = typer.Option(None, "--name", help="Name of specific loopback interface to show"),
+    name: str | None = typer.Argument(None, help="Name of the loopback interface to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show loopback interface details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -2553,6 +2612,8 @@ def show_loopback_interface(
         return iface
     else:
         interfaces = scm_client.list_loopback_interfaces(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            interfaces = interfaces[:max_results]
         emit(interfaces, output, title=f"Loopback Interfaces in {location_type} '{location_value}'")
         return interfaces
 
@@ -2727,11 +2788,12 @@ def set_tunnel_interface(
 @show_app.command("tunnel-interface", help="Show tunnel interface details.")
 @handle_command_errors("showing tunnel interface")
 def show_tunnel_interface(
-    name: str = typer.Option(None, "--name", help="Name of specific tunnel interface to show"),
+    name: str | None = typer.Argument(None, help="Name of the tunnel interface to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show tunnel interface details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -2744,6 +2806,8 @@ def show_tunnel_interface(
         return iface
     else:
         interfaces = scm_client.list_tunnel_interfaces(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            interfaces = interfaces[:max_results]
         emit(interfaces, output, title=f"Tunnel Interfaces in {location_type} '{location_value}'")
         return interfaces
 
@@ -2924,11 +2988,12 @@ def set_vlan_interface(
 @show_app.command("vlan-interface", help="Show VLAN interface details.")
 @handle_command_errors("showing VLAN interface")
 def show_vlan_interface(
-    name: str = typer.Option(None, "--name", help="Name of specific VLAN interface to show"),
+    name: str | None = typer.Argument(None, help="Name of the VLAN interface to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show VLAN interface details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -2941,6 +3006,8 @@ def show_vlan_interface(
         return iface
     else:
         interfaces = scm_client.list_vlan_interfaces(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            interfaces = interfaces[:max_results]
         emit(interfaces, output, title=f"VLAN Interfaces in {location_type} '{location_value}'")
         return interfaces
 
@@ -3103,11 +3170,12 @@ def set_bgp_address_family_profile(
 @show_app.command("bgp-address-family-profile", help="Show BGP address family profile details.")
 @handle_command_errors("showing BGP address family profile")
 def show_bgp_address_family_profile(
-    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show BGP address family profile details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3120,6 +3188,8 @@ def show_bgp_address_family_profile(
         return profile
     else:
         profiles = scm_client.list_bgp_address_family_profiles(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            profiles = profiles[:max_results]
         emit(profiles, output, title=f"BGP Address Family Profiles in {location_type} '{location_value}'")
         return profiles
 
@@ -3276,11 +3346,12 @@ def set_bgp_auth_profile(
 @show_app.command("bgp-auth-profile", help="Show BGP auth profile details.")
 @handle_command_errors("showing BGP auth profile")
 def show_bgp_auth_profile(
-    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show BGP auth profile details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3293,6 +3364,8 @@ def show_bgp_auth_profile(
         return profile
     else:
         profiles = scm_client.list_bgp_auth_profiles(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            profiles = profiles[:max_results]
         emit(profiles, output, title=f"BGP Auth Profiles in {location_type} '{location_value}'")
         return profiles
 
@@ -3446,11 +3519,12 @@ def set_ospf_auth_profile(
 @show_app.command("ospf-auth-profile", help="Show OSPF auth profile details.")
 @handle_command_errors("showing OSPF auth profile")
 def show_ospf_auth_profile(
-    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show OSPF auth profile details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3463,6 +3537,8 @@ def show_ospf_auth_profile(
         return profile
     else:
         profiles = scm_client.list_ospf_auth_profiles(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            profiles = profiles[:max_results]
         emit(profiles, output, title=f"OSPF Auth Profiles in {location_type} '{location_value}'")
         return profiles
 
@@ -3622,11 +3698,12 @@ def set_route_access_list(
 @show_app.command("route-access-list", help="Show route access list details.")
 @handle_command_errors("showing route access list")
 def show_route_access_list(
-    name: str = typer.Option(None, "--name", help="Name of specific route access list to show"),
+    name: str | None = typer.Argument(None, help="Name of the route access list to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show route access list details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3639,6 +3716,8 @@ def show_route_access_list(
         return item
     else:
         items = scm_client.list_route_access_lists(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            items = items[:max_results]
         emit(items, output, title=f"Route Access Lists in {location_type} '{location_value}'")
         return items
 
@@ -3798,11 +3877,12 @@ def set_route_prefix_list(
 @show_app.command("route-prefix-list", help="Show route prefix list details.")
 @handle_command_errors("showing route prefix list")
 def show_route_prefix_list(
-    name: str = typer.Option(None, "--name", help="Name of specific route prefix list to show"),
+    name: str | None = typer.Argument(None, help="Name of the route prefix list to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show route prefix list details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3815,6 +3895,8 @@ def show_route_prefix_list(
         return item
     else:
         items = scm_client.list_route_prefix_lists(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            items = items[:max_results]
         emit(items, output, title=f"Route Prefix Lists in {location_type} '{location_value}'")
         return items
 
@@ -3962,11 +4044,12 @@ def set_bgp_filtering_profile(
 @show_app.command("bgp-filtering-profile", help="Show BGP filtering profile details.")
 @handle_command_errors("showing BGP filtering profile")
 def show_bgp_filtering_profile(
-    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show BGP filtering profile details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -3979,6 +4062,8 @@ def show_bgp_filtering_profile(
         return profile
     else:
         profiles = scm_client.list_bgp_filtering_profiles(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            profiles = profiles[:max_results]
         emit(profiles, output, title=f"BGP Filtering Profiles in {location_type} '{location_value}'")
         return profiles
 
@@ -4126,11 +4211,12 @@ def set_bgp_redistribution_profile(
 @show_app.command("bgp-redistribution-profile", help="Show BGP redistribution profile details.")
 @handle_command_errors("showing BGP redistribution profile")
 def show_bgp_redistribution_profile(
-    name: str = typer.Option(None, "--name", help="Name of specific profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show BGP redistribution profile details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -4143,6 +4229,8 @@ def show_bgp_redistribution_profile(
         return profile
     else:
         profiles = scm_client.list_bgp_redistribution_profiles(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            profiles = profiles[:max_results]
         emit(profiles, output, title=f"BGP Redistribution Profiles in {location_type} '{location_value}'")
         return profiles
 
@@ -4290,11 +4378,12 @@ def set_bgp_route_map(
 @show_app.command("bgp-route-map", help="Show BGP route map details.")
 @handle_command_errors("showing BGP route map")
 def show_bgp_route_map(
-    name: str = typer.Option(None, "--name", help="Name of specific BGP route map to show"),
+    name: str | None = typer.Argument(None, help="Name of the BGP route map to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show BGP route map details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -4307,6 +4396,8 @@ def show_bgp_route_map(
         return item
     else:
         items = scm_client.list_bgp_route_maps(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            items = items[:max_results]
         emit(items, output, title=f"BGP Route Maps in {location_type} '{location_value}'")
         return items
 
@@ -4460,11 +4551,12 @@ def set_bgp_route_map_redistribution(
 @show_app.command("bgp-route-map-redistribution", help="Show BGP route map redistribution details.")
 @handle_command_errors("showing BGP route map redistribution")
 def show_bgp_route_map_redistribution(
-    name: str = typer.Option(None, "--name", help="Name of specific BGP route map redistribution to show"),
+    name: str | None = typer.Argument(None, help="Name of the BGP route map redistribution to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show BGP route map redistribution details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -4477,6 +4569,8 @@ def show_bgp_route_map_redistribution(
         return item
     else:
         items = scm_client.list_bgp_route_map_redistributions(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            items = items[:max_results]
         emit(items, output, title=f"BGP Route Map Redistributions in {location_type} '{location_value}'")
         return items
 
@@ -4645,11 +4739,12 @@ def set_dns_proxy(
 @show_app.command("dns-proxy", help="Show DNS proxy details.")
 @handle_command_errors("showing DNS proxy")
 def show_dns_proxy(
-    name: str = typer.Option(None, "--name", help="Name of specific DNS proxy to show"),
+    name: str | None = typer.Argument(None, help="Name of the DNS proxy to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show DNS proxy details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -4662,6 +4757,8 @@ def show_dns_proxy(
         return proxy
     else:
         proxies = scm_client.list_dns_proxies(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            proxies = proxies[:max_results]
         emit(proxies, output, title=f"DNS Proxies in {location_type} '{location_value}'")
         return proxies
 
@@ -4827,11 +4924,12 @@ def set_pbf_rule(
 @show_app.command("pbf-rule", help="Show PBF rule details.")
 @handle_command_errors("showing PBF rule")
 def show_pbf_rule(
-    name: str = typer.Option(None, "--name", help="Name of specific PBF rule to show"),
+    name: str | None = typer.Argument(None, help="Name of the PBF rule to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show PBF rule details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -4844,6 +4942,8 @@ def show_pbf_rule(
         return rule
     else:
         rules = scm_client.list_pbf_rules(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            rules = rules[:max_results]
         emit(rules, output, title=f"PBF Rules in {location_type} '{location_value}'")
         return rules
 
@@ -5012,11 +5112,12 @@ def set_qos_profile(
 @show_app.command("qos-profile", help="Show QoS profile details.")
 @handle_command_errors("showing QoS profile")
 def show_qos_profile(
-    name: str = typer.Option(None, "--name", help="Name of specific QoS profile to show"),
+    name: str | None = typer.Argument(None, help="Name of the QoS profile to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show QoS profile details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -5030,6 +5131,8 @@ def show_qos_profile(
         return profile
     else:
         profiles = scm_client.list_qos_profiles(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            profiles = profiles[:max_results]
         emit(profiles, output, title=f"QoS Profiles in {location_type} '{location_value}'")
         return profiles
 
@@ -5198,11 +5301,12 @@ def set_qos_rule(
 @show_app.command("qos-rule", help="Show QoS rule details.")
 @handle_command_errors("showing QoS rule")
 def show_qos_rule(
-    name: str = typer.Option(None, "--name", help="Name of specific QoS rule to show"),
+    name: str | None = typer.Argument(None, help="Name of the QoS rule to show; omit to list all"),
     folder: str = typer.Option(None, "--folder", help="Folder location"),
     snippet: str = typer.Option(None, "--snippet", help="Snippet location"),
     device: str = typer.Option(None, "--device", help="Device location"),
     output: OutputFormat = OUTPUT_OPTION,
+    max_results: int | None = typer.Option(None, "--max-results", help="Maximum number of results to display"),
 ) -> None:
     """Show QoS rule details."""
     location_type, location_value = validate_location_params(folder, snippet, device)
@@ -5215,5 +5319,7 @@ def show_qos_rule(
         return rule
     else:
         rules = scm_client.list_qos_rules(folder=folder, snippet=snippet, device=device)
+        if max_results is not None:
+            rules = rules[:max_results]
         emit(rules, output, title=f"QoS Rules in {location_type} '{location_value}'")
         return rules

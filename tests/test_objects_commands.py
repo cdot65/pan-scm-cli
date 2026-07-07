@@ -86,10 +86,9 @@ class TestAddressGroupCommands:
         result = runner.invoke(
             test_app,
             [
+                "test-group",
                 "--folder",
                 "test-folder",
-                "--name",
-                "test-group",
                 "--type",
                 "static",
                 "--members",
@@ -125,10 +124,9 @@ class TestAddressGroupCommands:
         result = runner.invoke(
             test_app,
             [
+                "test-group",
                 "--folder",
                 "test-folder",
-                "--name",
-                "test-group",
                 "--type",
                 "static",
                 "--members",
@@ -153,7 +151,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(delete_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group", "--force"])
+        result = runner.invoke(test_app, ["test-group", "--folder", "test-folder", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted address group: test-group" in result.stdout
@@ -170,7 +168,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(delete_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "test-group", "--force"])
+        result = runner.invoke(test_app, ["test-group", "--folder", "test-folder", "--force"])
 
         assert result.exit_code == 1
         assert "Error" in result.output
@@ -253,7 +251,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(show_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "Shared", "--name", "test-group"])
+        result = runner.invoke(test_app, ["test-group", "--folder", "Shared"])
 
         assert result.exit_code == 0
         assert "Address Group: test-group" in result.stdout
@@ -280,7 +278,7 @@ class TestAddressGroupCommands:
         test_app = typer.Typer()
         test_app.command()(show_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "Shared", "--name", "dynamic-endpoints"])
+        result = runner.invoke(test_app, ["dynamic-endpoints", "--folder", "Shared"])
 
         assert result.exit_code == 0
         assert "Address Group: dynamic-endpoints" in result.stdout
@@ -385,6 +383,8 @@ class TestScheduleCommands:
             test_app,
             [
                 "bad-sched",
+                "--folder",
+                "Texas",
                 "--schedule-type",
                 "recurring-daily",
                 "--time-range",
@@ -436,7 +436,7 @@ class TestScheduleCommands:
         test_app = typer.Typer()
         test_app.command()(show_schedule)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "BusinessHours"])
+        result = runner.invoke(test_app, ["BusinessHours", "--folder", "Texas"])
 
         assert result.exit_code == 0
         assert "Schedule: BusinessHours" in result.stdout
@@ -602,7 +602,7 @@ class TestRegionCommands:
         test_app = typer.Typer()
         test_app.command()(show_region)
 
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "US-South"])
+        result = runner.invoke(test_app, ["US-South", "--folder", "Texas"])
 
         assert result.exit_code == 0
         assert "Region: US-South" in result.stdout
@@ -673,7 +673,7 @@ class TestQuarantinedDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(set_quarantined_device)
 
-        result = runner.invoke(test_app, ["host-123", "--serial-number", "SN-456"])
+        result = runner.invoke(test_app, ["--host-id", "host-123", "--serial-number", "SN-456"])
 
         assert result.exit_code == 0
         assert "Created quarantined device: host-123" in result.stdout
@@ -690,7 +690,7 @@ class TestQuarantinedDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(set_quarantined_device)
 
-        result = runner.invoke(test_app, ["host-789"])
+        result = runner.invoke(test_app, ["--host-id", "host-789"])
 
         assert result.exit_code == 0
         assert "Created quarantined device: host-789" in result.stdout
@@ -707,7 +707,7 @@ class TestQuarantinedDeviceCommands:
         test_app = typer.Typer()
         test_app.command()(delete_quarantined_device)
 
-        result = runner.invoke(test_app, ["host-123", "--force"])
+        result = runner.invoke(test_app, ["--host-id", "host-123", "--force"])
 
         assert result.exit_code == 0
         assert "Deleted quarantined device: host-123" in result.stdout
@@ -887,7 +887,7 @@ class TestApplicationFilterUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "high-risk-apps", "--category", "business-systems", "--subcategory", "database", "--technology", "client-server", "--risk", "4"],
+            ["high-risk-apps", "--folder", "Texas", "--category", "business-systems", "--subcategory", "database", "--technology", "client-server", "--risk", "4"],
         )
 
         assert result.exit_code == 0
@@ -911,7 +911,7 @@ class TestApplicationFilterUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "high-risk-apps", "--category", "business-systems", "--subcategory", "database", "--technology", "client-server", "--risk", "4"],
+            ["high-risk-apps", "--folder", "Texas", "--category", "business-systems", "--subcategory", "database", "--technology", "client-server", "--risk", "4"],
         )
 
         assert result.exit_code == 0
@@ -940,10 +940,9 @@ class TestExternalDynamicListUpsert:
         result = runner.invoke(
             test_app,
             [
+                "test-edl",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-edl",
                 "--type",
                 "ip",
                 "--url",
@@ -975,10 +974,9 @@ class TestExternalDynamicListUpsert:
         result = runner.invoke(
             test_app,
             [
+                "test-edl",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-edl",
                 "--type",
                 "ip",
                 "--url",
@@ -1014,10 +1012,9 @@ class TestHIPObjectUpsert:
         result = runner.invoke(
             test_app,
             [
+                "wifi-only",
                 "--folder",
                 "Texas",
-                "--name",
-                "wifi-only",
                 "--network-info-type",
                 "is",
                 "--network-info-value",
@@ -1047,10 +1044,9 @@ class TestHIPObjectUpsert:
         result = runner.invoke(
             test_app,
             [
+                "wifi-only",
                 "--folder",
                 "Texas",
-                "--name",
-                "wifi-only",
                 "--network-info-type",
                 "is",
                 "--network-info-value",
@@ -1083,7 +1079,7 @@ class TestHIPProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-profile", "--match", '"wifi-only" is'],
+            ["test-profile", "--folder", "Texas", "--match", '"wifi-only" is'],
         )
 
         assert result.exit_code == 0
@@ -1107,7 +1103,7 @@ class TestHIPProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-profile", "--match", '"wifi-only" is'],
+            ["test-profile", "--folder", "Texas", "--match", '"wifi-only" is'],
         )
 
         assert result.exit_code == 0
@@ -1136,10 +1132,9 @@ class TestHTTPServerProfileUpsert:
         result = runner.invoke(
             test_app,
             [
+                "test-http-profile",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-http-profile",
                 "--servers",
                 '[{"name": "srv1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]',
             ],
@@ -1167,10 +1162,9 @@ class TestHTTPServerProfileUpsert:
         result = runner.invoke(
             test_app,
             [
+                "test-http-profile",
                 "--folder",
                 "Texas",
-                "--name",
-                "test-http-profile",
                 "--servers",
                 '[{"name": "srv1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]',
             ],
@@ -1201,7 +1195,7 @@ class TestLogForwardingProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-lfp"],
+            ["test-lfp", "--folder", "Texas"],
         )
 
         assert result.exit_code == 0
@@ -1225,7 +1219,7 @@ class TestLogForwardingProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-lfp"],
+            ["test-lfp", "--folder", "Texas"],
         )
 
         assert result.exit_code == 0
@@ -1253,7 +1247,7 @@ class TestServiceGroupUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "web-services", "--members", "http,https"],
+            ["web-services", "--folder", "Texas", "--members", "http,https"],
         )
 
         assert result.exit_code == 0
@@ -1277,7 +1271,7 @@ class TestServiceGroupUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "web-services", "--members", "http,https"],
+            ["web-services", "--folder", "Texas", "--members", "http,https"],
         )
 
         assert result.exit_code == 0
@@ -1437,7 +1431,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_address_group)
 
-        result = runner.invoke(test_app, ["--folder", "Shared", "--name", "test-group", "--output", "json"])
+        result = runner.invoke(test_app, ["test-group", "--folder", "Shared", "--output", "json"])
 
         assert result.exit_code == 0
         assert self._parse_json(result.output) == record
@@ -1475,7 +1469,7 @@ class TestCommaParsingConsistency:
         monkeypatch.setattr(scm_client, "create_service", mock_create)
         test_app = typer.Typer()
         test_app.command()(set_service)
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-svc", "--protocol", "tcp", "--port", "80", "--tag", "web, production"])
+        result = runner.invoke(test_app, ["test-svc", "--folder", "Texas", "--protocol", "tcp", "--port", "80", "--tags", "web, production"])
         assert result.exit_code == 0
         assert captured.get("tag") == ["web", "production"]
 
@@ -1492,9 +1486,205 @@ class TestCommaParsingConsistency:
         monkeypatch.setattr(scm_client, "create_service_group", mock_create)
         test_app = typer.Typer()
         test_app.command()(set_service_group)
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-sg", "--members", "HTTP, HTTPS, SSH"])
+        result = runner.invoke(test_app, ["test-sg", "--folder", "Texas", "--members", "HTTP, HTTPS, SSH"])
         assert result.exit_code == 0
         assert captured.get("members") == ["HTTP", "HTTPS", "SSH"]
+
+
+class TestContainerEnforcement:
+    """Exactly one of --folder/--snippet/--device must be provided on config commands."""
+
+    def test_set_address_no_container_fails(self, runner, monkeypatch):
+        from scm_cli.commands.objects import set_address
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_address", lambda *a, **k: pytest.fail("SDK must not be called"))
+
+        test_app = typer.Typer()
+        test_app.command()(set_address)
+
+        result = runner.invoke(test_app, ["web1", "--ip-netmask", "10.0.0.1/32"])
+
+        assert result.exit_code != 0
+        assert "One of --folder, --snippet, or --device must be specified" in result.output
+
+    def test_set_address_two_containers_fails(self, runner, monkeypatch):
+        from scm_cli.commands.objects import set_address
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_address", lambda *a, **k: pytest.fail("SDK must not be called"))
+
+        test_app = typer.Typer()
+        test_app.command()(set_address)
+
+        result = runner.invoke(
+            test_app,
+            ["web1", "--folder", "Texas", "--snippet", "Shared", "--ip-netmask", "10.0.0.1/32"],
+        )
+
+        assert result.exit_code != 0
+        assert "Only one of --folder, --snippet, or --device can be specified" in result.output
+
+
+class TestMaxResults:
+    """--max-results must slice list-mode output client-side."""
+
+    def test_show_address_max_results_slices(self, runner, monkeypatch):
+        from scm_cli.commands.objects import show_address
+        from scm_cli.utils.sdk_client import scm_client
+
+        rows = [{"name": f"addr-{i}", "folder": "Texas"} for i in range(5)]
+        monkeypatch.setattr(scm_client, "list_addresses", lambda *a, **k: rows)
+
+        test_app = typer.Typer()
+        test_app.command()(show_address)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--max-results", "2", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert TestShowJsonOutput._parse_json(result.output) == rows[:2]
+
+    def test_show_address_without_max_results_returns_all(self, runner, monkeypatch):
+        from scm_cli.commands.objects import show_address
+        from scm_cli.utils.sdk_client import scm_client
+
+        rows = [{"name": f"addr-{i}", "folder": "Texas"} for i in range(5)]
+        monkeypatch.setattr(scm_client, "list_addresses", lambda *a, **k: rows)
+
+        test_app = typer.Typer()
+        test_app.command()(show_address)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert TestShowJsonOutput._parse_json(result.output) == rows
+
+
+class TestSnippetContainer:
+    """--snippet must flow end-to-end to the SDK client for previously folder-only types."""
+
+    def test_set_address_snippet_reaches_client(self, runner, monkeypatch):
+        from scm_cli.commands.objects import set_address
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_create(*args, **kwargs):
+            captured.update(kwargs)
+            return {"id": "addr-1", "name": kwargs.get("name"), "snippet": kwargs.get("snippet"), "__action__": "created"}
+
+        monkeypatch.setattr(scm_client, "create_address", mock_create)
+
+        test_app = typer.Typer()
+        test_app.command()(set_address)
+
+        result = runner.invoke(test_app, ["web1", "--snippet", "Shared-Snippet", "--ip-netmask", "10.0.0.1/32"])
+
+        assert result.exit_code == 0
+        assert captured.get("snippet") == "Shared-Snippet"
+        assert captured.get("folder") is None
+        assert captured.get("device") is None
+
+    def test_show_address_snippet_reaches_client(self, runner, monkeypatch):
+        from scm_cli.commands.objects import show_address
+        from scm_cli.utils.sdk_client import scm_client
+
+        captured = {}
+
+        def mock_list(*args, **kwargs):
+            captured.update(kwargs)
+            return [{"name": "web1", "snippet": "Shared-Snippet"}]
+
+        monkeypatch.setattr(scm_client, "list_addresses", mock_list)
+
+        test_app = typer.Typer()
+        test_app.command()(show_address)
+
+        result = runner.invoke(test_app, ["--snippet", "Shared-Snippet"])
+
+        assert result.exit_code == 0
+        assert captured.get("snippet") == "Shared-Snippet"
+        assert captured.get("folder") is None
+
+
+class TestLoadDryRun:
+    """Newly added --dry-run flags must preview without calling the SDK."""
+
+    def test_load_tag_dry_run(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.objects import load_tag
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_tag", lambda *a, **k: pytest.fail("SDK must not be called in dry-run"))
+
+        yaml_content = "tags:\n  - name: production\n    folder: Texas\n    color: Red\n"
+        test_file = tmp_path / "tags.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_tag)
+
+        result = runner.invoke(test_app, ["--file", str(test_file), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Dry run" in result.output
+        assert "production" in result.output
+
+    def test_load_region_dry_run(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.objects import load_region
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_region", lambda *a, **k: pytest.fail("SDK must not be called in dry-run"))
+
+        yaml_content = "regions:\n  - name: US-South\n    folder: Texas\n"
+        test_file = tmp_path / "regions.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_region)
+
+        result = runner.invoke(test_app, ["--file", str(test_file), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Dry run" in result.output
+        assert "US-South" in result.output
+
+    def test_load_schedule_dry_run(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.objects import load_schedule
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_schedule", lambda *a, **k: pytest.fail("SDK must not be called in dry-run"))
+
+        yaml_content = "schedules:\n  - name: business-hours\n    folder: Texas\n"
+        test_file = tmp_path / "schedules.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_schedule)
+
+        result = runner.invoke(test_app, ["--file", str(test_file), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Dry run" in result.output
+        assert "business-hours" in result.output
+
+    def test_load_quarantined_device_dry_run(self, runner, monkeypatch, tmp_path):
+        from scm_cli.commands.objects import load_quarantined_device
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "create_quarantined_device", lambda *a, **k: pytest.fail("SDK must not be called in dry-run"))
+
+        yaml_content = "quarantined_devices:\n  - host_id: host-001\n"
+        test_file = tmp_path / "quarantined.yml"
+        test_file.write_text(yaml_content)
+
+        test_app = typer.Typer()
+        test_app.command()(load_quarantined_device)
+
+        result = runner.invoke(test_app, ["--file", str(test_file), "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "Dry run" in result.output
+        assert "host-001" in result.output
 
 
 class TestLoadConcurrency:

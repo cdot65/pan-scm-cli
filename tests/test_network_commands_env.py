@@ -30,7 +30,7 @@ class TestZoneCommands:
 
             result = runner.invoke(
                 app,
-                ["set", "network", "zone", "--folder", "Shared", "--name", "test-zone", "--mode", "layer3", "--interfaces", "ethernet1/1"],
+                ["set", "network", "zone", "test-zone", "--folder", "Shared", "--mode", "layer3", "--interfaces", "ethernet1/1"],
             )
 
             assert result.exit_code == 0
@@ -52,7 +52,7 @@ class TestZoneCommands:
 
             result = runner.invoke(
                 app,
-                ["set", "network", "zone", "--folder", "Shared", "--name", "test-zone", "--mode", "layer3"],
+                ["set", "network", "zone", "test-zone", "--folder", "Shared", "--mode", "layer3"],
             )
 
             assert result.exit_code == 0
@@ -66,7 +66,7 @@ class TestZoneCommands:
         with patch("scm_cli.commands.network.scm_client") as mock_client:
             mock_client.delete_zone.return_value = True
 
-            result = runner.invoke(app, ["delete", "network", "zone", "--folder", "Shared", "--name", "test-zone", "--force"])
+            result = runner.invoke(app, ["delete", "network", "zone", "test-zone", "--folder", "Shared", "--force"])
 
             assert result.exit_code == 0
             assert "Deleted zone" in result.stdout

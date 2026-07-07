@@ -63,7 +63,7 @@ def _run_operation(device: str, operation: str, async_mode: bool, timeout: int, 
     if async_mode:
         job_id = result.get("job_id", "unknown")
         success(f"Job dispatched: {job_id}")
-        info(f"Check status with: scm operations status --job-id {job_id}")
+        info(f"Check status with: scm operations status --id {job_id}")
         return
 
     results = result.get("results", [])
@@ -170,14 +170,14 @@ def logging_status(device: str = DEVICE_OPTION, async_mode: bool = ASYNC_OPTION,
 @app.command("status")
 @handle_command_errors("checking job status")
 def operation_status(
-    job_id: str = typer.Option(..., "--job-id", "-j", help="Job ID to check"),
+    job_id: str = typer.Option(..., "--id", help="Job ID to check"),
     output: OutputFormat = OUTPUT_OPTION,
 ):
     """Check status of a dispatched device operation job.
 
     Examples
     --------
-    scm operations status --job-id abc-123
+    scm operations status --id abc-123
 
     """
     result = scm_client.get_device_operation_status(job_id=job_id)

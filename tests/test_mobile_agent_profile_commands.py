@@ -142,7 +142,7 @@ class TestAgentProfileCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "corp-app-settings",
+                "corp-app-settings",
                 "--connect-method", "user-logon",
                 "--tunnel-mtu", "1400",
                 "--os", "Windows",
@@ -174,7 +174,7 @@ class TestAgentProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "corp-app-settings", "--save-user-credentials", "1"],
+            ["corp-app-settings", "--save-user-credentials", "1"],
         )
 
         assert result.exit_code == 0
@@ -192,7 +192,7 @@ class TestAgentProfileCommands:
         test_app = typer.Typer()
         test_app.command()(set_agent_profile)
 
-        result = runner.invoke(test_app, ["--name", "corp-app-settings"])
+        result = runner.invoke(test_app, ["corp-app-settings"])
 
         assert result.exit_code == 0
         assert "No changes needed" in result.stdout
@@ -204,7 +204,7 @@ class TestAgentProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Shared", "--name", "corp-app-settings"],
+            ["--folder", "Shared", "corp-app-settings"],
         )
 
         assert result.exit_code == 1
@@ -222,7 +222,7 @@ class TestAgentProfileCommands:
         test_app = typer.Typer()
         test_app.command()(set_agent_profile)
 
-        result = runner.invoke(test_app, ["--name", "fail-profile"])
+        result = runner.invoke(test_app, ["fail-profile"])
 
         assert result.exit_code == 1
 
@@ -268,7 +268,7 @@ class TestAgentProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "corp-app-settings"],
+            ["--folder", "Mobile Users", "corp-app-settings"],
         )
 
         assert result.exit_code == 0
@@ -301,7 +301,7 @@ class TestAgentProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "corp-app-settings", "--force"],
+            ["--folder", "Mobile Users", "corp-app-settings", "--force"],
         )
 
         assert result.exit_code == 0
@@ -321,7 +321,7 @@ class TestAgentProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
+            ["--folder", "Mobile Users", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -425,7 +425,7 @@ class TestTunnelProfileCommands:
             test_app,
             [
                 "--folder", "Mobile Users",
-                "--name", "corp-tunnel",
+                "corp-tunnel",
                 "--access-route", "10.0.0.0/8",
                 "--no-direct-access-to-local-network",
             ],
@@ -450,7 +450,7 @@ class TestTunnelProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "corp-tunnel", "--retrieve-framed-ip-address"],
+            ["corp-tunnel", "--retrieve-framed-ip-address"],
         )
 
         assert result.exit_code == 0
@@ -468,7 +468,7 @@ class TestTunnelProfileCommands:
         test_app = typer.Typer()
         test_app.command()(set_tunnel_profile)
 
-        result = runner.invoke(test_app, ["--name", "corp-tunnel"])
+        result = runner.invoke(test_app, ["corp-tunnel"])
 
         assert result.exit_code == 0
         assert "No changes needed" in result.stdout
@@ -480,7 +480,7 @@ class TestTunnelProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Shared", "--name", "corp-tunnel"],
+            ["--folder", "Shared", "corp-tunnel"],
         )
 
         assert result.exit_code == 1
@@ -498,7 +498,7 @@ class TestTunnelProfileCommands:
         test_app = typer.Typer()
         test_app.command()(set_tunnel_profile)
 
-        result = runner.invoke(test_app, ["--name", "fail-tunnel"])
+        result = runner.invoke(test_app, ["fail-tunnel"])
 
         assert result.exit_code == 1
 
@@ -543,7 +543,7 @@ class TestTunnelProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "corp-tunnel"],
+            ["--folder", "Mobile Users", "corp-tunnel"],
         )
 
         assert result.exit_code == 0
@@ -575,7 +575,7 @@ class TestTunnelProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "corp-tunnel", "--force"],
+            ["--folder", "Mobile Users", "corp-tunnel", "--force"],
         )
 
         assert result.exit_code == 0
@@ -595,7 +595,7 @@ class TestTunnelProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Mobile Users", "--name", "nonexistent", "--force"],
+            ["--folder", "Mobile Users", "nonexistent", "--force"],
         )
 
         assert result.exit_code == 1
@@ -692,7 +692,7 @@ class TestShowJsonOutput:
         test_app = typer.Typer()
         test_app.command()(show_agent_profile)
 
-        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "corp-app-settings", "--output", "json"])
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "corp-app-settings", "--output", "json"])
 
         assert result.exit_code == 0
         assert json.loads(result.stdout) == profile
