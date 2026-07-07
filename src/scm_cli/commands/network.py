@@ -1095,11 +1095,14 @@ def backup_security_zone(
 def delete_zone(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a security zone.
 
     Example: scm delete network zone --folder Texas --name trust
     """
+    if not force:
+        typer.confirm(f"Delete zone '{name}' from folder '{folder}'?", abort=True)
     # Call the SDK client to delete the zone
     result = scm_client.delete_zone(folder=folder, name=name)
 
@@ -1473,11 +1476,14 @@ def backup_ipsec_crypto_profile(
 def delete_ipsec_crypto_profile(
     folder: str = IPSEC_FOLDER_OPTION,
     name: str = IPSEC_NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete an IPsec crypto profile.
 
     Example: scm delete network ipsec-crypto-profile --folder Texas --name my-profile
     """
+    if not force:
+        typer.confirm(f"Delete IPsec crypto profile '{name}' from folder '{folder}'?", abort=True)
     result = scm_client.delete_ipsec_crypto_profile(folder=folder, name=name)
 
     if result:
@@ -1734,11 +1740,14 @@ def backup_nat_rule(
 def delete_nat_rule(
     folder: str = NAT_FOLDER_OPTION,
     name: str = NAT_NAME_OPTION,
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ):
     """Delete a NAT rule.
 
     Example: scm delete network nat-rule --folder Texas --name outbound-nat
     """
+    if not force:
+        typer.confirm(f"Delete NAT rule '{name}' from folder '{folder}'?", abort=True)
     result = scm_client.delete_nat_rule(folder=folder, name=name)
 
     if result:
