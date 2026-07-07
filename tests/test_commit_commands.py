@@ -1,7 +1,6 @@
 """Tests for commit command."""
 
 import pytest
-from typer.testing import CliRunner
 
 from src.scm_cli.commands import commit
 from src.scm_cli.main import app

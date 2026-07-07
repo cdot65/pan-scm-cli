@@ -1,5 +1,8 @@
 """Tests for the identity commands module."""
 
+import json
+
+import pytest
 import typer
 
 from scm_cli.commands.identity import (
@@ -16,6 +19,11 @@ from scm_cli.commands.identity import (
     set_tacacs_server_profile,
     show_app,
     show_authentication_profile,
+    show_kerberos_server_profile,
+    show_ldap_server_profile,
+    show_radius_server_profile,
+    show_saml_server_profile,
+    show_tacacs_server_profile,
 )
 
 
@@ -270,3 +278,68 @@ class TestTacacsServerProfileCommands:
         )
         assert result.exit_code == 0
         assert "Created TACACS+ server profile" in result.output
+
+
+class TestShowJsonOutput:
+    """Test that show commands emit machine-readable JSON on stdout."""
+
+    @pytest.mark.parametrize(
+        ("command", "list_method"),
+        [
+            (show_authentication_profile, "list_authentication_profiles"),
+            (show_kerberos_server_profile, "list_kerberos_server_profiles"),
+            (show_ldap_server_profile, "list_ldap_server_profiles"),
+            (show_radius_server_profile, "list_radius_server_profiles"),
+            (show_saml_server_profile, "list_saml_server_profiles"),
+            (show_tacacs_server_profile, "list_tacacs_server_profiles"),
+        ],
+    )
+    def test_show_list_output_json_round_trips(self, runner, monkeypatch, command, list_method):
+        from scm_cli.utils.sdk_client import scm_client
+
+        records = [
+            {"id": "prof-1", "name": "profile-one", "folder": "Texas"},
+            {"id": "prof-2", "name": "profile-two", "folder": "Texas"},
+        ]
+        monkeypatch.setattr(scm_client, list_method, lambda *a, **kw: records)
+
+        test_app = typer.Typer()
+        test_app.command()(command)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == records
+
+    def test_show_authentication_profile_by_name_output_json(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        record = {
+            "id": "auth-12345",
+            "name": "test-auth",
+            "folder": "Texas",
+            "method": {"local_database": {}},
+            "allow_list": ["all"],
+        }
+        monkeypatch.setattr(scm_client, "get_authentication_profile", lambda *a, **kw: record)
+
+        test_app = typer.Typer()
+        test_app.command()(show_authentication_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-auth", "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == record
+
+    def test_show_authentication_profile_empty_list_output_json(self, runner, monkeypatch):
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_authentication_profiles", lambda *a, **kw: [])
+
+        test_app = typer.Typer()
+        test_app.command()(show_authentication_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Texas", "--output", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.stdout) == []

@@ -2,6 +2,7 @@
 
 import pytest
 import yaml
+
 from scm_cli.utils.config import load_from_yaml
 
 

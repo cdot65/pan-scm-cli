@@ -371,7 +371,7 @@ class TestForwardingProfileCommands:
         result = runner.invoke(test_app, ["--folder", "Mobile Users"])
 
         assert result.exit_code == 0
-        assert "No forwarding profiles found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_show_forwarding_profile_error(self, runner, monkeypatch):
         """Test showing forwarding profiles with an error."""
@@ -684,7 +684,7 @@ class TestForwardingProfileDestinationCommands:
         result = runner.invoke(test_app, ["--folder", "Mobile Users"])
 
         assert result.exit_code == 0
-        assert "No forwarding profile destinations found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_delete_forwarding_profile_destination(self, runner, monkeypatch):
         """Test deleting a forwarding profile destination."""
@@ -800,3 +800,50 @@ forwarding_profile_destinations:
         assert result.exit_code == 0
         assert "Successfully backed up" in result.stdout
         assert "1 forwarding profile destinations" in result.stdout
+
+
+class TestShowJsonOutput:
+    """Test the --output json format for show commands."""
+
+    def test_show_forwarding_profile_list_json(self, runner, monkeypatch):
+        """Test listing forwarding profiles as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        profiles = [
+            {"id": "fp-1", "folder": "Mobile Users", "name": "ztna-profile", "type": {"ztna_agent": {}}},
+            {"id": "fp-2", "folder": "Mobile Users", "name": "pac-profile", "type": {"pac_file": {}}},
+        ]
+        monkeypatch.setattr(scm_client, "list_forwarding_profiles", lambda *a, **k: profiles)
+
+        test_app = typer.Typer()
+        test_app.command()(show_forwarding_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == profiles
+
+    def test_show_forwarding_profile_destination_detail_json(self, runner, monkeypatch):
+        """Test showing a forwarding profile destination as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        destination = {
+            "id": "fpd-1",
+            "folder": "Mobile Users",
+            "name": "internal-apps",
+            "fqdn": [{"name": "app.internal", "port": 443}],
+            "ip_addresses": [{"name": "10.0.0.0/8"}],
+        }
+        monkeypatch.setattr(scm_client, "get_forwarding_profile_destination", lambda *a, **k: destination)
+
+        test_app = typer.Typer()
+        test_app.command()(show_forwarding_profile_destination)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "internal-apps", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == destination

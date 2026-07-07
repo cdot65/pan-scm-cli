@@ -14,6 +14,8 @@ import yaml
 from pydantic import ValidationError
 
 from ..utils import validate_location_params
+from ..utils.decorators import handle_command_errors
+from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     AuthenticationProfile,
@@ -75,6 +77,7 @@ def get_default_backup_filename(object_type: str, location_type: str, location_v
 
 
 @set_app.command("authentication-profile")
+@handle_command_errors("creating authentication profile")
 def set_authentication_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -96,15 +99,15 @@ def set_authentication_profile(
             --method '{"ldap": {"server_profile": "corp-ldap", "login_attribute": "sAMAccountName"}}'
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    # Parse JSON fields
+    method_dict = json_lib.loads(method) if method else None
+    lockout_dict = json_lib.loads(lockout) if lockout else None
+    mfa_dict = json_lib.loads(multi_factor_auth) if multi_factor_auth else None
+    sso_dict = json_lib.loads(single_sign_on) if single_sign_on else None
+
     try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-
-        # Parse JSON fields
-        method_dict = json_lib.loads(method) if method else None
-        lockout_dict = json_lib.loads(lockout) if lockout else None
-        mfa_dict = json_lib.loads(multi_factor_auth) if multi_factor_auth else None
-        sso_dict = json_lib.loads(single_sign_on) if single_sign_on else None
-
         profile = AuthenticationProfile(
             name=name,
             folder=folder,
@@ -118,34 +121,32 @@ def set_authentication_profile(
             multi_factor_auth=mfa_dict,
             single_sign_on=sso_dict,
         )
-
-        sdk_data = profile.to_sdk_model()
-        result = scm_client.create_authentication_profile(**sdk_data)
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for authentication profile: {name}")
-        elif action == "updated":
-            typer.echo(f"Updated authentication profile: {name} in {location_type} {location_value}")
-        else:
-            typer.echo(f"Created authentication profile: {name} in {location_type} {location_value}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating authentication profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    sdk_data = profile.to_sdk_model()
+    result = scm_client.create_authentication_profile(**sdk_data)
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for authentication profile: {name}")
+    elif action == "updated":
+        success(f"Updated authentication profile: {name} in {location_type} {location_value}")
+    else:
+        success(f"Created authentication profile: {name} in {location_type} {location_value}")
+    return result
 
 
 @show_app.command("authentication-profile")
+@handle_command_errors("showing authentication profiles")
 def show_authentication_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the authentication profile to show"),
     list_items: bool = typer.Option(False, "--list", "-l", help="List all authentication profiles"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display authentication profiles.
 
@@ -155,44 +156,20 @@ def show_authentication_profile(
         scm show identity authentication-profile --folder Texas --name my-auth
 
     """
-    try:
-        if name:
-            location_type, location_value = validate_location_params(folder, snippet, device)
-            profile = scm_client.get_authentication_profile(name=name, **{location_type: location_value})
+    if name:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_authentication_profile(name=name, **{location_type: location_value})
+        emit(profile, output, title=f"Authentication Profile: {name}")
+        return
 
-            typer.echo(f"\nAuthentication Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            if profile.get("user_domain"):
-                typer.echo(f"User Domain: {profile['user_domain']}")
-            if profile.get("method"):
-                typer.echo(f"Method: {json_lib.dumps(profile['method'], indent=2)}")
-            if profile.get("allow_list"):
-                typer.echo(f"Allow List: {profile['allow_list']}")
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-        else:
-            # List all authentication profiles (default behavior)
-            profiles = scm_client.list_authentication_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No authentication profiles found")
-                return
-
-            typer.echo(f"\nAuthentication Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("user_domain"):
-                    typer.echo(f"  User Domain: {p['user_domain']}")
-                if p.get("method"):
-                    typer.echo(f"  Method: {list(p['method'].keys())}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing authentication profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_authentication_profiles(folder=folder, snippet=snippet, device=device)
+    location = folder or snippet or device
+    title = f"Authentication Profiles in {location}" if location else "Authentication Profiles"
+    emit(profiles, output, columns=["name", "user_domain", "method", "allow_list"], title=title)
 
 
 @delete_app.command("authentication-profile")
+@handle_command_errors("deleting authentication profile")
 def delete_authentication_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -205,23 +182,20 @@ def delete_authentication_profile(
     Example: scm delete identity authentication-profile --folder Texas --name my-auth
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-        if not force:
-            typer.confirm(f"Delete authentication profile '{name}' from {location_type} '{location_value}'?", abort=True)
-        result = scm_client.delete_authentication_profile(name=name, **{location_type: location_value})
+    location_type, location_value = validate_location_params(folder, snippet, device)
+    if not force:
+        typer.confirm(f"Delete authentication profile '{name}' from {location_type} '{location_value}'?", abort=True)
+    result = scm_client.delete_authentication_profile(name=name, **{location_type: location_value})
 
-        if result:
-            typer.echo(f"Deleted authentication profile: {name} from {location_type} {location_value}")
-        else:
-            typer.echo(f"Authentication profile not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting authentication profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted authentication profile: {name} from {location_type} {location_value}")
+    else:
+        error(f"Authentication profile not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("authentication-profile")
+@handle_command_errors("loading authentication profiles")
 def load_authentication_profile(
     file: Path = FILE_OPTION,
     folder: str | None = LOAD_FOLDER_OPTION,
@@ -234,65 +208,58 @@ def load_authentication_profile(
     Example: scm load identity authentication-profile --file auth-profiles.yaml --folder Texas
 
     """
-    try:
-        if not file.exists():
-            typer.echo(f"Error: File '{file}' does not exist", err=True)
-            raise typer.Exit(code=1)
+    if not file.exists():
+        error(f"Error: File '{file}' does not exist")
+        raise typer.Exit(code=1)
 
-        with file.open() as f:
-            yaml_content = yaml.safe_load(f)
+    with file.open() as f:
+        yaml_content = yaml.safe_load(f)
 
-        if not yaml_content:
-            typer.echo(f"Error: File '{file}' is empty or invalid", err=True)
-            raise typer.Exit(code=1)
+    if not yaml_content:
+        error(f"Error: File '{file}' is empty or invalid")
+        raise typer.Exit(code=1)
 
-        profiles = yaml_content.get("authentication_profiles", [])
-        if not profiles:
-            typer.echo("No authentication profiles found in the YAML file.")
-            return
+    profiles = yaml_content.get("authentication_profiles", [])
+    if not profiles:
+        info("No authentication profiles found in the YAML file.")
+        return
 
-        if dry_run:
-            typer.echo("[DRY RUN] Would load the following authentication profiles:")
-            typer.echo(yaml.dump(profiles, default_flow_style=False))
-            return
+    if dry_run:
+        info("[DRY RUN] Would load the following authentication profiles:")
+        typer.echo(yaml.dump(profiles, default_flow_style=False))
+        return
 
-        loaded_count = 0
-        for profile_data in profiles:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
-                elif snippet:
-                    profile_data["snippet"] = snippet
-                elif device:
-                    profile_data["device"] = device
+    loaded_count = 0
+    for profile_data in profiles:
+        try:
+            if folder:
+                profile_data["folder"] = folder
+            elif snippet:
+                profile_data["snippet"] = snippet
+            elif device:
+                profile_data["device"] = device
 
-                profile = AuthenticationProfile(**profile_data)
-                sdk_data = profile.to_sdk_model()
-                result = scm_client.create_authentication_profile(**sdk_data)
+            profile = AuthenticationProfile(**profile_data)
+            sdk_data = profile.to_sdk_model()
+            result = scm_client.create_authentication_profile(**sdk_data)
 
-                action = result.get("__action__", "created")
-                if action == "no_change":
-                    typer.echo(f"No changes for authentication profile: {profile.name}")
-                elif action == "updated":
-                    typer.echo(f"Updated authentication profile: {profile.name}")
-                else:
-                    typer.echo(f"Created authentication profile: {profile.name}")
-                loaded_count += 1
+            action = result.get("__action__", "created")
+            if action == "no_change":
+                info(f"No changes for authentication profile: {profile.name}")
+            elif action == "updated":
+                success(f"Updated authentication profile: {profile.name}")
+            else:
+                success(f"Created authentication profile: {profile.name}")
+            loaded_count += 1
 
-            except Exception as e:
-                typer.echo(f"Error loading authentication profile: {str(e)}", err=True)
+        except Exception as e:
+            error(f"Error loading authentication profile: {str(e)}")
 
-        typer.echo(f"\nProcessed {loaded_count} authentication profiles from {file}")
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading authentication profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {loaded_count} authentication profiles from {file}")
 
 
 @backup_app.command("authentication-profile")
+@handle_command_errors("backing up authentication profiles")
 def backup_authentication_profile(
     folder: str | None = BACKUP_FOLDER_OPTION,
     snippet: str | None = BACKUP_SNIPPET_OPTION,
@@ -307,34 +274,29 @@ def backup_authentication_profile(
         scm backup identity authentication-profile --folder Texas --file auth-profiles.yaml
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
-        typer.echo(f"Fetching authentication profiles from {location_type} '{location_value}'...")
-        kwargs = {location_type: location_value}
-        profiles = scm_client.list_authentication_profiles(**kwargs, exact_match=True)
+    info(f"Fetching authentication profiles from {location_type} '{location_value}'...")
+    kwargs = {location_type: location_value}
+    profiles = scm_client.list_authentication_profiles(**kwargs, exact_match=True)
 
-        if not profiles:
-            typer.echo(f"No authentication profiles found in {location_type} '{location_value}'")
-            return
+    if not profiles:
+        info(f"No authentication profiles found in {location_type} '{location_value}'")
+        return
 
-        backup_data: dict[str, list[dict[str, Any]]] = {"authentication_profiles": []}
-        for p in profiles:
-            p_dict = p.copy()
-            p_dict.pop("id", None)
-            backup_data["authentication_profiles"].append(p_dict)
+    backup_data: dict[str, list[dict[str, Any]]] = {"authentication_profiles": []}
+    for p in profiles:
+        p_dict = p.copy()
+        p_dict.pop("id", None)
+        backup_data["authentication_profiles"].append(p_dict)
 
-        backup_data["authentication_profiles"].sort(key=lambda x: x["name"])
-        filename = file or Path(get_default_backup_filename("authentication-profile", location_type, location_value))
+    backup_data["authentication_profiles"].sort(key=lambda x: x["name"])
+    filename = file or Path(get_default_backup_filename("authentication-profile", location_type, location_value))
 
-        with open(filename, "w") as fh:
-            yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
+    with open(filename, "w") as fh:
+        yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data['authentication_profiles'])} authentication profiles to {filename}")
-
-    except Exception as e:
-        typer.echo(f"Error backing up authentication profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data['authentication_profiles'])} authentication profiles to {filename}")
 
 
 # =============================================================================================================================================================================================
@@ -343,6 +305,7 @@ def backup_authentication_profile(
 
 
 @set_app.command("kerberos-server-profile")
+@handle_command_errors("creating Kerberos server profile")
 def set_kerberos_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -358,11 +321,11 @@ def set_kerberos_server_profile(
             --servers '[{"name": "kdc1", "host": "kdc1.example.com", "port": 88}]'
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    servers_list = json_lib.loads(servers) if servers else None
+
     try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-
-        servers_list = json_lib.loads(servers) if servers else None
-
         profile = KerberosServerProfile(
             name=name,
             folder=folder,
@@ -370,34 +333,32 @@ def set_kerberos_server_profile(
             device=device,
             servers=servers_list,
         )
-
-        sdk_data = profile.to_sdk_model()
-        result = scm_client.create_kerberos_server_profile(**sdk_data)
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for Kerberos server profile: {name}")
-        elif action == "updated":
-            typer.echo(f"Updated Kerberos server profile: {name} in {location_type} {location_value}")
-        else:
-            typer.echo(f"Created Kerberos server profile: {name} in {location_type} {location_value}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating Kerberos server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    sdk_data = profile.to_sdk_model()
+    result = scm_client.create_kerberos_server_profile(**sdk_data)
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for Kerberos server profile: {name}")
+    elif action == "updated":
+        success(f"Updated Kerberos server profile: {name} in {location_type} {location_value}")
+    else:
+        success(f"Created Kerberos server profile: {name} in {location_type} {location_value}")
+    return result
 
 
 @show_app.command("kerberos-server-profile")
+@handle_command_errors("showing Kerberos server profiles")
 def show_kerberos_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the Kerberos server profile to show"),
     list_items: bool = typer.Option(False, "--list", "-l", help="List all Kerberos server profiles"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display Kerberos server profiles.
 
@@ -407,40 +368,20 @@ def show_kerberos_server_profile(
         scm show identity kerberos-server-profile --folder Texas --name corp-kerberos
 
     """
-    try:
-        if name:
-            location_type, location_value = validate_location_params(folder, snippet, device)
-            profile = scm_client.get_kerberos_server_profile(name=name, **{location_type: location_value})
+    if name:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_kerberos_server_profile(name=name, **{location_type: location_value})
+        emit(profile, output, title=f"Kerberos Server Profile: {name}")
+        return
 
-            typer.echo(f"\nKerberos Server Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            if profile.get("server"):
-                typer.echo(f"Servers ({len(profile['server'])}):")
-                for idx, srv in enumerate(profile["server"]):
-                    typer.echo(f"  Server {idx + 1}: {srv.get('name', 'N/A')} - {srv.get('host', 'N/A')}:{srv.get('port', 'N/A')}")
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-        else:
-            # List all Kerberos server profiles (default behavior)
-            profiles = scm_client.list_kerberos_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No Kerberos server profiles found")
-                return
-
-            typer.echo(f"\nKerberos Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("server"):
-                    typer.echo(f"  Servers: {len(p['server'])}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing Kerberos server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_kerberos_server_profiles(folder=folder, snippet=snippet, device=device)
+    location = folder or snippet or device
+    title = f"Kerberos Server Profiles in {location}" if location else "Kerberos Server Profiles"
+    emit(profiles, output, columns=["name", "server"], title=title)
 
 
 @delete_app.command("kerberos-server-profile")
+@handle_command_errors("deleting Kerberos server profile")
 def delete_kerberos_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -453,23 +394,20 @@ def delete_kerberos_server_profile(
     Example: scm delete identity kerberos-server-profile --folder Texas --name corp-kerberos
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-        if not force:
-            typer.confirm(f"Delete Kerberos server profile '{name}' from {location_type} '{location_value}'?", abort=True)
-        result = scm_client.delete_kerberos_server_profile(name=name, **{location_type: location_value})
+    location_type, location_value = validate_location_params(folder, snippet, device)
+    if not force:
+        typer.confirm(f"Delete Kerberos server profile '{name}' from {location_type} '{location_value}'?", abort=True)
+    result = scm_client.delete_kerberos_server_profile(name=name, **{location_type: location_value})
 
-        if result:
-            typer.echo(f"Deleted Kerberos server profile: {name} from {location_type} {location_value}")
-        else:
-            typer.echo(f"Kerberos server profile not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting Kerberos server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted Kerberos server profile: {name} from {location_type} {location_value}")
+    else:
+        error(f"Kerberos server profile not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("kerberos-server-profile")
+@handle_command_errors("loading Kerberos server profiles")
 def load_kerberos_server_profile(
     file: Path = FILE_OPTION,
     folder: str | None = LOAD_FOLDER_OPTION,
@@ -482,65 +420,58 @@ def load_kerberos_server_profile(
     Example: scm load identity kerberos-server-profile --file kerberos.yaml --folder Texas
 
     """
-    try:
-        if not file.exists():
-            typer.echo(f"Error: File '{file}' does not exist", err=True)
-            raise typer.Exit(code=1)
+    if not file.exists():
+        error(f"Error: File '{file}' does not exist")
+        raise typer.Exit(code=1)
 
-        with file.open() as f:
-            yaml_content = yaml.safe_load(f)
+    with file.open() as f:
+        yaml_content = yaml.safe_load(f)
 
-        if not yaml_content:
-            typer.echo(f"Error: File '{file}' is empty or invalid", err=True)
-            raise typer.Exit(code=1)
+    if not yaml_content:
+        error(f"Error: File '{file}' is empty or invalid")
+        raise typer.Exit(code=1)
 
-        profiles = yaml_content.get("kerberos_server_profiles", [])
-        if not profiles:
-            typer.echo("No Kerberos server profiles found in the YAML file.")
-            return
+    profiles = yaml_content.get("kerberos_server_profiles", [])
+    if not profiles:
+        info("No Kerberos server profiles found in the YAML file.")
+        return
 
-        if dry_run:
-            typer.echo("[DRY RUN] Would load the following Kerberos server profiles:")
-            typer.echo(yaml.dump(profiles, default_flow_style=False))
-            return
+    if dry_run:
+        info("[DRY RUN] Would load the following Kerberos server profiles:")
+        typer.echo(yaml.dump(profiles, default_flow_style=False))
+        return
 
-        loaded_count = 0
-        for profile_data in profiles:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
-                elif snippet:
-                    profile_data["snippet"] = snippet
-                elif device:
-                    profile_data["device"] = device
+    loaded_count = 0
+    for profile_data in profiles:
+        try:
+            if folder:
+                profile_data["folder"] = folder
+            elif snippet:
+                profile_data["snippet"] = snippet
+            elif device:
+                profile_data["device"] = device
 
-                profile = KerberosServerProfile(**profile_data)
-                sdk_data = profile.to_sdk_model()
-                result = scm_client.create_kerberos_server_profile(**sdk_data)
+            profile = KerberosServerProfile(**profile_data)
+            sdk_data = profile.to_sdk_model()
+            result = scm_client.create_kerberos_server_profile(**sdk_data)
 
-                action = result.get("__action__", "created")
-                if action == "no_change":
-                    typer.echo(f"No changes for Kerberos server profile: {profile.name}")
-                elif action == "updated":
-                    typer.echo(f"Updated Kerberos server profile: {profile.name}")
-                else:
-                    typer.echo(f"Created Kerberos server profile: {profile.name}")
-                loaded_count += 1
+            action = result.get("__action__", "created")
+            if action == "no_change":
+                info(f"No changes for Kerberos server profile: {profile.name}")
+            elif action == "updated":
+                success(f"Updated Kerberos server profile: {profile.name}")
+            else:
+                success(f"Created Kerberos server profile: {profile.name}")
+            loaded_count += 1
 
-            except Exception as e:
-                typer.echo(f"Error loading Kerberos server profile: {str(e)}", err=True)
+        except Exception as e:
+            error(f"Error loading Kerberos server profile: {str(e)}")
 
-        typer.echo(f"\nProcessed {loaded_count} Kerberos server profiles from {file}")
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading Kerberos server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {loaded_count} Kerberos server profiles from {file}")
 
 
 @backup_app.command("kerberos-server-profile")
+@handle_command_errors("backing up Kerberos server profiles")
 def backup_kerberos_server_profile(
     folder: str | None = BACKUP_FOLDER_OPTION,
     snippet: str | None = BACKUP_SNIPPET_OPTION,
@@ -555,34 +486,29 @@ def backup_kerberos_server_profile(
         scm backup identity kerberos-server-profile --folder Texas --file kerberos.yaml
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
-        typer.echo(f"Fetching Kerberos server profiles from {location_type} '{location_value}'...")
-        kwargs = {location_type: location_value}
-        profiles = scm_client.list_kerberos_server_profiles(**kwargs, exact_match=True)
+    info(f"Fetching Kerberos server profiles from {location_type} '{location_value}'...")
+    kwargs = {location_type: location_value}
+    profiles = scm_client.list_kerberos_server_profiles(**kwargs, exact_match=True)
 
-        if not profiles:
-            typer.echo(f"No Kerberos server profiles found in {location_type} '{location_value}'")
-            return
+    if not profiles:
+        info(f"No Kerberos server profiles found in {location_type} '{location_value}'")
+        return
 
-        backup_data: dict[str, list[dict[str, Any]]] = {"kerberos_server_profiles": []}
-        for p in profiles:
-            p_dict = p.copy()
-            p_dict.pop("id", None)
-            backup_data["kerberos_server_profiles"].append(p_dict)
+    backup_data: dict[str, list[dict[str, Any]]] = {"kerberos_server_profiles": []}
+    for p in profiles:
+        p_dict = p.copy()
+        p_dict.pop("id", None)
+        backup_data["kerberos_server_profiles"].append(p_dict)
 
-        backup_data["kerberos_server_profiles"].sort(key=lambda x: x["name"])
-        filename = file or Path(get_default_backup_filename("kerberos-server-profile", location_type, location_value))
+    backup_data["kerberos_server_profiles"].sort(key=lambda x: x["name"])
+    filename = file or Path(get_default_backup_filename("kerberos-server-profile", location_type, location_value))
 
-        with open(filename, "w") as fh:
-            yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
+    with open(filename, "w") as fh:
+        yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data['kerberos_server_profiles'])} Kerberos server profiles to {filename}")
-
-    except Exception as e:
-        typer.echo(f"Error backing up Kerberos server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data['kerberos_server_profiles'])} Kerberos server profiles to {filename}")
 
 
 # =============================================================================================================================================================================================
@@ -591,6 +517,7 @@ def backup_kerberos_server_profile(
 
 
 @set_app.command("ldap-server-profile")
+@handle_command_errors("creating LDAP server profile")
 def set_ldap_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -612,11 +539,11 @@ def set_ldap_server_profile(
             --base "dc=example,dc=com" --ldap-type active-directory
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    servers_list = json_lib.loads(servers) if servers else None
+
     try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-
-        servers_list = json_lib.loads(servers) if servers else None
-
         profile = LdapServerProfile(
             name=name,
             folder=folder,
@@ -629,34 +556,32 @@ def set_ldap_server_profile(
             ldap_type=ldap_type,
             ssl=ssl,
         )
-
-        sdk_data = profile.to_sdk_model()
-        result = scm_client.create_ldap_server_profile(**sdk_data)
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for LDAP server profile: {name}")
-        elif action == "updated":
-            typer.echo(f"Updated LDAP server profile: {name} in {location_type} {location_value}")
-        else:
-            typer.echo(f"Created LDAP server profile: {name} in {location_type} {location_value}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating LDAP server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    sdk_data = profile.to_sdk_model()
+    result = scm_client.create_ldap_server_profile(**sdk_data)
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for LDAP server profile: {name}")
+    elif action == "updated":
+        success(f"Updated LDAP server profile: {name} in {location_type} {location_value}")
+    else:
+        success(f"Created LDAP server profile: {name} in {location_type} {location_value}")
+    return result
 
 
 @show_app.command("ldap-server-profile")
+@handle_command_errors("showing LDAP server profiles")
 def show_ldap_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the LDAP server profile to show"),
     list_items: bool = typer.Option(False, "--list", "-l", help="List all LDAP server profiles"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display LDAP server profiles.
 
@@ -666,50 +591,20 @@ def show_ldap_server_profile(
         scm show identity ldap-server-profile --folder Texas --name corp-ldap
 
     """
-    try:
-        if name:
-            location_type, location_value = validate_location_params(folder, snippet, device)
-            profile = scm_client.get_ldap_server_profile(name=name, **{location_type: location_value})
+    if name:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_ldap_server_profile(name=name, **{location_type: location_value})
+        emit(profile, output, title=f"LDAP Server Profile: {name}")
+        return
 
-            typer.echo(f"\nLDAP Server Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            if profile.get("ldap_type"):
-                typer.echo(f"Type: {profile['ldap_type']}")
-            if profile.get("base"):
-                typer.echo(f"Base DN: {profile['base']}")
-            if profile.get("bind_dn"):
-                typer.echo(f"Bind DN: {profile['bind_dn']}")
-            if profile.get("ssl") is not None:
-                typer.echo(f"SSL: {profile['ssl']}")
-            if profile.get("server"):
-                typer.echo(f"Servers ({len(profile['server'])}):")
-                for idx, srv in enumerate(profile["server"]):
-                    typer.echo(f"  Server {idx + 1}: {srv.get('name', 'N/A')} - {srv.get('address', 'N/A')}:{srv.get('port', 'N/A')}")
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-        else:
-            # List all LDAP server profiles (default behavior)
-            profiles = scm_client.list_ldap_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No LDAP server profiles found")
-                return
-
-            typer.echo(f"\nLDAP Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("ldap_type"):
-                    typer.echo(f"  Type: {p['ldap_type']}")
-                if p.get("server"):
-                    typer.echo(f"  Servers: {len(p['server'])}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing LDAP server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_ldap_server_profiles(folder=folder, snippet=snippet, device=device)
+    location = folder or snippet or device
+    title = f"LDAP Server Profiles in {location}" if location else "LDAP Server Profiles"
+    emit(profiles, output, columns=["name", "ldap_type", "base", "server"], title=title)
 
 
 @delete_app.command("ldap-server-profile")
+@handle_command_errors("deleting LDAP server profile")
 def delete_ldap_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -722,23 +617,20 @@ def delete_ldap_server_profile(
     Example: scm delete identity ldap-server-profile --folder Texas --name corp-ldap
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-        if not force:
-            typer.confirm(f"Delete LDAP server profile '{name}' from {location_type} '{location_value}'?", abort=True)
-        result = scm_client.delete_ldap_server_profile(name=name, **{location_type: location_value})
+    location_type, location_value = validate_location_params(folder, snippet, device)
+    if not force:
+        typer.confirm(f"Delete LDAP server profile '{name}' from {location_type} '{location_value}'?", abort=True)
+    result = scm_client.delete_ldap_server_profile(name=name, **{location_type: location_value})
 
-        if result:
-            typer.echo(f"Deleted LDAP server profile: {name} from {location_type} {location_value}")
-        else:
-            typer.echo(f"LDAP server profile not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting LDAP server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted LDAP server profile: {name} from {location_type} {location_value}")
+    else:
+        error(f"LDAP server profile not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("ldap-server-profile")
+@handle_command_errors("loading LDAP server profiles")
 def load_ldap_server_profile(
     file: Path = FILE_OPTION,
     folder: str | None = LOAD_FOLDER_OPTION,
@@ -751,65 +643,58 @@ def load_ldap_server_profile(
     Example: scm load identity ldap-server-profile --file ldap.yaml --folder Texas
 
     """
-    try:
-        if not file.exists():
-            typer.echo(f"Error: File '{file}' does not exist", err=True)
-            raise typer.Exit(code=1)
+    if not file.exists():
+        error(f"Error: File '{file}' does not exist")
+        raise typer.Exit(code=1)
 
-        with file.open() as f:
-            yaml_content = yaml.safe_load(f)
+    with file.open() as f:
+        yaml_content = yaml.safe_load(f)
 
-        if not yaml_content:
-            typer.echo(f"Error: File '{file}' is empty or invalid", err=True)
-            raise typer.Exit(code=1)
+    if not yaml_content:
+        error(f"Error: File '{file}' is empty or invalid")
+        raise typer.Exit(code=1)
 
-        profiles = yaml_content.get("ldap_server_profiles", [])
-        if not profiles:
-            typer.echo("No LDAP server profiles found in the YAML file.")
-            return
+    profiles = yaml_content.get("ldap_server_profiles", [])
+    if not profiles:
+        info("No LDAP server profiles found in the YAML file.")
+        return
 
-        if dry_run:
-            typer.echo("[DRY RUN] Would load the following LDAP server profiles:")
-            typer.echo(yaml.dump(profiles, default_flow_style=False))
-            return
+    if dry_run:
+        info("[DRY RUN] Would load the following LDAP server profiles:")
+        typer.echo(yaml.dump(profiles, default_flow_style=False))
+        return
 
-        loaded_count = 0
-        for profile_data in profiles:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
-                elif snippet:
-                    profile_data["snippet"] = snippet
-                elif device:
-                    profile_data["device"] = device
+    loaded_count = 0
+    for profile_data in profiles:
+        try:
+            if folder:
+                profile_data["folder"] = folder
+            elif snippet:
+                profile_data["snippet"] = snippet
+            elif device:
+                profile_data["device"] = device
 
-                profile = LdapServerProfile(**profile_data)
-                sdk_data = profile.to_sdk_model()
-                result = scm_client.create_ldap_server_profile(**sdk_data)
+            profile = LdapServerProfile(**profile_data)
+            sdk_data = profile.to_sdk_model()
+            result = scm_client.create_ldap_server_profile(**sdk_data)
 
-                action = result.get("__action__", "created")
-                if action == "no_change":
-                    typer.echo(f"No changes for LDAP server profile: {profile.name}")
-                elif action == "updated":
-                    typer.echo(f"Updated LDAP server profile: {profile.name}")
-                else:
-                    typer.echo(f"Created LDAP server profile: {profile.name}")
-                loaded_count += 1
+            action = result.get("__action__", "created")
+            if action == "no_change":
+                info(f"No changes for LDAP server profile: {profile.name}")
+            elif action == "updated":
+                success(f"Updated LDAP server profile: {profile.name}")
+            else:
+                success(f"Created LDAP server profile: {profile.name}")
+            loaded_count += 1
 
-            except Exception as e:
-                typer.echo(f"Error loading LDAP server profile: {str(e)}", err=True)
+        except Exception as e:
+            error(f"Error loading LDAP server profile: {str(e)}")
 
-        typer.echo(f"\nProcessed {loaded_count} LDAP server profiles from {file}")
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading LDAP server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {loaded_count} LDAP server profiles from {file}")
 
 
 @backup_app.command("ldap-server-profile")
+@handle_command_errors("backing up LDAP server profiles")
 def backup_ldap_server_profile(
     folder: str | None = BACKUP_FOLDER_OPTION,
     snippet: str | None = BACKUP_SNIPPET_OPTION,
@@ -824,34 +709,29 @@ def backup_ldap_server_profile(
         scm backup identity ldap-server-profile --folder Texas --file ldap.yaml
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
-        typer.echo(f"Fetching LDAP server profiles from {location_type} '{location_value}'...")
-        kwargs = {location_type: location_value}
-        profiles = scm_client.list_ldap_server_profiles(**kwargs, exact_match=True)
+    info(f"Fetching LDAP server profiles from {location_type} '{location_value}'...")
+    kwargs = {location_type: location_value}
+    profiles = scm_client.list_ldap_server_profiles(**kwargs, exact_match=True)
 
-        if not profiles:
-            typer.echo(f"No LDAP server profiles found in {location_type} '{location_value}'")
-            return
+    if not profiles:
+        info(f"No LDAP server profiles found in {location_type} '{location_value}'")
+        return
 
-        backup_data: dict[str, list[dict[str, Any]]] = {"ldap_server_profiles": []}
-        for p in profiles:
-            p_dict = p.copy()
-            p_dict.pop("id", None)
-            backup_data["ldap_server_profiles"].append(p_dict)
+    backup_data: dict[str, list[dict[str, Any]]] = {"ldap_server_profiles": []}
+    for p in profiles:
+        p_dict = p.copy()
+        p_dict.pop("id", None)
+        backup_data["ldap_server_profiles"].append(p_dict)
 
-        backup_data["ldap_server_profiles"].sort(key=lambda x: x["name"])
-        filename = file or Path(get_default_backup_filename("ldap-server-profile", location_type, location_value))
+    backup_data["ldap_server_profiles"].sort(key=lambda x: x["name"])
+    filename = file or Path(get_default_backup_filename("ldap-server-profile", location_type, location_value))
 
-        with open(filename, "w") as fh:
-            yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
+    with open(filename, "w") as fh:
+        yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data['ldap_server_profiles'])} LDAP server profiles to {filename}")
-
-    except Exception as e:
-        typer.echo(f"Error backing up LDAP server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data['ldap_server_profiles'])} LDAP server profiles to {filename}")
 
 
 # =============================================================================================================================================================================================
@@ -860,6 +740,7 @@ def backup_ldap_server_profile(
 
 
 @set_app.command("radius-server-profile")
+@handle_command_errors("creating RADIUS server profile")
 def set_radius_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -879,12 +760,12 @@ def set_radius_server_profile(
             --protocol '{"CHAP": {}}' --timeout 5 --retries 3
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    servers_list = json_lib.loads(servers) if servers else None
+    protocol_dict = json_lib.loads(protocol) if protocol else None
+
     try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-
-        servers_list = json_lib.loads(servers) if servers else None
-        protocol_dict = json_lib.loads(protocol) if protocol else None
-
         profile = RadiusServerProfile(
             name=name,
             folder=folder,
@@ -895,34 +776,32 @@ def set_radius_server_profile(
             timeout=timeout,
             retries=retries,
         )
-
-        sdk_data = profile.to_sdk_model()
-        result = scm_client.create_radius_server_profile(**sdk_data)
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for RADIUS server profile: {name}")
-        elif action == "updated":
-            typer.echo(f"Updated RADIUS server profile: {name} in {location_type} {location_value}")
-        else:
-            typer.echo(f"Created RADIUS server profile: {name} in {location_type} {location_value}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating RADIUS server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    sdk_data = profile.to_sdk_model()
+    result = scm_client.create_radius_server_profile(**sdk_data)
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for RADIUS server profile: {name}")
+    elif action == "updated":
+        success(f"Updated RADIUS server profile: {name} in {location_type} {location_value}")
+    else:
+        success(f"Created RADIUS server profile: {name} in {location_type} {location_value}")
+    return result
 
 
 @show_app.command("radius-server-profile")
+@handle_command_errors("showing RADIUS server profiles")
 def show_radius_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the RADIUS server profile to show"),
     list_items: bool = typer.Option(False, "--list", "-l", help="List all RADIUS server profiles"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display RADIUS server profiles.
 
@@ -932,48 +811,20 @@ def show_radius_server_profile(
         scm show identity radius-server-profile --folder Texas --name corp-radius
 
     """
-    try:
-        if name:
-            location_type, location_value = validate_location_params(folder, snippet, device)
-            profile = scm_client.get_radius_server_profile(name=name, **{location_type: location_value})
+    if name:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_radius_server_profile(name=name, **{location_type: location_value})
+        emit(profile, output, title=f"RADIUS Server Profile: {name}")
+        return
 
-            typer.echo(f"\nRADIUS Server Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            if profile.get("protocol"):
-                typer.echo(f"Protocol: {json_lib.dumps(profile['protocol'])}")
-            if profile.get("timeout"):
-                typer.echo(f"Timeout: {profile['timeout']}s")
-            if profile.get("retries"):
-                typer.echo(f"Retries: {profile['retries']}")
-            if profile.get("server"):
-                typer.echo(f"Servers ({len(profile['server'])}):")
-                for idx, srv in enumerate(profile["server"]):
-                    typer.echo(f"  Server {idx + 1}: {srv.get('name', 'N/A')} - {srv.get('ip_address', 'N/A')}:{srv.get('port', 'N/A')}")
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-        else:
-            # List all RADIUS server profiles (default behavior)
-            profiles = scm_client.list_radius_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No RADIUS server profiles found")
-                return
-
-            typer.echo(f"\nRADIUS Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("server"):
-                    typer.echo(f"  Servers: {len(p['server'])}")
-                if p.get("timeout"):
-                    typer.echo(f"  Timeout: {p['timeout']}s")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing RADIUS server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_radius_server_profiles(folder=folder, snippet=snippet, device=device)
+    location = folder or snippet or device
+    title = f"RADIUS Server Profiles in {location}" if location else "RADIUS Server Profiles"
+    emit(profiles, output, columns=["name", "server", "timeout", "retries"], title=title)
 
 
 @delete_app.command("radius-server-profile")
+@handle_command_errors("deleting RADIUS server profile")
 def delete_radius_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -986,23 +837,20 @@ def delete_radius_server_profile(
     Example: scm delete identity radius-server-profile --folder Texas --name corp-radius
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-        if not force:
-            typer.confirm(f"Delete RADIUS server profile '{name}' from {location_type} '{location_value}'?", abort=True)
-        result = scm_client.delete_radius_server_profile(name=name, **{location_type: location_value})
+    location_type, location_value = validate_location_params(folder, snippet, device)
+    if not force:
+        typer.confirm(f"Delete RADIUS server profile '{name}' from {location_type} '{location_value}'?", abort=True)
+    result = scm_client.delete_radius_server_profile(name=name, **{location_type: location_value})
 
-        if result:
-            typer.echo(f"Deleted RADIUS server profile: {name} from {location_type} {location_value}")
-        else:
-            typer.echo(f"RADIUS server profile not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting RADIUS server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted RADIUS server profile: {name} from {location_type} {location_value}")
+    else:
+        error(f"RADIUS server profile not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("radius-server-profile")
+@handle_command_errors("loading RADIUS server profiles")
 def load_radius_server_profile(
     file: Path = FILE_OPTION,
     folder: str | None = LOAD_FOLDER_OPTION,
@@ -1015,65 +863,58 @@ def load_radius_server_profile(
     Example: scm load identity radius-server-profile --file radius.yaml --folder Texas
 
     """
-    try:
-        if not file.exists():
-            typer.echo(f"Error: File '{file}' does not exist", err=True)
-            raise typer.Exit(code=1)
+    if not file.exists():
+        error(f"Error: File '{file}' does not exist")
+        raise typer.Exit(code=1)
 
-        with file.open() as f:
-            yaml_content = yaml.safe_load(f)
+    with file.open() as f:
+        yaml_content = yaml.safe_load(f)
 
-        if not yaml_content:
-            typer.echo(f"Error: File '{file}' is empty or invalid", err=True)
-            raise typer.Exit(code=1)
+    if not yaml_content:
+        error(f"Error: File '{file}' is empty or invalid")
+        raise typer.Exit(code=1)
 
-        profiles = yaml_content.get("radius_server_profiles", [])
-        if not profiles:
-            typer.echo("No RADIUS server profiles found in the YAML file.")
-            return
+    profiles = yaml_content.get("radius_server_profiles", [])
+    if not profiles:
+        info("No RADIUS server profiles found in the YAML file.")
+        return
 
-        if dry_run:
-            typer.echo("[DRY RUN] Would load the following RADIUS server profiles:")
-            typer.echo(yaml.dump(profiles, default_flow_style=False))
-            return
+    if dry_run:
+        info("[DRY RUN] Would load the following RADIUS server profiles:")
+        typer.echo(yaml.dump(profiles, default_flow_style=False))
+        return
 
-        loaded_count = 0
-        for profile_data in profiles:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
-                elif snippet:
-                    profile_data["snippet"] = snippet
-                elif device:
-                    profile_data["device"] = device
+    loaded_count = 0
+    for profile_data in profiles:
+        try:
+            if folder:
+                profile_data["folder"] = folder
+            elif snippet:
+                profile_data["snippet"] = snippet
+            elif device:
+                profile_data["device"] = device
 
-                profile = RadiusServerProfile(**profile_data)
-                sdk_data = profile.to_sdk_model()
-                result = scm_client.create_radius_server_profile(**sdk_data)
+            profile = RadiusServerProfile(**profile_data)
+            sdk_data = profile.to_sdk_model()
+            result = scm_client.create_radius_server_profile(**sdk_data)
 
-                action = result.get("__action__", "created")
-                if action == "no_change":
-                    typer.echo(f"No changes for RADIUS server profile: {profile.name}")
-                elif action == "updated":
-                    typer.echo(f"Updated RADIUS server profile: {profile.name}")
-                else:
-                    typer.echo(f"Created RADIUS server profile: {profile.name}")
-                loaded_count += 1
+            action = result.get("__action__", "created")
+            if action == "no_change":
+                info(f"No changes for RADIUS server profile: {profile.name}")
+            elif action == "updated":
+                success(f"Updated RADIUS server profile: {profile.name}")
+            else:
+                success(f"Created RADIUS server profile: {profile.name}")
+            loaded_count += 1
 
-            except Exception as e:
-                typer.echo(f"Error loading RADIUS server profile: {str(e)}", err=True)
+        except Exception as e:
+            error(f"Error loading RADIUS server profile: {str(e)}")
 
-        typer.echo(f"\nProcessed {loaded_count} RADIUS server profiles from {file}")
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading RADIUS server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {loaded_count} RADIUS server profiles from {file}")
 
 
 @backup_app.command("radius-server-profile")
+@handle_command_errors("backing up RADIUS server profiles")
 def backup_radius_server_profile(
     folder: str | None = BACKUP_FOLDER_OPTION,
     snippet: str | None = BACKUP_SNIPPET_OPTION,
@@ -1088,34 +929,29 @@ def backup_radius_server_profile(
         scm backup identity radius-server-profile --folder Texas --file radius.yaml
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
-        typer.echo(f"Fetching RADIUS server profiles from {location_type} '{location_value}'...")
-        kwargs = {location_type: location_value}
-        profiles = scm_client.list_radius_server_profiles(**kwargs, exact_match=True)
+    info(f"Fetching RADIUS server profiles from {location_type} '{location_value}'...")
+    kwargs = {location_type: location_value}
+    profiles = scm_client.list_radius_server_profiles(**kwargs, exact_match=True)
 
-        if not profiles:
-            typer.echo(f"No RADIUS server profiles found in {location_type} '{location_value}'")
-            return
+    if not profiles:
+        info(f"No RADIUS server profiles found in {location_type} '{location_value}'")
+        return
 
-        backup_data: dict[str, list[dict[str, Any]]] = {"radius_server_profiles": []}
-        for p in profiles:
-            p_dict = p.copy()
-            p_dict.pop("id", None)
-            backup_data["radius_server_profiles"].append(p_dict)
+    backup_data: dict[str, list[dict[str, Any]]] = {"radius_server_profiles": []}
+    for p in profiles:
+        p_dict = p.copy()
+        p_dict.pop("id", None)
+        backup_data["radius_server_profiles"].append(p_dict)
 
-        backup_data["radius_server_profiles"].sort(key=lambda x: x["name"])
-        filename = file or Path(get_default_backup_filename("radius-server-profile", location_type, location_value))
+    backup_data["radius_server_profiles"].sort(key=lambda x: x["name"])
+    filename = file or Path(get_default_backup_filename("radius-server-profile", location_type, location_value))
 
-        with open(filename, "w") as fh:
-            yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
+    with open(filename, "w") as fh:
+        yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data['radius_server_profiles'])} RADIUS server profiles to {filename}")
-
-    except Exception as e:
-        typer.echo(f"Error backing up RADIUS server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data['radius_server_profiles'])} RADIUS server profiles to {filename}")
 
 
 # =============================================================================================================================================================================================
@@ -1124,6 +960,7 @@ def backup_radius_server_profile(
 
 
 @set_app.command("saml-server-profile")
+@handle_command_errors("creating SAML server profile")
 def set_saml_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -1147,9 +984,9 @@ def set_saml_server_profile(
             --sso-url "https://idp.example.com/sso" --sso-bindings post
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
+    try:
         profile = SamlServerProfile(
             name=name,
             folder=folder,
@@ -1164,34 +1001,32 @@ def set_saml_server_profile(
             validate_idp_certificate=validate_idp_certificate,
             want_auth_requests_signed=want_auth_requests_signed,
         )
-
-        sdk_data = profile.to_sdk_model()
-        result = scm_client.create_saml_server_profile(**sdk_data)
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for SAML server profile: {name}")
-        elif action == "updated":
-            typer.echo(f"Updated SAML server profile: {name} in {location_type} {location_value}")
-        else:
-            typer.echo(f"Created SAML server profile: {name} in {location_type} {location_value}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating SAML server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    sdk_data = profile.to_sdk_model()
+    result = scm_client.create_saml_server_profile(**sdk_data)
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for SAML server profile: {name}")
+    elif action == "updated":
+        success(f"Updated SAML server profile: {name} in {location_type} {location_value}")
+    else:
+        success(f"Created SAML server profile: {name} in {location_type} {location_value}")
+    return result
 
 
 @show_app.command("saml-server-profile")
+@handle_command_errors("showing SAML server profiles")
 def show_saml_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the SAML server profile to show"),
     list_items: bool = typer.Option(False, "--list", "-l", help="List all SAML server profiles"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display SAML server profiles.
 
@@ -1201,50 +1036,20 @@ def show_saml_server_profile(
         scm show identity saml-server-profile --folder Texas --name corp-saml
 
     """
-    try:
-        if name:
-            location_type, location_value = validate_location_params(folder, snippet, device)
-            profile = scm_client.get_saml_server_profile(name=name, **{location_type: location_value})
+    if name:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_saml_server_profile(name=name, **{location_type: location_value})
+        emit(profile, output, title=f"SAML Server Profile: {name}")
+        return
 
-            typer.echo(f"\nSAML Server Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            if profile.get("entity_id"):
-                typer.echo(f"Entity ID: {profile['entity_id']}")
-            if profile.get("certificate"):
-                typer.echo(f"Certificate: {profile['certificate']}")
-            if profile.get("sso_url"):
-                typer.echo(f"SSO URL: {profile['sso_url']}")
-            if profile.get("sso_bindings"):
-                typer.echo(f"SSO Bindings: {profile['sso_bindings']}")
-            if profile.get("slo_bindings"):
-                typer.echo(f"SLO Bindings: {profile['slo_bindings']}")
-            if profile.get("max_clock_skew"):
-                typer.echo(f"Max Clock Skew: {profile['max_clock_skew']}s")
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-        else:
-            # List all SAML server profiles (default behavior)
-            profiles = scm_client.list_saml_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No SAML server profiles found")
-                return
-
-            typer.echo(f"\nSAML Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("entity_id"):
-                    typer.echo(f"  Entity ID: {p['entity_id']}")
-                if p.get("sso_url"):
-                    typer.echo(f"  SSO URL: {p['sso_url']}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing SAML server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_saml_server_profiles(folder=folder, snippet=snippet, device=device)
+    location = folder or snippet or device
+    title = f"SAML Server Profiles in {location}" if location else "SAML Server Profiles"
+    emit(profiles, output, columns=["name", "entity_id", "sso_url", "sso_bindings"], title=title)
 
 
 @delete_app.command("saml-server-profile")
+@handle_command_errors("deleting SAML server profile")
 def delete_saml_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -1257,23 +1062,20 @@ def delete_saml_server_profile(
     Example: scm delete identity saml-server-profile --folder Texas --name corp-saml
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-        if not force:
-            typer.confirm(f"Delete SAML server profile '{name}' from {location_type} '{location_value}'?", abort=True)
-        result = scm_client.delete_saml_server_profile(name=name, **{location_type: location_value})
+    location_type, location_value = validate_location_params(folder, snippet, device)
+    if not force:
+        typer.confirm(f"Delete SAML server profile '{name}' from {location_type} '{location_value}'?", abort=True)
+    result = scm_client.delete_saml_server_profile(name=name, **{location_type: location_value})
 
-        if result:
-            typer.echo(f"Deleted SAML server profile: {name} from {location_type} {location_value}")
-        else:
-            typer.echo(f"SAML server profile not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting SAML server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted SAML server profile: {name} from {location_type} {location_value}")
+    else:
+        error(f"SAML server profile not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("saml-server-profile")
+@handle_command_errors("loading SAML server profiles")
 def load_saml_server_profile(
     file: Path = FILE_OPTION,
     folder: str | None = LOAD_FOLDER_OPTION,
@@ -1286,65 +1088,58 @@ def load_saml_server_profile(
     Example: scm load identity saml-server-profile --file saml.yaml --folder Texas
 
     """
-    try:
-        if not file.exists():
-            typer.echo(f"Error: File '{file}' does not exist", err=True)
-            raise typer.Exit(code=1)
+    if not file.exists():
+        error(f"Error: File '{file}' does not exist")
+        raise typer.Exit(code=1)
 
-        with file.open() as f:
-            yaml_content = yaml.safe_load(f)
+    with file.open() as f:
+        yaml_content = yaml.safe_load(f)
 
-        if not yaml_content:
-            typer.echo(f"Error: File '{file}' is empty or invalid", err=True)
-            raise typer.Exit(code=1)
+    if not yaml_content:
+        error(f"Error: File '{file}' is empty or invalid")
+        raise typer.Exit(code=1)
 
-        profiles = yaml_content.get("saml_server_profiles", [])
-        if not profiles:
-            typer.echo("No SAML server profiles found in the YAML file.")
-            return
+    profiles = yaml_content.get("saml_server_profiles", [])
+    if not profiles:
+        info("No SAML server profiles found in the YAML file.")
+        return
 
-        if dry_run:
-            typer.echo("[DRY RUN] Would load the following SAML server profiles:")
-            typer.echo(yaml.dump(profiles, default_flow_style=False))
-            return
+    if dry_run:
+        info("[DRY RUN] Would load the following SAML server profiles:")
+        typer.echo(yaml.dump(profiles, default_flow_style=False))
+        return
 
-        loaded_count = 0
-        for profile_data in profiles:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
-                elif snippet:
-                    profile_data["snippet"] = snippet
-                elif device:
-                    profile_data["device"] = device
+    loaded_count = 0
+    for profile_data in profiles:
+        try:
+            if folder:
+                profile_data["folder"] = folder
+            elif snippet:
+                profile_data["snippet"] = snippet
+            elif device:
+                profile_data["device"] = device
 
-                profile = SamlServerProfile(**profile_data)
-                sdk_data = profile.to_sdk_model()
-                result = scm_client.create_saml_server_profile(**sdk_data)
+            profile = SamlServerProfile(**profile_data)
+            sdk_data = profile.to_sdk_model()
+            result = scm_client.create_saml_server_profile(**sdk_data)
 
-                action = result.get("__action__", "created")
-                if action == "no_change":
-                    typer.echo(f"No changes for SAML server profile: {profile.name}")
-                elif action == "updated":
-                    typer.echo(f"Updated SAML server profile: {profile.name}")
-                else:
-                    typer.echo(f"Created SAML server profile: {profile.name}")
-                loaded_count += 1
+            action = result.get("__action__", "created")
+            if action == "no_change":
+                info(f"No changes for SAML server profile: {profile.name}")
+            elif action == "updated":
+                success(f"Updated SAML server profile: {profile.name}")
+            else:
+                success(f"Created SAML server profile: {profile.name}")
+            loaded_count += 1
 
-            except Exception as e:
-                typer.echo(f"Error loading SAML server profile: {str(e)}", err=True)
+        except Exception as e:
+            error(f"Error loading SAML server profile: {str(e)}")
 
-        typer.echo(f"\nProcessed {loaded_count} SAML server profiles from {file}")
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading SAML server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {loaded_count} SAML server profiles from {file}")
 
 
 @backup_app.command("saml-server-profile")
+@handle_command_errors("backing up SAML server profiles")
 def backup_saml_server_profile(
     folder: str | None = BACKUP_FOLDER_OPTION,
     snippet: str | None = BACKUP_SNIPPET_OPTION,
@@ -1359,34 +1154,29 @@ def backup_saml_server_profile(
         scm backup identity saml-server-profile --folder Texas --file saml.yaml
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
-        typer.echo(f"Fetching SAML server profiles from {location_type} '{location_value}'...")
-        kwargs = {location_type: location_value}
-        profiles = scm_client.list_saml_server_profiles(**kwargs, exact_match=True)
+    info(f"Fetching SAML server profiles from {location_type} '{location_value}'...")
+    kwargs = {location_type: location_value}
+    profiles = scm_client.list_saml_server_profiles(**kwargs, exact_match=True)
 
-        if not profiles:
-            typer.echo(f"No SAML server profiles found in {location_type} '{location_value}'")
-            return
+    if not profiles:
+        info(f"No SAML server profiles found in {location_type} '{location_value}'")
+        return
 
-        backup_data: dict[str, list[dict[str, Any]]] = {"saml_server_profiles": []}
-        for p in profiles:
-            p_dict = p.copy()
-            p_dict.pop("id", None)
-            backup_data["saml_server_profiles"].append(p_dict)
+    backup_data: dict[str, list[dict[str, Any]]] = {"saml_server_profiles": []}
+    for p in profiles:
+        p_dict = p.copy()
+        p_dict.pop("id", None)
+        backup_data["saml_server_profiles"].append(p_dict)
 
-        backup_data["saml_server_profiles"].sort(key=lambda x: x["name"])
-        filename = file or Path(get_default_backup_filename("saml-server-profile", location_type, location_value))
+    backup_data["saml_server_profiles"].sort(key=lambda x: x["name"])
+    filename = file or Path(get_default_backup_filename("saml-server-profile", location_type, location_value))
 
-        with open(filename, "w") as fh:
-            yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
+    with open(filename, "w") as fh:
+        yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data['saml_server_profiles'])} SAML server profiles to {filename}")
-
-    except Exception as e:
-        typer.echo(f"Error backing up SAML server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data['saml_server_profiles'])} SAML server profiles to {filename}")
 
 
 # =============================================================================================================================================================================================
@@ -1395,6 +1185,7 @@ def backup_saml_server_profile(
 
 
 @set_app.command("tacacs-server-profile")
+@handle_command_errors("creating TACACS+ server profile")
 def set_tacacs_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -1414,11 +1205,11 @@ def set_tacacs_server_profile(
             --protocol CHAP --timeout 5
 
     """
+    location_type, location_value = validate_location_params(folder, snippet, device)
+
+    servers_list = json_lib.loads(servers) if servers else None
+
     try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-
-        servers_list = json_lib.loads(servers) if servers else None
-
         profile = TacacsServerProfile(
             name=name,
             folder=folder,
@@ -1429,34 +1220,32 @@ def set_tacacs_server_profile(
             timeout=timeout,
             use_single_connection=use_single_connection,
         )
-
-        sdk_data = profile.to_sdk_model()
-        result = scm_client.create_tacacs_server_profile(**sdk_data)
-
-        action = result.get("__action__", "created")
-        if action == "no_change":
-            typer.echo(f"No changes detected for TACACS+ server profile: {name}")
-        elif action == "updated":
-            typer.echo(f"Updated TACACS+ server profile: {name} in {location_type} {location_value}")
-        else:
-            typer.echo(f"Created TACACS+ server profile: {name} in {location_type} {location_value}")
-        return result
-
     except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
+        error(f"Validation error: {e}")
         raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error creating TACACS+ server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+
+    sdk_data = profile.to_sdk_model()
+    result = scm_client.create_tacacs_server_profile(**sdk_data)
+
+    action = result.get("__action__", "created")
+    if action == "no_change":
+        info(f"No changes detected for TACACS+ server profile: {name}")
+    elif action == "updated":
+        success(f"Updated TACACS+ server profile: {name} in {location_type} {location_value}")
+    else:
+        success(f"Created TACACS+ server profile: {name} in {location_type} {location_value}")
+    return result
 
 
 @show_app.command("tacacs-server-profile")
+@handle_command_errors("showing TACACS+ server profiles")
 def show_tacacs_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
     device: str | None = DEVICE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the TACACS+ server profile to show"),
     list_items: bool = typer.Option(False, "--list", "-l", help="List all TACACS+ server profiles"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display TACACS+ server profiles.
 
@@ -1466,48 +1255,20 @@ def show_tacacs_server_profile(
         scm show identity tacacs-server-profile --folder Texas --name corp-tacacs
 
     """
-    try:
-        if name:
-            location_type, location_value = validate_location_params(folder, snippet, device)
-            profile = scm_client.get_tacacs_server_profile(name=name, **{location_type: location_value})
+    if name:
+        location_type, location_value = validate_location_params(folder, snippet, device)
+        profile = scm_client.get_tacacs_server_profile(name=name, **{location_type: location_value})
+        emit(profile, output, title=f"TACACS+ Server Profile: {name}")
+        return
 
-            typer.echo(f"\nTACACS+ Server Profile: {profile.get('name', 'N/A')}")
-            typer.echo("=" * 80)
-            if profile.get("protocol"):
-                typer.echo(f"Protocol: {profile['protocol']}")
-            if profile.get("timeout"):
-                typer.echo(f"Timeout: {profile['timeout']}s")
-            if profile.get("use_single_connection") is not None:
-                typer.echo(f"Use Single Connection: {profile['use_single_connection']}")
-            if profile.get("server"):
-                typer.echo(f"Servers ({len(profile['server'])}):")
-                for idx, srv in enumerate(profile["server"]):
-                    typer.echo(f"  Server {idx + 1}: {srv.get('name', 'N/A')} - {srv.get('address', 'N/A')}:{srv.get('port', 'N/A')}")
-            if profile.get("id"):
-                typer.echo(f"ID: {profile['id']}")
-        else:
-            # List all TACACS+ server profiles (default behavior)
-            profiles = scm_client.list_tacacs_server_profiles(folder=folder, snippet=snippet, device=device)
-            if not profiles:
-                typer.echo("No TACACS+ server profiles found")
-                return
-
-            typer.echo(f"\nTACACS+ Server Profiles ({len(profiles)}):")
-            typer.echo("-" * 80)
-            for p in profiles:
-                typer.echo(f"Name: {p.get('name', 'N/A')}")
-                if p.get("protocol"):
-                    typer.echo(f"  Protocol: {p['protocol']}")
-                if p.get("server"):
-                    typer.echo(f"  Servers: {len(p['server'])}")
-                typer.echo("-" * 80)
-
-    except Exception as e:
-        typer.echo(f"Error showing TACACS+ server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    profiles = scm_client.list_tacacs_server_profiles(folder=folder, snippet=snippet, device=device)
+    location = folder or snippet or device
+    title = f"TACACS+ Server Profiles in {location}" if location else "TACACS+ Server Profiles"
+    emit(profiles, output, columns=["name", "protocol", "server", "timeout"], title=title)
 
 
 @delete_app.command("tacacs-server-profile")
+@handle_command_errors("deleting TACACS+ server profile")
 def delete_tacacs_server_profile(
     folder: str | None = FOLDER_OPTION,
     snippet: str | None = SNIPPET_OPTION,
@@ -1520,23 +1281,20 @@ def delete_tacacs_server_profile(
     Example: scm delete identity tacacs-server-profile --folder Texas --name corp-tacacs
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
-        if not force:
-            typer.confirm(f"Delete TACACS+ server profile '{name}' from {location_type} '{location_value}'?", abort=True)
-        result = scm_client.delete_tacacs_server_profile(name=name, **{location_type: location_value})
+    location_type, location_value = validate_location_params(folder, snippet, device)
+    if not force:
+        typer.confirm(f"Delete TACACS+ server profile '{name}' from {location_type} '{location_value}'?", abort=True)
+    result = scm_client.delete_tacacs_server_profile(name=name, **{location_type: location_value})
 
-        if result:
-            typer.echo(f"Deleted TACACS+ server profile: {name} from {location_type} {location_value}")
-        else:
-            typer.echo(f"TACACS+ server profile not found: {name}", err=True)
-            raise typer.Exit(code=1)
-    except Exception as e:
-        typer.echo(f"Error deleting TACACS+ server profile: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    if result:
+        success(f"Deleted TACACS+ server profile: {name} from {location_type} {location_value}")
+    else:
+        error(f"TACACS+ server profile not found: {name}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("tacacs-server-profile")
+@handle_command_errors("loading TACACS+ server profiles")
 def load_tacacs_server_profile(
     file: Path = FILE_OPTION,
     folder: str | None = LOAD_FOLDER_OPTION,
@@ -1549,65 +1307,58 @@ def load_tacacs_server_profile(
     Example: scm load identity tacacs-server-profile --file tacacs.yaml --folder Texas
 
     """
-    try:
-        if not file.exists():
-            typer.echo(f"Error: File '{file}' does not exist", err=True)
-            raise typer.Exit(code=1)
+    if not file.exists():
+        error(f"Error: File '{file}' does not exist")
+        raise typer.Exit(code=1)
 
-        with file.open() as f:
-            yaml_content = yaml.safe_load(f)
+    with file.open() as f:
+        yaml_content = yaml.safe_load(f)
 
-        if not yaml_content:
-            typer.echo(f"Error: File '{file}' is empty or invalid", err=True)
-            raise typer.Exit(code=1)
+    if not yaml_content:
+        error(f"Error: File '{file}' is empty or invalid")
+        raise typer.Exit(code=1)
 
-        profiles = yaml_content.get("tacacs_server_profiles", [])
-        if not profiles:
-            typer.echo("No TACACS+ server profiles found in the YAML file.")
-            return
+    profiles = yaml_content.get("tacacs_server_profiles", [])
+    if not profiles:
+        info("No TACACS+ server profiles found in the YAML file.")
+        return
 
-        if dry_run:
-            typer.echo("[DRY RUN] Would load the following TACACS+ server profiles:")
-            typer.echo(yaml.dump(profiles, default_flow_style=False))
-            return
+    if dry_run:
+        info("[DRY RUN] Would load the following TACACS+ server profiles:")
+        typer.echo(yaml.dump(profiles, default_flow_style=False))
+        return
 
-        loaded_count = 0
-        for profile_data in profiles:
-            try:
-                if folder:
-                    profile_data["folder"] = folder
-                elif snippet:
-                    profile_data["snippet"] = snippet
-                elif device:
-                    profile_data["device"] = device
+    loaded_count = 0
+    for profile_data in profiles:
+        try:
+            if folder:
+                profile_data["folder"] = folder
+            elif snippet:
+                profile_data["snippet"] = snippet
+            elif device:
+                profile_data["device"] = device
 
-                profile = TacacsServerProfile(**profile_data)
-                sdk_data = profile.to_sdk_model()
-                result = scm_client.create_tacacs_server_profile(**sdk_data)
+            profile = TacacsServerProfile(**profile_data)
+            sdk_data = profile.to_sdk_model()
+            result = scm_client.create_tacacs_server_profile(**sdk_data)
 
-                action = result.get("__action__", "created")
-                if action == "no_change":
-                    typer.echo(f"No changes for TACACS+ server profile: {profile.name}")
-                elif action == "updated":
-                    typer.echo(f"Updated TACACS+ server profile: {profile.name}")
-                else:
-                    typer.echo(f"Created TACACS+ server profile: {profile.name}")
-                loaded_count += 1
+            action = result.get("__action__", "created")
+            if action == "no_change":
+                info(f"No changes for TACACS+ server profile: {profile.name}")
+            elif action == "updated":
+                success(f"Updated TACACS+ server profile: {profile.name}")
+            else:
+                success(f"Created TACACS+ server profile: {profile.name}")
+            loaded_count += 1
 
-            except Exception as e:
-                typer.echo(f"Error loading TACACS+ server profile: {str(e)}", err=True)
+        except Exception as e:
+            error(f"Error loading TACACS+ server profile: {str(e)}")
 
-        typer.echo(f"\nProcessed {loaded_count} TACACS+ server profiles from {file}")
-
-    except ValidationError as e:
-        typer.echo(f"Validation error: {e}", err=True)
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        typer.echo(f"Error loading TACACS+ server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Processed {loaded_count} TACACS+ server profiles from {file}")
 
 
 @backup_app.command("tacacs-server-profile")
+@handle_command_errors("backing up TACACS+ server profiles")
 def backup_tacacs_server_profile(
     folder: str | None = BACKUP_FOLDER_OPTION,
     snippet: str | None = BACKUP_SNIPPET_OPTION,
@@ -1622,31 +1373,26 @@ def backup_tacacs_server_profile(
         scm backup identity tacacs-server-profile --folder Texas --file tacacs.yaml
 
     """
-    try:
-        location_type, location_value = validate_location_params(folder, snippet, device)
+    location_type, location_value = validate_location_params(folder, snippet, device)
 
-        typer.echo(f"Fetching TACACS+ server profiles from {location_type} '{location_value}'...")
-        kwargs = {location_type: location_value}
-        profiles = scm_client.list_tacacs_server_profiles(**kwargs, exact_match=True)
+    info(f"Fetching TACACS+ server profiles from {location_type} '{location_value}'...")
+    kwargs = {location_type: location_value}
+    profiles = scm_client.list_tacacs_server_profiles(**kwargs, exact_match=True)
 
-        if not profiles:
-            typer.echo(f"No TACACS+ server profiles found in {location_type} '{location_value}'")
-            return
+    if not profiles:
+        info(f"No TACACS+ server profiles found in {location_type} '{location_value}'")
+        return
 
-        backup_data: dict[str, list[dict[str, Any]]] = {"tacacs_server_profiles": []}
-        for p in profiles:
-            p_dict = p.copy()
-            p_dict.pop("id", None)
-            backup_data["tacacs_server_profiles"].append(p_dict)
+    backup_data: dict[str, list[dict[str, Any]]] = {"tacacs_server_profiles": []}
+    for p in profiles:
+        p_dict = p.copy()
+        p_dict.pop("id", None)
+        backup_data["tacacs_server_profiles"].append(p_dict)
 
-        backup_data["tacacs_server_profiles"].sort(key=lambda x: x["name"])
-        filename = file or Path(get_default_backup_filename("tacacs-server-profile", location_type, location_value))
+    backup_data["tacacs_server_profiles"].sort(key=lambda x: x["name"])
+    filename = file or Path(get_default_backup_filename("tacacs-server-profile", location_type, location_value))
 
-        with open(filename, "w") as fh:
-            yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
+    with open(filename, "w") as fh:
+        yaml.dump(backup_data, fh, default_flow_style=False, sort_keys=False)
 
-        typer.echo(f"Successfully backed up {len(backup_data['tacacs_server_profiles'])} TACACS+ server profiles to {filename}")
-
-    except Exception as e:
-        typer.echo(f"Error backing up TACACS+ server profiles: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    success(f"Successfully backed up {len(backup_data['tacacs_server_profiles'])} TACACS+ server profiles to {filename}")

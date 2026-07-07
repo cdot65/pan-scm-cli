@@ -1,5 +1,7 @@
 """Tests for the deployment commands module."""
 
+import json
+
 import typer
 
 from scm_cli.commands.deployment import (
@@ -16,9 +18,12 @@ from scm_cli.commands.deployment import (
     set_bgp_routing,
     set_internal_dns_server,
     show_app,
+    show_bandwidth_allocation,
     show_bgp_routing,
     show_internal_dns_server,
     show_network_location,
+    show_remote_network,
+    show_service_connection,
 )
 
 
@@ -283,8 +288,7 @@ class TestBandwidthAllocationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "test-allocation", "--bandwidth", "1000",
-             "--spn-name-list", "spn1,spn2", "--description", "Test"],
+            ["--name", "test-allocation", "--bandwidth", "1000", "--spn-name-list", "spn1,spn2", "--description", "Test"],
         )
 
         assert result.exit_code == 0
@@ -308,8 +312,7 @@ class TestBandwidthAllocationCommands:
 
         result = runner.invoke(
             test_app,
-            ["--name", "test-allocation", "--bandwidth", "1000",
-             "--spn-name-list", "spn1,spn2", "--description", "Test"],
+            ["--name", "test-allocation", "--bandwidth", "1000", "--spn-name-list", "spn1,spn2", "--description", "Test"],
         )
 
         assert result.exit_code == 0
@@ -545,7 +548,7 @@ class TestInternalDNSServerCommands:
         result = runner.invoke(test_app, [])
 
         assert result.exit_code == 0
-        assert "Internal DNS Servers:" in result.stdout
+        assert "Internal DNS Servers" in result.stdout
         assert "dns-server-1" in result.stdout
         assert "dns-server-2" in result.stdout
 
@@ -660,7 +663,7 @@ class TestNetworkLocationCommands:
         result = runner.invoke(test_app, [])
 
         assert result.exit_code == 0
-        assert "Network Locations:" in result.stdout
+        assert "Network Locations" in result.stdout
         assert "us-west-1" in result.stdout
         assert "us-east-1" in result.stdout
 
@@ -679,4 +682,157 @@ class TestNetworkLocationCommands:
         result = runner.invoke(test_app, [])
 
         assert result.exit_code == 0
-        assert "No network locations found" in result.stdout
+        assert "No results found" in result.output
+
+
+class TestShowJsonOutput:
+    """Test that show commands emit machine-readable JSON with --output json."""
+
+    def test_show_bandwidth_allocation_list_json(self, runner, monkeypatch):
+        """Test listing bandwidth allocations as JSON."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        allocations = [
+            {
+                "id": "ba-1",
+                "name": "primary",
+                "allocated_bandwidth": 1000,
+                "spn_name_list": ["spn1", "spn2"],
+                "description": "Primary allocation",
+            }
+        ]
+
+        monkeypatch.setattr(scm_client, "list_bandwidth_allocations", lambda: allocations)
+
+        test_app = typer.Typer()
+        test_app.command()(show_bandwidth_allocation)
+
+        result = runner.invoke(test_app, ["--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == allocations
+
+    def test_show_service_connection_single_json(self, runner, monkeypatch):
+        """Test showing a specific service connection as JSON."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        connection = {
+            "id": "sc-1",
+            "name": "primary-connection",
+            "ipsec_tunnel": "ipsec-tunnel-1",
+            "region": "us-east-1",
+            "onboarding_type": "classic",
+        }
+
+        monkeypatch.setattr(scm_client, "get_service_connection", lambda name: connection)
+
+        test_app = typer.Typer()
+        test_app.command()(show_service_connection)
+
+        result = runner.invoke(test_app, ["--name", "primary-connection", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == connection
+
+    def test_show_remote_network_list_json(self, runner, monkeypatch):
+        """Test listing remote networks as JSON."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        networks = [
+            {
+                "id": "rn-1",
+                "name": "branch-network",
+                "region": "us-west-1",
+                "license_type": "FWAAS-AGGREGATE",
+                "subnets": ["10.1.0.0/24"],
+                "ecmp_load_balancing": "disable",
+            }
+        ]
+
+        monkeypatch.setattr(scm_client, "list_remote_networks", lambda: networks)
+
+        test_app = typer.Typer()
+        test_app.command()(show_remote_network)
+
+        result = runner.invoke(test_app, ["--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == networks
+
+    def test_show_bgp_routing_json(self, runner, monkeypatch):
+        """Test showing the BGP routing configuration as JSON."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        config = {
+            "backbone_routing": "no-asymmetric-routing",
+            "routing_preference": {"default": {}},
+            "accept_route_over_SC": False,
+            "outbound_routes_for_services": [],
+            "add_host_route_to_ike_peer": False,
+            "withdraw_static_route": False,
+        }
+
+        monkeypatch.setattr(scm_client, "get_bgp_routing", lambda: config)
+
+        test_app = typer.Typer()
+        test_app.command()(show_bgp_routing)
+
+        result = runner.invoke(test_app, ["--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == config
+
+    def test_show_internal_dns_server_single_json(self, runner, monkeypatch):
+        """Test showing a specific internal DNS server as JSON."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        server = {
+            "id": "dns-1",
+            "name": "corp-dns",
+            "domain_name": ["corp.example.com"],
+            "primary": "10.0.0.1",
+            "secondary": "10.0.0.2",
+        }
+
+        monkeypatch.setattr(scm_client, "get_internal_dns_server", lambda name: server)
+
+        test_app = typer.Typer()
+        test_app.command()(show_internal_dns_server)
+
+        result = runner.invoke(test_app, ["--name", "corp-dns", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == server
+
+    def test_show_network_location_list_json(self, runner, monkeypatch):
+        """Test listing network locations as JSON."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        locations = [
+            {"value": "us-west-1", "display": "US West", "continent": "North America", "region": "us-west-1"},
+            {"value": "us-east-1", "display": "US East", "continent": "North America", "region": "us-east-1"},
+        ]
+
+        monkeypatch.setattr(scm_client, "list_network_locations", lambda: locations)
+
+        test_app = typer.Typer()
+        test_app.command()(show_network_location)
+
+        result = runner.invoke(test_app, ["--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == locations
+
+    def test_show_network_location_empty_json(self, runner, monkeypatch):
+        """Test that an empty list emits a JSON empty array."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_network_locations", lambda: [])
+
+        test_app = typer.Typer()
+        test_app.command()(show_network_location)
+
+        result = runner.invoke(test_app, ["--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == []

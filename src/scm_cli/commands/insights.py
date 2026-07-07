@@ -12,10 +12,11 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
-import yaml
 
 from ..utils.config import settings
 from ..utils.context import get_current_context
+from ..utils.decorators import handle_command_errors
+from ..utils.output import OutputFormat, emit, info, success
 from ..utils.sdk_client import scm_client
 
 # =============================================================================================================================================================================================
@@ -51,11 +52,11 @@ def export_data(data: list[dict[str, Any]], export_format: str, output_file: str
     if export_format == "json":
         with open(output_path, "w") as f:
             json.dump(data, f, indent=2, default=str)
-        typer.echo(f"Data exported to {output_path}")
+        success(f"Data exported to {output_path}")
 
     elif export_format == "csv":
         if not data:
-            typer.echo("No data to export", err=True)
+            info("No data to export")
             return
 
         # Get all unique keys from all dictionaries
@@ -67,7 +68,7 @@ def export_data(data: list[dict[str, Any]], export_format: str, output_file: str
             writer = csv.DictWriter(f, fieldnames=sorted(all_keys))
             writer.writeheader()
             writer.writerows(data)
-        typer.echo(f"Data exported to {output_path}")
+        success(f"Data exported to {output_path}")
 
 
 # =============================================================================================================================================================================================
@@ -82,6 +83,7 @@ app = typer.Typer(help="Insights commands for Strata Cloud Manager")
 
 
 @app.command("alerts")
+@handle_command_errors("showing alerts")
 def show_alerts(
     list_alerts: bool = typer.Option(False, "--list", "-l", help="List all alerts"),
     alert_id: str | None = typer.Option(None, "--id", help="Get a specific alert by ID"),
@@ -157,47 +159,47 @@ def show_alerts(
 
     # Note: scm_client automatically uses mock mode when no credentials are available
 
-    try:
-        if alert_id:
-            # Get specific alert
-            alert = scm_client.get_alert(alert_id=alert_id, folder=folder)
-            typer.echo(yaml.dump(alert, default_flow_style=False))
+    if alert_id:
+        # Get specific alert
+        alert = scm_client.get_alert(alert_id=alert_id, folder=folder)
+        emit(alert, OutputFormat.table, title=f"Alert: {alert_id}")
 
-        elif real_time:
-            typer.echo("Starting real-time alert monitoring... (Press Ctrl+C to stop)")
-            # TODO: Implement real-time monitoring with websocket or polling
-            typer.echo("Real-time monitoring not yet implemented")
+    elif real_time:
+        info("Starting real-time alert monitoring... (Press Ctrl+C to stop)")
+        # TODO: Implement real-time monitoring with websocket or polling
+        info("Real-time monitoring not yet implemented")
 
+    else:
+        # List alerts with filters (default behavior)
+        filters = {}
+        if severity:
+            filters["severity"] = severity
+
+        # Time filtering
+        if start_time:
+            filters["start_time"] = start_time.isoformat()
+            info(f"Filtering alerts from {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         else:
-            # List alerts with filters (default behavior)
-            filters = {}
-            if severity:
-                filters["severity"] = severity
+            # Default to 7 days ago
+            seven_days_ago = datetime.now() - timedelta(days=7)
+            filters["start_time"] = seven_days_ago.isoformat()
+            info(f"Note: Showing up to {max_results} most recent alerts from the last 7 days (since {seven_days_ago.strftime('%Y-%m-%d %H:%M:%S')})")
+            info("Tip: Use --max-results to change the number of alerts shown.")
 
-            # Time filtering
-            if start_time:
-                filters["start_time"] = start_time.isoformat()
-                typer.echo(f"Filtering alerts from {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-            else:
-                # Default to 7 days ago
-                seven_days_ago = datetime.now() - timedelta(days=7)
-                filters["start_time"] = seven_days_ago.isoformat()
-                typer.echo(f"Note: Showing up to {max_results} most recent alerts from the last 7 days (since {seven_days_ago.strftime('%Y-%m-%d %H:%M:%S')})")
-                typer.echo("Tip: Use --max-results to change the number of alerts shown.")
+        if end_time:
+            filters["end_time"] = end_time.isoformat()
 
-            if end_time:
-                filters["end_time"] = end_time.isoformat()
+        alerts = scm_client.list_alerts(folder=folder, max_results=max_results, **filters)
 
-            alerts = scm_client.list_alerts(folder=folder, max_results=max_results, **filters)
-
-            if export_format and output_file:
-                export_data(alerts, export_format, output_file)
-            else:
-                typer.echo(yaml.dump(alerts, default_flow_style=False))
-
-    except Exception as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(code=1) from e
+        if export_format and output_file:
+            export_data(alerts, export_format, output_file)
+        else:
+            emit(
+                alerts,
+                OutputFormat.table,
+                columns=["id", "name", "severity", "status", "timestamp", "category", "description"],
+                title="Alerts",
+            )
 
 
 # =============================================================================================================================================================================================
@@ -206,6 +208,7 @@ def show_alerts(
 
 
 @app.command("mobile-users")
+@handle_command_errors("showing mobile users")
 def show_mobile_users(
     list_users: bool = typer.Option(False, "--list", "-l", help="List all mobile users"),
     user_id: str | None = typer.Option(None, "--id", help="Get a specific mobile user by ID"),
@@ -258,30 +261,30 @@ def show_mobile_users(
 
     # Note: scm_client automatically uses mock mode when no credentials are available
 
-    try:
-        if user_id:
-            # Get specific user
-            user = scm_client.get_mobile_user(user_id=user_id, folder=folder)
-            typer.echo(yaml.dump(user, default_flow_style=False))
+    if user_id:
+        # Get specific user
+        user = scm_client.get_mobile_user(user_id=user_id, folder=folder)
+        emit(user, OutputFormat.table, title=f"Mobile User: {user_id}")
 
+    else:
+        # List users with filters (default behavior)
+        filters = {}
+        if status:
+            filters["status"] = status
+        if location:
+            filters["location"] = location
+
+        users = scm_client.list_mobile_users(folder=folder, max_results=max_results, **filters)
+
+        if export_format and output_file:
+            export_data(users, export_format, output_file)
         else:
-            # List users with filters (default behavior)
-            filters = {}
-            if status:
-                filters["status"] = status
-            if location:
-                filters["location"] = location
-
-            users = scm_client.list_mobile_users(folder=folder, max_results=max_results, **filters)
-
-            if export_format and output_file:
-                export_data(users, export_format, output_file)
-            else:
-                typer.echo(yaml.dump(users, default_flow_style=False))
-
-    except Exception as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(code=1) from e
+            emit(
+                users,
+                OutputFormat.table,
+                columns=["id", "username", "status", "location", "last_seen", "ip_address", "gateway"],
+                title="Mobile Users",
+            )
 
 
 # =============================================================================================================================================================================================
@@ -290,6 +293,7 @@ def show_mobile_users(
 
 
 @app.command("locations")
+@handle_command_errors("showing locations")
 def show_locations(
     list_locations: bool = typer.Option(False, "--list", "-l", help="List all locations"),
     location_id: str | None = typer.Option(None, "--id", help="Get a specific location by ID"),
@@ -337,28 +341,28 @@ def show_locations(
 
     # Note: scm_client automatically uses mock mode when no credentials are available
 
-    try:
-        if location_id:
-            # Get specific location
-            location = scm_client.get_location(location_id=location_id, folder=folder)
-            typer.echo(yaml.dump(location, default_flow_style=False))
+    if location_id:
+        # Get specific location
+        location = scm_client.get_location(location_id=location_id, folder=folder)
+        emit(location, OutputFormat.table, title=f"Location: {location_id}")
 
+    else:
+        # List locations with filters (default behavior)
+        filters = {}
+        if region:
+            filters["region"] = region
+
+        locations = scm_client.list_locations(folder=folder, max_results=max_results, **filters)
+
+        if export_format and output_file:
+            export_data(locations, export_format, output_file)
         else:
-            # List locations with filters (default behavior)
-            filters = {}
-            if region:
-                filters["region"] = region
-
-            locations = scm_client.list_locations(folder=folder, max_results=max_results, **filters)
-
-            if export_format and output_file:
-                export_data(locations, export_format, output_file)
-            else:
-                typer.echo(yaml.dump(locations, default_flow_style=False))
-
-    except Exception as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(code=1) from e
+            emit(
+                locations,
+                OutputFormat.table,
+                columns=["id", "name", "region", "country", "state", "city", "total_users", "active_users"],
+                title="Locations",
+            )
 
 
 # =============================================================================================================================================================================================
@@ -367,6 +371,7 @@ def show_locations(
 
 
 @app.command("remote-networks")
+@handle_command_errors("showing remote networks")
 def show_remote_networks(
     list_networks: bool = typer.Option(False, "--list", "-l", help="List all remote networks"),
     network_id: str | None = typer.Option(None, "--id", help="Get a specific remote network by ID"),
@@ -419,28 +424,26 @@ def show_remote_networks(
 
     # Note: scm_client automatically uses mock mode when no credentials are available
 
-    try:
-        if network_id:
-            # Get specific network
-            network = scm_client.get_remote_network_insights(network_id=network_id, folder=folder, include_metrics=show_metrics)
-            typer.echo(yaml.dump(network, default_flow_style=False))
+    if network_id:
+        # Get specific network
+        network = scm_client.get_remote_network_insights(network_id=network_id, folder=folder, include_metrics=show_metrics)
+        emit(network, OutputFormat.table, title=f"Remote Network: {network_id}")
 
+    else:
+        # List networks with filters (default behavior)
+        filters = {}
+        if connectivity:
+            filters["connectivity"] = connectivity
+
+        networks = scm_client.list_remote_network_insights(folder=folder, max_results=max_results, include_metrics=show_metrics, **filters)
+
+        if export_format and output_file:
+            export_data(networks, export_format, output_file)
         else:
-            # List networks with filters (default behavior)
-            filters = {}
-            if connectivity:
-                filters["connectivity"] = connectivity
-
-            networks = scm_client.list_remote_network_insights(folder=folder, max_results=max_results, include_metrics=show_metrics, **filters)
-
-            if export_format and output_file:
-                export_data(networks, export_format, output_file)
-            else:
-                typer.echo(yaml.dump(networks, default_flow_style=False))
-
-    except Exception as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(code=1) from e
+            columns = ["id", "name", "connectivity_status", "region", "bandwidth_allocated", "bandwidth_used", "tunnel_count", "active_tunnels"]
+            if show_metrics:
+                columns += ["latency", "packet_loss", "jitter"]
+            emit(networks, OutputFormat.table, columns=columns, title="Remote Networks")
 
 
 # =============================================================================================================================================================================================
@@ -449,6 +452,7 @@ def show_remote_networks(
 
 
 @app.command("service-connections")
+@handle_command_errors("showing service connections")
 def show_service_connections(
     list_connections: bool = typer.Option(False, "--list", "-l", help="List all service connections"),
     connection_id: str | None = typer.Option(None, "--id", help="Get a specific service connection by ID"),
@@ -501,28 +505,26 @@ def show_service_connections(
 
     # Note: scm_client automatically uses mock mode when no credentials are available
 
-    try:
-        if connection_id:
-            # Get specific connection
-            connection = scm_client.get_service_connection_insights(connection_id=connection_id, folder=folder, include_metrics=show_metrics)
-            typer.echo(yaml.dump(connection, default_flow_style=False))
+    if connection_id:
+        # Get specific connection
+        connection = scm_client.get_service_connection_insights(connection_id=connection_id, folder=folder, include_metrics=show_metrics)
+        emit(connection, OutputFormat.table, title=f"Service Connection: {connection_id}")
 
+    else:
+        # List connections with filters (default behavior)
+        filters = {}
+        if health_status:
+            filters["health_status"] = health_status
+
+        connections = scm_client.list_service_connection_insights(folder=folder, max_results=max_results, include_metrics=show_metrics, **filters)
+
+        if export_format and output_file:
+            export_data(connections, export_format, output_file)
         else:
-            # List connections with filters (default behavior)
-            filters = {}
-            if health_status:
-                filters["health_status"] = health_status
-
-            connections = scm_client.list_service_connection_insights(folder=folder, max_results=max_results, include_metrics=show_metrics, **filters)
-
-            if export_format and output_file:
-                export_data(connections, export_format, output_file)
-            else:
-                typer.echo(yaml.dump(connections, default_flow_style=False))
-
-    except Exception as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(code=1) from e
+            columns = ["id", "name", "health_status", "region", "service_type", "uptime", "error_count", "warning_count"]
+            if show_metrics:
+                columns += ["latency", "throughput", "availability"]
+            emit(connections, OutputFormat.table, columns=columns, title="Service Connections")
 
 
 # =============================================================================================================================================================================================
@@ -531,6 +533,7 @@ def show_service_connections(
 
 
 @app.command("tunnels")
+@handle_command_errors("showing tunnels")
 def show_tunnels(
     list_tunnels: bool = typer.Option(False, "--list", "-l", help="List all tunnels"),
     tunnel_id: str | None = typer.Option(None, "--id", help="Get a specific tunnel by ID"),
@@ -600,38 +603,36 @@ def show_tunnels(
 
     # Note: scm_client automatically uses mock mode when no credentials are available
 
-    try:
-        if tunnel_id:
-            # Get specific tunnel
-            tunnel = scm_client.get_tunnel(
-                tunnel_id=tunnel_id,
-                folder=folder,
-                include_stats=show_stats,
-                start_time=start_time.isoformat() if start_time else None,
-                end_time=end_time.isoformat() if end_time else None,
-            )
-            typer.echo(yaml.dump(tunnel, default_flow_style=False))
+    if tunnel_id:
+        # Get specific tunnel
+        tunnel = scm_client.get_tunnel(
+            tunnel_id=tunnel_id,
+            folder=folder,
+            include_stats=show_stats,
+            start_time=start_time.isoformat() if start_time else None,
+            end_time=end_time.isoformat() if end_time else None,
+        )
+        emit(tunnel, OutputFormat.table, title=f"Tunnel: {tunnel_id}")
 
+    else:
+        # List tunnels with filters (default behavior)
+        filters = {}
+        if status:
+            filters["status"] = status
+        if start_time:
+            filters["start_time"] = start_time.isoformat()
+        if end_time:
+            filters["end_time"] = end_time.isoformat()
+
+        tunnels = scm_client.list_tunnels(folder=folder, max_results=max_results, include_stats=show_stats, **filters)
+
+        if export_format and output_file:
+            export_data(tunnels, export_format, output_file)
         else:
-            # List tunnels with filters (default behavior)
-            filters = {}
-            if status:
-                filters["status"] = status
-            if start_time:
-                filters["start_time"] = start_time.isoformat()
-            if end_time:
-                filters["end_time"] = end_time.isoformat()
-
-            tunnels = scm_client.list_tunnels(folder=folder, max_results=max_results, include_stats=show_stats, **filters)
-
-            if export_format and output_file:
-                export_data(tunnels, export_format, output_file)
-            else:
-                typer.echo(yaml.dump(tunnels, default_flow_style=False))
-
-    except Exception as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(code=1) from e
+            columns = ["id", "name", "status", "tunnel_type", "local_address", "remote_address", "uptime"]
+            if show_stats:
+                columns += ["bytes_sent", "packets_sent", "latency", "jitter"]
+            emit(tunnels, OutputFormat.table, columns=columns, title="Tunnels")
 
 
 if __name__ == "__main__":

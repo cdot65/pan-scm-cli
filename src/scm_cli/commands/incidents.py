@@ -9,9 +9,9 @@ import re
 from datetime import datetime, timezone
 
 import typer
-from rich.console import Console
-from rich.table import Table
 
+from ..utils.decorators import handle_command_errors
+from ..utils.output import OutputFormat, emit, info
 from ..utils.sdk_client import scm_client
 
 # =============================================================================================================================================================================================
@@ -19,7 +19,6 @@ from ..utils.sdk_client import scm_client
 # =============================================================================================================================================================================================
 
 app = typer.Typer(help="Search and view security incidents")
-console = Console()
 
 # =============================================================================================================================================================================================
 # COMMAND OPTIONS
@@ -50,6 +49,7 @@ def _format_epoch(epoch: int | str | None) -> str:
 
 
 @app.command("list")
+@handle_command_errors("listing incidents")
 def list_incidents(
     status: str | None = STATUS_OPTION,
     severity: str | None = SEVERITY_OPTION,
@@ -66,52 +66,40 @@ def list_incidents(
     scm incidents list --json
 
     """
-    try:
-        incidents = scm_client.list_incidents(status=status, severity=severity, product=product)
+    incidents = scm_client.list_incidents(status=status, severity=severity, product=product)
 
-        if json_output:
-            typer.echo(json.dumps(incidents, indent=2))
-            return
+    if json_output:
+        emit(incidents, OutputFormat.json)
+        return
 
-        if not incidents:
-            typer.echo("No incidents found")
-            return
+    if not incidents:
+        info("No incidents found")
+        return
 
-        table = Table(title="Security Incidents", show_lines=True)
-        table.add_column("ID", style="cyan", no_wrap=True)
-        table.add_column("Status", style="white", no_wrap=True)
-        table.add_column("Severity", style="white", no_wrap=True)
-        table.add_column("Product", style="white", no_wrap=True)
-        table.add_column("Title", style="dim", max_width=50)
-        table.add_column("Raised", style="white", no_wrap=True)
-
-        severity_styles = {"critical": "red bold", "high": "red", "medium": "yellow", "low": "green", "informational": "dim"}
-
-        for inc in incidents:
-            sev = inc.get("severity", "")
-            sev_style = severity_styles.get(sev, "white")
-            status_val = inc.get("status", "")
-            status_style = "green" if status_val == "closed" else ("yellow" if status_val == "in_progress" else "white")
-            table.add_row(
-                str(inc.get("incident_id", "")),
-                f"[{status_style}]{status_val}[/{status_style}]",
-                f"[{sev_style}]{sev}[/{sev_style}]",
-                str(inc.get("product", "")),
-                str(inc.get("title", "")),
-                _format_epoch(inc.get("raised_time")),
-            )
-
-        console.print(table)
-
-    except Exception as e:
-        typer.echo(f"Error listing incidents: {e!s}", err=True)
-        raise typer.Exit(code=1) from e
+    rows = [
+        {
+            "incident_id": inc.get("incident_id", ""),
+            "status": inc.get("status", ""),
+            "severity": inc.get("severity", ""),
+            "product": inc.get("product", ""),
+            "title": inc.get("title", ""),
+            "raised": _format_epoch(inc.get("raised_time")),
+        }
+        for inc in incidents
+    ]
+    emit(
+        rows,
+        OutputFormat.table,
+        columns=["incident_id", "status", "severity", "product", "title", "raised"],
+        title="Security Incidents",
+    )
 
 
 # ------------------------------------------------------------------------------------- show ------------------------------------------------------------------------------------
 
 
 @app.command("show")
+@handle_command_errors("showing incident")
 def show_incident(
     incident_id: str = typer.Argument(..., help="Incident ID to show"),
     json_output: bool = JSON_OPTION,
@@ -124,51 +112,49 @@ def show_incident(
     scm incidents show INC-2026-04-001 --json
 
     """
-    try:
-        incident = scm_client.get_incident(incident_id=incident_id)
+    incident = scm_client.get_incident(incident_id=incident_id)
 
-        if json_output:
-            typer.echo(json.dumps(incident, indent=2))
-            return
+    if json_output:
+        emit(incident, OutputFormat.json)
+        return
 
-        typer.echo(f"\nIncident: {incident.get('incident_id', incident_id)}")
-        typer.echo(f"Status:   {incident.get('status', '')}")
-        typer.echo(f"Severity: {incident.get('severity', '')}")
-        typer.echo(f"Product:  {incident.get('product', '')}")
-        typer.echo(f"Raised:   {_format_epoch(incident.get('raised_time'))}")
-        typer.echo(f"Updated:  {_format_epoch(incident.get('updated_time'))}")
-        typer.echo(f"Title:    {incident.get('title', '')}")
+    summary = {
+        "incident_id": incident.get("incident_id", incident_id),
+        "status": incident.get("status", ""),
+        "severity": incident.get("severity", ""),
+        "product": incident.get("product", ""),
+        "raised": _format_epoch(incident.get("raised_time")),
+        "updated": _format_epoch(incident.get("updated_time")),
+        "title": incident.get("title", ""),
+    }
+    emit(summary, OutputFormat.table, title=f"Incident: {incident.get('incident_id', incident_id)}")
 
-        alerts = incident.get("alerts", [])
-        if alerts:
-            typer.echo(f"\nAlerts ({len(alerts)}):")
-            for i, alert in enumerate(alerts, 1):
-                sev = alert.get("severity", "")
-                title = alert.get("title", "")
-                state = alert.get("state", "")
-                typer.echo(f"  {i}. [{sev}] {title}   ({state})")
+    alerts = incident.get("alerts", [])
+    if alerts:
+        typer.echo(f"\nAlerts ({len(alerts)}):")
+        for i, alert in enumerate(alerts, 1):
+            sev = alert.get("severity", "")
+            title = alert.get("title", "")
+            state = alert.get("state", "")
+            typer.echo(f"  {i}. [{sev}] {title}   ({state})")
 
-        remediations_raw = incident.get("remediations", "")
-        if remediations_raw:
-            typer.echo("\nRemediation:")
-            try:
-                parsed = json.loads(remediations_raw) if isinstance(remediations_raw, str) else remediations_raw
-                steps = parsed.get("remediations", []) if isinstance(parsed, dict) else []
-                for rem in steps:
-                    dc = rem.get("dynamic_content", {})
-                    for j, step in enumerate(dc.get("steps", []), 1):
-                        title = re.sub(r"<[^>]+>", "", step.get("title", "")).strip()
-                        typer.echo(f"  {j}. {title}")
-                        desc = re.sub(r"<[^>]+>", "", step.get("description", "")).strip()
-                        if desc:
-                            typer.echo(f"     {desc}")
-                if not steps:
-                    typer.echo(f"  {remediations_raw}")
-            except (json.JSONDecodeError, AttributeError):
+    remediations_raw = incident.get("remediations", "")
+    if remediations_raw:
+        typer.echo("\nRemediation:")
+        try:
+            parsed = json.loads(remediations_raw) if isinstance(remediations_raw, str) else remediations_raw
+            steps = parsed.get("remediations", []) if isinstance(parsed, dict) else []
+            for rem in steps:
+                dc = rem.get("dynamic_content", {})
+                for j, step in enumerate(dc.get("steps", []), 1):
+                    title = re.sub(r"<[^>]+>", "", step.get("title", "")).strip()
+                    typer.echo(f"  {j}. {title}")
+                    desc = re.sub(r"<[^>]+>", "", step.get("description", "")).strip()
+                    if desc:
+                        typer.echo(f"     {desc}")
+            if not steps:
                 typer.echo(f"  {remediations_raw}")
+        except (json.JSONDecodeError, AttributeError):
+            typer.echo(f"  {remediations_raw}")
 
-        typer.echo()
-
-    except Exception as e:
-        typer.echo(f"Error showing incident: {e!s}", err=True)
-        raise typer.Exit(code=1) from e
+    typer.echo()

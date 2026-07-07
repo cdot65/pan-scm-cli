@@ -288,7 +288,7 @@ class TestAgentProfileCommands:
         result = runner.invoke(test_app, ["--folder", "Mobile Users"])
 
         assert result.exit_code == 0
-        assert "No agent profiles found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_delete_agent_profile(self, runner, monkeypatch):
         """Test deleting an agent profile."""
@@ -562,7 +562,7 @@ class TestTunnelProfileCommands:
         result = runner.invoke(test_app, ["--folder", "Mobile Users"])
 
         assert result.exit_code == 0
-        assert "No tunnel profiles found" in result.stdout
+        assert "No results found" in result.stdout
 
     def test_delete_tunnel_profile(self, runner, monkeypatch):
         """Test deleting a tunnel profile."""
@@ -669,3 +669,50 @@ tunnel_profiles:
         assert result.exit_code == 0
         assert "Successfully backed up" in result.stdout
         assert "1 tunnel profiles" in result.stdout
+
+
+class TestShowJsonOutput:
+    """Test the --output json format for show commands."""
+
+    def test_show_agent_profile_detail_json(self, runner, monkeypatch):
+        """Test showing an agent profile as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        profile = {
+            "id": "ap-corp",
+            "folder": "Mobile Users",
+            "name": "corp-app-settings",
+            "os": ["Windows", "Mac"],
+            "gp_app_config": {"config": [{"name": "connect-method", "value": ["user-logon"]}]},
+        }
+        monkeypatch.setattr(scm_client, "get_agent_profile", lambda *a, **k: profile)
+
+        test_app = typer.Typer()
+        test_app.command()(show_agent_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--name", "corp-app-settings", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == profile
+
+    def test_show_tunnel_profile_list_json(self, runner, monkeypatch):
+        """Test listing tunnel profiles as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        profiles = [
+            {"id": "tp-1", "folder": "Mobile Users", "name": "corp-tunnel", "split_tunneling": {"access_route": ["10.0.0.0/8"]}},
+            {"id": "tp-2", "folder": "Mobile Users", "name": "byod-tunnel"},
+        ]
+        monkeypatch.setattr(scm_client, "list_tunnel_profiles", lambda *a, **k: profiles)
+
+        test_app = typer.Typer()
+        test_app.command()(show_tunnel_profile)
+
+        result = runner.invoke(test_app, ["--folder", "Mobile Users", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == profiles

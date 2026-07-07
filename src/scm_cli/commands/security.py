@@ -14,6 +14,7 @@ import yaml
 
 from ..utils import parse_comma_separated_list, validate_location_params
 from ..utils.decorators import handle_command_errors
+from ..utils.output import OUTPUT_OPTION, OutputFormat, emit, error, info, success, warning
 from ..utils.sdk_client import scm_client
 from ..utils.validators import (
     AntiSpywareProfile,
@@ -288,7 +289,7 @@ def backup_security_rule(
     rules = scm_client.list_security_rules(**kwargs, rulebase=rulebase, exact_match=True)
 
     if not rules:
-        typer.echo(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
+        info(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
         return
 
     # Convert SDK models to dictionaries, excluding unset values
@@ -328,7 +329,7 @@ def backup_security_rule(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} security rules to {file}")
+    success(f"Successfully backed up {len(backup_data)} security rules to {file}")
     return file
 
 
@@ -365,21 +366,15 @@ def delete_security_rule(
 
     # For now, SDK only supports folder
     if location_type != "folder":
-        typer.echo(
-            f"Error: Deleting security rules from {location_type} is not yet supported by the SDK",
-            err=True,
-        )
+        error(f"Error: Deleting security rules from {location_type} is not yet supported by the SDK")
         raise typer.Exit(code=1)
 
     result = scm_client.delete_security_rule(folder=location_value, name=name, rulebase=rulebase)
     if result:
-        typer.echo(f"Deleted security rule: {name} from {location_type} {location_value} rulebase {rulebase}")
+        success(f"Deleted security rule: {name} from {location_type} {location_value} rulebase {rulebase}")
     else:
-        typer.echo(
-            f"Security rule not found: {name} in {location_type} {location_value}",
-            err=True,
-        )
-        raise typer.Exit(code=1) from Exception
+        error(f"Security rule not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("rule", help="Load security rules from a YAML file.")
@@ -409,15 +404,12 @@ def load_security_rule(
     """
     # Validate container override parameters
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo(
-            "Error: Only one of --folder, --snippet, or --device can be specified",
-            err=True,
-        )
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     # Validate file exists
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     # Load YAML data using the same pattern as other commands
@@ -425,7 +417,7 @@ def load_security_rule(
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "security_rules" not in raw_data:
-        typer.echo("No security rules found in file", err=True)
+        error("No security rules found in file")
         raise typer.Exit(code=1)
 
     rules = raw_data["security_rules"]
@@ -433,12 +425,12 @@ def load_security_rule(
         rules = [rules]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         # Show override information if applicable
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(rules))
         return []
 
@@ -468,16 +460,10 @@ def load_security_rule(
 
             # For now, SDK only supports folder
             if hasattr(rule, "snippet") and rule.snippet:
-                typer.echo(
-                    f"Warning: Creating security rules in snippets is not yet supported by the SDK. Skipping rule '{rule.name}'",
-                    err=True,
-                )
+                warning(f"Warning: Creating security rules in snippets is not yet supported by the SDK. Skipping rule '{rule.name}'")
                 continue
             elif hasattr(rule, "device") and rule.device:
-                typer.echo(
-                    f"Warning: Creating security rules on devices is not yet supported by the SDK. Skipping rule '{rule.name}'",
-                    err=True,
-                )
+                warning(f"Warning: Creating security rules on devices is not yet supported by the SDK. Skipping rule '{rule.name}'")
                 continue
 
             # Call the SDK client to create the security rule
@@ -510,19 +496,16 @@ def load_security_rule(
                 updated_count += 1
 
         except Exception as e:
-            typer.echo(
-                f"Error processing security rule '{rule_data.get('name', 'unknown')}': {str(e)}",
-                err=True,
-            )
+            error(f"Error processing security rule '{rule_data.get('name', 'unknown')}': {str(e)}")
             # Continue processing other rules
             continue
 
     # Display summary with counts
-    typer.echo(f"Successfully processed {len(results)} security rule(s):")
+    success(f"Successfully processed {len(results)} security rule(s):")
     if created_count > 0:
-        typer.echo(f"  - Created: {created_count}")
+        info(f"  - Created: {created_count}")
     if updated_count > 0:
-        typer.echo(f"  - Updated: {updated_count}")
+        info(f"  - Updated: {updated_count}")
 
     return results
 
@@ -578,10 +561,7 @@ def set_security_rule(
 
     # For now, SDK only supports folder
     if location_type != "folder":
-        typer.echo(
-            f"Error: Creating security rules in {location_type} is not yet supported by the SDK",
-            err=True,
-        )
+        error(f"Error: Creating security rules in {location_type} is not yet supported by the SDK")
         raise typer.Exit(code=1)
 
     # Parse comma-separated list options
@@ -644,11 +624,11 @@ def set_security_rule(
     # Format and display output
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created security rule: {result['name']} in {location_type} {location_value}")
+        success(f"Created security rule: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated security rule: {result['name']} in {location_type} {location_value}")
+        success(f"Updated security rule: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for security rule: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for security rule: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("rule")
@@ -662,6 +642,7 @@ def show_security_rule(
     exclude_folder: list[str] | None = EXCLUDE_FOLDER_OPTION,
     exclude_snippet: list[str] | None = EXCLUDE_SNIPPET_OPTION,
     exclude_device: list[str] | None = EXCLUDE_DEVICE_OPTION,
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display security rules.
 
@@ -690,111 +671,16 @@ def show_security_rule(
     if name:
         # For now, SDK only supports folder for get operations
         if location_type != "folder":
-            typer.echo(
-                f"Error: Getting security rules from {location_type} is not yet supported by the SDK",
-                err=True,
-            )
+            error(f"Error: Getting security rules from {location_type} is not yet supported by the SDK")
             raise typer.Exit(code=1)
 
         # Get a specific security rule by name
         rule = scm_client.get_security_rule(folder=location_value, name=name, rulebase=rulebase)
 
-        typer.echo(f"\nSecurity Rule: {rule.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-
-        # Display container location (folder, snippet, or device) and rulebase
-        if rule.get("folder"):
-            typer.echo(f"Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'")
-        elif rule.get("snippet"):
-            typer.echo(f"Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'")
-        elif rule.get("device"):
-            typer.echo(f"Location: Device '{rule['device']}' / Rulebase '{rulebase}'")
-        else:
-            typer.echo(f"Location: N/A / Rulebase '{rulebase}'")
-
-        typer.echo(f"Action: {rule.get('action', 'N/A')}")
-
-        # Display source zones
-        source_zones = rule.get("from_", [])
-        typer.echo(f"Source Zones: {', '.join(source_zones) if source_zones else 'any'}")
-
-        # Display destination zones
-        dest_zones = rule.get("to_", [])
-        typer.echo(f"Destination Zones: {', '.join(dest_zones) if dest_zones else 'any'}")
-
-        # Display source addresses
-        source_addrs = rule.get("source", [])
-        typer.echo(f"Source Addresses: {', '.join(source_addrs) if source_addrs else 'any'}")
-
-        # Display destination addresses
-        dest_addrs = rule.get("destination", [])
-        typer.echo(f"Destination Addresses: {', '.join(dest_addrs) if dest_addrs else 'any'}")
-
-        # Display applications
-        apps = rule.get("application", [])
-        typer.echo(f"Applications: {', '.join(apps) if apps else 'any'}")
-
-        # Display services
-        services = rule.get("service", [])
-        typer.echo(f"Services: {', '.join(services) if services else 'any'}")
-
-        # Display categories
-        categories = rule.get("category", [])
-        if categories:
-            typer.echo(f"Categories: {', '.join(categories)}")
-
-        # Display description if present
-        if rule.get("description"):
-            typer.echo(f"Description: {rule['description']}")
-
-        # Display tags if present
-        tags = rule.get("tag", [])
-        if tags:
-            typer.echo(f"Tags: {', '.join(tags)}")
-
-        # Display enabled/disabled status
-        disabled = rule.get("disabled", False)
-        typer.echo(f"Status: {'Disabled' if disabled else 'Enabled'}")
-
-        # Display logging settings
-        if rule.get("log_start"):
-            typer.echo("Log Start: Yes")
-        if rule.get("log_end"):
-            typer.echo("Log End: Yes")
-
-        # Display log forwarding profile if present
-        if rule.get("log_setting"):
-            typer.echo(f"Log Forwarding Profile: {rule['log_setting']}")
-
-        # Display security profiles if present
-        profile_setting = rule.get("profile_setting")
-        if profile_setting:
-            typer.echo("Security Profiles:")
-            if profile_setting.get("group"):
-                typer.echo(f"  Profile Group: {', '.join(profile_setting['group'])}")
-            else:
-                # Individual profiles
-                for profile_type in [
-                    "antivirus",
-                    "anti_spyware",
-                    "vulnerability",
-                    "url_filtering",
-                    "file_blocking",
-                    "data_filtering",
-                    "wildfire_analysis",
-                ]:
-                    if profile_setting.get(profile_type):
-                        profile_name = profile_type.replace("_", " ").title()
-                        typer.echo(f"  {profile_name}: {profile_setting[profile_type]}")
-
-        # Display ID if present
-        if rule.get("id"):
-            typer.echo(f"ID: {rule['id']}")
-
+        emit(rule, output, title=f"Security Rule: {rule.get('name', 'N/A')}")
         return rule
 
     else:
-        # Default behavior: list all
         # List all security rules in the specified container and rulebase (default behavior)
         kwargs = {location_type: location_value}
         rules = scm_client.list_security_rules(
@@ -806,71 +692,15 @@ def show_security_rule(
         )
 
         if not rules:
-            typer.echo(f"No security rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nSecurity Rules in {location_type} '{location_value}' rulebase '{rulebase}':")
-        typer.echo("=" * 80)
-
-        for rule in rules:
-            # Display rule information
-            typer.echo(f"Name: {rule.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device) and rulebase
-            if rule.get("folder"):
-                typer.echo(f"  Location: Folder '{rule['folder']}' / Rulebase '{rulebase}'")
-            elif rule.get("snippet"):
-                typer.echo(f"  Location: Snippet '{rule['snippet']}' / Rulebase '{rulebase}'")
-            elif rule.get("device"):
-                typer.echo(f"  Location: Device '{rule['device']}' / Rulebase '{rulebase}'")
-            else:
-                typer.echo(f"  Location: N/A / Rulebase '{rulebase}'")
-
-            typer.echo(f"  Action: {rule.get('action', 'N/A')}")
-
-            # Display source zones
-            source_zones = rule.get("from_", [])
-            typer.echo(f"  Source Zones: {', '.join(source_zones) if source_zones else 'any'}")
-
-            # Display destination zones
-            dest_zones = rule.get("to_", [])
-            typer.echo(f"  Destination Zones: {', '.join(dest_zones) if dest_zones else 'any'}")
-
-            # Display source addresses
-            source_addrs = rule.get("source", [])
-            typer.echo(f"  Source Addresses: {', '.join(source_addrs) if source_addrs else 'any'}")
-
-            # Display destination addresses
-            dest_addrs = rule.get("destination", [])
-            typer.echo(f"  Destination Addresses: {', '.join(dest_addrs) if dest_addrs else 'any'}")
-
-            # Display applications
-            apps = rule.get("application", [])
-            typer.echo(f"  Applications: {', '.join(apps) if apps else 'any'}")
-
-            # Display services
-            services = rule.get("service", [])
-            typer.echo(f"  Services: {', '.join(services) if services else 'any'}")
-
-            # Display description if present
-            if rule.get("description"):
-                typer.echo(f"  Description: {rule['description']}")
-
-            # Display tags if present
-            tags = rule.get("tag", [])
-            if tags:
-                typer.echo(f"  Tags: {', '.join(tags)}")
-
-            # Display enabled/disabled status
-            disabled = rule.get("disabled", False)
-            typer.echo(f"  Status: {'Disabled' if disabled else 'Enabled'}")
-
-            # Display ID if present
-            if rule.get("id"):
-                typer.echo(f"  ID: {rule['id']}")
-
-            typer.echo("-" * 80)
-
+        emit(
+            rules,
+            output,
+            columns=["name", "folder", "action", "from_", "to_", "source", "destination", "application", "service", "disabled", "id"],
+            title=f"Security Rules in {location_type} '{location_value}' rulebase '{rulebase}'",
+        )
         return rules
 
 
@@ -915,7 +745,7 @@ def backup_anti_spyware_profile(
     profiles = scm_client.list_anti_spyware_profiles(**kwargs, exact_match=True)
 
     if not profiles:
-        typer.echo(f"No anti-spyware profiles found in {location_type} '{location_value}'")
+        info(f"No anti-spyware profiles found in {location_type} '{location_value}'")
         return
 
     # Convert SDK models to dictionaries, excluding unset values
@@ -935,7 +765,7 @@ def backup_anti_spyware_profile(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} anti-spyware profiles to {file}")
+    success(f"Successfully backed up {len(backup_data)} anti-spyware profiles to {file}")
     return file
 
 
@@ -972,13 +802,10 @@ def delete_anti_spyware_profile(
     kwargs = {location_type: location_value}
     result = scm_client.delete_anti_spyware_profile(**kwargs, name=name)
     if result:
-        typer.echo(f"Deleted anti-spyware profile: {name} from {location_type} {location_value}")
+        success(f"Deleted anti-spyware profile: {name} from {location_type} {location_value}")
     else:
-        typer.echo(
-            f"Anti-spyware profile not found: {name} in {location_type} {location_value}",
-            err=True,
-        )
-        raise typer.Exit(code=1) from Exception
+        error(f"Anti-spyware profile not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("anti-spyware-profile", help="Load anti-spyware profiles from a YAML file.")
@@ -1008,15 +835,12 @@ def load_anti_spyware_profile(
     """
     # Validate container override parameters
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo(
-            "Error: Only one of --folder, --snippet, or --device can be specified",
-            err=True,
-        )
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     # Validate file exists
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     # Load YAML data using the same pattern as other commands
@@ -1024,7 +848,7 @@ def load_anti_spyware_profile(
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "anti_spyware_profiles" not in raw_data:
-        typer.echo("No anti-spyware profiles found in file", err=True)
+        error("No anti-spyware profiles found in file")
         raise typer.Exit(code=1)
 
     profiles = raw_data["anti_spyware_profiles"]
@@ -1032,12 +856,12 @@ def load_anti_spyware_profile(
         profiles = [profiles]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         # Show override information if applicable
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(profiles))
         return []
 
@@ -1088,19 +912,16 @@ def load_anti_spyware_profile(
                 updated_count += 1
 
         except Exception as e:
-            typer.echo(
-                f"Error processing anti-spyware profile '{profile_data.get('name', 'unknown')}': {str(e)}",
-                err=True,
-            )
+            error(f"Error processing anti-spyware profile '{profile_data.get('name', 'unknown')}': {str(e)}")
             # Continue processing other profiles
             continue
 
     # Display summary with counts
-    typer.echo(f"Successfully processed {len(results)} anti-spyware profile(s):")
+    success(f"Successfully processed {len(results)} anti-spyware profile(s):")
     if created_count > 0:
-        typer.echo(f"  - Created: {created_count}")
+        info(f"  - Created: {created_count}")
     if updated_count > 0:
-        typer.echo(f"  - Updated: {updated_count}")
+        info(f"  - Updated: {updated_count}")
 
     return results
 
@@ -1198,11 +1019,11 @@ def set_anti_spyware_profile(
     # Format and display output
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created anti-spyware profile: {result['name']} in {location_type} {location_value}")
+        success(f"Created anti-spyware profile: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated anti-spyware profile: {result['name']} in {location_type} {location_value}")
+        success(f"Updated anti-spyware profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for anti-spyware profile: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for anti-spyware profile: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("anti-spyware-profile")
@@ -1212,6 +1033,7 @@ def show_anti_spyware_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the anti-spyware profile"),
     device: str = typer.Option(None, "--device", help="Device containing the anti-spyware profile"),
     name: str | None = typer.Option(None, "--name", help="Name of the anti-spyware profile to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display anti-spyware profiles.
 
@@ -1234,123 +1056,24 @@ def show_anti_spyware_profile(
         kwargs = {location_type: location_value}
         profile = scm_client.get_anti_spyware_profile(**kwargs, name=name)
 
-        typer.echo(f"\nAnti-Spyware Profile: {profile.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-
-        # Display container location (folder, snippet, or device)
-        if profile.get("folder"):
-            typer.echo(f"Location: Folder '{profile['folder']}'")
-        elif profile.get("snippet"):
-            typer.echo(f"Location: Snippet '{profile['snippet']}'")
-        elif profile.get("device"):
-            typer.echo(f"Location: Device '{profile['device']}'")
-
-        # Display description if present
-        if profile.get("description"):
-            typer.echo(f"Description: {profile['description']}")
-
-        # Display rules in detail
-        if profile.get("rules"):
-            typer.echo(f"\nRules ({len(profile['rules'])}):")
-            for idx, rule in enumerate(profile["rules"], 1):
-                typer.echo(f"  Rule {idx}: {rule.get('name', 'Unnamed')}")
-                if rule.get("severity"):
-                    severity = rule["severity"] if isinstance(rule["severity"], list) else [rule["severity"]]
-                    typer.echo(f"    Severity: {', '.join(severity)}")
-                typer.echo(f"    Action: {rule.get('action', 'N/A')}")
-                if rule.get("category"):
-                    typer.echo(f"    Category: {rule['category']}")
-                if rule.get("threat_name"):
-                    typer.echo(f"    Threat Name: {rule['threat_name']}")
-                if rule.get("packet_capture"):
-                    typer.echo(f"    Packet Capture: {rule['packet_capture']}")
-
-        # Display cloud inline analysis setting
-        if "cloud_inline_analysis" in profile:
-            typer.echo(f"\nCloud Inline Analysis: {'Enabled' if profile['cloud_inline_analysis'] else 'Disabled'}")
-
-        # Display threat exceptions in detail
-        if profile.get("threat_exception"):
-            typer.echo(f"\nThreat Exceptions ({len(profile['threat_exception'])}):")
-            for idx, exception in enumerate(profile["threat_exception"], 1):
-                typer.echo(f"  Exception {idx}:")
-                if exception.get("name"):
-                    typer.echo(f"    Name: {exception['name']}")
-                if exception.get("packet_capture"):
-                    typer.echo(f"    Packet Capture: {exception['packet_capture']}")
-                if exception.get("action"):
-                    typer.echo(f"    Action: {exception['action']}")
-                if exception.get("exempt_ip"):
-                    typer.echo(f"    Exempt IPs: {', '.join(exception['exempt_ip'])}")
-
-        # Display MICA engine settings if present
-        if profile.get("mica_engine_spyware_enabled"):
-            typer.echo("\nMICA Engine Settings:")
-            for setting in profile["mica_engine_spyware_enabled"]:
-                if setting.get("name"):
-                    typer.echo(f"  - {setting['name']}")
-                    if setting.get("inline_policy_action"):
-                        typer.echo(f"    Inline Policy Action: {setting['inline_policy_action']}")
-
-        # Display ID if present
-        if profile.get("id"):
-            typer.echo(f"\nID: {profile['id']}")
-
+        emit(profile, output, title=f"Anti-Spyware Profile: {profile.get('name', 'N/A')}")
         return profile
 
     else:
-        # Default behavior: list all
         # List all anti-spyware profiles in the specified container (default behavior)
         kwargs = {location_type: location_value}
         profiles = scm_client.list_anti_spyware_profiles(**kwargs, exact_match=False)
 
         if not profiles:
-            typer.echo(f"No anti-spyware profiles found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nAnti-Spyware Profiles in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for profile in profiles:
-            # Display profile information
-            typer.echo(f"Name: {profile.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if profile.get("folder"):
-                typer.echo(f"  Location: Folder '{profile['folder']}'")
-            elif profile.get("snippet"):
-                typer.echo(f"  Location: Snippet '{profile['snippet']}'")
-            elif profile.get("device"):
-                typer.echo(f"  Location: Device '{profile['device']}'")
-
-            # Display description if present
-            if profile.get("description"):
-                typer.echo(f"  Description: {profile['description']}")
-
-            # Display rules if present
-            if profile.get("rules"):
-                typer.echo(f"  Rules: {len(profile['rules'])} configured")
-                for rule in profile["rules"]:
-                    typer.echo(f"    - {rule.get('name', 'Unnamed')}: {rule.get('action', 'N/A')}")
-
-            # Display cloud inline analysis setting
-            if profile.get("cloud_inline_analysis"):
-                typer.echo("  Cloud Inline Analysis: Enabled")
-
-            # Display threat exceptions if present
-            if profile.get("threat_exception"):
-                typer.echo(f"  Threat Exceptions: {len(profile['threat_exception'])}")
-
-            # Display MICA engine settings if present
-            if profile.get("mica_engine_spyware_enabled"):
-                typer.echo("  MICA Engine: Configured")
-
-            # Display ID if present
-            if profile.get("id"):
-                typer.echo(f"  ID: {profile['id']}")
-
-            typer.echo("-" * 80)
-
+        emit(
+            profiles,
+            output,
+            columns=["name", "folder", "snippet", "device", "description", "cloud_inline_analysis", "id"],
+            title=f"Anti-Spyware Profiles in {location_type} '{location_value}'",
+        )
         return profiles
 
 
@@ -1395,7 +1118,7 @@ def backup_decryption_profile(
     profiles = scm_client.list_decryption_profiles(**kwargs, exact_match=True)
 
     if not profiles:
-        typer.echo(f"No decryption profiles found in {location_type} '{location_value}'")
+        info(f"No decryption profiles found in {location_type} '{location_value}'")
         return
 
     # Convert SDK models to dictionaries, excluding unset values
@@ -1415,7 +1138,7 @@ def backup_decryption_profile(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} decryption profiles to {file}")
+    success(f"Successfully backed up {len(backup_data)} decryption profiles to {file}")
     return file
 
 
@@ -1452,13 +1175,10 @@ def delete_decryption_profile(
     kwargs = {location_type: location_value}
     result = scm_client.delete_decryption_profile(**kwargs, name=name)
     if result:
-        typer.echo(f"Deleted decryption profile: {name} from {location_type} {location_value}")
+        success(f"Deleted decryption profile: {name} from {location_type} {location_value}")
     else:
-        typer.echo(
-            f"Decryption profile not found: {name} in {location_type} {location_value}",
-            err=True,
-        )
-        raise typer.Exit(code=1) from Exception
+        error(f"Decryption profile not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("decryption-profile", help="Load decryption profiles from a YAML file.")
@@ -1488,15 +1208,12 @@ def load_decryption_profile(
     """
     # Validate container override parameters
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo(
-            "Error: Only one of --folder, --snippet, or --device can be specified",
-            err=True,
-        )
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     # Validate file exists
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     # Load YAML data using the same pattern as other commands
@@ -1504,7 +1221,7 @@ def load_decryption_profile(
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "decryption_profiles" not in raw_data:
-        typer.echo("No decryption profiles found in file", err=True)
+        error("No decryption profiles found in file")
         raise typer.Exit(code=1)
 
     profiles = raw_data["decryption_profiles"]
@@ -1512,12 +1229,12 @@ def load_decryption_profile(
         profiles = [profiles]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         # Show override information if applicable
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(profiles))
         return []
 
@@ -1568,19 +1285,16 @@ def load_decryption_profile(
                 updated_count += 1
 
         except Exception as e:
-            typer.echo(
-                f"Error processing decryption profile '{profile_data.get('name', 'unknown')}': {str(e)}",
-                err=True,
-            )
+            error(f"Error processing decryption profile '{profile_data.get('name', 'unknown')}': {str(e)}")
             # Continue processing other profiles
             continue
 
     # Display summary with counts
-    typer.echo(f"Successfully processed {len(results)} decryption profile(s):")
+    success(f"Successfully processed {len(results)} decryption profile(s):")
     if created_count > 0:
-        typer.echo(f"  - Created: {created_count}")
+        info(f"  - Created: {created_count}")
     if updated_count > 0:
-        typer.echo(f"  - Updated: {updated_count}")
+        info(f"  - Updated: {updated_count}")
 
     return results
 
@@ -1682,11 +1396,11 @@ def set_decryption_profile(
     # Format and display output
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created decryption profile: {result['name']} in {location_type} {location_value}")
+        success(f"Created decryption profile: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated decryption profile: {result['name']} in {location_type} {location_value}")
+        success(f"Updated decryption profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for decryption profile: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for decryption profile: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("decryption-profile")
@@ -1696,6 +1410,7 @@ def show_decryption_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the decryption profile"),
     device: str = typer.Option(None, "--device", help="Device containing the decryption profile"),
     name: str | None = typer.Option(None, "--name", help="Name of the decryption profile to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display decryption profiles.
 
@@ -1718,112 +1433,24 @@ def show_decryption_profile(
         kwargs = {location_type: location_value}
         profile = scm_client.get_decryption_profile(**kwargs, name=name)
 
-        typer.echo(f"\nDecryption Profile: {profile.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-
-        # Display container location (folder, snippet, or device)
-        if profile.get("folder"):
-            typer.echo(f"Location: Folder '{profile['folder']}'")
-        elif profile.get("snippet"):
-            typer.echo(f"Location: Snippet '{profile['snippet']}'")
-        elif profile.get("device"):
-            typer.echo(f"Location: Device '{profile['device']}'")
-
-        # Display description if present
-        if profile.get("description"):
-            typer.echo(f"Description: {profile['description']}")
-
-        # Display SSL Forward Proxy settings
-        if profile.get("ssl_forward_proxy"):
-            typer.echo("\nSSL Forward Proxy Settings:")
-            proxy = profile["ssl_forward_proxy"]
-            for key, value in proxy.items():
-                key_display = key.replace("_", " ").title()
-                typer.echo(f"  {key_display}: {value}")
-
-        # Display SSL Inbound Proxy settings
-        if profile.get("ssl_inbound_proxy"):
-            typer.echo("\nSSL Inbound Proxy Settings:")
-            proxy = profile["ssl_inbound_proxy"]
-            for key, value in proxy.items():
-                key_display = key.replace("_", " ").title()
-                typer.echo(f"  {key_display}: {value}")
-
-        # Display SSL No Proxy settings
-        if profile.get("ssl_no_proxy"):
-            typer.echo("\nSSL No Proxy Settings:")
-            proxy = profile["ssl_no_proxy"]
-            for key, value in proxy.items():
-                key_display = key.replace("_", " ").title()
-                typer.echo(f"  {key_display}: {value}")
-
-        # Display SSL Protocol Settings
-        if profile.get("ssl_protocol_settings"):
-            typer.echo("\nSSL Protocol Settings:")
-            settings = profile["ssl_protocol_settings"]
-            for key, value in settings.items():
-                key_display = key.replace("_", " ").title()
-                typer.echo(f"  {key_display}: {value}")
-
-        # Display ID if present
-        if profile.get("id"):
-            typer.echo(f"\nID: {profile['id']}")
-
+        emit(profile, output, title=f"Decryption Profile: {profile.get('name', 'N/A')}")
         return profile
 
     else:
-        # Default behavior: list all
         # List all decryption profiles in the specified container (default behavior)
         kwargs = {location_type: location_value}
         profiles = scm_client.list_decryption_profiles(**kwargs, exact_match=False)
 
         if not profiles:
-            typer.echo(f"No decryption profiles found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nDecryption Profiles in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for profile in profiles:
-            # Display profile information
-            typer.echo(f"Name: {profile.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if profile.get("folder"):
-                typer.echo(f"  Location: Folder '{profile['folder']}'")
-            elif profile.get("snippet"):
-                typer.echo(f"  Location: Snippet '{profile['snippet']}'")
-            elif profile.get("device"):
-                typer.echo(f"  Location: Device '{profile['device']}'")
-
-            # Display description if present
-            if profile.get("description"):
-                typer.echo(f"  Description: {profile['description']}")
-
-            # Display proxy types configured
-            proxy_types = []
-            if profile.get("ssl_forward_proxy"):
-                proxy_types.append("SSL Forward Proxy")
-            if profile.get("ssl_inbound_proxy"):
-                proxy_types.append("SSL Inbound Proxy")
-            if profile.get("ssl_no_proxy"):
-                proxy_types.append("SSL No Proxy")
-
-            if proxy_types:
-                typer.echo(f"  Proxy Types: {', '.join(proxy_types)}")
-
-            # Display SSL protocol settings if present
-            if profile.get("ssl_protocol_settings"):
-                settings = profile["ssl_protocol_settings"]
-                if "min_version" in settings or "max_version" in settings:
-                    typer.echo(f"  SSL Versions: {settings.get('min_version', 'N/A')} - {settings.get('max_version', 'N/A')}")
-
-            # Display ID if present
-            if profile.get("id"):
-                typer.echo(f"  ID: {profile['id']}")
-
-            typer.echo("-" * 80)
-
+        emit(
+            profiles,
+            output,
+            columns=["name", "folder", "snippet", "device", "description", "ssl_protocol_settings", "id"],
+            title=f"Decryption Profiles in {location_type} '{location_value}'",
+        )
         return profiles
 
 
@@ -1868,7 +1495,7 @@ def backup_wildfire_antivirus_profile(
     profiles = scm_client.list_wildfire_antivirus_profiles(**kwargs, exact_match=True)
 
     if not profiles:
-        typer.echo(f"No WildFire antivirus profiles found in {location_type} '{location_value}'")
+        info(f"No WildFire antivirus profiles found in {location_type} '{location_value}'")
         return
 
     # Convert SDK models to dictionaries, excluding unset values
@@ -1888,7 +1515,7 @@ def backup_wildfire_antivirus_profile(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} WildFire antivirus profiles to {file}")
+    success(f"Successfully backed up {len(backup_data)} WildFire antivirus profiles to {file}")
     return file
 
 
@@ -1925,13 +1552,10 @@ def delete_wildfire_antivirus_profile(
     kwargs = {location_type: location_value}
     result = scm_client.delete_wildfire_antivirus_profile(**kwargs, name=name)
     if result:
-        typer.echo(f"Deleted WildFire antivirus profile: {name} from {location_type} {location_value}")
+        success(f"Deleted WildFire antivirus profile: {name} from {location_type} {location_value}")
     else:
-        typer.echo(
-            f"WildFire antivirus profile not found: {name} in {location_type} {location_value}",
-            err=True,
-        )
-        raise typer.Exit(code=1) from Exception
+        error(f"WildFire antivirus profile not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("wildfire-antivirus-profile", help="Load WildFire antivirus profiles from a YAML file.")
@@ -1961,15 +1585,12 @@ def load_wildfire_antivirus_profile(
     """
     # Validate container override parameters
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo(
-            "Error: Only one of --folder, --snippet, or --device can be specified",
-            err=True,
-        )
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     # Validate file exists
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     # Load YAML data using the same pattern as other commands
@@ -1977,7 +1598,7 @@ def load_wildfire_antivirus_profile(
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "wildfire_antivirus_profiles" not in raw_data:
-        typer.echo("No WildFire antivirus profiles found in file", err=True)
+        error("No WildFire antivirus profiles found in file")
         raise typer.Exit(code=1)
 
     profiles = raw_data["wildfire_antivirus_profiles"]
@@ -1985,12 +1606,12 @@ def load_wildfire_antivirus_profile(
         profiles = [profiles]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         # Show override information if applicable
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(profiles))
         return []
 
@@ -2041,19 +1662,16 @@ def load_wildfire_antivirus_profile(
                 updated_count += 1
 
         except Exception as e:
-            typer.echo(
-                f"Error processing WildFire antivirus profile '{profile_data.get('name', 'unknown')}': {str(e)}",
-                err=True,
-            )
+            error(f"Error processing WildFire antivirus profile '{profile_data.get('name', 'unknown')}': {str(e)}")
             # Continue processing other profiles
             continue
 
     # Display summary with counts
-    typer.echo(f"Successfully processed {len(results)} WildFire antivirus profile(s):")
+    success(f"Successfully processed {len(results)} WildFire antivirus profile(s):")
     if created_count > 0:
-        typer.echo(f"  - Created: {created_count}")
+        info(f"  - Created: {created_count}")
     if updated_count > 0:
-        typer.echo(f"  - Updated: {updated_count}")
+        info(f"  - Updated: {updated_count}")
 
     return results
 
@@ -2112,7 +1730,7 @@ def set_wildfire_antivirus_profile(
         try:
             profile_data["rules"] = json.loads(rules_json)
         except json.JSONDecodeError as e:
-            typer.echo(f"Error parsing rules JSON: {str(e)}", err=True)
+            error(f"Error parsing rules JSON: {str(e)}")
             raise typer.Exit(code=1) from e
     else:
         # Add a default rule
@@ -2146,11 +1764,11 @@ def set_wildfire_antivirus_profile(
     # Format and display output
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
+        success(f"Created WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
+        success(f"Updated WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for WildFire antivirus profile: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("wildfire-antivirus-profile")
@@ -2160,6 +1778,7 @@ def show_wildfire_antivirus_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the WildFire antivirus profile"),
     device: str = typer.Option(None, "--device", help="Device containing the WildFire antivirus profile"),
     name: str | None = typer.Option(None, "--name", help="Name of the WildFire antivirus profile to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display WildFire antivirus profiles.
 
@@ -2182,60 +1801,7 @@ def show_wildfire_antivirus_profile(
         kwargs = {location_type: location_value}
         profile = scm_client.get_wildfire_antivirus_profile(**kwargs, name=name)
 
-        typer.echo(f"\nWildFire Antivirus Profile: {profile.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-
-        # Display container location (folder, snippet, or device)
-        if profile.get("folder"):
-            typer.echo(f"Location: Folder '{profile['folder']}'")
-        elif profile.get("snippet"):
-            typer.echo(f"Location: Snippet '{profile['snippet']}'")
-        elif profile.get("device"):
-            typer.echo(f"Location: Device '{profile['device']}'")
-
-        # Display description if present
-        if profile.get("description"):
-            typer.echo(f"Description: {profile['description']}")
-
-        # Display packet capture setting
-        if "packet_capture" in profile:
-            typer.echo(f"Packet Capture: {'Enabled' if profile['packet_capture'] else 'Disabled'}")
-
-        # Display rules in detail
-        if profile.get("rules"):
-            typer.echo(f"\nRules ({len(profile['rules'])}):")
-            for idx, rule in enumerate(profile["rules"], 1):
-                typer.echo(f"  Rule {idx}: {rule.get('name', 'Unnamed')}")
-                typer.echo(f"    Direction: {rule.get('direction', 'N/A')}")
-                if rule.get("analysis"):
-                    typer.echo(f"    Analysis: {rule['analysis']}")
-                if rule.get("application"):
-                    typer.echo(f"    Applications: {', '.join(rule['application'])}")
-                if rule.get("file_type"):
-                    typer.echo(f"    File Types: {', '.join(rule['file_type'])}")
-
-        # Display MLAV exceptions if present
-        if profile.get("mlav_exception"):
-            typer.echo(f"\nMLAV Exceptions ({len(profile['mlav_exception'])}):")
-            for idx, exc in enumerate(profile["mlav_exception"], 1):
-                typer.echo(f"  Exception {idx}: {exc.get('name', 'Unnamed')}")
-                if exc.get("filename"):
-                    typer.echo(f"    Filename: {exc['filename']}")
-                if exc.get("description"):
-                    typer.echo(f"    Description: {exc['description']}")
-
-        # Display threat exceptions if present
-        if profile.get("threat_exception"):
-            typer.echo(f"\nThreat Exceptions ({len(profile['threat_exception'])}):")
-            for idx, exc in enumerate(profile["threat_exception"], 1):
-                typer.echo(f"  Exception {idx}: {exc.get('name', 'Unnamed')}")
-                if exc.get("notes"):
-                    typer.echo(f"    Notes: {exc['notes']}")
-
-        # Display ID if present
-        if profile.get("id"):
-            typer.echo(f"\nID: {profile['id']}")
-
+        emit(profile, output, title=f"WildFire Antivirus Profile: {profile.get('name', 'N/A')}")
         return profile
 
     else:
@@ -2244,52 +1810,15 @@ def show_wildfire_antivirus_profile(
         profiles = scm_client.list_wildfire_antivirus_profiles(**kwargs, exact_match=False)
 
         if not profiles:
-            typer.echo(f"No WildFire antivirus profiles found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nWildFire Antivirus Profiles in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for profile in profiles:
-            # Display profile information
-            typer.echo(f"Name: {profile.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if profile.get("folder"):
-                typer.echo(f"  Location: Folder '{profile['folder']}'")
-            elif profile.get("snippet"):
-                typer.echo(f"  Location: Snippet '{profile['snippet']}'")
-            elif profile.get("device"):
-                typer.echo(f"  Location: Device '{profile['device']}'")
-
-            # Display description if present
-            if profile.get("description"):
-                typer.echo(f"  Description: {profile['description']}")
-
-            # Display rules if present
-            if profile.get("rules"):
-                typer.echo(f"  Rules: {len(profile['rules'])} configured")
-                for rule in profile["rules"]:
-                    typer.echo(f"    - {rule.get('name', 'Unnamed')}: {rule.get('direction', 'N/A')}")
-
-            # Display packet capture setting
-            if profile.get("packet_capture"):
-                typer.echo("  Packet Capture: Enabled")
-
-            # Display threat exceptions if present
-            if profile.get("threat_exception"):
-                typer.echo(f"  Threat Exceptions: {len(profile['threat_exception'])}")
-
-            # Display MLAV exceptions if present
-            if profile.get("mlav_exception"):
-                typer.echo(f"  MLAV Exceptions: {len(profile['mlav_exception'])}")
-
-            # Display ID if present
-            if profile.get("id"):
-                typer.echo(f"  ID: {profile['id']}")
-
-            typer.echo("-" * 80)
-
+        emit(
+            profiles,
+            output,
+            columns=["name", "folder", "snippet", "device", "description", "packet_capture", "id"],
+            title=f"WildFire Antivirus Profiles in {location_type} '{location_value}'",
+        )
         return profiles
 
 
@@ -2336,7 +1865,7 @@ def backup_dns_security_profile(
     profiles = scm_client.list_dns_security_profiles(**kwargs, exact_match=True)
 
     if not profiles:
-        typer.echo(f"No DNS security profiles found in {location_type} '{location_value}'")
+        info(f"No DNS security profiles found in {location_type} '{location_value}'")
         return
 
     # Convert SDK models to dictionaries, excluding unset values
@@ -2356,7 +1885,7 @@ def backup_dns_security_profile(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} DNS security profiles to {file}")
+    success(f"Successfully backed up {len(backup_data)} DNS security profiles to {file}")
     return file
 
 
@@ -2390,13 +1919,10 @@ def delete_dns_security_profile(
     kwargs = {location_type: location_value}
     result = scm_client.delete_dns_security_profile(**kwargs, name=name)
     if result:
-        typer.echo(f"Deleted DNS security profile: {name} from {location_type} {location_value}")
+        success(f"Deleted DNS security profile: {name} from {location_type} {location_value}")
     else:
-        typer.echo(
-            f"DNS security profile not found: {name} in {location_type} {location_value}",
-            err=True,
-        )
-        raise typer.Exit(code=1) from Exception
+        error(f"DNS security profile not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("dns-security-profile", help="Load DNS security profiles from a YAML file.")
@@ -2423,15 +1949,12 @@ def load_dns_security_profile(
     """
     # Validate container override parameters
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo(
-            "Error: Only one of --folder, --snippet, or --device can be specified",
-            err=True,
-        )
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     # Validate file exists
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     # Load YAML data using the same pattern as other commands
@@ -2439,7 +1962,7 @@ def load_dns_security_profile(
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "dns_security_profiles" not in raw_data:
-        typer.echo("No DNS security profiles found in file", err=True)
+        error("No DNS security profiles found in file")
         raise typer.Exit(code=1)
 
     profiles = raw_data["dns_security_profiles"]
@@ -2447,12 +1970,12 @@ def load_dns_security_profile(
         profiles = [profiles]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         # Show override information if applicable
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(profiles))
         return []
 
@@ -2504,19 +2027,16 @@ def load_dns_security_profile(
                 updated_count += 1
 
         except Exception as e:
-            typer.echo(
-                f"Error processing DNS security profile '{profile_data.get('name', 'unknown')}': {str(e)}",
-                err=True,
-            )
+            error(f"Error processing DNS security profile '{profile_data.get('name', 'unknown')}': {str(e)}")
             # Continue processing other profiles
             continue
 
     # Display summary with counts
-    typer.echo(f"Successfully processed {len(results)} DNS security profile(s):")
+    success(f"Successfully processed {len(results)} DNS security profile(s):")
     if created_count > 0:
-        typer.echo(f"  - Created: {created_count}")
+        info(f"  - Created: {created_count}")
     if updated_count > 0:
-        typer.echo(f"  - Updated: {updated_count}")
+        info(f"  - Updated: {updated_count}")
 
     return results
 
@@ -2588,11 +2108,11 @@ def set_dns_security_profile(
     # Format and display output based on action
     action = result.get("__action__", "created")
     if action == "updated":
-        typer.echo(f"Updated DNS security profile: {result['name']} in {location_type} {location_value}")
+        success(f"Updated DNS security profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes to DNS security profile: {result['name']} in {location_type} {location_value}")
+        info(f"No changes to DNS security profile: {result['name']} in {location_type} {location_value}")
     else:
-        typer.echo(f"Created DNS security profile: {result['name']} in {location_type} {location_value}")
+        success(f"Created DNS security profile: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("dns-security-profile")
@@ -2602,6 +2122,7 @@ def show_dns_security_profile(
     snippet: str = DNS_SEC_SNIPPET_OPTION,
     device: str = DNS_SEC_DEVICE_OPTION,
     name: str | None = typer.Option(None, "--name", help="Name of the DNS security profile to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display DNS security profiles.
 
@@ -2624,67 +2145,7 @@ def show_dns_security_profile(
         kwargs = {location_type: location_value}
         profile = scm_client.get_dns_security_profile(**kwargs, name=name)
 
-        typer.echo(f"\nDNS Security Profile: {profile.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-
-        # Display container location (folder, snippet, or device)
-        if profile.get("folder"):
-            typer.echo(f"Location: Folder '{profile['folder']}'")
-        elif profile.get("snippet"):
-            typer.echo(f"Location: Snippet '{profile['snippet']}'")
-        elif profile.get("device"):
-            typer.echo(f"Location: Device '{profile['device']}'")
-
-        # Display description if present
-        if profile.get("description"):
-            typer.echo(f"Description: {profile['description']}")
-
-        # Display botnet domains settings
-        botnet = profile.get("botnet_domains")
-        if botnet:
-            # Display DNS security categories
-            categories = botnet.get("dns_security_categories")
-            if categories:
-                typer.echo("\nDNS Security Categories:")
-                for cat in categories:
-                    typer.echo(f"  Name: {cat.get('name', 'N/A')}")
-                    typer.echo(f"    Action: {cat.get('action', 'N/A')}")
-                    if cat.get("log_level"):
-                        typer.echo(f"    Log Level: {cat['log_level']}")
-                    if cat.get("packet_capture"):
-                        typer.echo(f"    Packet Capture: {cat['packet_capture']}")
-
-            # Display lists
-            lists = botnet.get("lists")
-            if lists:
-                typer.echo("\nDNS Lists:")
-                for lst in lists:
-                    typer.echo(f"  Name: {lst.get('name', 'N/A')}")
-                    if lst.get("action"):
-                        typer.echo(f"    Action: {lst['action']}")
-                    if lst.get("packet_capture"):
-                        typer.echo(f"    Packet Capture: {lst['packet_capture']}")
-
-            # Display sinkhole settings
-            sinkhole = botnet.get("sinkhole")
-            if sinkhole:
-                typer.echo("\nSinkhole Settings:")
-                typer.echo(f"  IPv4 Address: {sinkhole.get('ipv4_address', 'N/A')}")
-                typer.echo(f"  IPv6 Address: {sinkhole.get('ipv6_address', 'N/A')}")
-
-            # Display whitelist
-            whitelist = botnet.get("whitelist")
-            if whitelist:
-                typer.echo("\nWhitelist:")
-                for entry in whitelist:
-                    typer.echo(f"  Domain: {entry.get('name', 'N/A')}")
-                    if entry.get("description"):
-                        typer.echo(f"    Description: {entry['description']}")
-
-        # Display ID if present
-        if profile.get("id"):
-            typer.echo(f"\nID: {profile['id']}")
-
+        emit(profile, output, title=f"DNS Security Profile: {profile.get('name', 'N/A')}")
         return profile
 
     else:
@@ -2693,51 +2154,15 @@ def show_dns_security_profile(
         profiles = scm_client.list_dns_security_profiles(**kwargs, exact_match=False)
 
         if not profiles:
-            typer.echo(f"No DNS security profiles found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nDNS Security Profiles in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for profile in profiles:
-            # Display profile information
-            typer.echo(f"Name: {profile.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if profile.get("folder"):
-                typer.echo(f"  Location: Folder '{profile['folder']}'")
-            elif profile.get("snippet"):
-                typer.echo(f"  Location: Snippet '{profile['snippet']}'")
-            elif profile.get("device"):
-                typer.echo(f"  Location: Device '{profile['device']}'")
-
-            # Display description if present
-            if profile.get("description"):
-                typer.echo(f"  Description: {profile['description']}")
-
-            # Display DNS security categories count
-            botnet = profile.get("botnet_domains")
-            if botnet:
-                categories = botnet.get("dns_security_categories")
-                if categories:
-                    typer.echo(f"  DNS Security Categories: {len(categories)}")
-
-                # Show sinkhole config
-                if botnet.get("sinkhole"):
-                    sinkhole = botnet["sinkhole"]
-                    typer.echo(f"  Sinkhole: IPv4={sinkhole.get('ipv4_address', 'N/A')}, IPv6={sinkhole.get('ipv6_address', 'N/A')}")
-
-                # Show whitelist count
-                whitelist = botnet.get("whitelist")
-                if whitelist:
-                    typer.echo(f"  Whitelist Entries: {len(whitelist)}")
-
-            # Display ID if present
-            if profile.get("id"):
-                typer.echo(f"  ID: {profile['id']}")
-
-            typer.echo("-" * 80)
-
+        emit(
+            profiles,
+            output,
+            columns=["name", "folder", "snippet", "device", "description", "id"],
+            title=f"DNS Security Profiles in {location_type} '{location_value}'",
+        )
         return profiles
 
 
@@ -2782,7 +2207,7 @@ def backup_vulnerability_protection_profile(
     profiles = scm_client.list_vulnerability_protection_profiles(**kwargs, exact_match=True)
 
     if not profiles:
-        typer.echo(f"No vulnerability protection profiles found in {location_type} '{location_value}'")
+        info(f"No vulnerability protection profiles found in {location_type} '{location_value}'")
         return
 
     # Convert SDK models to dictionaries, excluding unset values
@@ -2802,7 +2227,7 @@ def backup_vulnerability_protection_profile(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} vulnerability protection profiles to {file}")
+    success(f"Successfully backed up {len(backup_data)} vulnerability protection profiles to {file}")
     return file
 
 
@@ -2839,13 +2264,10 @@ def delete_vulnerability_protection_profile(
     kwargs = {location_type: location_value}
     result = scm_client.delete_vulnerability_protection_profile(**kwargs, name=name)
     if result:
-        typer.echo(f"Deleted vulnerability protection profile: {name} from {location_type} {location_value}")
+        success(f"Deleted vulnerability protection profile: {name} from {location_type} {location_value}")
     else:
-        typer.echo(
-            f"Vulnerability protection profile not found: {name} in {location_type} {location_value}",
-            err=True,
-        )
-        raise typer.Exit(code=1) from Exception
+        error(f"Vulnerability protection profile not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("vulnerability-protection-profile", help="Load vulnerability protection profiles from a YAML file.")
@@ -2875,15 +2297,12 @@ def load_vulnerability_protection_profile(
     """
     # Validate container override parameters
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo(
-            "Error: Only one of --folder, --snippet, or --device can be specified",
-            err=True,
-        )
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     # Validate file exists
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     # Load YAML data using the same pattern as other commands
@@ -2891,7 +2310,7 @@ def load_vulnerability_protection_profile(
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "vulnerability_protection_profiles" not in raw_data:
-        typer.echo("No vulnerability protection profiles found in file", err=True)
+        error("No vulnerability protection profiles found in file")
         raise typer.Exit(code=1)
 
     profiles = raw_data["vulnerability_protection_profiles"]
@@ -2899,12 +2318,12 @@ def load_vulnerability_protection_profile(
         profiles = [profiles]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         # Show override information if applicable
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(profiles))
         return []
 
@@ -2955,19 +2374,16 @@ def load_vulnerability_protection_profile(
                 updated_count += 1
 
         except Exception as e:
-            typer.echo(
-                f"Error processing vulnerability protection profile '{profile_data.get('name', 'unknown')}': {str(e)}",
-                err=True,
-            )
+            error(f"Error processing vulnerability protection profile '{profile_data.get('name', 'unknown')}': {str(e)}")
             # Continue processing other profiles
             continue
 
     # Display summary with counts
-    typer.echo(f"Successfully processed {len(results)} vulnerability protection profile(s):")
+    success(f"Successfully processed {len(results)} vulnerability protection profile(s):")
     if created_count > 0:
-        typer.echo(f"  - Created: {created_count}")
+        info(f"  - Created: {created_count}")
     if updated_count > 0:
-        typer.echo(f"  - Updated: {updated_count}")
+        info(f"  - Updated: {updated_count}")
 
     return results
 
@@ -3063,11 +2479,11 @@ def set_vulnerability_protection_profile(
     # Format and display output
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created vulnerability protection profile: {result['name']} in {location_type} {location_value}")
+        success(f"Created vulnerability protection profile: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated vulnerability protection profile: {result['name']} in {location_type} {location_value}")
+        success(f"Updated vulnerability protection profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for vulnerability protection profile: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for vulnerability protection profile: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("vulnerability-protection-profile")
@@ -3077,6 +2493,7 @@ def show_vulnerability_protection_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the vulnerability protection profile"),
     device: str = typer.Option(None, "--device", help="Device containing the vulnerability protection profile"),
     name: str | None = typer.Option(None, "--name", help="Name of the vulnerability protection profile to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display vulnerability protection profiles.
 
@@ -3099,68 +2516,7 @@ def show_vulnerability_protection_profile(
         kwargs = {location_type: location_value}
         profile = scm_client.get_vulnerability_protection_profile(**kwargs, name=name)
 
-        typer.echo(f"\nVulnerability Protection Profile: {profile.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-
-        # Display container location (folder, snippet, or device)
-        if profile.get("folder"):
-            typer.echo(f"Location: Folder '{profile['folder']}'")
-        elif profile.get("snippet"):
-            typer.echo(f"Location: Snippet '{profile['snippet']}'")
-        elif profile.get("device"):
-            typer.echo(f"Location: Device '{profile['device']}'")
-
-        # Display description if present
-        if profile.get("description"):
-            typer.echo(f"Description: {profile['description']}")
-
-        # Display rules in detail
-        if profile.get("rules"):
-            typer.echo(f"\nRules ({len(profile['rules'])}):")
-            for idx, rule in enumerate(profile["rules"], 1):
-                typer.echo(f"  Rule {idx}: {rule.get('name', 'Unnamed')}")
-                if rule.get("severity"):
-                    severity = rule["severity"] if isinstance(rule["severity"], list) else [rule["severity"]]
-                    typer.echo(f"    Severity: {', '.join(severity)}")
-                typer.echo(f"    Action: {rule.get('action', 'N/A')}")
-                if rule.get("category"):
-                    typer.echo(f"    Category: {rule['category']}")
-                if rule.get("host"):
-                    typer.echo(f"    Host: {rule['host']}")
-                if rule.get("threat_name"):
-                    typer.echo(f"    Threat Name: {rule['threat_name']}")
-                if rule.get("packet_capture"):
-                    typer.echo(f"    Packet Capture: {rule['packet_capture']}")
-                if rule.get("cve"):
-                    typer.echo(f"    CVE: {', '.join(rule['cve'])}")
-                if rule.get("vendor_id") or rule.get("vendor-id"):
-                    vendor_ids = rule.get("vendor_id") or rule.get("vendor-id")
-                    typer.echo(f"    Vendor ID: {', '.join(vendor_ids)}")
-
-        # Display threat exceptions in detail
-        if profile.get("threat_exception"):
-            typer.echo(f"\nThreat Exceptions ({len(profile['threat_exception'])}):")
-            for idx, exception in enumerate(profile["threat_exception"], 1):
-                typer.echo(f"  Exception {idx}:")
-                if exception.get("name"):
-                    typer.echo(f"    Name: {exception['name']}")
-                if exception.get("packet_capture"):
-                    typer.echo(f"    Packet Capture: {exception['packet_capture']}")
-                if exception.get("action"):
-                    typer.echo(f"    Action: {exception['action']}")
-                if exception.get("exempt_ip"):
-                    ips = [ip.get("name", str(ip)) if isinstance(ip, dict) else str(ip) for ip in exception["exempt_ip"]]
-                    typer.echo(f"    Exempt IPs: {', '.join(ips)}")
-                if exception.get("notes"):
-                    typer.echo(f"    Notes: {exception['notes']}")
-                if exception.get("time_attribute"):
-                    ta = exception["time_attribute"]
-                    typer.echo(f"    Time Attribute: interval={ta.get('interval')}, threshold={ta.get('threshold')}, track_by={ta.get('track_by')}")
-
-        # Display ID if present
-        if profile.get("id"):
-            typer.echo(f"\nID: {profile['id']}")
-
+        emit(profile, output, title=f"Vulnerability Protection Profile: {profile.get('name', 'N/A')}")
         return profile
 
     else:
@@ -3169,44 +2525,15 @@ def show_vulnerability_protection_profile(
         profiles = scm_client.list_vulnerability_protection_profiles(**kwargs, exact_match=False)
 
         if not profiles:
-            typer.echo(f"No vulnerability protection profiles found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nVulnerability Protection Profiles in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for profile in profiles:
-            # Display profile information
-            typer.echo(f"Name: {profile.get('name', 'N/A')}")
-
-            # Display container location (folder, snippet, or device)
-            if profile.get("folder"):
-                typer.echo(f"  Location: Folder '{profile['folder']}'")
-            elif profile.get("snippet"):
-                typer.echo(f"  Location: Snippet '{profile['snippet']}'")
-            elif profile.get("device"):
-                typer.echo(f"  Location: Device '{profile['device']}'")
-
-            # Display description if present
-            if profile.get("description"):
-                typer.echo(f"  Description: {profile['description']}")
-
-            # Display rules if present
-            if profile.get("rules"):
-                typer.echo(f"  Rules: {len(profile['rules'])} configured")
-                for rule in profile["rules"]:
-                    typer.echo(f"    - {rule.get('name', 'Unnamed')}: {rule.get('action', 'N/A')}")
-
-            # Display threat exceptions if present
-            if profile.get("threat_exception"):
-                typer.echo(f"  Threat Exceptions: {len(profile['threat_exception'])}")
-
-            # Display ID if present
-            if profile.get("id"):
-                typer.echo(f"  ID: {profile['id']}")
-
-            typer.echo("-" * 80)
-
+        emit(
+            profiles,
+            output,
+            columns=["name", "folder", "snippet", "device", "description", "id"],
+            title=f"Vulnerability Protection Profiles in {location_type} '{location_value}'",
+        )
         return profiles
 
 
@@ -3251,7 +2578,7 @@ def backup_url_category(
     categories = scm_client.list_url_categories(**kwargs, exact_match=True)
 
     if not categories:
-        typer.echo(f"No URL categories found in {location_type} '{location_value}'")
+        info(f"No URL categories found in {location_type} '{location_value}'")
         return
 
     # Convert SDK models to dictionaries, excluding unset values
@@ -3270,7 +2597,7 @@ def backup_url_category(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} URL categories to {file}")
+    success(f"Successfully backed up {len(backup_data)} URL categories to {file}")
     return file
 
 
@@ -3307,13 +2634,10 @@ def delete_url_category(
     kwargs = {location_type: location_value}
     result = scm_client.delete_url_category(**kwargs, name=name)
     if result:
-        typer.echo(f"Deleted URL category: {name} from {location_type} {location_value}")
+        success(f"Deleted URL category: {name} from {location_type} {location_value}")
     else:
-        typer.echo(
-            f"URL category not found: {name} in {location_type} {location_value}",
-            err=True,
-        )
-        raise typer.Exit(code=1) from Exception
+        error(f"URL category not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("url-category", help="Load URL categories from a YAML file.")
@@ -3343,15 +2667,12 @@ def load_url_category(
     """
     # Validate container override parameters
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo(
-            "Error: Only one of --folder, --snippet, or --device can be specified",
-            err=True,
-        )
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     # Validate file exists
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     # Load YAML data using the same pattern as other commands
@@ -3359,7 +2680,7 @@ def load_url_category(
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "url_categories" not in raw_data:
-        typer.echo("No URL categories found in file", err=True)
+        error("No URL categories found in file")
         raise typer.Exit(code=1)
 
     categories = raw_data["url_categories"]
@@ -3367,12 +2688,12 @@ def load_url_category(
         categories = [categories]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         # Show override information if applicable
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(categories))
         return []
 
@@ -3423,19 +2744,16 @@ def load_url_category(
                 updated_count += 1
 
         except Exception as e:
-            typer.echo(
-                f"Error processing URL category '{category_data.get('name', 'unknown')}': {str(e)}",
-                err=True,
-            )
+            error(f"Error processing URL category '{category_data.get('name', 'unknown')}': {str(e)}")
             # Continue processing other categories
             continue
 
     # Display summary with counts
-    typer.echo(f"Successfully processed {len(results)} URL category(ies):")
+    success(f"Successfully processed {len(results)} URL category(ies):")
     if created_count > 0:
-        typer.echo(f"  - Created: {created_count}")
+        info(f"  - Created: {created_count}")
     if updated_count > 0:
-        typer.echo(f"  - Updated: {updated_count}")
+        info(f"  - Updated: {updated_count}")
 
     return results
 
@@ -3502,11 +2820,11 @@ def set_url_category(
     # Format and display output
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created URL category: {result['name']} in {location_type} {location_value}")
+        success(f"Created URL category: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated URL category: {result['name']} in {location_type} {location_value}")
+        success(f"Updated URL category: {result['name']} in {location_type} {location_value}")
     else:
-        typer.echo(f"No changes to URL category: {result['name']} in {location_type} {location_value}")
+        info(f"No changes to URL category: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("url-category")
@@ -3516,6 +2834,7 @@ def show_url_category(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the URL category"),
     device: str = typer.Option(None, "--device", help="Device containing the URL category"),
     name: str | None = typer.Option(None, "--name", help="Name of the URL category to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display URL categories.
 
@@ -3538,35 +2857,7 @@ def show_url_category(
         kwargs = {location_type: location_value}
         category = scm_client.get_url_category(**kwargs, name=name)
 
-        typer.echo(f"\nURL Category: {category.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-
-        # Display container location
-        if category.get("folder"):
-            typer.echo(f"Location: Folder '{category['folder']}'")
-        elif category.get("snippet"):
-            typer.echo(f"Location: Snippet '{category['snippet']}'")
-        elif category.get("device"):
-            typer.echo(f"Location: Device '{category['device']}'")
-
-        # Display description if present
-        if category.get("description"):
-            typer.echo(f"Description: {category['description']}")
-
-        # Display type
-        if category.get("type"):
-            typer.echo(f"Type: {category['type']}")
-
-        # Display URL list
-        if category.get("list"):
-            typer.echo(f"\nURLs ({len(category['list'])}):")
-            for url in category["list"]:
-                typer.echo(f"  - {url}")
-
-        # Display ID if present
-        if category.get("id"):
-            typer.echo(f"\nID: {category['id']}")
-
+        emit(category, output, title=f"URL Category: {category.get('name', 'N/A')}")
         return category
 
     else:
@@ -3575,41 +2866,15 @@ def show_url_category(
         categories = scm_client.list_url_categories(**kwargs, exact_match=False)
 
         if not categories:
-            typer.echo(f"No URL categories found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nURL Categories in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for category in categories:
-            typer.echo(f"Name: {category.get('name', 'N/A')}")
-
-            # Display container location
-            if category.get("folder"):
-                typer.echo(f"  Location: Folder '{category['folder']}'")
-            elif category.get("snippet"):
-                typer.echo(f"  Location: Snippet '{category['snippet']}'")
-            elif category.get("device"):
-                typer.echo(f"  Location: Device '{category['device']}'")
-
-            # Display description if present
-            if category.get("description"):
-                typer.echo(f"  Description: {category['description']}")
-
-            # Display type
-            if category.get("type"):
-                typer.echo(f"  Type: {category['type']}")
-
-            # Display URL count
-            if category.get("list"):
-                typer.echo(f"  URLs: {len(category['list'])} entries")
-
-            # Display ID if present
-            if category.get("id"):
-                typer.echo(f"  ID: {category['id']}")
-
-            typer.echo("-" * 80)
-
+        emit(
+            categories,
+            output,
+            columns=["name", "folder", "snippet", "device", "type", "description", "list", "id"],
+            title=f"URL Categories in {location_type} '{location_value}'",
+        )
         return categories
 
 
@@ -3646,7 +2911,7 @@ def backup_app_override_rule(
     rules = scm_client.list_app_override_rules(**kwargs, rulebase=rulebase, exact_match=True)
 
     if not rules:
-        typer.echo(f"No app override rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
+        info(f"No app override rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
         return
 
     backup_data = []
@@ -3661,7 +2926,7 @@ def backup_app_override_rule(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} app override rules to {file}")
+    success(f"Successfully backed up {len(backup_data)} app override rules to {file}")
     return file
 
 
@@ -3691,10 +2956,10 @@ def delete_app_override_rule(
     kwargs = {location_type: location_value}
     result = scm_client.delete_app_override_rule(**kwargs, name=name, rulebase=rulebase)
     if result:
-        typer.echo(f"Deleted app override rule: {name} from {location_type} {location_value}")
+        success(f"Deleted app override rule: {name} from {location_type} {location_value}")
     else:
-        typer.echo(f"App override rule not found: {name} in {location_type} {location_value}", err=True)
-        raise typer.Exit(code=1) from Exception
+        error(f"App override rule not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("app-override-rule", help="Load app override rules from a YAML file.")
@@ -3715,18 +2980,18 @@ def load_app_override_rule(
 
     """
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     with open(file) as f:
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "app_override_rules" not in raw_data:
-        typer.echo("No app override rules found in file", err=True)
+        error("No app override rules found in file")
         raise typer.Exit(code=1)
 
     rules = raw_data["app_override_rules"]
@@ -3734,11 +2999,11 @@ def load_app_override_rule(
         rules = [rules]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(rules))
         return []
 
@@ -3773,10 +3038,10 @@ def load_app_override_rule(
             results.append(result)
 
         except Exception as e:
-            typer.echo(f"Error processing app override rule '{rule_data.get('name', 'unknown')}': {str(e)}", err=True)
+            error(f"Error processing app override rule '{rule_data.get('name', 'unknown')}': {str(e)}")
             continue
 
-    typer.echo(f"Successfully processed {len(results)} app override rule(s)")
+    success(f"Successfully processed {len(results)} app override rule(s)")
     return results
 
 
@@ -3840,11 +3105,11 @@ def set_app_override_rule(
     result = scm_client.create_app_override_rule(**container_kwargs, **sdk_data)
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created app override rule: {result['name']} in {location_type} {location_value}")
+        success(f"Created app override rule: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated app override rule: {result['name']} in {location_type} {location_value}")
+        success(f"Updated app override rule: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for app override rule: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for app override rule: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("app-override-rule")
@@ -3855,6 +3120,7 @@ def show_app_override_rule(
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
     name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
     rulebase: str = RULEBASE_OPTION,
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display app override rules.
 
@@ -3869,48 +3135,22 @@ def show_app_override_rule(
         kwargs = {location_type: location_value}
         rule = scm_client.get_app_override_rule(**kwargs, name=name, rulebase=rulebase)
 
-        typer.echo(f"\nApp Override Rule: {rule.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-        if rule.get("folder"):
-            typer.echo(f"Location: Folder '{rule['folder']}'")
-        elif rule.get("snippet"):
-            typer.echo(f"Location: Snippet '{rule['snippet']}'")
-        elif rule.get("device"):
-            typer.echo(f"Location: Device '{rule['device']}'")
-        if rule.get("description"):
-            typer.echo(f"Description: {rule['description']}")
-        typer.echo(f"Application: {rule.get('application', 'N/A')}")
-        typer.echo(f"Port: {rule.get('port', 'N/A')}")
-        typer.echo(f"Protocol: {rule.get('protocol', 'N/A')}")
-        typer.echo(f"From: {rule.get('from', ['any'])}")
-        typer.echo(f"To: {rule.get('to', ['any'])}")
-        typer.echo(f"Source: {rule.get('source', ['any'])}")
-        typer.echo(f"Destination: {rule.get('destination', ['any'])}")
-        if rule.get("disabled"):
-            typer.echo("Status: Disabled")
-        if rule.get("id"):
-            typer.echo(f"ID: {rule['id']}")
+        emit(rule, output, title=f"App Override Rule: {rule.get('name', 'N/A')}")
 
     else:
         kwargs = {location_type: location_value}
         rules = scm_client.list_app_override_rules(**kwargs, rulebase=rulebase, exact_match=False)
 
         if not rules:
-            typer.echo(f"No app override rules found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nApp Override Rules in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for rule in rules:
-            typer.echo(f"Name: {rule.get('name', 'N/A')}")
-            typer.echo(f"  Application: {rule.get('application', 'N/A')}")
-            typer.echo(f"  Port: {rule.get('port', 'N/A')}")
-            typer.echo(f"  Protocol: {rule.get('protocol', 'N/A')}")
-            if rule.get("id"):
-                typer.echo(f"  ID: {rule['id']}")
-            typer.echo("-" * 80)
-
+        emit(
+            rules,
+            output,
+            columns=["name", "folder", "application", "port", "protocol", "disabled", "id"],
+            title=f"App Override Rules in {location_type} '{location_value}'",
+        )
         return rules
 
 
@@ -3943,7 +3183,7 @@ def backup_authentication_rule(
     rules = scm_client.list_authentication_rules(**kwargs, rulebase=rulebase, exact_match=True)
 
     if not rules:
-        typer.echo(f"No authentication rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
+        info(f"No authentication rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
         return
 
     backup_data = []
@@ -3958,7 +3198,7 @@ def backup_authentication_rule(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} authentication rules to {file}")
+    success(f"Successfully backed up {len(backup_data)} authentication rules to {file}")
     return file
 
 
@@ -3988,10 +3228,10 @@ def delete_authentication_rule(
     kwargs = {location_type: location_value}
     result = scm_client.delete_authentication_rule(**kwargs, name=name, rulebase=rulebase)
     if result:
-        typer.echo(f"Deleted authentication rule: {name} from {location_type} {location_value}")
+        success(f"Deleted authentication rule: {name} from {location_type} {location_value}")
     else:
-        typer.echo(f"Authentication rule not found: {name} in {location_type} {location_value}", err=True)
-        raise typer.Exit(code=1) from Exception
+        error(f"Authentication rule not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("authentication-rule", help="Load authentication rules from a YAML file.")
@@ -4011,18 +3251,18 @@ def load_authentication_rule(
 
     """
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     with open(file) as f:
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "authentication_rules" not in raw_data:
-        typer.echo("No authentication rules found in file", err=True)
+        error("No authentication rules found in file")
         raise typer.Exit(code=1)
 
     rules = raw_data["authentication_rules"]
@@ -4030,11 +3270,11 @@ def load_authentication_rule(
         rules = [rules]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(rules))
         return []
 
@@ -4069,10 +3309,10 @@ def load_authentication_rule(
             results.append(result)
 
         except Exception as e:
-            typer.echo(f"Error processing authentication rule '{rule_data.get('name', 'unknown')}': {str(e)}", err=True)
+            error(f"Error processing authentication rule '{rule_data.get('name', 'unknown')}': {str(e)}")
             continue
 
-    typer.echo(f"Successfully processed {len(results)} authentication rule(s)")
+    success(f"Successfully processed {len(results)} authentication rule(s)")
     return results
 
 
@@ -4139,11 +3379,11 @@ def set_authentication_rule(
     result = scm_client.create_authentication_rule(**container_kwargs, **sdk_data)
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created authentication rule: {result['name']} in {location_type} {location_value}")
+        success(f"Created authentication rule: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated authentication rule: {result['name']} in {location_type} {location_value}")
+        success(f"Updated authentication rule: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for authentication rule: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for authentication rule: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("authentication-rule")
@@ -4154,6 +3394,7 @@ def show_authentication_rule(
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
     name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
     rulebase: str = RULEBASE_OPTION,
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display authentication rules.
 
@@ -4168,48 +3409,22 @@ def show_authentication_rule(
         kwargs = {location_type: location_value}
         rule = scm_client.get_authentication_rule(**kwargs, name=name, rulebase=rulebase)
 
-        typer.echo(f"\nAuthentication Rule: {rule.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-        if rule.get("folder"):
-            typer.echo(f"Location: Folder '{rule['folder']}'")
-        elif rule.get("snippet"):
-            typer.echo(f"Location: Snippet '{rule['snippet']}'")
-        elif rule.get("device"):
-            typer.echo(f"Location: Device '{rule['device']}'")
-        if rule.get("description"):
-            typer.echo(f"Description: {rule['description']}")
-        typer.echo(f"From: {rule.get('from', ['any'])}")
-        typer.echo(f"To: {rule.get('to', ['any'])}")
-        typer.echo(f"Source: {rule.get('source', ['any'])}")
-        typer.echo(f"Destination: {rule.get('destination', ['any'])}")
-        typer.echo(f"Service: {rule.get('service', ['any'])}")
-        typer.echo(f"Category: {rule.get('category', ['any'])}")
-        if rule.get("authentication_enforcement"):
-            typer.echo(f"Authentication Enforcement: {rule['authentication_enforcement']}")
-        if rule.get("disabled"):
-            typer.echo("Status: Disabled")
-        if rule.get("id"):
-            typer.echo(f"ID: {rule['id']}")
+        emit(rule, output, title=f"Authentication Rule: {rule.get('name', 'N/A')}")
 
     else:
         kwargs = {location_type: location_value}
         rules = scm_client.list_authentication_rules(**kwargs, rulebase=rulebase, exact_match=False)
 
         if not rules:
-            typer.echo(f"No authentication rules found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nAuthentication Rules in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for rule in rules:
-            typer.echo(f"Name: {rule.get('name', 'N/A')}")
-            if rule.get("authentication_enforcement"):
-                typer.echo(f"  Auth Enforcement: {rule['authentication_enforcement']}")
-            if rule.get("id"):
-                typer.echo(f"  ID: {rule['id']}")
-            typer.echo("-" * 80)
-
+        emit(
+            rules,
+            output,
+            columns=["name", "folder", "from", "to", "authentication_enforcement", "disabled", "id"],
+            title=f"Authentication Rules in {location_type} '{location_value}'",
+        )
         return rules
 
 
@@ -4242,7 +3457,7 @@ def backup_decryption_rule(
     rules = scm_client.list_decryption_rules(**kwargs, rulebase=rulebase, exact_match=True)
 
     if not rules:
-        typer.echo(f"No decryption rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
+        info(f"No decryption rules found in {location_type} '{location_value}' rulebase '{rulebase}'")
         return
 
     backup_data = []
@@ -4257,7 +3472,7 @@ def backup_decryption_rule(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} decryption rules to {file}")
+    success(f"Successfully backed up {len(backup_data)} decryption rules to {file}")
     return file
 
 
@@ -4287,10 +3502,10 @@ def delete_decryption_rule(
     kwargs = {location_type: location_value}
     result = scm_client.delete_decryption_rule(**kwargs, name=name, rulebase=rulebase)
     if result:
-        typer.echo(f"Deleted decryption rule: {name} from {location_type} {location_value}")
+        success(f"Deleted decryption rule: {name} from {location_type} {location_value}")
     else:
-        typer.echo(f"Decryption rule not found: {name} in {location_type} {location_value}", err=True)
-        raise typer.Exit(code=1) from Exception
+        error(f"Decryption rule not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("decryption-rule", help="Load decryption rules from a YAML file.")
@@ -4310,18 +3525,18 @@ def load_decryption_rule(
 
     """
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     with open(file) as f:
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "decryption_rules" not in raw_data:
-        typer.echo("No decryption rules found in file", err=True)
+        error("No decryption rules found in file")
         raise typer.Exit(code=1)
 
     rules = raw_data["decryption_rules"]
@@ -4329,11 +3544,11 @@ def load_decryption_rule(
         rules = [rules]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(rules))
         return []
 
@@ -4368,10 +3583,10 @@ def load_decryption_rule(
             results.append(result)
 
         except Exception as e:
-            typer.echo(f"Error processing decryption rule '{rule_data.get('name', 'unknown')}': {str(e)}", err=True)
+            error(f"Error processing decryption rule '{rule_data.get('name', 'unknown')}': {str(e)}")
             continue
 
-    typer.echo(f"Successfully processed {len(results)} decryption rule(s)")
+    success(f"Successfully processed {len(results)} decryption rule(s)")
     return results
 
 
@@ -4440,11 +3655,11 @@ def set_decryption_rule(
     result = scm_client.create_decryption_rule(**container_kwargs, **sdk_data)
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created decryption rule: {result['name']} in {location_type} {location_value}")
+        success(f"Created decryption rule: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated decryption rule: {result['name']} in {location_type} {location_value}")
+        success(f"Updated decryption rule: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for decryption rule: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for decryption rule: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("decryption-rule")
@@ -4455,6 +3670,7 @@ def show_decryption_rule(
     device: str = typer.Option(None, "--device", help="Device containing the rule"),
     name: str | None = typer.Option(None, "--name", help="Name of the rule to show"),
     rulebase: str = RULEBASE_OPTION,
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display decryption rules.
 
@@ -4469,48 +3685,22 @@ def show_decryption_rule(
         kwargs = {location_type: location_value}
         rule = scm_client.get_decryption_rule(**kwargs, name=name, rulebase=rulebase)
 
-        typer.echo(f"\nDecryption Rule: {rule.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-        if rule.get("folder"):
-            typer.echo(f"Location: Folder '{rule['folder']}'")
-        elif rule.get("snippet"):
-            typer.echo(f"Location: Snippet '{rule['snippet']}'")
-        elif rule.get("device"):
-            typer.echo(f"Location: Device '{rule['device']}'")
-        if rule.get("description"):
-            typer.echo(f"Description: {rule['description']}")
-        typer.echo(f"Action: {rule.get('action', 'N/A')}")
-        typer.echo(f"From: {rule.get('from', ['any'])}")
-        typer.echo(f"To: {rule.get('to', ['any'])}")
-        typer.echo(f"Source: {rule.get('source', ['any'])}")
-        typer.echo(f"Destination: {rule.get('destination', ['any'])}")
-        if rule.get("profile"):
-            typer.echo(f"Profile: {rule['profile']}")
-        if rule.get("type"):
-            typer.echo(f"Type: {rule['type']}")
-        if rule.get("disabled"):
-            typer.echo("Status: Disabled")
-        if rule.get("id"):
-            typer.echo(f"ID: {rule['id']}")
+        emit(rule, output, title=f"Decryption Rule: {rule.get('name', 'N/A')}")
 
     else:
         kwargs = {location_type: location_value}
         rules = scm_client.list_decryption_rules(**kwargs, rulebase=rulebase, exact_match=False)
 
         if not rules:
-            typer.echo(f"No decryption rules found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nDecryption Rules in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for rule in rules:
-            typer.echo(f"Name: {rule.get('name', 'N/A')}")
-            typer.echo(f"  Action: {rule.get('action', 'N/A')}")
-            if rule.get("id"):
-                typer.echo(f"  ID: {rule['id']}")
-            typer.echo("-" * 80)
-
+        emit(
+            rules,
+            output,
+            columns=["name", "folder", "action", "from", "to", "profile", "disabled", "id"],
+            title=f"Decryption Rules in {location_type} '{location_value}'",
+        )
         return rules
 
 
@@ -4542,7 +3732,7 @@ def backup_url_access_profile(
     profiles = scm_client.list_url_access_profiles(**kwargs, exact_match=True)
 
     if not profiles:
-        typer.echo(f"No URL access profiles found in {location_type} '{location_value}'")
+        info(f"No URL access profiles found in {location_type} '{location_value}'")
         return
 
     backup_data = []
@@ -4556,7 +3746,7 @@ def backup_url_access_profile(
     with open(file, "w") as f:
         yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
 
-    typer.echo(f"Successfully backed up {len(backup_data)} URL access profiles to {file}")
+    success(f"Successfully backed up {len(backup_data)} URL access profiles to {file}")
     return file
 
 
@@ -4585,10 +3775,10 @@ def delete_url_access_profile(
     kwargs = {location_type: location_value}
     result = scm_client.delete_url_access_profile(**kwargs, name=name)
     if result:
-        typer.echo(f"Deleted URL access profile: {name} from {location_type} {location_value}")
+        success(f"Deleted URL access profile: {name} from {location_type} {location_value}")
     else:
-        typer.echo(f"URL access profile not found: {name} in {location_type} {location_value}", err=True)
-        raise typer.Exit(code=1) from Exception
+        error(f"URL access profile not found: {name} in {location_type} {location_value}")
+        raise typer.Exit(code=1)
 
 
 @load_app.command("url-access-profile", help="Load URL access profiles from a YAML file.")
@@ -4608,18 +3798,18 @@ def load_url_access_profile(
 
     """
     if sum(1 for x in [folder, snippet, device] if x is not None) > 1:
-        typer.echo("Error: Only one of --folder, --snippet, or --device can be specified", err=True)
+        error("Error: Only one of --folder, --snippet, or --device can be specified")
         raise typer.Exit(code=1)
 
     if not file.exists():
-        typer.echo(f"File not found: {file}", err=True)
+        error(f"File not found: {file}")
         raise typer.Exit(code=1)
 
     with open(file) as f:
         raw_data = yaml.safe_load(f)
 
     if not raw_data or "url_access_profiles" not in raw_data:
-        typer.echo("No URL access profiles found in file", err=True)
+        error("No URL access profiles found in file")
         raise typer.Exit(code=1)
 
     profiles = raw_data["url_access_profiles"]
@@ -4627,11 +3817,11 @@ def load_url_access_profile(
         profiles = [profiles]
 
     if dry_run:
-        typer.echo("Dry run mode: would apply the following configurations:")
+        info("Dry run mode: would apply the following configurations:")
         if folder or snippet or device:
             override_type = "folder" if folder else ("snippet" if snippet else "device")
             override_value = folder or snippet or device
-            typer.echo(f"Container override: {override_type} = '{override_value}'")
+            info(f"Container override: {override_type} = '{override_value}'")
         typer.echo(yaml.dump(profiles))
         return []
 
@@ -4666,10 +3856,10 @@ def load_url_access_profile(
             results.append(result)
 
         except Exception as e:
-            typer.echo(f"Error processing URL access profile '{profile_data.get('name', 'unknown')}': {str(e)}", err=True)
+            error(f"Error processing URL access profile '{profile_data.get('name', 'unknown')}': {str(e)}")
             continue
 
-    typer.echo(f"Successfully processed {len(results)} URL access profile(s)")
+    success(f"Successfully processed {len(results)} URL access profile(s)")
     return results
 
 
@@ -4731,11 +3921,11 @@ def set_url_access_profile(
     result = scm_client.create_url_access_profile(**container_kwargs, **sdk_data)
     action = result.get("__action__", "created")
     if action == "created":
-        typer.echo(f"Created URL access profile: {result['name']} in {location_type} {location_value}")
+        success(f"Created URL access profile: {result['name']} in {location_type} {location_value}")
     elif action == "updated":
-        typer.echo(f"Updated URL access profile: {result['name']} in {location_type} {location_value}")
+        success(f"Updated URL access profile: {result['name']} in {location_type} {location_value}")
     elif action == "no_change":
-        typer.echo(f"No changes needed for URL access profile: {result['name']} in {location_type} {location_value}")
+        info(f"No changes needed for URL access profile: {result['name']} in {location_type} {location_value}")
 
 
 @show_app.command("url-access-profile")
@@ -4745,6 +3935,7 @@ def show_url_access_profile(
     snippet: str = typer.Option(None, "--snippet", help="Snippet containing the profile"),
     device: str = typer.Option(None, "--device", help="Device containing the profile"),
     name: str | None = typer.Option(None, "--name", help="Name of the profile to show"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Display URL access profiles.
 
@@ -4759,58 +3950,22 @@ def show_url_access_profile(
         kwargs = {location_type: location_value}
         profile = scm_client.get_url_access_profile(**kwargs, name=name)
 
-        typer.echo(f"\nURL Access Profile: {profile.get('name', 'N/A')}")
-        typer.echo("=" * 80)
-        if profile.get("folder"):
-            typer.echo(f"Location: Folder '{profile['folder']}'")
-        elif profile.get("snippet"):
-            typer.echo(f"Location: Snippet '{profile['snippet']}'")
-        elif profile.get("device"):
-            typer.echo(f"Location: Device '{profile['device']}'")
-        if profile.get("description"):
-            typer.echo(f"Description: {profile['description']}")
-        if profile.get("block"):
-            typer.echo(f"Block: {profile['block']}")
-        if profile.get("alert"):
-            typer.echo(f"Alert: {profile['alert']}")
-        if profile.get("allow"):
-            typer.echo(f"Allow: {profile['allow']}")
-        if profile.get("continue"):
-            typer.echo(f"Continue: {profile['continue']}")
-        if profile.get("redirect"):
-            typer.echo(f"Redirect: {profile['redirect']}")
-        if profile.get("credential_enforcement"):
-            typer.echo(f"Credential Enforcement: {profile['credential_enforcement']}")
-        if profile.get("cloud_inline_cat") is not None:
-            typer.echo(f"Cloud Inline Cat: {'Enabled' if profile['cloud_inline_cat'] else 'Disabled'}")
-        if profile.get("safe_search_enforcement") is not None:
-            typer.echo(f"Safe Search: {'Enabled' if profile['safe_search_enforcement'] else 'Disabled'}")
-        if profile.get("id"):
-            typer.echo(f"ID: {profile['id']}")
+        emit(profile, output, title=f"URL Access Profile: {profile.get('name', 'N/A')}")
 
     else:
         kwargs = {location_type: location_value}
         profiles = scm_client.list_url_access_profiles(**kwargs, exact_match=False)
 
         if not profiles:
-            typer.echo(f"No URL access profiles found in {location_type} '{location_value}'")
+            emit([], output)
             return
 
-        typer.echo(f"\nURL Access Profiles in {location_type} '{location_value}':")
-        typer.echo("=" * 80)
-
-        for profile in profiles:
-            typer.echo(f"Name: {profile.get('name', 'N/A')}")
-            if profile.get("description"):
-                typer.echo(f"  Description: {profile['description']}")
-            if profile.get("block"):
-                typer.echo(f"  Block: {len(profile['block'])} categories")
-            if profile.get("alert"):
-                typer.echo(f"  Alert: {len(profile['alert'])} categories")
-            if profile.get("id"):
-                typer.echo(f"  ID: {profile['id']}")
-            typer.echo("-" * 80)
-
+        emit(
+            profiles,
+            output,
+            columns=["name", "folder", "snippet", "device", "description", "block", "alert", "allow", "id"],
+            title=f"URL Access Profiles in {location_type} '{location_value}'",
+        )
         return profiles
 
 
@@ -4848,7 +4003,7 @@ def move_security_rule_cmd(
     location_type, location_value = validate_location_params(folder, snippet, device)
 
     if destination in ("before", "after") and not destination_rule:
-        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        error("Error: --destination-rule is required when using before/after")
         raise typer.Exit(code=1)
 
     kwargs = {location_type: location_value}
@@ -4859,7 +4014,7 @@ def move_security_rule_cmd(
         destination=destination,
         destination_rule=destination_rule,
     )
-    typer.echo(f"Moved security rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+    success(f"Moved security rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
 
 
 @move_app.command("app-override-rule")
@@ -4883,7 +4038,7 @@ def move_app_override_rule_cmd(
     location_type, location_value = validate_location_params(folder, snippet, device)
 
     if destination in ("before", "after") and not destination_rule:
-        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        error("Error: --destination-rule is required when using before/after")
         raise typer.Exit(code=1)
 
     kwargs = {location_type: location_value}
@@ -4894,7 +4049,7 @@ def move_app_override_rule_cmd(
         destination=destination,
         destination_rule=destination_rule,
     )
-    typer.echo(f"Moved app override rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+    success(f"Moved app override rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
 
 
 @move_app.command("authentication-rule")
@@ -4917,7 +4072,7 @@ def move_authentication_rule_cmd(
     location_type, location_value = validate_location_params(folder, snippet, device)
 
     if destination in ("before", "after") and not destination_rule:
-        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        error("Error: --destination-rule is required when using before/after")
         raise typer.Exit(code=1)
 
     kwargs = {location_type: location_value}
@@ -4928,7 +4083,7 @@ def move_authentication_rule_cmd(
         destination=destination,
         destination_rule=destination_rule,
     )
-    typer.echo(f"Moved authentication rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+    success(f"Moved authentication rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
 
 
 @move_app.command("decryption-rule")
@@ -4951,7 +4106,7 @@ def move_decryption_rule_cmd(
     location_type, location_value = validate_location_params(folder, snippet, device)
 
     if destination in ("before", "after") and not destination_rule:
-        typer.echo("Error: --destination-rule is required when using before/after", err=True)
+        error("Error: --destination-rule is required when using before/after")
         raise typer.Exit(code=1)
 
     kwargs = {location_type: location_value}
@@ -4962,4 +4117,4 @@ def move_decryption_rule_cmd(
         destination=destination,
         destination_rule=destination_rule,
     )
-    typer.echo(f"Moved decryption rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")
+    success(f"Moved decryption rule '{name}' to {destination} in {location_type} '{location_value}' rulebase '{rulebase}'")

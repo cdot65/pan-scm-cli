@@ -4,10 +4,10 @@ import os
 
 import yaml
 
-from src.scm_cli.utils.context import create_context, get_context_config
-from src.scm_cli.utils.config import get_auth_config
-from src.scm_cli.main import app as main_app
 from src.scm_cli.commands import context as context_module
+from src.scm_cli.main import app as main_app
+from src.scm_cli.utils.config import get_auth_config
+from src.scm_cli.utils.context import create_context, get_context_config
 
 main_app.add_typer(context_module.app, name="context")
 
@@ -248,8 +248,8 @@ class TestEndpointsInAuthConfig:
     def test_auth_config_endpoints_from_context(self, tmp_path, monkeypatch):
         """get_auth_config picks up endpoint URLs from the active context."""
         import scm_cli.utils.context as ctx_mod
-        import src.scm_cli.utils.context as src_ctx_mod
         import src.scm_cli.utils.config as src_config_mod
+        import src.scm_cli.utils.context as src_ctx_mod
 
         ctx_dir = str(tmp_path / "contexts")
         cur_ctx_file = str(tmp_path / "current-context")
@@ -280,8 +280,8 @@ class TestEndpointsInAuthConfig:
     def test_env_overrides_context(self, tmp_path, monkeypatch):
         """Env vars win over context-configured endpoint URLs."""
         import scm_cli.utils.context as ctx_mod
-        import src.scm_cli.utils.context as src_ctx_mod
         import src.scm_cli.utils.config as src_config_mod
+        import src.scm_cli.utils.context as src_ctx_mod
 
         ctx_dir = str(tmp_path / "contexts")
         cur_ctx_file = str(tmp_path / "current-context")

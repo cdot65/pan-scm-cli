@@ -139,12 +139,12 @@ class TestShowCommand:
         assert "default" in result.output
 
     def test_show_no_current_context(self, runner, monkeypatch):
-        """No argument and no current context shows error."""
+        """No argument and no current context shows error and exits non-zero."""
         monkeypatch.setattr("scm_cli.commands.context.get_current_context", lambda: None)
 
         result = runner.invoke(app, ["context", "show"])
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "No current context set" in result.output
 
     def test_show_nonexistent_context(self, runner, monkeypatch):

@@ -1,8 +1,6 @@
 """Tests for insights commands."""
 
-import os
 import pytest
-from typer.testing import CliRunner
 
 from src.scm_cli.main import app
 
@@ -13,7 +11,7 @@ def mock_insights_env(monkeypatch, tmp_path):
     # Mock the context file to return None (no context)
     monkeypatch.setattr("src.scm_cli.utils.context.CURRENT_CONTEXT_FILE", str(tmp_path / "current-context"))
     monkeypatch.setattr("src.scm_cli.utils.context.CONTEXT_DIR", str(tmp_path / "contexts"))
-    
+
     # Override all credential env vars to trigger mock mode
     monkeypatch.setenv("SCM_CLIENT_ID", "")
     monkeypatch.setenv("SCM_CLIENT_SECRET", "")
@@ -29,7 +27,7 @@ class TestInsightsAlerts:
     def test_list_alerts_mock(self, runner, mock_insights_env):
         """Test listing alerts in mock mode."""
         result = runner.invoke(app, ["insights", "alerts", "--list"])
-        
+
         if result.exit_code != 0:
             print(f"Output: {result.output}")
             print(f"Exception: {result.exception}")
@@ -54,12 +52,18 @@ class TestInsightsAlerts:
         assert "Critical CPU Usage" in result.output
 
     def test_export_alerts_json(self, runner, mock_insights_env, tmp_path):
-        """Test exporting alerts to JSON."""
+        """Test exporting alerts to JSON round-trips machine-readable data."""
+        import json as json_mod
+
         output_file = tmp_path / "alerts.json"
         result = runner.invoke(app, ["insights", "alerts", "--list", "--export", "json", "--output", str(output_file)])
         assert result.exit_code == 0
         assert output_file.exists()
         assert "Data exported to" in result.output
+        data = json_mod.loads(output_file.read_text())
+        assert isinstance(data, list)
+        assert data[0]["id"] == "alert-001"
+        assert data[0]["name"] == "Critical CPU Usage"
 
     def test_export_alerts_csv(self, runner, mock_insights_env, tmp_path):
         """Test exporting alerts to CSV."""
@@ -127,8 +131,10 @@ class TestInsightsRemoteNetworks:
         """Test listing remote networks with metrics in mock mode."""
         result = runner.invoke(app, ["insights", "remote-networks", "--list", "--metrics"])
         assert result.exit_code == 0
-        assert "latency" in result.output
-        assert "jitter" in result.output
+        assert "Latency" in result.output
+        assert "Jitter" in result.output
+        assert "25.5" in result.output
+        assert "2.3" in result.output
 
 
 class TestInsightsServiceConnections:
@@ -170,6 +176,8 @@ class TestInsightsTunnels:
         """Test listing tunnels with statistics in mock mode."""
         result = runner.invoke(app, ["insights", "tunnels", "--list", "--stats"])
         assert result.exit_code == 0
-        assert "bytes_sent" in result.output
-        assert "packets_sent" in result.output
-        assert "latency" in result.output
+        assert "Bytes Sent" in result.output
+        assert "Packets Sent" in result.output
+        assert "Latency" in result.output
+        assert "1073741824" in result.output
+        assert "1000000" in result.output

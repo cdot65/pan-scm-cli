@@ -1,9 +1,12 @@
 """Tests for device operations commands."""
 
-import pytest
+import json
 
-from src.scm_cli.main import app
+import pytest
+from typer.testing import CliRunner
+
 from src.scm_cli.commands import operations as ops_module
+from src.scm_cli.main import app
 from src.scm_cli.utils.sdk_client import SCMClient
 
 app.add_typer(ops_module.app, name="operations")
@@ -69,6 +72,15 @@ class TestOperationsRouteTable:
         assert result.exit_code == 0
         assert "mock-job-route-table" in result.output
 
+    def test_route_table_output_json(self, mock_ops_env):
+        """route-table --output json emits machine-readable results on stdout."""
+        result = CliRunner(mix_stderr=False).invoke(app, ["operations", "route-table", "--device", "fw-01", "--output", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert isinstance(data, list)
+        assert data[0]["destination"] == "0.0.0.0/0"
+        assert data[0]["next_hop"] == "10.0.0.1"
+
 
 class TestOperationsInterfaces:
     """Test operations interfaces command."""
@@ -90,3 +102,11 @@ class TestOperationsStatus:
         assert result.exit_code == 0
         assert "job-abc" in result.output
         assert "completed" in result.output
+
+    def test_status_output_json(self, mock_ops_env):
+        """operations status --output json emits machine-readable data on stdout."""
+        result = CliRunner(mix_stderr=False).invoke(app, ["operations", "status", "--job-id", "job-abc", "--output", "json"])
+        assert result.exit_code == 0
+        data = json.loads(result.stdout)
+        assert data["job_id"] == "job-abc"
+        assert data["state"] == "completed"

@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from src.scm_cli.main import app
 from src.scm_cli.commands import incidents as incidents_module
+from src.scm_cli.main import app
 from src.scm_cli.utils.sdk_client import SCMClient
 
 app.add_typer(incidents_module.app, name="incidents")

@@ -1,6 +1,10 @@
 """Tests for the network commands module."""
 
+import json
+
+import pytest
 import typer  # noqa: I001
+
 from scm_cli.commands.network import (
     delete_aggregate_interface,
     delete_app,
@@ -52,7 +56,6 @@ from scm_cli.commands.network import (
     load_qos_rule,
     load_route_access_list,
     load_route_prefix_list,
-    load_security_zone as load_zone,
     load_tunnel_interface,
     load_vlan_interface,
     set_aggregate_interface,
@@ -107,6 +110,10 @@ from scm_cli.commands.network import (
     show_route_prefix_list,
     show_tunnel_interface,
     show_vlan_interface,
+    show_zone,
+)
+from scm_cli.commands.network import (
+    load_security_zone as load_zone,
 )
 
 
@@ -341,8 +348,7 @@ class TestZoneCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "test-folder", "--name", "test-zone", "--mode", "layer3",
-             "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
+            ["--folder", "test-folder", "--name", "test-zone", "--mode", "layer3", "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
         )
 
         assert result.exit_code == 0
@@ -366,8 +372,7 @@ class TestZoneCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "test-folder", "--name", "test-zone", "--mode", "layer3",
-             "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
+            ["--folder", "test-folder", "--name", "test-zone", "--mode", "layer3", "--interfaces", "ethernet1/1", "--interfaces", "ethernet1/2"],
         )
 
         assert result.exit_code == 0
@@ -643,7 +648,7 @@ class TestIKEGatewayCommands:
         assert result.exit_code == 0
         assert "gw-site-a" in result.stdout
         assert "203.0.113.1" in result.stdout
-        assert "Pre-Shared Key" in result.stdout
+        assert "pre_shared_key" in result.stdout
 
     def test_delete_ike_gateway_command(self, runner, monkeypatch):
         """Test delete ike-gateway command."""
@@ -805,32 +810,6 @@ class TestIPsecCryptoProfileCommands:
 
         assert result.exit_code == 1
         assert "Error creating IPsec crypto profile" in result.output
-
-    def test_set_ipsec_crypto_profile_updated(self, runner, monkeypatch):
-        from scm_cli.utils.sdk_client import scm_client
-
-        def mock_create(*args, **kwargs):
-            return {"id": "icp-1", "name": "test-profile", "folder": "Texas", "__action__": "updated"}
-
-        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
-        test_app = typer.Typer()
-        test_app.command()(set_ipsec_crypto_profile)
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"])
-        assert result.exit_code == 0
-        assert "Updated IPsec crypto profile" in result.stdout
-
-    def test_set_ipsec_crypto_profile_no_change(self, runner, monkeypatch):
-        from scm_cli.utils.sdk_client import scm_client
-
-        def mock_create(*args, **kwargs):
-            return {"id": "icp-1", "name": "test-profile", "folder": "Texas", "__action__": "no_change"}
-
-        monkeypatch.setattr(scm_client, "create_ipsec_crypto_profile", mock_create)
-        test_app = typer.Typer()
-        test_app.command()(set_ipsec_crypto_profile)
-        result = runner.invoke(test_app, ["--folder", "Texas", "--name", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"])
-        assert result.exit_code == 0
-        assert "No changes needed" in result.stdout
 
     def test_delete_ipsec_crypto_profile_command(self, runner, monkeypatch):
         """Test the delete ipsec-crypto-profile command."""
@@ -1017,9 +996,7 @@ class TestIPsecCryptoProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-profile",
-             "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256",
-             "--dh-group", "group14"],
+            ["--folder", "Texas", "--name", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"],
         )
 
         assert result.exit_code == 0
@@ -1043,9 +1020,7 @@ class TestIPsecCryptoProfileCommands:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-profile",
-             "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256",
-             "--dh-group", "group14"],
+            ["--folder", "Texas", "--name", "test-profile", "--esp-encryption", "aes-256-cbc", "--esp-authentication", "sha256", "--dh-group", "group14"],
         )
 
         assert result.exit_code == 0
@@ -3023,3 +2998,116 @@ class TestDeleteConfirmations:
             assert result.exit_code == 0, f"{client_method}: --force must delete"
             assert len(calls) == 1
             assert "?" not in result.stdout, f"{client_method}: --force must not prompt"
+
+
+class TestShowJsonOutput:
+    """Every show command must emit machine-readable JSON on stdout with --output json."""
+
+    LIST_CASES = [
+        (show_ike_crypto_profile, "list_ike_crypto_profiles", "test-folder"),
+        (show_aggregate_interface, "list_aggregate_interfaces", "test-folder"),
+        (show_ike_gateway, "list_ike_gateways", "test-folder"),
+        (show_ipsec_crypto_profile, "list_ipsec_crypto_profiles", "Texas"),
+        (show_nat_rule, "list_nat_rules", "Texas"),
+        (show_dhcp_interface, "list_dhcp_interfaces", "test-folder"),
+        (show_ethernet_interface, "list_ethernet_interfaces", "test-folder"),
+        (show_layer2_subinterface, "list_layer2_subinterfaces", "test-folder"),
+        (show_layer3_subinterface, "list_layer3_subinterfaces", "test-folder"),
+        (show_loopback_interface, "list_loopback_interfaces", "test-folder"),
+        (show_tunnel_interface, "list_tunnel_interfaces", "test-folder"),
+        (show_vlan_interface, "list_vlan_interfaces", "test-folder"),
+        (show_bgp_address_family_profile, "list_bgp_address_family_profiles", "test-folder"),
+        (show_bgp_auth_profile, "list_bgp_auth_profiles", "test-folder"),
+        (show_ospf_auth_profile, "list_ospf_auth_profiles", "test-folder"),
+        (show_route_access_list, "list_route_access_lists", "test-folder"),
+        (show_route_prefix_list, "list_route_prefix_lists", "test-folder"),
+        (show_bgp_filtering_profile, "list_bgp_filtering_profiles", "test-folder"),
+        (show_bgp_redistribution_profile, "list_bgp_redistribution_profiles", "test-folder"),
+        (show_bgp_route_map, "list_bgp_route_maps", "test-folder"),
+        (show_bgp_route_map_redistribution, "list_bgp_route_map_redistributions", "test-folder"),
+        (show_dns_proxy, "list_dns_proxies", "test-folder"),
+        (show_pbf_rule, "list_pbf_rules", "test-folder"),
+        (show_qos_profile, "list_qos_profiles", "Remote Networks"),
+        (show_qos_rule, "list_qos_rules", "test-folder"),
+    ]
+
+    @pytest.mark.parametrize("command,list_method,folder", LIST_CASES, ids=[c[1] for c in LIST_CASES])
+    def test_show_list_json_round_trip(self, runner, monkeypatch, command, list_method, folder):
+        """--output json on the list path prints a JSON document that round-trips the data."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        rows = [{"id": "1", "name": "obj-1", "folder": folder}, {"id": "2", "name": "obj-2", "folder": folder}]
+        monkeypatch.setattr(scm_client, list_method, lambda **kw: [dict(r) for r in rows])
+        test_app = typer.Typer()
+        test_app.command()(command)
+        result = runner.invoke(test_app, ["--folder", folder, "--output", "json"])
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == rows
+
+    def test_show_zone_list_json_round_trip(self, runner, monkeypatch):
+        """--output json for show zone (folder-scoped legacy signature)."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        rows = [{"id": "z1", "name": "trust", "folder": "Texas", "network": {"layer3": ["ethernet1/1"]}}]
+        monkeypatch.setattr(scm_client, "list_security_zones", lambda **kw: [dict(r) for r in rows])
+        test_app = typer.Typer()
+        test_app.command()(show_zone)
+        result = runner.invoke(test_app, ["--folder", "Texas", "--output", "json"])
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == rows
+
+    def test_show_single_json_round_trip(self, runner, monkeypatch):
+        """--output json on the single-object path prints the object as JSON."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        obj = {
+            "id": "ike-1",
+            "name": "profile-1",
+            "folder": "test-folder",
+            "hash": ["sha256"],
+            "dh_group": ["group14"],
+            "encryption": ["aes-256-cbc"],
+            "lifetime": {"hours": 8},
+        }
+        monkeypatch.setattr(scm_client, "get_ike_crypto_profile", lambda **kw: dict(obj))
+        test_app = typer.Typer()
+        test_app.command()(show_ike_crypto_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "profile-1", "--output", "json"])
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == obj
+
+    def test_show_list_yaml_output(self, runner, monkeypatch):
+        """--output yaml prints a YAML document on stdout."""
+        import yaml as yaml_lib
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        rows = [{"id": "1", "name": "obj-1", "folder": "test-folder"}]
+        monkeypatch.setattr(scm_client, "list_ike_crypto_profiles", lambda **kw: [dict(r) for r in rows])
+        test_app = typer.Typer()
+        test_app.command()(show_ike_crypto_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--output", "yaml"])
+        assert result.exit_code == 0
+        assert yaml_lib.safe_load(result.stdout) == rows
+
+    def test_show_list_empty_json(self, runner, monkeypatch):
+        """--output json with no results prints an empty JSON list."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_ike_crypto_profiles", lambda **kw: [])
+        test_app = typer.Typer()
+        test_app.command()(show_ike_crypto_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--output", "json"])
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == []
+
+    def test_show_single_not_found_errors(self, runner, monkeypatch):
+        """A missing object reports an error and exits 1."""
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "get_ike_crypto_profile", lambda **kw: None)
+        test_app = typer.Typer()
+        test_app.command()(show_ike_crypto_profile)
+        result = runner.invoke(test_app, ["--folder", "test-folder", "--name", "missing"])
+        assert result.exit_code == 1
+        assert "not found" in result.output

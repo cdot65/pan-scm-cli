@@ -162,9 +162,29 @@ Options that apply to all commands:
 | Option | Description |
 | --- | --- |
 | `--help` | Show help message for any command |
-| `--version` | Show the CLI version information |
-| `--verbose` | Enable verbose output for additional details |
-| `--mock` | Run in mock mode without API connections |
+| `--version`, `-V` | Show the CLI version information |
+| `--region` | Override the SCM API region for this invocation |
+
+## Output Formats
+
+Every `show` command accepts `--output` / `-o` to choose the rendering:
+
+| Format | Description |
+| --- | --- |
+| `table` (default) | Human-readable rich table or detail view |
+| `json` | Machine-readable JSON on stdout (pipe-safe) |
+| `yaml` | Machine-readable YAML on stdout (pipe-safe) |
+
+Data goes to stdout and status messages go to stderr, so machine formats pipe cleanly:
+
+```bash
+scm show object address --folder Texas --output json | jq '.[].name'
+```
+
+## Mock Mode
+
+Set `SCM_MOCK=1` to run without credentials or API calls (testing/demos). Missing
+credentials without explicit mock mode fail with exit code 1.
 
 ## Related Topics
 

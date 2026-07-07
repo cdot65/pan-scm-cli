@@ -177,6 +177,7 @@ PORTS_OPTION = typer.Option(default_factory=list, help="List of TCP/UDP ports (e
 
 ```python
 @set_app.command("resource-name")
+@handle_command_errors("creating resource")
 def set_resource_name(
     folder: str = FOLDER_OPTION,
     name: str = NAME_OPTION,
@@ -192,38 +193,37 @@ def set_resource_name(
     scm-cli set module resource-name --folder Texas --name example --param value --tags tag1 --tags tag2
 
     """
-    try:
-        # Input validation (if using Pydantic)
-        model = ValidatorModel(
-            folder=folder,
-            name=name,
-            specific_param=specific_param,
-            description=description or "",
-            tags=tags or [],
-        )
+    # Input validation (if using Pydantic)
+    model = ValidatorModel(
+        folder=folder,
+        name=name,
+        specific_param=specific_param,
+        description=description or "",
+        tags=tags or [],
+    )
 
-        # SDK client call
-        result = scm_client.create_resource(
-            folder=folder,
-            name=name,
-            specific_param=specific_param,
-            description=description,
-            tags=tags,
-        )
+    # SDK client call
+    result = scm_client.create_resource(
+        folder=folder,
+        name=name,
+        specific_param=specific_param,
+        description=description,
+        tags=tags,
+    )
 
-        # Success output
-        typer.echo(f"Created resource: {result['name']} in folder {result['folder']}")
-        return result
-
-    except Exception as e:
-        typer.echo(f"Error creating resource: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    # Outcome message (stderr, ✓ prefix)
+    success(f"Created resource: {result['name']} in folder {result['folder']}")
+    return result
 ```
+
+Unexpected exceptions are converted to `Error creating resource: <message>` (stderr, exit 1)
+by the decorator — no `try/except` in the command body.
 
 ### Load Command Pattern
 
 ```python
 @load_app.command("resource-name")
+@handle_command_errors("loading resources")
 def load_resource_name(
     file: Path = FILE_OPTION,
     dry_run: bool = DRY_RUN_OPTION,
@@ -236,84 +236,62 @@ def load_resource_name(
     scm-cli load module resource-name --file resources.yml --dry-run
 
     """
-    try:
-        # Load and validate YAML
-        data = load_from_yaml(file)
+    # Load and validate YAML
+    data = load_from_yaml(file)
 
-        if dry_run:
-            typer.echo("Dry run mode - no changes will be made")
-            typer.echo(yaml.dump(data, default_flow_style=False))
-            return
+    if dry_run:
+        info("Dry run mode - no changes will be made")
+        typer.echo(yaml.dump(data, default_flow_style=False))
+        return
 
-        # Validate data structure
-        items = validate_yaml_file(data, ValidatorModel, "resources")
+    # Validate data structure
+    items = validate_yaml_file(data, ValidatorModel, "resources")
 
-        # Process each item
-        created_count = 0
-        for item in items:
-            try:
-                result = scm_client.create_resource(**item.model_dump())
-                typer.echo(f"Created resource: {result['name']} in folder {result['folder']}")
-                created_count += 1
-            except Exception as e:
-                typer.echo(f"Error creating {item.name}: {str(e)}", err=True)
+    # Process each item; per-item failures are reported but do not stop the batch
+    created_count = 0
+    for item in items:
+        try:
+            result = scm_client.create_resource(**item.model_dump())
+            success(f"Created resource: {result['name']} in folder {result['folder']}")
+            created_count += 1
+        except Exception as e:
+            error(f"Error creating {item.name}: {str(e)}")
 
-        # Summary
-        typer.echo(f"\nSuccessfully created {created_count} resources from {file}")
-
-    except Exception as e:
-        typer.echo(f"Error loading resources: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    # Summary
+    success(f"Successfully created {created_count} resources from {file}")
 ```
 
 ### Show Command Pattern (for objects that support listing)
 
 ```python
 @show_app.command("resource-name")
+@handle_command_errors("showing resource")
 def show_resource_name(
     folder: str = FOLDER_OPTION,
-    list_items: bool = typer.Option(False, "--list", "-l", help="List all resources"),
     name: str | None = typer.Option(None, "--name", "-n", help="Show specific resource by name"),
+    output: OutputFormat = OUTPUT_OPTION,
 ):
     """Show resource details.
 
     Examples:
     --------
-    scm-cli show module resource-name --folder Texas --list
+    scm-cli show module resource-name --folder Texas
     scm-cli show module resource-name --folder Texas --name example
+    scm-cli show module resource-name --folder Texas --output json
 
     """
-    try:
-        if list_items:
-            items = scm_client.list_resources(folder=folder)
-            if not items:
-                typer.echo(f"No resources found in folder {folder}")
-                return
+    if name:
+        item = scm_client.get_resource(folder=folder, name=name)
+        emit(item, output, title=f"Resource: {name}")
+        return item
 
-            typer.echo(f"\nResources in folder {folder}:")
-            typer.echo("-" * 50)
-            for item in items:
-                typer.echo(f"Name: {item['name']}")
-                if item.get('description'):
-                    typer.echo(f"  Description: {item['description']}")
-                typer.echo("-" * 50)
-
-        elif name:
-            item = scm_client.get_resource(folder=folder, name=name)
-            typer.echo(f"\nResource details for '{name}':")
-            typer.echo("-" * 50)
-            for key, value in item.items():
-                if value is not None and value != []:
-                    typer.echo(f"{key}: {value}")
-
-        else:
-            typer.echo("Please specify either --list or --name option")
-            raise typer.Exit(code=1)
-
-    except Exception as e:
-        typer.echo(f"Error showing resource: {str(e)}", err=True)
-        raise typer.Exit(code=1) from e
+    items = scm_client.list_resources(folder=folder)
+    emit(items, output, title=f"Resources in folder {folder}", columns=["name", "folder", "description"])
+    return items
 ```
+
+Listing is the default when `--name` is omitted; `emit` handles empty results,
+table rendering, and the `--output json|yaml` machine formats.
 
 ## Documentation Standards
 
@@ -375,28 +353,33 @@ def function_name(param1: type, param2: type | None = None) -> ReturnType:
 
 ### Standard Error Pattern
 
+Every command is wrapped with the shared decorator from `scm_cli.utils.decorators`:
+
 ```python
-try:
-    # Operation code
-    result = perform_operation()
+@set_app.command("resource-name")
+@handle_command_errors("creating resource")
+def set_resource_name(...):
+    ...
+```
 
-except ValidationError as e:
-    typer.echo(f"Validation error: {str(e)}", err=True)
-    raise typer.Exit(code=1) from e
+The decorator catches unexpected exceptions, prints `Error creating resource: <message>`
+to stderr, and exits with code 1; `typer.Exit`, `typer.Abort`, and `SystemExit` pass
+through untouched. Do not wrap command bodies in blanket `try/except Exception` — only
+catch narrower exceptions when the command can genuinely handle or enrich them (e.g.
+per-item failures in a `load` loop, reported via `error(...)` without stopping the batch).
 
-except AuthenticationError as e:
-    typer.echo(f"Authentication failed: {str(e)}", err=True)
-    raise typer.Exit(code=1) from e
+Expected failures (not-found, invalid combination of flags) are reported explicitly:
 
-except Exception as e:
-    typer.echo(f"Error [action] [resource]: {str(e)}", err=True)
-    raise typer.Exit(code=1) from e
+```python
+error(f"Resource not found: {name} in folder {folder}")
+raise typer.Exit(code=1)
 ```
 
 **Mock Mode and Authentication Handling:**
 
-- Always handle mock mode by checking for the presence of a real SDK client (`if not self.client:`) and returning realistic mock data.
-- For authentication failures, provide user-friendly error messages and actionable remediation steps (see `sdk_client.py` for examples).
+- Mock mode is explicit-only: `SCM_MOCK=1` (env) or `--mock` where offered. Missing
+  credentials must fail with exit code 1 and remediation steps — never silently fall
+  back to mock data (see `sdk_client.py`).
 - Use `typer.Exit(code=1)` for all fatal CLI errors to ensure consistent exit codes.
 
 ### SDK Client Error Handling
@@ -530,51 +513,47 @@ createdCount = 0  # Wrong style
 
 ## Output Formatting
 
-### Success Messages
+All user-facing output flows through the shared output layer, `scm_cli.utils.output`.
+Never hand-roll display code with `typer.echo` field dumps, `"-" * N` separators,
+ad-hoc `rich.Console` instances, or `json.dumps`/`yaml.dump` spliced into prose.
+
+Two rules define the layer:
+
+1. **Data goes to stdout** — tables, detail views, JSON, YAML (via `emit`).
+2. **Messages go to stderr** — success, error, warning, info (via the helpers).
+
+This keeps stdout pipe-safe: `scm show ... --output json | jq` always receives pure data.
+
+### Messages (stderr)
 
 ```python
-# Creation
-typer.echo(f"Created {resource_type}: {name} in folder {folder}")
+from ..utils.output import error, info, success, warning
 
-# Deletion
-typer.echo(f"Deleted {resource_type}: {name} from folder {folder}")
-
-# Update
-typer.echo(f"Updated {resource_type}: {name} in folder {folder}")
-
-# Bulk operations
-typer.echo(f"\nSuccessfully created {count} {resource_type}s from {file}")
+success(f"Created {resource_type}: {name} in folder {folder}")   # ✓ prefix
+success(f"Deleted {resource_type}: {name} from folder {folder}")
+info(f"No changes needed for {resource_type}: {name}")           # dim
+warning("Something non-fatal")                                    # ⚠ prefix
+error(f"{Resource} not found: {name} in folder {folder}")         # ✗ prefix, then raise typer.Exit(code=1)
 ```
 
-### Error Messages
+Unexpected exceptions are handled by `@handle_command_errors("<verb-ing> <resource>")`
+(see Error Handling) — do not wrap command bodies in blanket `try/except`.
+
+### Data (stdout)
+
+Every `show` command takes `output: OutputFormat = OUTPUT_OPTION` (`--output/-o table|json|yaml`)
+and renders through `emit`:
 
 ```python
-# Standard format
-typer.echo(f"Error {action} {resource}: {str(error)}", err=True)
+from ..utils.output import OUTPUT_OPTION, OutputFormat, emit
 
-# Specific errors
-typer.echo(f"Validation error in {resource}: {str(error)}", err=True)
-typer.echo(f"Authentication failed: {str(error)}", err=True)
-typer.echo(f"Resource not found: {name} in folder {folder}", err=True)
-```
+# List path: rich table (table format) or machine-readable document (json/yaml)
+emit(items, output, title=f"Addresses in folder {folder}", columns=["name", "folder", "ip_netmask", "description"])
 
-### List/Show Output
+# Single-object path: field-per-line detail view (table format)
+emit(item, output, title=f"Address: {name}")
 
-```python
-# List header
-typer.echo(f"\n{Resource}s in folder {folder}:")
-typer.echo("-" * 50)
-
-# Item display
-typer.echo(f"Name: {item['name']}")
-typer.echo(f"  Description: {item['description']}")
-typer.echo(f"  Type: {item['type']}")
-
-# Separator between items
-typer.echo("-" * 50)
-
-# Empty results
-typer.echo(f"No {resource}s found in folder {folder}")
+# Empty list: emit([]) prints a stderr notice for tables and a valid empty document for json/yaml
 ```
 
 ## SDK Client Patterns

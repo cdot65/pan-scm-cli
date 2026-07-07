@@ -2,10 +2,13 @@
 
 import gzip
 import json
+from unittest.mock import MagicMock, patch
 
 import pytest
+import typer
 from pydantic import ValidationError
 
+from scm_cli.commands.posture import assess_config, export_config, posture_app, score_report
 from scm_cli.utils.validators import BpaAssessRequest, BpaStatusResponse, PostureExport
 
 
@@ -101,11 +104,6 @@ class TestBpaStatusResponseValidator:
         """Test that invalid status is rejected."""
         with pytest.raises(ValidationError):
             BpaStatusResponse(status="UNKNOWN")
-
-
-from unittest.mock import MagicMock, patch
-
-import typer
 
 
 class TestSCMClientPostureMethods:
@@ -206,9 +204,6 @@ class TestSCMClientPostureMethods:
             )
             assert result["status"] == "COMPLETED"
             assert "report_url" in result["result"]
-
-
-from scm_cli.commands.posture import assess_config, export_config, posture_app, score_report
 
 
 class TestPostureCommands:

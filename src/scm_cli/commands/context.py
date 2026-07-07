@@ -5,7 +5,6 @@ allowing users to switch between different authentication profiles.
 """
 
 import typer
-from rich.console import Console
 from rich.table import Table
 
 from ..utils.context import (
@@ -16,9 +15,10 @@ from ..utils.context import (
     list_contexts,
     set_current_context,
 )
+from ..utils.decorators import handle_command_errors
+from ..utils.output import console, err_console, error, info, success, warning
 
 app = typer.Typer(help="Manage authentication contexts for multiple SCM tenants")
-console = Console()
 
 
 # =============================================================================================================================================================================================
@@ -31,8 +31,8 @@ def list_command():
     current = get_current_context()
 
     if not contexts:
-        console.print("[yellow]No contexts found.[/yellow]")
-        console.print("\nCreate a context with: [cyan]scm context create <name>[/cyan]")
+        warning("No contexts found.")
+        info("Create a context with: [cyan]scm context create <name>[/cyan]")
         return
 
     table = Table(title="SCM Authentication Contexts")
@@ -59,8 +59,8 @@ def list_command():
     console.print(table)
 
     if not current:
-        console.print("\n[yellow]No context currently active.[/yellow]")
-        console.print("Set a context with: [cyan]scm context use <name>[/cyan]")
+        warning("No context currently active.")
+        info("Set a context with: [cyan]scm context use <name>[/cyan]")
 
 
 # =============================================================================================================================================================================================
@@ -74,47 +74,47 @@ def show_command(
     ),
 ):
     """Show detailed information about a context."""
-    try:
-        # If no context specified, use current
+    # If no context specified, use current
+    if not context_name:
+        context_name = get_current_context()
         if not context_name:
-            context_name = get_current_context()
-            if not context_name:
-                console.print("[red]No current context set.[/red]")
-                return
+            error("No current context set.")
+            raise typer.Exit(code=1)
 
+    try:
         config = get_context_config(context_name)
-
-        console.print(f"\n[bold cyan]Context: {context_name}[/bold cyan]")
-        if context_name == get_current_context():
-            console.print("[green]Status: Active[/green]")
-
-        console.print("\n[bold]Configuration:[/bold]")
-
-        if config.get("access_token"):
-            console.print("  Auth Mode: Bearer Token")
-            console.print("  Access Token: [dim]***** (configured)[/dim]")
-        else:
-            console.print("  Auth Mode: OAuth2")
-            console.print(f"  Client ID: {config.get('client_id', 'Not set')}")
-            console.print(f"  TSG ID: {config.get('tsg_id', 'Not set')}")
-            if config.get("client_secret"):
-                console.print("  Client Secret: [dim]***** (configured)[/dim]")
-            else:
-                console.print("  Client Secret: [red]Not set[/red]")
-
-        console.print(f"  Log Level: {config.get('log_level', 'INFO')}")
-        console.print(f"  API Base URL: {config.get('api_base_url') or '[dim]SDK default[/dim]'}")
-        console.print(f"  Token URL: {config.get('token_url') or '[dim]SDK default[/dim]'}")
-
     except ValueError as e:
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1) from e
+        error(f"Error: {e}")
+        raise typer.Exit(code=1) from e
+
+    console.print(f"\n[bold cyan]Context: {context_name}[/bold cyan]")
+    if context_name == get_current_context():
+        console.print("[green]Status: Active[/green]")
+
+    console.print("\n[bold]Configuration:[/bold]")
+
+    if config.get("access_token"):
+        console.print("  Auth Mode: Bearer Token")
+        console.print("  Access Token: [dim]***** (configured)[/dim]")
+    else:
+        console.print("  Auth Mode: OAuth2")
+        console.print(f"  Client ID: {config.get('client_id', 'Not set')}")
+        console.print(f"  TSG ID: {config.get('tsg_id', 'Not set')}")
+        if config.get("client_secret"):
+            console.print("  Client Secret: [dim]***** (configured)[/dim]")
+        else:
+            console.print("  Client Secret: [red]Not set[/red]")
+
+    console.print(f"  Log Level: {config.get('log_level', 'INFO')}")
+    console.print(f"  API Base URL: {config.get('api_base_url') or '[dim]SDK default[/dim]'}")
+    console.print(f"  Token URL: {config.get('token_url') or '[dim]SDK default[/dim]'}")
 
 
 # =============================================================================================================================================================================================
 # create command
 # =============================================================================================================================================================================================
 @app.command("create", help="Create a new context")
+@handle_command_errors("creating context")
 def create_command(
     context_name: str = typer.Argument(..., help="Name for the new context"),
     client_id: str = typer.Option(
@@ -178,12 +178,12 @@ def create_command(
     has_bearer = access_token is not None
 
     if not has_oauth and not has_bearer:
-        console.print("[red]Error: Provide either OAuth2 credentials (--client-id, --client-secret, --tsg-id) or --access-token[/red]")
-        raise typer.Exit(1)
+        error("Error: Provide either OAuth2 credentials (--client-id, --client-secret, --tsg-id) or --access-token")
+        raise typer.Exit(code=1)
 
     if has_oauth and has_bearer:
-        console.print("[red]Error: Cannot use both OAuth2 credentials and --access-token[/red]")
-        raise typer.Exit(1)
+        error("Error: Cannot use both OAuth2 credentials and --access-token")
+        raise typer.Exit(code=1)
 
     if has_oauth and not all([client_id, client_secret, tsg_id]):
         missing = []
@@ -193,31 +193,26 @@ def create_command(
             missing.append("--client-secret")
         if not tsg_id:
             missing.append("--tsg-id")
-        console.print(f"[red]Error: Missing required OAuth2 fields: {', '.join(missing)}[/red]")
-        raise typer.Exit(1)
+        error(f"Error: Missing required OAuth2 fields: {', '.join(missing)}")
+        raise typer.Exit(code=1)
 
-    try:
-        create_context(
-            context_name=context_name,
-            client_id=client_id or "",
-            client_secret=client_secret or "",
-            tsg_id=tsg_id or "",
-            log_level=log_level,
-            access_token=access_token,
-            region=region,
-            api_base_url=api_base_url,
-            token_url=token_url,
-        )
+    create_context(
+        context_name=context_name,
+        client_id=client_id or "",
+        client_secret=client_secret or "",
+        tsg_id=tsg_id or "",
+        log_level=log_level,
+        access_token=access_token,
+        region=region,
+        api_base_url=api_base_url,
+        token_url=token_url,
+    )
 
-        console.print(f"[green]✓ Context '{context_name}' created successfully[/green]")
+    success(f"Context '{context_name}' created successfully")
 
-        if set_current:
-            set_current_context(context_name)
-            console.print(f"[green]✓ Context '{context_name}' set as current[/green]")
-
-    except Exception as e:
-        console.print(f"[red]Error creating context: {e}[/red]")
-        raise typer.Exit(1) from e
+    if set_current:
+        set_current_context(context_name)
+        success(f"Context '{context_name}' set as current")
 
 
 # =============================================================================================================================================================================================
@@ -230,26 +225,26 @@ def use_command(
     """Switch to a different authentication context."""
     try:
         set_current_context(context_name)
-        console.print(f"[green]✓ Switched to context '{context_name}'[/green]")
+        success(f"Switched to context '{context_name}'")
 
         # Show a summary of the context
         config = get_context_config(context_name)
-        console.print(f"\n[dim]Client ID: {config.get('client_id', 'Not set')}[/dim]")
-        console.print(f"[dim]TSG ID: {config.get('tsg_id', 'Not set')}[/dim]")
+        info(f"Client ID: {config.get('client_id', 'Not set')}")
+        info(f"TSG ID: {config.get('tsg_id', 'Not set')}")
 
     except ValueError as e:
-        console.print(f"[red]Error: {e}[/red]")
+        error(f"Error: {e}")
 
         # Show available contexts
         contexts = list_contexts()
         if contexts:
-            console.print("\nAvailable contexts:")
+            err_console.print("\nAvailable contexts:")
             for ctx in contexts:
-                console.print(f"  - {ctx}")
+                err_console.print(f"  - {ctx}")
         else:
-            console.print("\nNo contexts found. Create one with: [cyan]scm context create <name>[/cyan]")
+            err_console.print("\nNo contexts found. Create one with: [cyan]scm context create <name>[/cyan]")
 
-        raise typer.Exit(1) from e
+        raise typer.Exit(code=1) from e
 
 
 # =============================================================================================================================================================================================
@@ -266,24 +261,24 @@ def delete_command(
     ),
 ):
     """Delete an authentication context."""
+    # Confirmation prompt
+    if not force:
+        confirm = typer.confirm(f"Are you sure you want to delete context '{context_name}'?")
+        if not confirm:
+            warning("Deletion cancelled")
+            return
+
+    # Check if it's the current context
+    if get_current_context() == context_name:
+        warning(f"Warning: '{context_name}' is the current context. It will be unset.")
+
     try:
-        # Confirmation prompt
-        if not force:
-            confirm = typer.confirm(f"Are you sure you want to delete context '{context_name}'?")
-            if not confirm:
-                console.print("[yellow]Deletion cancelled[/yellow]")
-                return
-
-        # Check if it's the current context
-        if get_current_context() == context_name:
-            console.print(f"[yellow]Warning: '{context_name}' is the current context. It will be unset.[/yellow]")
-
         delete_context(context_name)
-        console.print(f"[green]✓ Context '{context_name}' deleted[/green]")
-
     except ValueError as e:
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1) from e
+        error(f"Error: {e}")
+        raise typer.Exit(code=1) from e
+
+    success(f"Context '{context_name}' deleted")
 
 
 # =============================================================================================================================================================================================
@@ -300,14 +295,14 @@ def current_command():
         # Show basic info
         try:
             config = get_context_config(current)
-            console.print(f"\n[dim]Client ID: {config.get('client_id', 'Not set')}[/dim]")
-            console.print(f"[dim]TSG ID: {config.get('tsg_id', 'Not set')}[/dim]")
+            info(f"Client ID: {config.get('client_id', 'Not set')}")
+            info(f"TSG ID: {config.get('tsg_id', 'Not set')}")
         except Exception:
-            console.print("[red]Error reading context configuration[/red]")
+            warning("Error reading context configuration")
     else:
-        console.print("[yellow]No current context set[/yellow]")
-        console.print("\nSet a context with: [cyan]scm context use <name>[/cyan]")
-        console.print("Or create one with: [cyan]scm context create <name>[/cyan]")
+        warning("No current context set")
+        info("Set a context with: [cyan]scm context use <name>[/cyan]")
+        info("Or create one with: [cyan]scm context create <name>[/cyan]")
 
 
 # =============================================================================================================================================================================================
@@ -342,24 +337,24 @@ def test_command(
         if not context_name:
             context_name = original_context
             if not context_name:
-                console.print("[red]No context specified and no current context set.[/red]")
-                console.print("Specify a context: [cyan]scm context test <name>[/cyan]")
-                console.print("Or set a current context: [cyan]scm context use <name>[/cyan]")
-                raise typer.Exit(1)
+                error("No context specified and no current context set.")
+                info("Specify a context: [cyan]scm context test <name>[/cyan]")
+                info("Or set a current context: [cyan]scm context use <name>[/cyan]")
+                raise typer.Exit(code=1)
 
         # Get context configuration
         try:
             config = get_context_config(context_name)
         except ValueError as e:
-            console.print(f"[red]Error: {e}[/red]")
-            raise typer.Exit(1) from e
+            error(f"Error: {e}")
+            raise typer.Exit(code=1) from e
 
-        console.print(f"[cyan]Testing authentication for context: {context_name}[/cyan]")
+        info(f"Testing authentication for context: {context_name}")
 
         if mock:
-            console.print("[green]✓ Authentication simulation successful (mock mode)[/green]")
-            console.print(f"  Client ID: {config.get('client_id', 'Not set')}")
-            console.print(f"  TSG ID: {config.get('tsg_id', 'Not set')}")
+            success("Authentication simulation successful (mock mode)")
+            info(f"  Client ID: {config.get('client_id', 'Not set')}")
+            info(f"  TSG ID: {config.get('tsg_id', 'Not set')}")
             return
 
         # Test with real API
@@ -379,8 +374,8 @@ def test_command(
                     missing.append("client_secret")
                 if not config.get("tsg_id"):
                     missing.append("tsg_id")
-                console.print(f"[red]✗ Missing required fields: {', '.join(missing)}[/red]")
-                raise typer.Exit(1)
+                error(f"Missing required fields: {', '.join(missing)}")
+                raise typer.Exit(code=1)
 
             # Initialize the SCM client with context credentials
             scm_kwargs = {
@@ -396,39 +391,39 @@ def test_command(
                 scm_kwargs["token_url"] = config["token_url"]
             client = Scm(**scm_kwargs)
 
-            console.print("[green]✓ Authentication successful![/green]")
-            console.print(f"  Client ID: {config.get('client_id')}")
-            console.print(f"  TSG ID: {config.get('tsg_id')}")
+            success("Authentication successful!")
+            info(f"  Client ID: {config.get('client_id')}")
+            info(f"  TSG ID: {config.get('tsg_id')}")
 
             # Try to list address objects as a connectivity test
             try:
-                with console.status("[dim]Verifying API connectivity...[/dim]"):
+                with err_console.status("[dim]Verifying API connectivity...[/dim]"):
                     address_objects = client.address.list(folder="Shared")
 
-                console.print(f"[green]✓ API connectivity verified[/green] (found {len(address_objects)} address objects in Shared folder)")
+                success(f"API connectivity verified (found {len(address_objects)} address objects in Shared folder)")
             except Exception as conn_error:
-                console.print("[yellow]⚠ Authentication successful but could not verify API connectivity:[/yellow]")
-                console.print(f"  {str(conn_error)}")
+                warning("Authentication successful but could not verify API connectivity:")
+                err_console.print(f"  {str(conn_error)}")
 
         except (APIError, InvalidClientError) as e:
             error_msg = str(e)
             if "invalid_client" in error_msg or "Client authentication failed" in error_msg:
-                console.print("[red]✗ Authentication failed: Invalid client credentials[/red]")
-                console.print("\n[yellow]Please verify your credentials:[/yellow]")
-                console.print(f"  • Client ID: {config.get('client_id')}")
-                console.print(f"  • TSG ID: {config.get('tsg_id')}")
-                console.print("  • Client Secret: ******* (hidden)")
-                console.print("\n[cyan]To update credentials:[/cyan]")
-                console.print(f"  scm context create {context_name} --client-id <id> --client-secret <secret> --tsg-id <tsg>")
+                error("Authentication failed: Invalid client credentials")
+                warning("Please verify your credentials:")
+                err_console.print(f"  • Client ID: {config.get('client_id')}")
+                err_console.print(f"  • TSG ID: {config.get('tsg_id')}")
+                err_console.print("  • Client Secret: ******* (hidden)")
+                info("To update credentials:")
+                info(f"  scm context create {context_name} --client-id <id> --client-secret <secret> --tsg-id <tsg>")
             else:
-                console.print(f"[red]✗ Authentication failed: {error_msg}[/red]")
-            raise typer.Exit(1) from e
+                error(f"Authentication failed: {error_msg}")
+            raise typer.Exit(code=1) from e
         except Exception as e:
-            console.print(f"[red]✗ Authentication failed: {str(e)}[/red]")
-            raise typer.Exit(1) from e
+            error(f"Authentication failed: {str(e)}")
+            raise typer.Exit(code=1) from e
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(f"[red]Error during test: {str(e)}[/red]")
-        raise typer.Exit(1) from e
+        error(f"Error during test: {str(e)}")
+        raise typer.Exit(code=1) from e

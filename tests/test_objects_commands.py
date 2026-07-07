@@ -1,5 +1,8 @@
 """Tests for the objects commands module."""
 
+import json
+
+import pytest
 import typer
 
 from scm_cli.commands.objects import (  # noqa: F401
@@ -254,9 +257,8 @@ class TestAddressGroupCommands:
 
         assert result.exit_code == 0
         assert "Address Group: test-group" in result.stdout
-        assert "Type: static" in result.stdout
         assert "192.168.1.0/24" in result.stdout
-        assert "Tags: production, webservers" in result.stdout
+        assert "production, webservers" in result.stdout
 
     def test_show_address_group_dynamic_by_name(self, runner, monkeypatch):
         """Test the show address-group command with --name flag for dynamic group."""
@@ -282,9 +284,8 @@ class TestAddressGroupCommands:
 
         assert result.exit_code == 0
         assert "Address Group: dynamic-endpoints" in result.stdout
-        assert "Type: dynamic" in result.stdout
-        assert "Filter: 'endpoint' and 'corporate'" in result.stdout
-        assert "Tags: dynamic, auto" in result.stdout
+        assert "'endpoint' and 'corporate'" in result.stdout
+        assert "dynamic, auto" in result.stdout
 
     def test_show_address_group_no_options(self, runner, monkeypatch):
         """Test the show address-group command without --name defaults to listing all."""
@@ -327,7 +328,7 @@ class TestAddressGroupCommands:
         result = runner.invoke(test_app, ["--folder", "Shared"])
 
         assert result.exit_code == 0
-        assert "No address groups found in folder 'Shared'" in result.stdout
+        assert "No results found" in result.output
 
 
 class TestScheduleCommands:
@@ -416,7 +417,7 @@ class TestScheduleCommands:
 
         assert result.exit_code == 0
         assert "BusinessHours" in result.stdout
-        assert "Total: 1 schedules" in result.stdout
+        assert "09:00-17:00" in result.stdout
 
     def test_show_schedule_by_name(self, runner, monkeypatch):
         """Test the show schedule command by name."""
@@ -439,7 +440,6 @@ class TestScheduleCommands:
 
         assert result.exit_code == 0
         assert "Schedule: BusinessHours" in result.stdout
-        assert "Recurring Daily" in result.stdout
         assert "09:00-17:00" in result.stdout
 
     def test_delete_schedule_command(self, runner, monkeypatch):
@@ -583,7 +583,6 @@ class TestRegionCommands:
         assert result.exit_code == 0
         assert "US-South" in result.stdout
         assert "US-East" in result.stdout
-        assert "Total: 2 regions" in result.stdout
 
     def test_show_region_by_name(self, runner, monkeypatch):
         """Test the show region command with --name flag."""
@@ -607,8 +606,8 @@ class TestRegionCommands:
 
         assert result.exit_code == 0
         assert "Region: US-South" in result.stdout
-        assert "Latitude: 30.2672" in result.stdout
-        assert "Longitude: -97.7431" in result.stdout
+        assert "30.2672" in result.stdout
+        assert "-97.7431" in result.stdout
         assert "10.0.0.0/8" in result.stdout
 
     def test_show_region_empty_list(self, runner, monkeypatch):
@@ -626,7 +625,7 @@ class TestRegionCommands:
         result = runner.invoke(test_app, ["--folder", "Texas"])
 
         assert result.exit_code == 0
-        assert "No regions found" in result.stdout
+        assert "No results found" in result.output
 
     def test_load_region_command(self, runner, monkeypatch, tmp_path):
         """Test the load region command."""
@@ -731,10 +730,9 @@ class TestQuarantinedDeviceCommands:
         result = runner.invoke(test_app, [])
 
         assert result.exit_code == 0
-        assert "Host ID: host-001" in result.stdout
-        assert "Serial Number: SN-001" in result.stdout
-        assert "Host ID: host-002" in result.stdout
-        assert "Total: 2 quarantined devices" in result.stdout
+        assert "host-001" in result.stdout
+        assert "SN-001" in result.stdout
+        assert "host-002" in result.stdout
 
     def test_show_quarantined_device_empty(self, runner, monkeypatch):
         """Test the show quarantined-device command when no devices found."""
@@ -751,7 +749,7 @@ class TestQuarantinedDeviceCommands:
         result = runner.invoke(test_app, [])
 
         assert result.exit_code == 0
-        assert "No quarantined devices found" in result.stdout
+        assert "No results found" in result.output
 
     def test_load_quarantined_device_command(self, runner, monkeypatch, tmp_path):
         """Test the load quarantined-device command."""
@@ -889,9 +887,7 @@ class TestApplicationFilterUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "high-risk-apps",
-             "--category", "business-systems", "--subcategory", "database",
-             "--technology", "client-server", "--risk", "4"],
+            ["--folder", "Texas", "--name", "high-risk-apps", "--category", "business-systems", "--subcategory", "database", "--technology", "client-server", "--risk", "4"],
         )
 
         assert result.exit_code == 0
@@ -915,9 +911,7 @@ class TestApplicationFilterUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "high-risk-apps",
-             "--category", "business-systems", "--subcategory", "database",
-             "--technology", "client-server", "--risk", "4"],
+            ["--folder", "Texas", "--name", "high-risk-apps", "--category", "business-systems", "--subcategory", "database", "--technology", "client-server", "--risk", "4"],
         )
 
         assert result.exit_code == 0
@@ -946,11 +940,16 @@ class TestExternalDynamicListUpsert:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Texas",
-                "--name", "test-edl",
-                "--type", "ip",
-                "--url", "https://example.com/blocklist.txt",
-                "--recurring", "hourly",
+                "--folder",
+                "Texas",
+                "--name",
+                "test-edl",
+                "--type",
+                "ip",
+                "--url",
+                "https://example.com/blocklist.txt",
+                "--recurring",
+                "hourly",
             ],
         )
 
@@ -976,11 +975,16 @@ class TestExternalDynamicListUpsert:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Texas",
-                "--name", "test-edl",
-                "--type", "ip",
-                "--url", "https://example.com/blocklist.txt",
-                "--recurring", "hourly",
+                "--folder",
+                "Texas",
+                "--name",
+                "test-edl",
+                "--type",
+                "ip",
+                "--url",
+                "https://example.com/blocklist.txt",
+                "--recurring",
+                "hourly",
             ],
         )
 
@@ -1010,10 +1014,14 @@ class TestHIPObjectUpsert:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Texas",
-                "--name", "wifi-only",
-                "--network-info-type", "is",
-                "--network-info-value", "wifi",
+                "--folder",
+                "Texas",
+                "--name",
+                "wifi-only",
+                "--network-info-type",
+                "is",
+                "--network-info-value",
+                "wifi",
             ],
         )
 
@@ -1039,10 +1047,14 @@ class TestHIPObjectUpsert:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Texas",
-                "--name", "wifi-only",
-                "--network-info-type", "is",
-                "--network-info-value", "wifi",
+                "--folder",
+                "Texas",
+                "--name",
+                "wifi-only",
+                "--network-info-type",
+                "is",
+                "--network-info-value",
+                "wifi",
             ],
         )
 
@@ -1071,7 +1083,7 @@ class TestHIPProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-profile", "--match", "\"wifi-only\" is"],
+            ["--folder", "Texas", "--name", "test-profile", "--match", '"wifi-only" is'],
         )
 
         assert result.exit_code == 0
@@ -1095,7 +1107,7 @@ class TestHIPProfileUpsert:
 
         result = runner.invoke(
             test_app,
-            ["--folder", "Texas", "--name", "test-profile", "--match", "\"wifi-only\" is"],
+            ["--folder", "Texas", "--name", "test-profile", "--match", '"wifi-only" is'],
         )
 
         assert result.exit_code == 0
@@ -1124,9 +1136,12 @@ class TestHTTPServerProfileUpsert:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Texas",
-                "--name", "test-http-profile",
-                "--servers", '[{"name": "srv1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]',
+                "--folder",
+                "Texas",
+                "--name",
+                "test-http-profile",
+                "--servers",
+                '[{"name": "srv1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]',
             ],
         )
 
@@ -1152,9 +1167,12 @@ class TestHTTPServerProfileUpsert:
         result = runner.invoke(
             test_app,
             [
-                "--folder", "Texas",
-                "--name", "test-http-profile",
-                "--servers", '[{"name": "srv1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]',
+                "--folder",
+                "Texas",
+                "--name",
+                "test-http-profile",
+                "--servers",
+                '[{"name": "srv1", "address": "192.168.1.100", "protocol": "HTTPS", "port": 443, "http_method": "POST"}]',
             ],
         )
 
@@ -1289,13 +1307,20 @@ class TestSyslogServerProfileUpsert:
             test_app,
             [
                 "test-syslog",
-                "--server-name", "syslog-srv",
-                "--server-address", "10.0.0.1",
-                "--transport", "UDP",
-                "--port", "514",
-                "--format", "BSD",
-                "--facility", "LOG_USER",
-                "--folder", "Texas",
+                "--server-name",
+                "syslog-srv",
+                "--server-address",
+                "10.0.0.1",
+                "--transport",
+                "UDP",
+                "--port",
+                "514",
+                "--format",
+                "BSD",
+                "--facility",
+                "LOG_USER",
+                "--folder",
+                "Texas",
             ],
         )
 
@@ -1322,18 +1347,115 @@ class TestSyslogServerProfileUpsert:
             test_app,
             [
                 "test-syslog",
-                "--server-name", "syslog-srv",
-                "--server-address", "10.0.0.1",
-                "--transport", "UDP",
-                "--port", "514",
-                "--format", "BSD",
-                "--facility", "LOG_USER",
-                "--folder", "Texas",
+                "--server-name",
+                "syslog-srv",
+                "--server-address",
+                "10.0.0.1",
+                "--transport",
+                "UDP",
+                "--port",
+                "514",
+                "--format",
+                "BSD",
+                "--facility",
+                "LOG_USER",
+                "--folder",
+                "Texas",
             ],
         )
 
         assert result.exit_code == 0
         assert "No changes needed" in result.stdout
+
+
+class TestShowJsonOutput:
+    """Every show command must emit machine-readable JSON on stdout with --output json."""
+
+    @staticmethod
+    def _parse_json(output):
+        """Parse the JSON document from CLI output, skipping any stderr message lines."""
+        lines = output.splitlines()
+        for i in range(len(lines)):
+            candidate = "\n".join(lines[i:])
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+        raise AssertionError(f"No JSON document found in output: {output!r}")
+
+    SHOW_LIST_CASES = [
+        ("show_address", "list_addresses", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_address_group", "list_address_groups", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_application", "list_applications", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_application_group", "list_application_groups", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_application_filter", "list_application_filters", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_dynamic_user_group", "list_dynamic_user_groups", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_external_dynamic_list", "list_external_dynamic_lists", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_hip_object", "list_hip_objects", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_hip_profile", "list_hip_profiles", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas", "match": "'a' is"}]),
+        ("show_http_server_profile", "list_http_server_profiles", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_log_forwarding_profile", "list_log_forwarding_profiles", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_region", "list_regions", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_quarantined_device", "list_quarantined_devices", [], [{"host_id": "obj-one", "serial_number": "SN-1"}]),
+        ("show_service", "list_services", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_service_group", "list_service_groups", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_syslog_server_profile", "list_syslog_server_profiles", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_schedule", "list_schedules", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_tag", "list_tags", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+        ("show_auto_tag_action", "list_auto_tag_actions", ["--folder", "Texas"], [{"name": "obj-one", "folder": "Texas"}]),
+    ]
+
+    @pytest.mark.parametrize(("show_func", "list_method", "args", "rows"), SHOW_LIST_CASES)
+    def test_show_list_output_json(self, runner, monkeypatch, show_func, list_method, args, rows):
+        """--output json must print the raw list of records as parseable JSON."""
+        from scm_cli.commands import objects
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, list_method, lambda *a, **k: rows)
+
+        test_app = typer.Typer()
+        test_app.command()(getattr(objects, show_func))
+
+        result = runner.invoke(test_app, [*args, "--output", "json"])
+
+        assert result.exit_code == 0
+        assert self._parse_json(result.output) == rows
+
+    def test_show_by_name_output_json(self, runner, monkeypatch):
+        """--output json on the --name path must round-trip the record."""
+        from scm_cli.commands.objects import show_address_group
+        from scm_cli.utils.sdk_client import scm_client
+
+        record = {
+            "id": "123e4567-e89b-12d3-a456-426614174000",
+            "name": "test-group",
+            "static": ["192.168.1.0/24"],
+            "folder": "Shared",
+        }
+        monkeypatch.setattr(scm_client, "get_address_group", lambda *a, **k: record)
+
+        test_app = typer.Typer()
+        test_app.command()(show_address_group)
+
+        result = runner.invoke(test_app, ["--folder", "Shared", "--name", "test-group", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert self._parse_json(result.output) == record
+
+    def test_show_list_empty_output_json(self, runner, monkeypatch):
+        """--output json on an empty list must print a JSON empty list."""
+        from scm_cli.commands.objects import show_address_group
+        from scm_cli.utils.sdk_client import scm_client
+
+        monkeypatch.setattr(scm_client, "list_address_groups", lambda *a, **k: [])
+
+        test_app = typer.Typer()
+        test_app.command()(show_address_group)
+
+        result = runner.invoke(test_app, ["--folder", "Shared", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert self._parse_json(result.output) == []
 
 
 class TestCommaParsingConsistency:

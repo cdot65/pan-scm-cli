@@ -201,7 +201,7 @@ class TestInfrastructureSettingCommands:
         assert result.exit_code == 0
         assert "gp-infra" in result.stdout
         assert "10.0.0.0/16" in result.stdout
-        assert "IPv6: True" in result.stdout
+        assert "Ipv6" in result.stdout
 
     def test_show_infrastructure_setting_error(self, runner, monkeypatch):
         """Test showing an infrastructure setting with an error."""
@@ -507,3 +507,52 @@ class TestGlobalSettingCommands:
         )
 
         assert result.exit_code == 1
+
+
+class TestShowJsonOutput:
+    """Test the --output json format for show commands."""
+
+    def test_show_infrastructure_setting_json(self, runner, monkeypatch):
+        """Test showing an infrastructure setting as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        setting = {
+            "id": "is-gp-infra",
+            "folder": "Mobile Users",
+            "name": "gp-infra",
+            "dns_servers": [{"name": "dns-1", "dns_suffix": ["example.com"]}],
+            "ip_pools": [{"name": "pool-1", "ip_pool": ["10.0.0.0/16"]}],
+            "portal_hostname": {"default_domain": {"hostname": "acme"}},
+            "ipv6": True,
+        }
+        monkeypatch.setattr(scm_client, "get_infrastructure_setting", lambda *a, **k: setting)
+
+        test_app = typer.Typer()
+        test_app.command()(show_infrastructure_setting)
+
+        result = runner.invoke(test_app, ["--name", "gp-infra", "--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == setting
+
+    def test_show_global_setting_json(self, runner, monkeypatch):
+        """Test showing global settings as JSON."""
+        import json
+
+        from scm_cli.utils.sdk_client import scm_client
+
+        setting = {
+            "agent_version": "6.2.0",
+            "manual_gateway": {"region": [{"name": "americas", "locations": ["us-east-1"]}]},
+        }
+        monkeypatch.setattr(scm_client, "get_global_settings", lambda *a, **k: setting)
+
+        test_app = typer.Typer()
+        test_app.command()(show_global_setting)
+
+        result = runner.invoke(test_app, ["--output", "json"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == setting

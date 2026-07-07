@@ -6,6 +6,7 @@ This module tests network commands work with the scm_client mock.
 from unittest.mock import patch
 
 import pytest
+
 from scm_cli.main import app
 
 
