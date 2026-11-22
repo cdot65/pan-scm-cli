@@ -47,6 +47,16 @@ scm set sase service-connection NAME [OPTIONS]
 | `--qos-enable` | Enable QoS | No |
 | `--qos-profile TEXT` | QoS profile name | No |
 
+:::warning Folder scope for dependencies
+The CLI creates every service connection in the `Service Connections` folder, because the SCM API requires that location. Referenced objects must live in the same folder:
+
+- The IPsec tunnel passed with `--ipsec-tunnel` must exist in `Service Connections`, not in a user folder such as `Texas`.
+- The IKE gateway the tunnel depends on must also be in `Service Connections`.
+- A backup connection passed with `--backup-sc` must be a service connection in `Service Connections`.
+
+If a dependency lives in another folder, the SCM API rejects the request with errors such as `ipsec-tunnel 'X' is not a valid reference` or `INVALID_REFERENCE`. Move the gateway and tunnel into `Service Connections` first, then create the service connection.
+:::
+
 ### Examples
 
 #### Create a Basic Service Connection
@@ -302,6 +312,8 @@ Successfully backed up 3 service connections to sc-backup.yaml
 4. **Secure BGP Secrets**: Store BGP authentication secrets securely and rotate them regularly to maintain routing security.
 5. **Apply QoS Profiles**: Assign appropriate QoS profiles to prioritize business-critical traffic over less important flows.
 6. **Plan Subnets Carefully**: Document subnet allocations across all service connections to avoid overlaps and ensure proper routing.
+7. **Create Dependencies in the Service Connections Folder**: Create the IKE gateway and IPsec tunnel in `Service Connections` before you reference them, so service connection creation does not fail with `INVALID_REFERENCE`.
+
 
 ## Related Topics
 
